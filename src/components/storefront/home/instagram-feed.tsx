@@ -1,0 +1,60 @@
+"use client";
+
+import Image from "next/image";
+import { motion } from "framer-motion";
+const InstagramIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+);
+
+const posts = Array.from({ length: 6 }, (_, i) => ({
+  id: `ig-${i}`,
+  image: `https://picsum.photos/seed/ig-${i}/400/400`,
+}));
+
+export function InstagramFeed() {
+  return (
+    <section className="py-16 bg-pearl">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center mb-10"
+        >
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <InstagramIcon className="h-5 w-5 text-secondary" />
+            <span className="text-sm font-medium text-secondary">@chinexa.bd</span>
+          </div>
+          <h2 className="font-heading text-3xl sm:text-4xl font-semibold text-charcoal">
+            Follow Our Journey
+          </h2>
+        </motion.div>
+
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3">
+          {posts.map((post, index) => (
+            <motion.a
+              key={post.id}
+              href="#"
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: index * 0.05 }}
+              className="group relative aspect-square overflow-hidden rounded-xl"
+            >
+              <Image
+                src={post.image}
+                alt="Instagram post"
+                fill
+                className="object-cover transition-transform duration-500 group-hover:scale-110"
+                sizes="(max-width: 640px) 33vw, 16vw"
+              />
+              <div className="absolute inset-0 bg-charcoal/0 group-hover:bg-charcoal/30 transition-colors flex items-center justify-center">
+                <InstagramIcon className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </motion.a>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}

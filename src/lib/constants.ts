@@ -1,0 +1,57 @@
+export const SITE_NAME = "ChineXa";
+export const SITE_DESCRIPTION = "Premium Beauty & Lifestyle";
+export const SITE_URL = "https://chinexa.com";
+export const CURRENCY = { code: "BDT", symbol: "৳", locale: "en-BD" };
+export const PHONE_PREFIX = "+880";
+export const DEFAULT_OTP = "123456";
+
+export const ITEMS_PER_PAGE = 12;
+export const MAX_COMPARE_ITEMS = 4;
+export const MAX_CART_QUANTITY = 10;
+
+export const ORDER_STATUSES = [
+  "pending",
+  "confirmed",
+  "processing",
+  "shipped",
+  "on_delivery",
+  "received",
+  "not_received",
+] as const;
+
+export const PAYMENT_METHODS = [
+  { id: "cod", name: "Cash on Delivery", icon: "Banknote" },
+  { id: "bkash", name: "bKash", icon: "Smartphone" },
+  { id: "nagad", name: "Nagad", icon: "Smartphone" },
+  { id: "rocket", name: "Rocket", icon: "Smartphone" },
+  { id: "card", name: "Credit/Debit Card", icon: "CreditCard" },
+] as const;
+
+export const DIVISIONS = [
+  "Dhaka",
+  "Chittagong",
+  "Rajshahi",
+  "Khulna",
+  "Barisal",
+  "Sylhet",
+  "Rangpur",
+  "Mymensingh",
+] as const;
+
+export const PRODUCT_CATEGORIES = [
+  { id: "skincare", name: "Premium Skincare", slug: "skincare" },
+  { id: "bags", name: "Bags", slug: "bags" },
+  { id: "jewels", name: "Jewels", slug: "jewels" },
+  { id: "perfumes", name: "Perfumes", slug: "perfumes" },
+  { id: "shoes", name: "Shoes", slug: "shoes" },
+  { id: "imported", name: "Imported Products", slug: "imported" },
+  { id: "preorder", name: "Pre-Orders", slug: "pre-orders" },
+] as const;
+
+export const BREAKPOINTS = {
+  sm: 640,
+  md: 768,
+  lg: 1024,
+  xl: 1280,
+  "2xl": 1440,
+} as const;

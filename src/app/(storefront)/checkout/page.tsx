@@ -1,0 +1,594 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
+import { motion } from "framer-motion";
+import { CreditCard, Truck, FileText, CheckCircle2, MapPin, Clock, Tag, X, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { useCartStore } from "@/stores/cart.store";
+import { triggerDashboardRefresh } from "@/lib/dashboard-events";
+import { useDeliveryStore } from "@/stores/delivery.store";
+import { formatCurrency, cn } from "@/lib/utils";
+import { PAYMENT_METHODS } from "@/lib/constants";
+import { DIVISIONS, DISTRICTS } from "@/data/constants/bangladeshi-data";
+
+const steps = [
+  { id: 1, label: "Information", icon: FileText },
+  { id: 2, label: "Shipping", icon: Truck },
+  { id: 3, label: "Payment", icon: CreditCard },
+  { id: 4, label: "Done", icon: CheckCircle2 },
+];
+
+// Map division to delivery zone id
+const divisionToZone: Record<string, string> = {
+  Dhaka: "dhaka-city",
+  Chittagong: "chittagong",
+  Rajshahi: "rajshahi",
+  Khulna: "khulna",
+  Barisal: "barisal",
+  Sylhet: "sylhet",
+  Rangpur: "rangpur",
+  Mymensingh: "mymensingh",
+};
+
+export default function CheckoutPage() {
+  const router = useRouter();
+  const { items, getSubtotal, clearCart, couponCode, couponDiscount, applyCoupon, removeCoupon } = useCartStore();
+  const { freeDeliveryEnabled, freeDeliveryThreshold, zones } = useDeliveryStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const [step, setStep] = useState(1);
+  const [paymentMethod, setPaymentMethod] = useState("cod");
+  const [orderNumber, setOrderNumber] = useState("");
+  const [placing, setPlacing] = useState(false);
+  const [validationError, setValidationError] = useState("");
+
+  // Coupon
+  const [couponInput, setCouponInput] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState("");
+
+  const handleApplyCoupon = async () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+    setCouponLoading(true);
+    setCouponError("");
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, order_total: getSubtotal() }),
+      });
+      const data = await res.json();
+      if (data.valid) {
+        applyCoupon(code, data.discount);
+        setCouponInput("");
+      } else {
+        setCouponError(data.message || "Invalid coupon");
+      }
+    } catch {
+      setCouponError("Failed to validate coupon");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    removeCoupon();
+    setCouponError("");
+  };
+
+  // Contact
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+
+  // Billing
+  const [billingAddress, setBillingAddress] = useState("");
+  const [billingAddress2, setBillingAddress2] = useState("");
+  const [billingCity, setBillingCity] = useState("");
+  const [billingPostal, setBillingPostal] = useState("");
+  const [billingDivision, setBillingDivision] = useState("");
+  const [billingDistrict, setBillingDistrict] = useState("");
+
+  // Shipping
+  const [differentShipping, setDifferentShipping] = useState(false);
+  const [shippingName, setShippingName] = useState("");
+  const [shippingPhone, setShippingPhone] = useState("");
+  const [shippingAddress, setShippingAddress] = useState("");
+  const [shippingAddress2, setShippingAddress2] = useState("");
+  const [shippingCity, setShippingCity] = useState("");
+  const [shippingPostal, setShippingPostal] = useState("");
+  const [shippingDivision, setShippingDivision] = useState("");
+  const [shippingDistrict, setShippingDistrict] = useState("");
+
+  // Determine active division for shipping calc
+  const activeDivision = differentShipping ? shippingDivision : billingDivision;
+  const activeDistrict = differentShipping ? shippingDistrict : billingDistrict;
+
+  // Calculate shipping from delivery zones
+  const getShippingCost = () => {
+    if (!mounted || !activeDivision) return 0;
+    const subtotal = getSubtotal();
+    if (freeDeliveryEnabled && subtotal >= freeDeliveryThreshold) return 0;
+
+    const zoneId = divisionToZone[activeDivision] || "dhaka-city";
+    // Check if Dhaka district is not Dhaka city — use suburbs
+    if (activeDivision === "Dhaka" && activeDistrict && activeDistrict !== "Dhaka") {
+      const subZone = zones.find((z) => z.id === "dhaka-sub");
+      if (subZone?.isActive) return subZone.charge;
+    }
+    const zone = zones.find((z) => z.id === zoneId);
+    return zone?.charge || 120;
+  };
+
+  const getDeliveryTime = () => {
+    if (!activeDivision) return "3-5";
+    const zoneId = divisionToZone[activeDivision] || "dhaka-city";
+    if (activeDivision === "Dhaka" && activeDistrict && activeDistrict !== "Dhaka") {
+      const subZone = zones.find((z) => z.id === "dhaka-sub");
+      if (subZone) return subZone.estimatedDays;
+    }
+    const zone = zones.find((z) => z.id === zoneId);
+    return zone?.estimatedDays || "3-5";
+  };
+
+  const shippingCost = getShippingCost();
+  const subtotal = getSubtotal();
+  const isFreeShipping = freeDeliveryEnabled && subtotal >= freeDeliveryThreshold;
+  const total = subtotal + shippingCost;
+  const finalTotal = Math.max(0, total - (couponDiscount || 0));
+
+  const handlePlaceOrder = async () => {
+    setPlacing(true);
+    try {
+      const billingAddr = {
+        name: customerName, phone: customerPhone, email: customerEmail || null,
+        address_line_1: billingAddress, address_line_2: billingAddress2 || null,
+        city: billingCity || null, district: billingDistrict || null,
+        division: billingDivision || null, postal_code: billingPostal || null,
+      };
+
+      const shippingAddr = differentShipping ? {
+        name: shippingName || customerName, phone: shippingPhone || customerPhone,
+        address_line_1: shippingAddress, address_line_2: shippingAddress2 || null,
+        city: shippingCity || null, district: shippingDistrict || null,
+        division: shippingDivision || null, postal_code: shippingPostal || null,
+      } : billingAddr;
+
+      const orderItems = items.map((item) => ({
+        product_id: item.product_id,
+        product_name: item.product_name,
+        product_image: item.product_image,
+        product_slug: item.product_slug,
+        variant: item.variant_name || null,
+        quantity: item.quantity,
+        unit_price: item.price,
+        total_price: item.price * item.quantity,
+      }));
+
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer_name: customerName,
+          customer_phone: customerPhone,
+          subtotal,
+          shipping_cost: shippingCost,
+          discount: couponDiscount || 0,
+          tax: 0,
+          total: finalTotal,
+          payment_method: paymentMethod,
+          payment_status: "pending",
+          coupon_code: couponCode || null,
+          items: orderItems,
+          billing_address: billingAddr,
+          shipping_address: shippingAddr,
+        }),
+      });
+
+      const data = await res.json();
+      setOrderNumber(data.order_number || data.id || "");
+      triggerDashboardRefresh();
+      setStep(4);
+      setTimeout(() => clearCart(), 2000);
+    } catch {
+      setStep(4);
+      setTimeout(() => clearCart(), 2000);
+    } finally {
+      setPlacing(false);
+    }
+  };
+
+  if (items.length === 0 && step !== 4) {
+    router.push("/cart");
+    return null;
+  }
+
+  const billingDistricts = billingDivision ? (DISTRICTS[billingDivision] || []) : [];
+  const shippingDistricts = shippingDivision ? (DISTRICTS[shippingDivision] || []) : [];
+
+  return (
+    <div className="bg-white min-h-screen">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-8">
+        <Breadcrumb items={[{ label: "Cart", href: "/cart" }, { label: "Checkout" }]} className="mb-6" />
+
+        {/* Steps */}
+        <div className="flex items-center justify-center gap-2 mb-10">
+          {steps.map((s, i) => (
+            <div key={s.id} className="flex items-center gap-2">
+              <div className={cn("flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium transition-colors",
+                step >= s.id ? "bg-secondary text-white" : "bg-pearl text-charcoal-lighter")}>
+                {step > s.id ? <CheckCircle2 className="h-4 w-4" /> : s.id}
+              </div>
+              <span className={cn("hidden sm:block text-sm", step >= s.id ? "text-charcoal font-medium" : "text-charcoal-lighter")}>{s.label}</span>
+              {i < steps.length - 1 && <div className={cn("w-8 sm:w-16 h-px", step > s.id ? "bg-secondary" : "bg-border")} />}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid lg:grid-cols-5 gap-8">
+          {/* Form */}
+          <div className="lg:col-span-3">
+            {/* ═══ STEP 1: Information ═══ */}
+            {step === 1 && (
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                <h2 className="font-heading text-xl font-semibold text-charcoal">Contact Information</h2>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Input label="Full Name" placeholder="Fatima Akter" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+                  <Input label="Phone Number" placeholder="01XXXXXXXXX" type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
+                  <Input label="Email (Optional)" placeholder="email@example.com" type="email" className="sm:col-span-2" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
+                </div>
+
+                {/* Billing Address */}
+                <h2 className="font-heading text-xl font-semibold text-charcoal pt-4">Billing Address</h2>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Input label="Address Line 1" placeholder="House/Flat, Road" className="sm:col-span-2" value={billingAddress} onChange={(e) => setBillingAddress(e.target.value)} />
+                  <Input label="Address Line 2 (Optional)" placeholder="Area, Landmark" className="sm:col-span-2" value={billingAddress2} onChange={(e) => setBillingAddress2(e.target.value)} />
+                  <div>
+                    <label className="block text-sm font-medium text-charcoal-light mb-1.5">Division</label>
+                    <Select value={billingDivision} onValueChange={(v) => { setBillingDivision(v); setBillingDistrict(""); }}>
+                      <SelectTrigger><SelectValue placeholder="Select Division" /></SelectTrigger>
+                      <SelectContent>
+                        {DIVISIONS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-charcoal-light mb-1.5">District</label>
+                    <Select value={billingDistrict} onValueChange={setBillingDistrict} disabled={!billingDivision}>
+                      <SelectTrigger><SelectValue placeholder={billingDivision ? "Select District" : "Select division first"} /></SelectTrigger>
+                      <SelectContent>
+                        {billingDistricts.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Input label="City / Area" placeholder="Gulshan-2" value={billingCity} onChange={(e) => setBillingCity(e.target.value)} />
+                  <Input label="Postal Code (Optional)" placeholder="1212" value={billingPostal} onChange={(e) => setBillingPostal(e.target.value)} />
+                </div>
+
+                {/* Different Shipping Address */}
+                <div className="pt-2">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <Checkbox checked={differentShipping} onCheckedChange={(v) => setDifferentShipping(!!v)} />
+                    <span className="text-sm font-medium text-charcoal">Ship to a different address</span>
+                  </label>
+                </div>
+
+                {differentShipping && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-4 pt-2">
+                    <h2 className="font-heading text-xl font-semibold text-charcoal flex items-center gap-2">
+                      <MapPin className="h-5 w-5 text-secondary" /> Shipping Address
+                    </h2>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <Input label="Recipient Name" placeholder="Full name" value={shippingName} onChange={(e) => setShippingName(e.target.value)} />
+                      <Input label="Phone Number" placeholder="01XXXXXXXXX" type="tel" value={shippingPhone} onChange={(e) => setShippingPhone(e.target.value)} />
+                      <Input label="Address Line 1" placeholder="House/Flat, Road" className="sm:col-span-2" value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} />
+                      <Input label="Address Line 2 (Optional)" placeholder="Area, Landmark" className="sm:col-span-2" value={shippingAddress2} onChange={(e) => setShippingAddress2(e.target.value)} />
+                      <div>
+                        <label className="block text-sm font-medium text-charcoal-light mb-1.5">Division</label>
+                        <Select value={shippingDivision} onValueChange={(v) => { setShippingDivision(v); setShippingDistrict(""); }}>
+                          <SelectTrigger><SelectValue placeholder="Select Division" /></SelectTrigger>
+                          <SelectContent>
+                            {DIVISIONS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-charcoal-light mb-1.5">District</label>
+                        <Select value={shippingDistrict} onValueChange={setShippingDistrict} disabled={!shippingDivision}>
+                          <SelectTrigger><SelectValue placeholder={shippingDivision ? "Select District" : "Select division first"} /></SelectTrigger>
+                          <SelectContent>
+                            {shippingDistricts.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Input label="City / Area" placeholder="Area name" value={shippingCity} onChange={(e) => setShippingCity(e.target.value)} />
+                      <Input label="Postal Code (Optional)" placeholder="1205" value={shippingPostal} onChange={(e) => setShippingPostal(e.target.value)} />
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Delivery charge preview */}
+                {activeDivision && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 rounded-xl bg-pearl/60 border border-border/20 space-y-2">
+                    <p className="text-xs font-semibold text-charcoal flex items-center gap-1.5">
+                      <Truck className="h-3.5 w-3.5 text-secondary" /> Delivery Estimate
+                    </p>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-charcoal-lighter">
+                        {differentShipping ? shippingDivision : billingDivision}
+                        {(differentShipping ? shippingDistrict : billingDistrict) ? `, ${differentShipping ? shippingDistrict : billingDistrict}` : ""}
+                      </span>
+                      <span className="font-semibold text-charcoal">
+                        {isFreeShipping ? (
+                          <span className="text-success">Free</span>
+                        ) : (
+                          formatCurrency(shippingCost)
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[10px] text-charcoal-lighter">
+                      <Clock className="h-3 w-3" /> Estimated delivery: {getDeliveryTime()} business days
+                    </div>
+                    {isFreeShipping && (
+                      <p className="text-[10px] text-success">Free delivery on orders above {formatCurrency(freeDeliveryThreshold)}</p>
+                    )}
+                  </motion.div>
+                )}
+
+                {validationError && (
+                  <p className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-2">{validationError}</p>
+                )}
+
+                <Button variant="secondary" size="lg" className="w-full sm:w-auto" onClick={() => {
+                  setValidationError("");
+                  if (!customerName.trim()) { setValidationError("Full name is required"); return; }
+                  if (!customerPhone.trim()) { setValidationError("Phone number is required"); return; }
+                  if (!billingAddress.trim()) { setValidationError("Billing address is required"); return; }
+                  if (!billingDivision) { setValidationError("Please select a division to calculate delivery charge"); return; }
+                  if (!billingDistrict) { setValidationError("Please select a district"); return; }
+                  if (differentShipping) {
+                    if (!shippingAddress.trim()) { setValidationError("Shipping address is required"); return; }
+                    if (!shippingDivision) { setValidationError("Please select shipping division"); return; }
+                    if (!shippingDistrict) { setValidationError("Please select shipping district"); return; }
+                  }
+                  setStep(2);
+                }}>
+                  Continue to Shipping
+                </Button>
+              </motion.div>
+            )}
+
+            {/* ═══ STEP 2: Shipping ═══ */}
+            {step === 2 && (
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                <h2 className="font-heading text-xl font-semibold text-charcoal">Shipping Method</h2>
+
+                {/* Delivery to */}
+                <div className="p-3 rounded-xl bg-pearl/50 flex items-center gap-2 text-sm">
+                  <MapPin className="h-4 w-4 text-secondary shrink-0" />
+                  <span className="text-charcoal-lighter">Delivering to:</span>
+                  <span className="font-medium text-charcoal">
+                    {activeDivision}{activeDistrict ? `, ${activeDistrict}` : ""}
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="flex items-center justify-between p-4 rounded-xl border border-secondary bg-primary-light cursor-pointer">
+                    <div className="flex items-center gap-3">
+                      <input type="radio" name="shipping" defaultChecked className="accent-secondary" />
+                      <div>
+                        <p className="text-sm font-medium text-charcoal">Standard Delivery</p>
+                        <p className="text-xs text-charcoal-lighter">{getDeliveryTime()} business days</p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-semibold">{isFreeShipping ? <span className="text-success">Free</span> : formatCurrency(shippingCost)}</span>
+                  </label>
+                  {activeDivision === "Dhaka" && (
+                    <label className="flex items-center justify-between p-4 rounded-xl border border-border cursor-pointer hover:border-secondary transition-colors">
+                      <div className="flex items-center gap-3">
+                        <input type="radio" name="shipping" className="accent-secondary" />
+                        <div>
+                          <p className="text-sm font-medium text-charcoal">Express Delivery</p>
+                          <p className="text-xs text-charcoal-lighter">Next day delivery (Dhaka only)</p>
+                        </div>
+                      </div>
+                      <span className="text-sm font-semibold">৳200</span>
+                    </label>
+                  )}
+                </div>
+
+                <Textarea label="Order Notes (Optional)" placeholder="Any special delivery instructions..." />
+
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
+                  <Button variant="secondary" size="lg" onClick={() => setStep(3)}>Continue to Payment</Button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ═══ STEP 3: Payment ═══ */}
+            {step === 3 && (
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                <h2 className="font-heading text-xl font-semibold text-charcoal">Payment Method</h2>
+                <div className="space-y-3">
+                  {PAYMENT_METHODS.map((method) => (
+                    <label key={method.id}
+                      className={cn("flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors",
+                        paymentMethod === method.id ? "border-secondary bg-primary-light" : "border-border hover:border-secondary")}>
+                      <div className="flex items-center gap-3">
+                        <input type="radio" name="payment" value={method.id} checked={paymentMethod === method.id} onChange={() => setPaymentMethod(method.id)} className="accent-secondary" />
+                        <span className="text-sm font-medium text-charcoal">{method.name}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                {paymentMethod !== "cod" && (
+                  <div className="p-4 rounded-xl bg-pearl/50 space-y-3">
+                    <Input label="Transaction ID" placeholder="Enter transaction ID" />
+                    <p className="text-xs text-charcoal-lighter">
+                      Please send payment to: 01700-000000 ({paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)})
+                    </p>
+                  </div>
+                )}
+
+                {/* Coupon Code */}
+                <div>
+                  <h3 className="text-sm font-medium text-charcoal mb-2">Have a coupon?</h3>
+                  {couponCode ? (
+                    <div className="p-3 rounded-xl bg-success/5 border border-success/20">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Tag className="h-3.5 w-3.5 text-success" />
+                          <code className="text-sm font-bold text-success">{couponCode}</code>
+                          <span className="text-xs text-success/70">−{formatCurrency(couponDiscount)}</span>
+                        </div>
+                        <button onClick={handleRemoveCoupon} className="text-charcoal-lighter hover:text-destructive transition-colors">
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Enter coupon code"
+                          className="flex-1 h-10"
+                          value={couponInput}
+                          onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError(""); }}
+                          onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon()}
+                        />
+                        <Button variant="outline" size="sm" onClick={handleApplyCoupon} disabled={couponLoading || !couponInput.trim()}>
+                          {couponLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Apply"}
+                        </Button>
+                      </div>
+                      {couponError && <p className="text-xs text-destructive mt-1.5">{couponError}</p>}
+                    </div>
+                  )}
+                </div>
+
+                {/* Price Breakdown */}
+                <div className="p-4 rounded-xl border border-border/30 bg-pearl/20 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-charcoal-lighter">Subtotal</span>
+                    <span>{formatCurrency(subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-charcoal-lighter">Shipping</span>
+                    <span>{isFreeShipping ? <span className="text-success font-medium">Free</span> : formatCurrency(shippingCost)}</span>
+                  </div>
+                  {couponDiscount > 0 && (
+                    <div className="flex justify-between text-success">
+                      <span className="flex items-center gap-1">Discount <code className="text-[9px] bg-success/10 px-1 rounded">{couponCode}</code></span>
+                      <span>−{formatCurrency(couponDiscount)}</span>
+                    </div>
+                  )}
+                  <Separator />
+                  <div className="flex justify-between font-semibold text-charcoal text-base">
+                    <span>Total</span>
+                    <span>{formatCurrency(finalTotal)}</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
+                  <Button variant="secondary" size="lg" onClick={handlePlaceOrder} isLoading={placing} disabled={placing}>
+                    {placing ? "Placing Order..." : `Place Order — ${formatCurrency(finalTotal)}`}
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Step 4 is rendered outside this col-span-3 div */}
+          </div>
+
+          {/* ═══ Order Summary Sidebar ═══ */}
+          {step < 4 && (
+            <div className="lg:col-span-2">
+              <div className="sticky top-24 rounded-2xl border border-border/30 bg-pearl/30 p-5">
+                <h3 className="font-heading text-base font-semibold text-charcoal mb-4">
+                  Order Summary ({items.length})
+                </h3>
+                <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
+                  {items.map((item) => (
+                    <div key={item.id} className="flex gap-3">
+                      <div className="relative h-14 w-12 rounded-lg overflow-hidden bg-white shrink-0">
+                        <Image src={item.product_image} alt={item.product_name} fill className="object-cover" sizes="48px" />
+                        <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-charcoal text-[10px] text-white font-bold">{item.quantity}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-charcoal truncate">{item.product_name}</p>
+                        <p className="text-xs font-medium text-charcoal">{formatCurrency(item.price * item.quantity)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <Separator className="my-3" />
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-charcoal-lighter">Subtotal</span>
+                    <span>{formatCurrency(subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-charcoal-lighter">Shipping</span>
+                    <span>
+                      {!activeDivision ? (
+                        <span className="text-[10px] text-charcoal-lighter">Select address</span>
+                      ) : isFreeShipping ? (
+                        <span className="text-success font-medium">Free</span>
+                      ) : (
+                        formatCurrency(shippingCost)
+                      )}
+                    </span>
+                  </div>
+                  {isFreeShipping && activeDivision && (
+                    <p className="text-[10px] text-success">Free delivery on orders above {formatCurrency(freeDeliveryThreshold)}</p>
+                  )}
+                  {couponDiscount > 0 && (
+                    <div className="flex justify-between text-success">
+                      <span className="flex items-center gap-1">Discount <code className="text-[9px] bg-success/10 px-1 rounded">{couponCode}</code></span>
+                      <span>-{formatCurrency(couponDiscount)}</span>
+                    </div>
+                  )}
+                </div>
+                <Separator className="my-3" />
+                <div className="flex justify-between font-semibold text-charcoal">
+                  <span>Total</span>
+                  <span>{formatCurrency(finalTotal)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ═══ STEP 4: Done — full width centered ═══ */}
+          {step === 4 && (
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="col-span-full text-center py-16">
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", damping: 15, delay: 0.2 }}>
+                <CheckCircle2 className="h-20 w-20 text-success mx-auto mb-6" />
+              </motion.div>
+              <h2 className="font-heading text-2xl font-semibold text-charcoal mb-2">Order Confirmed!</h2>
+              <p className="text-charcoal-lighter mb-2">Thank you for shopping with ChineXa</p>
+              <p className="text-sm text-charcoal mb-8">
+                Order #{orderNumber || "Processing"} has been placed successfully.<br />You will receive a confirmation via SMS shortly.
+              </p>
+              <div className="flex gap-3 justify-center">
+                <Link href="/products"><Button variant="primary">Continue Shopping</Button></Link>
+                <Link href="/track-order"><Button variant="outline">Track Order</Button></Link>
+              </div>
+            </motion.div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

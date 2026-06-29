@@ -1,0 +1,239 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { AlertTriangle, Shield, ShieldCheck, ShieldX, Eye, Ban, CheckCircle2, Loader2 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { AdminButton } from "@/components/admin/shared/admin-button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { cn, formatCurrency } from "@/lib/utils";
+
+interface FraudAlert {
+  id: string;
+  order_id: string;
+  order_number: string;
+  customer_id: string | null;
+  customer_name: string;
+  customer_phone: string;
+  amount: number;
+  risk_score: number;
+  risk_factors: string[];
+  status: "flagged" | "reviewed" | "cleared" | "blocked";
+  reviewed_by: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+interface FraudStats {
+  flagged: number;
+  reviewed: number;
+  cleared: number;
+  blocked: number;
+  total: number;
+}
+
+const statusConfig = {
+  flagged: { label: "Flagged", variant: "warning" as const, icon: AlertTriangle },
+  reviewed: { label: "Under Review", variant: "secondary" as const, icon: Eye },
+  cleared: { label: "Cleared", variant: "success" as const, icon: ShieldCheck },
+  blocked: { label: "Blocked", variant: "destructive" as const, icon: ShieldX },
+};
+
+const getRiskColor = (score: number) => {
+  if (score >= 80) return "text-destructive";
+  if (score >= 50) return "text-warning";
+  return "text-success";
+};
+
+const getRiskBarColor = (score: number) => {
+  if (score >= 80) return "bg-destructive";
+  if (score >= 50) return "bg-warning";
+  return "bg-success";
+};
+
+export default function AdminFraudPage() {
+  const [alerts, setAlerts] = useState<FraudAlert[]>([]);
+  const [stats, setStats] = useState<FraudStats>({ flagged: 0, reviewed: 0, cleared: 0, blocked: 0, total: 0 });
+  const [loading, setLoading] = useState(true);
+
+  const fetchFraud = async () => {
+    try {
+      const res = await fetch("/api/fraud");
+      const data = await res.json();
+      const rows = (data.data || []).map((r: Record<string, unknown>) => ({
+        ...r,
+        amount: Number(r.amount),
+        risk_score: Number(r.risk_score),
+        risk_factors: typeof r.risk_factors === "string" ? JSON.parse(r.risk_factors as string) : (r.risk_factors || []),
+      }));
+      setAlerts(rows);
+      setStats(data.stats || { flagged: 0, reviewed: 0, cleared: 0, blocked: 0, total: 0 });
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchFraud(); }, []);
+
+  const handleStatusUpdate = async (alertId: string, newStatus: "cleared" | "blocked" | "reviewed") => {
+    await fetch("/api/fraud", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: alertId, status: newStatus }),
+    }).catch(() => {});
+    setAlerts((prev) => prev.map((a) => a.id === alertId ? { ...a, status: newStatus } : a));
+    setStats((prev) => {
+      const updated = { ...prev };
+      const old = alerts.find((a) => a.id === alertId);
+      if (old) {
+        updated[old.status] = Math.max(0, updated[old.status] - 1);
+        updated[newStatus] = (updated[newStatus] || 0) + 1;
+      }
+      return updated;
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="h-8 w-8 text-secondary animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-heading text-2xl font-semibold text-charcoal">Fraud Detection</h1>
+        <p className="text-sm text-charcoal-lighter">Monitor and manage suspicious order activity</p>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <AlertTriangle className="h-5 w-5 text-warning mx-auto mb-1" />
+            <p className="text-2xl font-bold text-charcoal">{stats.flagged}</p>
+            <p className="text-xs text-charcoal-lighter">Flagged</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <Eye className="h-5 w-5 text-secondary mx-auto mb-1" />
+            <p className="text-2xl font-bold text-charcoal">{stats.reviewed}</p>
+            <p className="text-xs text-charcoal-lighter">Under Review</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <ShieldX className="h-5 w-5 text-destructive mx-auto mb-1" />
+            <p className="text-2xl font-bold text-charcoal">{stats.blocked}</p>
+            <p className="text-xs text-charcoal-lighter">Blocked</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <ShieldCheck className="h-5 w-5 text-success mx-auto mb-1" />
+            <p className="text-2xl font-bold text-charcoal">{stats.cleared}</p>
+            <p className="text-xs text-charcoal-lighter">Cleared</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <Shield className="h-5 w-5 text-charcoal-lighter mx-auto mb-1" />
+            <p className="text-2xl font-bold text-charcoal">{stats.total}</p>
+            <p className="text-xs text-charcoal-lighter">Total Alerts</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Alerts */}
+      {alerts.length === 0 ? (
+        <EmptyState icon={ShieldCheck} title="No fraud alerts" description="Fraud alerts will appear here when orders are marked as not received." />
+      ) : (
+        <div className="space-y-4">
+          {alerts.map((alert) => {
+            const config = statusConfig[alert.status];
+            const StatusIcon = config.icon;
+            return (
+              <Card key={alert.id}>
+                <CardContent className="p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <code className="font-mono font-bold text-charcoal text-sm">{alert.order_number}</code>
+                        <Badge variant={config.variant} className="text-[10px]">
+                          <StatusIcon className="h-3 w-3 mr-1" />
+                          {config.label}
+                        </Badge>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-4 text-xs text-charcoal-lighter mb-3">
+                        <span>Customer: <span className="text-charcoal font-medium">{alert.customer_name}</span></span>
+                        <span>Phone: <span className="text-charcoal font-medium">{alert.customer_phone}</span></span>
+                        <span>Amount: <span className="text-charcoal font-medium">{formatCurrency(alert.amount)}</span></span>
+                        <span className="hidden sm:inline">{new Date(alert.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                      </div>
+
+                      {/* Risk Score */}
+                      <div className="flex items-center gap-3 mb-3">
+                        <span className="text-xs text-charcoal-lighter">Risk Score:</span>
+                        <div className="flex-1 max-w-[200px]">
+                          <div className="h-2 bg-pearl rounded-full overflow-hidden">
+                            <div
+                              className={cn("h-full rounded-full transition-all", getRiskBarColor(alert.risk_score))}
+                              style={{ width: `${alert.risk_score}%` }}
+                            />
+                          </div>
+                        </div>
+                        <span className={cn("text-sm font-bold", getRiskColor(alert.risk_score))}>
+                          {alert.risk_score}/100
+                        </span>
+                      </div>
+
+                      {/* Risk Factors */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {(alert.risk_factors || []).map((factor) => (
+                          <span key={factor} className="text-[10px] bg-destructive/5 text-destructive border border-destructive/10 px-2 py-0.5 rounded-full">
+                            {factor}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    {alert.status === "flagged" && (
+                      <div className="flex sm:flex-col gap-2 flex-shrink-0">
+                        <AdminButton size="sm" onClick={() => handleStatusUpdate(alert.id, "cleared")}>
+                          <CheckCircle2 className="h-3 w-3 mr-1" /> Clear
+                        </AdminButton>
+                        <AdminButton variant="outline" size="sm" onClick={() => handleStatusUpdate(alert.id, "reviewed")}>
+                          <Eye className="h-3 w-3 mr-1" /> Review
+                        </AdminButton>
+                        <AdminButton variant="outline" size="sm" className="text-destructive border-destructive/30" onClick={() => handleStatusUpdate(alert.id, "blocked")}>
+                          <Ban className="h-3 w-3 mr-1" /> Block
+                        </AdminButton>
+                      </div>
+                    )}
+                    {alert.status === "reviewed" && (
+                      <div className="flex sm:flex-col gap-2 flex-shrink-0">
+                        <AdminButton size="sm" onClick={() => handleStatusUpdate(alert.id, "cleared")}>
+                          <CheckCircle2 className="h-3 w-3 mr-1" /> Clear
+                        </AdminButton>
+                        <AdminButton variant="outline" size="sm" className="text-destructive border-destructive/30" onClick={() => handleStatusUpdate(alert.id, "blocked")}>
+                          <Ban className="h-3 w-3 mr-1" /> Block
+                        </AdminButton>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

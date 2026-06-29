@@ -1,0 +1,169 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { Phone, MessageCircle, Smartphone, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+
+// Validate Bangladeshi phone: must be 10 digits starting with 1 (after removing leading 0)
+function validateBDPhone(digits: string): string | null {
+  const cleaned = digits.replace(/[\s-]/g, "");
+  if (cleaned.length !== 10 || !cleaned.startsWith("1") || !/^\d{10}$/.test(cleaned)) {
+    return "Invalid phone number";
+  }
+  return null;
+}
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [phone, setPhone] = useState("");
+  const [method, setMethod] = useState<"sms" | "whatsapp">("sms");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Only allow digits, max 10
+    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+    setPhone(val);
+    setError("");
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validate
+    const validationError = validateBDPhone(phone);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    const fullPhone = `+880${phone}`;
+
+    try {
+      // Check if phone is registered BEFORE sending OTP
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "login", phone: fullPhone }),
+      });
+      const data = await res.json();
+
+      if (data.found) {
+        // Registered — go to OTP verification
+        router.push(`/verify?phone=${encodeURIComponent(fullPhone)}&method=${method}`);
+      } else {
+        // Not registered — go to registration page with phone pre-filled
+        router.push(`/register?phone=${encodeURIComponent(fullPhone)}`);
+      }
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <Card className="border-0 shadow-luxury-hover">
+        <CardHeader className="text-center pb-2">
+          <CardTitle className="font-heading text-2xl">Welcome to ChineXa</CardTitle>
+          <CardDescription>Enter your phone number to continue</CardDescription>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Phone input with +880 prefix */}
+            <div>
+              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Phone Number</label>
+              <div className="flex">
+                <div className="flex items-center gap-1.5 px-3 rounded-l-luxury border-2 border-r-0 border-border bg-pearl/60 text-sm font-semibold text-charcoal select-none">
+                  <Phone className="h-3.5 w-3.5 text-charcoal-lighter" />
+                  <span>+880</span>
+                </div>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="1XXXXXXXXX"
+                  value={phone}
+                  onChange={handlePhoneChange}
+                  className={`flex-1 h-12 rounded-r-luxury border-2 px-3 text-sm text-charcoal placeholder:text-charcoal-lighter/50 outline-none transition-all ${
+                    error
+                      ? "border-destructive focus:border-destructive focus:ring-2 focus:ring-destructive/20"
+                      : "border-border focus:border-secondary focus:ring-2 focus:ring-secondary/20"
+                  }`}
+                  maxLength={10}
+                  autoFocus
+                />
+              </div>
+              {error && <p className="text-xs text-destructive mt-1.5">{error}</p>}
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-charcoal-light mb-3">Receive OTP via</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setMethod("sms")}
+                  className={`flex items-center justify-center gap-2 rounded-luxury border p-3 text-sm transition-all ${
+                    method === "sms"
+                      ? "border-secondary bg-primary-light text-charcoal font-medium"
+                      : "border-border text-charcoal-lighter hover:border-secondary"
+                  }`}
+                >
+                  <Smartphone className="h-4 w-4" />
+                  SMS
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMethod("whatsapp")}
+                  className={`flex items-center justify-center gap-2 rounded-luxury border p-3 text-sm transition-all ${
+                    method === "whatsapp"
+                      ? "border-secondary bg-primary-light text-charcoal font-medium"
+                      : "border-border text-charcoal-lighter hover:border-secondary"
+                  }`}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  WhatsApp
+                </button>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              variant="secondary"
+              size="lg"
+              className="w-full"
+              disabled={loading || phone.length < 10}
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {loading ? "Checking..." : "Continue"}
+            </Button>
+
+            <p className="text-xs text-center text-charcoal-lighter">
+              Use <span className="font-mono font-semibold">123456</span> as OTP for testing
+            </p>
+
+            <div className="text-center pt-2 border-t border-border/30">
+              <p className="text-sm text-charcoal-lighter">
+                Don&apos;t have an account?{" "}
+                <Link href="/register" className="text-secondary hover:text-secondary-dark font-medium">
+                  Register
+                </Link>
+              </p>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
