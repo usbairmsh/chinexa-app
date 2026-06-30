@@ -310,12 +310,16 @@ export default function AdminBannersPage() {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <Switch checked={banner.is_active} onCheckedChange={() => handleToggleActive(banner)} />
-                      <DropdownMenu>
-                        <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEdit(banner)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
+                      <DropdownMenu modal={false}>
+                        <DropdownMenuTrigger asChild>
+                          <button type="button" className="p-1 hover:bg-pearl rounded-md">
+                            <MoreHorizontal className="h-4 w-4 text-charcoal-lighter" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="z-[100]">
+                          <DropdownMenuItem onSelect={() => openEdit(banner)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDialog(banner)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive" onSelect={() => setDeleteDialog(banner)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
