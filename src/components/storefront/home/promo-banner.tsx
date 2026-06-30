@@ -47,7 +47,7 @@ export function PromoBannerStrip() {
                   className="object-cover transition-transform duration-700 group-hover:scale-105"
                   style={{ objectPosition: `${crop.x}% ${crop.y}%`, transform: `scale(${crop.zoom})`, transformOrigin: `${crop.x}% ${crop.y}%` }}
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  unoptimized={banner.image.startsWith("/uploads/")}
+                  unoptimized={banner.image.includes("/uploads/")}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                 <div className="absolute bottom-4 left-4 right-4">
@@ -99,7 +99,7 @@ export function CategoryBanner() {
             className="object-cover transition-transform duration-700 group-hover:scale-105"
             style={{ objectPosition: `${crop.x}% ${crop.y}%`, transform: `scale(${crop.zoom})`, transformOrigin: `${crop.x}% ${crop.y}%` }}
             sizes="100vw"
-            unoptimized={banner.image.startsWith("/uploads/")}
+            unoptimized={banner.image.includes("/uploads/")}
           />
           <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent" />
           <div className="absolute inset-0 flex items-center">
@@ -168,7 +168,7 @@ export function PopupBanner() {
             className="object-cover"
             style={{ objectPosition: `${crop.x}% ${crop.y}%`, transform: `scale(${crop.zoom})`, transformOrigin: `${crop.x}% ${crop.y}%` }}
             sizes="500px"
-            unoptimized={banner.image.startsWith("/uploads/")}
+            unoptimized={banner.image.includes("/uploads/")}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 p-6">

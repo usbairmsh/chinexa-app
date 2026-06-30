@@ -292,7 +292,7 @@ export default function AdminBannersPage() {
                   <div className="relative aspect-[16/7]">
                     <Image src={banner.image} alt={banner.title} fill className="object-cover"
                       style={{ objectPosition: `${crop.x}% ${crop.y}%`, transform: `scale(${crop.zoom})`, transformOrigin: `${crop.x}% ${crop.y}%` }}
-                      sizes="(max-width: 640px) 100vw, 50vw" unoptimized={banner.image.startsWith("/uploads/")} />
+                      sizes="(max-width: 640px) 100vw, 50vw" unoptimized={banner.image.includes("/uploads/")} />
                     <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 to-transparent" />
                     <div className="absolute bottom-3 left-3 right-3">
                       <h3 className="text-white font-medium text-sm truncate">{banner.title}</h3>
@@ -388,7 +388,7 @@ export default function AdminBannersPage() {
           </DialogHeader>
           {deleteDialog && (
             <div className="flex items-center gap-3 p-3 rounded-xl bg-pearl/60">
-              <div className="relative h-14 w-24 rounded-lg overflow-hidden bg-pearl shrink-0"><Image src={deleteDialog.image} alt={deleteDialog.title} fill className="object-cover" sizes="96px" unoptimized={deleteDialog.image.startsWith("/uploads/")} /></div>
+              <div className="relative h-14 w-24 rounded-lg overflow-hidden bg-pearl shrink-0"><Image src={deleteDialog.image} alt={deleteDialog.title} fill className="object-cover" sizes="96px" unoptimized={deleteDialog.image.includes("/uploads/")} /></div>
               <div className="min-w-0"><p className="text-sm font-medium text-charcoal truncate">{deleteDialog.title}</p><p className="text-xs text-charcoal-lighter capitalize">{deleteDialog.position} banner</p></div>
             </div>
           )}

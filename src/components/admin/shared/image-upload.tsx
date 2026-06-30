@@ -146,7 +146,7 @@ export function ImageUpload({
             fill
             className="object-cover"
             sizes="300px"
-            unoptimized={preview.startsWith("data:") || preview.startsWith("/uploads/")}
+            unoptimized={preview.startsWith("data:") || preview.includes("/uploads/")}
           />
           <button
             type="button"
@@ -156,7 +156,7 @@ export function ImageUpload({
             <X className="h-3.5 w-3.5" />
           </button>
           {/* Show file path */}
-          {preview.startsWith("/uploads/") && (
+          {preview.includes("/uploads/") && (
             <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-2 py-1">
               <p className="text-[9px] text-white/80 truncate">{preview}</p>
             </div>
