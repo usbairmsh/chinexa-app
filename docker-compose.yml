@@ -32,11 +32,10 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
     volumes:
-      - uploads_data:/app/public/uploads
+      - ./uploads:/app/public/uploads
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
   mysql_data:
-  uploads_data:
