@@ -16,6 +16,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (body.image !== undefined) { fields.push("image = ?"); values.push(body.image); }
     if (body.is_active !== undefined) { fields.push("is_active = ?"); values.push(body.is_active ? 1 : 0); }
     if (body.order !== undefined) { fields.push("`order` = ?"); values.push(body.order); }
+    if (body.brand_ids !== undefined) { fields.push("brand_ids = ?"); values.push(JSON.stringify(body.brand_ids)); }
     if (fields.length === 0) return NextResponse.json({ error: "No fields to update" }, { status: 400 });
     values.push(id);
     await execute(`UPDATE categories SET ${fields.join(", ")} WHERE id = ?`, values);

@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS categories (
   `order` INT DEFAULT 0,
   is_active BOOLEAN DEFAULT TRUE,
   product_count INT DEFAULT 0,
+  brand_ids JSON,
   seo_title VARCHAR(255),
   seo_description TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

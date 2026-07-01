@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { Plus, Edit, Trash2, MoreHorizontal, FolderTree, Check, AlertTriangle, Eye, EyeOff, Globe, Tag, Sparkles, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Edit, Trash2, MoreHorizontal, FolderTree, Check, AlertTriangle, Eye, EyeOff, Globe, Tag, Sparkles, ChevronUp, ChevronDown, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,9 +43,21 @@ export default function AdminCategoriesPage() {
   const [formParentId, setFormParentId] = useState("");
   const [showInTopbar, setShowInTopbar] = useState(true);
   const [autoSlug, setAutoSlug] = useState(true);
+  const [formBrandIds, setFormBrandIds] = useState<string[]>([]);
+  const [allBrands, setAllBrands] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    fetch("/api/brands").then((r) => r.json()).then((data) => {
+      if (Array.isArray(data)) setAllBrands(data.filter((b: Record<string, unknown>) => b.is_active).map((b: Record<string, unknown>) => ({ id: b.id as string, name: b.name as string })));
+    }).catch(() => {});
+  }, []);
+
+  const toggleFormBrand = (id: string) => {
+    setFormBrandIds((prev) => prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id]);
+  };
 
   const handleNameChange = (val: string) => { setFormName(val); if (autoSlug) setFormSlug(slugify(val)); };
-  const resetForm = () => { setEditCategory(null); setFormName(""); setFormSlug(""); setFormDesc(""); setFormImage(""); setFormParentId(""); setShowInTopbar(true); setAutoSlug(true); };
+  const resetForm = () => { setEditCategory(null); setFormName(""); setFormSlug(""); setFormDesc(""); setFormImage(""); setFormParentId(""); setShowInTopbar(true); setAutoSlug(true); setFormBrandIds([]); };
 
   const openEdit = (cat: Category) => {
     setEditCategory(cat);
@@ -56,6 +68,7 @@ export default function AdminCategoriesPage() {
     setFormParentId(cat.parent_id || "");
     setShowInTopbar(cat.is_active);
     setAutoSlug(false);
+    setFormBrandIds(Array.isArray((cat as unknown as { brand_ids?: string[] }).brand_ids) ? (cat as unknown as { brand_ids: string[] }).brand_ids : []);
     setDialogOpen(true);
   };
 
@@ -80,14 +93,14 @@ export default function AdminCategoriesPage() {
         await fetch(`/api/categories/${editCategory.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: formName.trim(), slug, description: formDesc.trim(), image: formImage || null, is_active: showInTopbar }),
+          body: JSON.stringify({ name: formName.trim(), slug, description: formDesc.trim(), image: formImage || null, is_active: showInTopbar, brand_ids: formBrandIds }),
         });
       } else {
         // Create new
         await fetch("/api/categories", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: formName.trim(), slug, description: formDesc.trim(), image: formImage, parent_id: formParentId || null, is_active: showInTopbar }),
+          body: JSON.stringify({ name: formName.trim(), slug, description: formDesc.trim(), image: formImage, parent_id: formParentId || null, is_active: showInTopbar, brand_ids: formBrandIds }),
         });
       }
     } catch {}
@@ -386,6 +399,43 @@ export default function AdminCategoriesPage() {
 
             {!formParentId && (
               <ImageUpload label="Category Image" aspectRatio="video" value={formImage} onChange={setFormImage} folder="categories" />
+            )}
+
+            {/* Associated Brands */}
+            {!formParentId && allBrands.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-charcoal-light mb-1.5">Associated Brands</label>
+                <p className="text-[10px] text-charcoal-lighter mb-2">Select brands to show in this category&apos;s filter</p>
+                <div className="max-h-36 overflow-y-auto border border-border/30 rounded-xl bg-white">
+                  {allBrands.map((brand) => (
+                    <button
+                      key={brand.id}
+                      type="button"
+                      onClick={() => toggleFormBrand(brand.id)}
+                      className={cn(
+                        "w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-pearl transition-colors border-b border-border/10 last:border-0",
+                        formBrandIds.includes(brand.id) && "bg-secondary/5"
+                      )}
+                    >
+                      <span className="text-charcoal">{brand.name}</span>
+                      {formBrandIds.includes(brand.id) && <Check className="h-4 w-4 text-secondary shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+                {formBrandIds.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {formBrandIds.map((id) => {
+                      const b = allBrands.find((br) => br.id === id);
+                      return b ? (
+                        <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary/10 text-secondary text-[10px] font-medium">
+                          {b.name}
+                          <button type="button" onClick={() => toggleFormBrand(id)} className="hover:text-destructive"><X className="h-2.5 w-2.5" /></button>
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                )}
+              </div>
             )}
 
             <Separator />

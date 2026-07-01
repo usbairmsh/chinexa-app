@@ -22,7 +22,9 @@ export async function GET() {
     const parents = rows.filter((r) => !r.parent_id).map((r) => ({
       id: r.id, name: r.name, slug: r.slug, description: r.description || undefined,
       image: r.image || undefined, order: r.order, is_active: !!r.is_active,
-      product_count: countMap.get(r.id) || 0, created_at: r.created_at,
+      product_count: countMap.get(r.id) || 0,
+      brand_ids: typeof r.brand_ids === "string" ? JSON.parse(r.brand_ids) : r.brand_ids || [],
+      created_at: r.created_at,
       children: rows.filter((c) => c.parent_id === r.id)
         .sort((a, b) => (a.order || 0) - (b.order || 0))
         .map((c) => ({
@@ -68,8 +70,8 @@ export async function POST(req: NextRequest) {
     const id = body.id || `cat-${Date.now()}`;
     const slug = body.slug || body.name.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-");
     await execute(
-      "INSERT INTO categories (id, name, slug, description, image, parent_id, `order`, is_active, product_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [id, body.name, slug, body.description || null, body.image || null, body.parent_id || null, body.order || 0, body.is_active !== false ? 1 : 0, 0]
+      "INSERT INTO categories (id, name, slug, description, image, parent_id, `order`, is_active, product_count, brand_ids) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [id, body.name, slug, body.description || null, body.image || null, body.parent_id || null, body.order || 0, body.is_active !== false ? 1 : 0, 0, body.brand_ids ? JSON.stringify(body.brand_ids) : null]
     );
     await logActivity("Created category", "category", id, body.name);
     return NextResponse.json({ success: true, id, slug }, { status: 201 });

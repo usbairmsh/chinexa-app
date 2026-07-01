@@ -34,11 +34,20 @@ export default function CategoryPage() {
   const [selectedSubs, setSelectedSubs] = useState<string[]>([]);
   const [brands, setBrands] = useState<{ id: string; name: string }[]>([]);
 
+  // Load brands associated with this category
   useEffect(() => {
+    if (!category) return;
+    const catBrandIds: string[] = Array.isArray((category as unknown as { brand_ids?: string[] }).brand_ids) ? (category as unknown as { brand_ids: string[] }).brand_ids : [];
+    if (catBrandIds.length === 0) { setBrands([]); return; }
     fetch("/api/brands").then((r) => r.json()).then((data) => {
-      if (Array.isArray(data)) setBrands(data.filter((b: Record<string, unknown>) => b.is_active).map((b: Record<string, unknown>) => ({ id: b.id as string, name: b.name as string })));
+      if (Array.isArray(data)) {
+        const filtered = data
+          .filter((b: Record<string, unknown>) => b.is_active && catBrandIds.includes(b.id as string))
+          .map((b: Record<string, unknown>) => ({ id: b.id as string, name: b.name as string }));
+        setBrands(filtered);
+      }
     }).catch(() => {});
-  }, []);
+  }, [category]);
 
   const { data, isLoading, isFetching } = useProducts(params);
 
