@@ -30,7 +30,8 @@ export default function CategoryPage() {
     category: slug,
   });
   const [priceRange, setPriceRange] = useState([0, 30000]);
-  const [selectedBrand, setSelectedBrand] = useState<string | undefined>(undefined);
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+  const [selectedSubs, setSelectedSubs] = useState<string[]>([]);
   const [brands, setBrands] = useState<{ id: string; name: string; logo?: string }[]>([]);
 
   useEffect(() => {
@@ -47,6 +48,17 @@ export default function CategoryPage() {
 
   const subcategories = category?.children || [];
 
+  const toggleBrand = (name: string) => {
+    setSelectedBrands((prev) => prev.includes(name) ? prev.filter((b) => b !== name) : [...prev, name]);
+  };
+
+  const toggleSub = (subSlug: string) => {
+    setSelectedSubs((prev) => prev.includes(subSlug) ? prev.filter((s) => s !== subSlug) : [...prev, subSlug]);
+    // Also update params for API filtering (use first selected sub or clear)
+    const next = selectedSubs.includes(subSlug) ? selectedSubs.filter((s) => s !== subSlug) : [...selectedSubs, subSlug];
+    updateParams({ subcategory: next[0] || undefined });
+  };
+
   const FilterContent = () => (
     <div className="space-y-6">
       {/* Subcategories */}
@@ -57,10 +69,8 @@ export default function CategoryPage() {
             {subcategories.map((sub) => (
               <label key={sub.id} className="flex items-center gap-2 cursor-pointer">
                 <Checkbox
-                  checked={params.subcategory === sub.slug}
-                  onCheckedChange={(checked) =>
-                    updateParams({ subcategory: checked ? sub.slug : undefined })
-                  }
+                  checked={selectedSubs.includes(sub.slug)}
+                  onCheckedChange={() => toggleSub(sub.slug)}
                 />
                 <span className="text-sm text-charcoal-light">{sub.name}</span>
                 <span className="ml-auto text-xs text-charcoal-lighter">({sub.product_count})</span>
@@ -103,6 +113,8 @@ export default function CategoryPage() {
         onClick={() => {
           setParams({ page: 1, page_size: 12, sort_by: "featured", category: slug });
           setPriceRange([0, 30000]);
+          setSelectedBrands([]);
+          setSelectedSubs([]);
         }}
       >
         <X className="h-3.5 w-3.5 mr-1" /> Clear Filters
@@ -151,9 +163,9 @@ export default function CategoryPage() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-3">
             <div className="flex gap-2 overflow-x-auto pb-1">
               <button
-                onClick={() => setSelectedBrand(undefined)}
+                onClick={() => setSelectedBrands([])}
                 className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
-                  !selectedBrand
+                  selectedBrands.length === 0
                     ? "bg-secondary text-white shadow-[0_4px_15px_rgba(192,57,43,0.25)]"
                     : "bg-pearl text-charcoal-lighter hover:bg-primary-light hover:text-charcoal"
                 }`}
@@ -163,14 +175,47 @@ export default function CategoryPage() {
               {brands.map((brand) => (
                 <button
                   key={brand.id}
-                  onClick={() => setSelectedBrand(selectedBrand === brand.name ? undefined : brand.name)}
+                  onClick={() => toggleBrand(brand.name)}
                   className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
-                    selectedBrand === brand.name
+                    selectedBrands.includes(brand.name)
                       ? "bg-secondary text-white shadow-[0_4px_15px_rgba(192,57,43,0.25)]"
                       : "bg-pearl text-charcoal-lighter hover:bg-primary-light hover:text-charcoal"
                   }`}
                 >
                   {brand.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Subcategory Pills */}
+      {subcategories.length > 0 && (
+        <div className="border-b border-border/30">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              <button
+                onClick={() => { setSelectedSubs([]); updateParams({ subcategory: undefined }); }}
+                className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                  selectedSubs.length === 0
+                    ? "bg-secondary text-white shadow-[0_4px_15px_rgba(192,57,43,0.25)]"
+                    : "bg-pearl text-charcoal-lighter hover:bg-primary-light hover:text-charcoal"
+                }`}
+              >
+                All
+              </button>
+              {subcategories.map((sub) => (
+                <button
+                  key={sub.id}
+                  onClick={() => toggleSub(sub.slug)}
+                  className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                    selectedSubs.includes(sub.slug)
+                      ? "bg-secondary text-white shadow-[0_4px_15px_rgba(192,57,43,0.25)]"
+                      : "bg-pearl text-charcoal-lighter hover:bg-primary-light hover:text-charcoal"
+                  }`}
+                >
+                  {sub.name}
                 </button>
               ))}
             </div>
@@ -228,16 +273,24 @@ export default function CategoryPage() {
                 ))}
               </div>
             ) : (() => {
-              const filtered = selectedBrand
-                ? (data?.data || []).filter((p) => (p as unknown as { brand_name?: string }).brand_name === selectedBrand)
-                : data?.data || [];
+              let filtered = data?.data || [];
+              // Filter by selected brands (client-side)
+              if (selectedBrands.length > 0) {
+                filtered = filtered.filter((p) => selectedBrands.includes((p as unknown as { brand_name?: string }).brand_name || ""));
+              }
+              // Filter by selected subcategories (client-side for multi-select)
+              if (selectedSubs.length > 1) {
+                const subNames = selectedSubs.map((s) => subcategories.find((sc) => sc.slug === s)?.name).filter(Boolean);
+                filtered = filtered.filter((p) => subNames.includes((p as unknown as { subcategory?: string }).subcategory || ""));
+              }
+              const hasFilters = selectedBrands.length > 0 || selectedSubs.length > 0;
               return filtered.length === 0 ? (
               <div className="text-center py-20">
-                <p className="text-charcoal-lighter">No products found{selectedBrand ? ` for ${selectedBrand}` : " in this category"}.</p>
+                <p className="text-charcoal-lighter">No products found{hasFilters ? " matching your filters" : " in this category"}.</p>
               </div>
             ) : (
               <motion.div
-                key={`${params.page}-${params.sort_by}-${params.subcategory}-${selectedBrand}`}
+                key={`${params.page}-${params.sort_by}-${selectedSubs.join(",")}-${selectedBrands.join(",")}`}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:gap-6"
