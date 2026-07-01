@@ -58,7 +58,24 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try { const { id } = await params; await execute("DELETE FROM customers WHERE id = ?", [id]); return NextResponse.json({ success: true }); }
-  catch (error: unknown) { return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 }); }
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const { searchParams } = new URL(req.url);
+    const hard = searchParams.get("hard") === "true";
+
+    if (hard) {
+      // Hard delete (admin only)
+      await execute("DELETE FROM customers WHERE id = ?", [id]);
+    } else {
+      // Soft delete — deactivate the account
+      await execute(
+        "UPDATE customers SET is_active = FALSE, deactivated_at = NOW(), deactivation_reason = 'Customer requested account deletion' WHERE id = ?",
+        [id]
+      );
+    }
+    return NextResponse.json({ success: true });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+  }
 }

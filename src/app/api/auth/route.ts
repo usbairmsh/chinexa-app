@@ -13,6 +13,7 @@ function normalizePhone(phone: string): string {
 
 // POST /api/auth — Login: look up customer by phone
 // POST /api/auth — Register: create new customer with phone + name
+// POST /api/auth — Deactivate: soft-delete customer account
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -34,6 +35,16 @@ export async function POST(req: NextRequest) {
       }
 
       const customer = rows[0];
+
+      // Block inactive/deactivated accounts
+      if (!customer.is_active) {
+        return NextResponse.json({
+          found: true,
+          blocked: true,
+          error: "This account has been deactivated. Please contact support if you believe this is a mistake.",
+        }, { status: 403 });
+      }
+
       return NextResponse.json({
         found: true,
         user: {
@@ -56,9 +67,20 @@ export async function POST(req: NextRequest) {
       if (!phone) return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
       if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
-      // Check if already exists
-      const existing = await query<RowDataPacket[]>("SELECT id, name FROM customers WHERE phone = ? OR phone = ? LIMIT 1", [phone, rawPhone]);
+      // Check if already exists (active or inactive)
+      const existing = await query<RowDataPacket[]>(
+        "SELECT id, name, is_active FROM customers WHERE phone = ? OR phone = ? LIMIT 1",
+        [phone, rawPhone]
+      );
+
       if (existing.length > 0) {
+        // If the account is deactivated, block registration
+        if (!existing[0].is_active) {
+          return NextResponse.json({
+            error: "This phone number belongs to a deactivated account. Please contact support to reactivate.",
+          }, { status: 403 });
+        }
+        // Active account exists — return it
         return NextResponse.json({
           success: true,
           user: {
@@ -95,6 +117,32 @@ export async function POST(req: NextRequest) {
           role: "customer" as const,
         },
       }, { status: 201 });
+    }
+
+    // ─── DEACTIVATE: Soft-delete customer account ───
+    if (action === "deactivate") {
+      const { customer_id, reason } = body;
+      if (!customer_id) return NextResponse.json({ error: "customer_id is required" }, { status: 400 });
+
+      await execute(
+        "UPDATE customers SET is_active = FALSE, deactivated_at = NOW(), deactivation_reason = ? WHERE id = ?",
+        [reason || "Customer requested account deletion", customer_id]
+      );
+
+      return NextResponse.json({ success: true });
+    }
+
+    // ─── REACTIVATE: Admin can reactivate an account ───
+    if (action === "reactivate") {
+      const { customer_id } = body;
+      if (!customer_id) return NextResponse.json({ error: "customer_id is required" }, { status: 400 });
+
+      await execute(
+        "UPDATE customers SET is_active = TRUE, deactivated_at = NULL, deactivation_reason = NULL WHERE id = ?",
+        [customer_id]
+      );
+
+      return NextResponse.json({ success: true });
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });

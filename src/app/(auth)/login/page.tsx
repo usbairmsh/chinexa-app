@@ -55,7 +55,10 @@ export default function LoginPage() {
       });
       const data = await res.json();
 
-      if (data.found) {
+      if (data.blocked) {
+        // Account is deactivated
+        setError(data.error || "This account has been deactivated. Contact support to reactivate.");
+      } else if (data.found) {
         // Registered — go to OTP verification
         router.push(`/verify?phone=${encodeURIComponent(fullPhone)}&method=${method}`);
       } else {

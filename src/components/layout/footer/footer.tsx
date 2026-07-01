@@ -93,8 +93,8 @@ export function Footer() {
           <p>
             &copy; {new Date().getFullYear()} ChineXa. All rights reserved.
           </p>
-          <p className="flex items-center gap-1">
-            Made with <Heart className="h-3 w-3 text-secondary fill-secondary" /> in Bangladesh
+          <p className="flex items-center gap-1.5">
+            Developed by <span className="font-heading font-semibold text-secondary italic tracking-wide">ChineXa</span>
           </p>
           <div className="flex items-center gap-4">
             <span className="font-medium">We Accept:</span>

@@ -117,7 +117,9 @@ function VerifyForm() {
         });
         const data = await res.json();
 
-        if (data.found) {
+        if (data.blocked) {
+          throw new Error(data.error || "This account has been deactivated.");
+        } else if (data.found) {
           document.cookie = `chinexa-role=customer; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
           login({
             user: data.user,

@@ -90,6 +90,8 @@ CREATE TABLE IF NOT EXISTS customers (
   total_orders INT DEFAULT 0,
   total_spent DECIMAL(12,2) DEFAULT 0,
   is_active BOOLEAN DEFAULT TRUE,
+  deactivated_at TIMESTAMP NULL,
+  deactivation_reason VARCHAR(255),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   last_order_at TIMESTAMP NULL
@@ -418,6 +420,19 @@ CREATE TABLE IF NOT EXISTS customer_coupons (
   assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   used_at TIMESTAMP NULL,
   FOREIGN KEY (coupon_id) REFERENCES coupons(id) ON DELETE CASCADE,
+  FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Customer Notifications
+CREATE TABLE IF NOT EXISTS customer_notifications (
+  id VARCHAR(50) PRIMARY KEY,
+  customer_id VARCHAR(50) NOT NULL,
+  type ENUM('order', 'promo', 'loyalty', 'system') DEFAULT 'system',
+  title VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  link VARCHAR(500),
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 

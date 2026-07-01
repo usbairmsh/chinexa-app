@@ -33,6 +33,26 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       await execute("UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?", [body.status, id]);
       await execute("INSERT INTO order_timeline (order_id, status, note) VALUES (?, ?, ?)", [id, body.status, body.note || `Status changed to ${body.status}`]);
 
+      // Send customer notification
+      if (order.customer_id) {
+        const notifMessages: Record<string, { title: string; message: string; type: string }> = {
+          confirmed: { title: "Order Confirmed", message: `Your order ${order.order_number} has been confirmed and is being prepared.`, type: "order" },
+          processing: { title: "Order Processing", message: `Your order ${order.order_number} is being processed.`, type: "order" },
+          shipped: { title: "Order Shipped!", message: `Your order ${order.order_number} has been shipped and is on its way.`, type: "order" },
+          on_delivery: { title: "Out for Delivery", message: `Your order ${order.order_number} is out for delivery. It will arrive soon!`, type: "order" },
+          received: { title: "Order Delivered", message: `Your order ${order.order_number} has been delivered. Enjoy your purchase!`, type: "order" },
+          not_received: { title: "Delivery Issue", message: `There was an issue with the delivery of order ${order.order_number}. Please contact support.`, type: "order" },
+        };
+        const notif = notifMessages[body.status];
+        if (notif) {
+          const notifId = `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+          await execute(
+            "INSERT INTO customer_notifications (id, customer_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)",
+            [notifId, order.customer_id, notif.type, notif.title, notif.message, `/dashboard/orders/${order.order_number}`]
+          ).catch(() => {});
+        }
+      }
+
       const paymentMethod = (order.payment_method as string || "").toLowerCase();
       const isCOD = paymentMethod === "cod";
 
@@ -80,6 +100,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
                 "INSERT INTO customer_points (id, customer_id, points, type, reference_id, description) VALUES (?, ?, ?, 'purchase', ?, ?)",
                 [pointsId, order.customer_id, earnedPoints, id, `Earned from order ${order.order_number} (${multiplier}x multiplier)`]
               );
+              // Notify customer about points earned
+              const pNotifId = `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+              await execute(
+                "INSERT INTO customer_notifications (id, customer_id, type, title, message) VALUES (?, ?, 'loyalty', ?, ?)",
+                [pNotifId, order.customer_id, `You earned ${earnedPoints} points!`, `Your purchase from order ${order.order_number} earned you ${earnedPoints} loyalty points.`]
+              ).catch(() => {});
             }
 
             // Update customer total_spent and total_orders
