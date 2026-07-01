@@ -569,7 +569,7 @@ export default function AdminCustomersPage() {
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-16 text-center text-charcoal-lighter">{activeCustomers.length === 0 ? "No customers yet. Customers will appear here when they place orders." : "No customers match your search"}</td></tr>
+                <tr><td colSpan={8} className="px-4 py-16 text-center text-charcoal-lighter">{activeCustomers.length === 0 ? "No customers yet. Customers will appear here when they register or place an order." : "No customers match your search"}</td></tr>
               ) : (
                 filtered.map((c) => (
                   <tr key={c.id} onClick={() => handleSelectCustomer(c)} className="border-b border-border/10 hover:bg-pearl/50 transition-colors cursor-pointer">
