@@ -39,6 +39,7 @@ export default function AdminProductsPage() {
   const { data, isLoading } = useProducts({
     ...params,
     search: searchQuery || undefined,
+    all: true,
   });
 
   const handlePriceEdit = (productId: string, currentPrice: number) => {

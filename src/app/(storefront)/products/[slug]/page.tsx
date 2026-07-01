@@ -23,6 +23,7 @@ import { useUIStore } from "@/stores/ui.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, cn } from "@/lib/utils";
+import { getCountryFlag } from "@/lib/countries";
 
 interface ReviewData {
   id: string; customer_name: string; rating: number; title: string | null;
@@ -293,7 +294,7 @@ export default function ProductDetailPage() {
                     <>
                       <span className="text-charcoal-lighter/30">|</span>
                       <span className="text-[11px] text-charcoal-lighter flex items-center gap-1">
-                        <Globe className="h-3 w-3" /> {product.country_of_origin}
+                        {getCountryFlag(product.country_of_origin)} {product.country_of_origin}
                       </span>
                     </>
                   )}
@@ -531,7 +532,7 @@ export default function ProductDetailPage() {
                   {[
                     { label: "SKU", value: product.sku },
                     product.weight ? { label: "Weight / Size", value: product.weight } : null,
-                    product.country_of_origin ? { label: "Origin", value: product.country_of_origin } : null,
+                    product.country_of_origin ? { label: "Origin", value: `${getCountryFlag(product.country_of_origin)} ${product.country_of_origin}` } : null,
                     { label: "Category", value: product.category_name },
                     product.subcategory ? { label: "Sub-category", value: product.subcategory } : null,
                     { label: "Stock", value: product.stock_quantity > 0 ? `${product.stock_quantity} available` : "Out of stock" },

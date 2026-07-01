@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ImageUpload } from "@/components/admin/shared/image-upload";
 import { ImagePositionEditor } from "@/components/admin/shared/image-position-editor";
 import { cn } from "@/lib/utils";
+import { COUNTRIES } from "@/lib/countries";
 
 type VariantRow = {
   id: string; type: "size" | "color" | "shade" | "weight";
@@ -233,8 +234,12 @@ export default function EditProductPage() {
                   <div className="grid sm:grid-cols-2 gap-4">
                     <Select value={origin} onValueChange={setOrigin}>
                       <SelectTrigger><SelectValue placeholder="Country of Origin" /></SelectTrigger>
-                      <SelectContent>
-                        {["Korea", "Japan", "France", "Italy", "USA", "UK", "Bangladesh"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      <SelectContent className="max-h-60">
+                        {COUNTRIES.map((c) => (
+                          <SelectItem key={c.code} value={c.name}>
+                            <span className="flex items-center gap-2">{c.flag} {c.name}</span>
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <Input label="Tags (comma separated)" value={tags} onChange={(e) => setTags(e.target.value)} />

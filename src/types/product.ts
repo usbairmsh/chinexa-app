@@ -66,6 +66,7 @@ export interface ProductListParams {
   tags?: string[];
   badges?: ProductBadge[];
   in_stock?: boolean;
+  all?: boolean;
 }
 
 export interface CreateProductDTO {

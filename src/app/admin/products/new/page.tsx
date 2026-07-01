@@ -20,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
 import { ImagePositionEditor } from "@/components/admin/shared/image-position-editor";
 import { cn } from "@/lib/utils";
+import { COUNTRIES } from "@/lib/countries";
 
 type VariantRow = {
   id: string;
@@ -295,14 +296,12 @@ export default function AddProductPage() {
                   <div className="grid sm:grid-cols-2 gap-4">
                     <Select value={origin} onValueChange={setOrigin}>
                       <SelectTrigger><SelectValue placeholder="Country of Origin" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Korea">Korea</SelectItem>
-                        <SelectItem value="Japan">Japan</SelectItem>
-                        <SelectItem value="France">France</SelectItem>
-                        <SelectItem value="Italy">Italy</SelectItem>
-                        <SelectItem value="USA">USA</SelectItem>
-                        <SelectItem value="UK">UK</SelectItem>
-                        <SelectItem value="Bangladesh">Bangladesh</SelectItem>
+                      <SelectContent className="max-h-60">
+                        {COUNTRIES.map((c) => (
+                          <SelectItem key={c.code} value={c.name}>
+                            <span className="flex items-center gap-2">{c.flag} {c.name}</span>
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <Input label="Tags (comma separated)" placeholder="skincare, serum, vitamin-c" value={tags} onChange={(e) => setTags(e.target.value)} />

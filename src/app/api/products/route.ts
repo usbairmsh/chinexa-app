@@ -67,7 +67,8 @@ export async function GET(req: NextRequest) {
     const featured = searchParams.get("featured");
     const limit = searchParams.get("limit");
 
-    let where = "WHERE p.is_active = 1";
+    const all = searchParams.get("all");
+    let where = all ? "WHERE 1=1" : "WHERE p.is_active = 1";
     const params: (string | number)[] = [];
 
     if (category) { where += " AND p.category_id = ?"; params.push(category); }
