@@ -9,11 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
-// Validate Bangladeshi phone: must be 10 digits starting with 1 (after removing leading 0)
+// Validate Bangladeshi phone: must be 11 digits starting with 01
 function validateBDPhone(digits: string): string | null {
   const cleaned = digits.replace(/[\s-]/g, "");
-  if (cleaned.length !== 10 || !cleaned.startsWith("1") || !/^\d{10}$/.test(cleaned)) {
-    return "Invalid phone number";
+  if (cleaned.length !== 11 || !cleaned.startsWith("01") || !/^\d{11}$/.test(cleaned)) {
+    return "Invalid phone number. Must be 11 digits starting with 01";
   }
   return null;
 }
@@ -27,8 +27,8 @@ export default function LoginPage() {
   const [error, setError] = useState("");
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Only allow digits, max 10
-    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+    // Only allow digits, max 11
+    const val = e.target.value.replace(/\D/g, "").slice(0, 11);
     setPhone(val);
     setError("");
   };
@@ -46,7 +46,7 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    const fullPhone = `+880${phone}`;
+    const fullPhone = `+88${phone}`;
 
     try {
       // Check if phone is registered BEFORE sending OTP
@@ -93,12 +93,12 @@ export default function LoginPage() {
               <div className="flex">
                 <div className="flex items-center gap-1.5 px-3 rounded-l-luxury border-2 border-r-0 border-border bg-pearl/60 text-sm font-semibold text-charcoal select-none">
                   <Phone className="h-3.5 w-3.5 text-charcoal-lighter" />
-                  <span>+880</span>
+                  <span>+88</span>
                 </div>
                 <input
                   type="tel"
                   inputMode="numeric"
-                  placeholder="1XXXXXXXXX"
+                  placeholder="01XXXXXXXXX"
                   value={phone}
                   onChange={handlePhoneChange}
                   className={`flex-1 h-12 rounded-r-luxury border-2 px-3 text-sm text-charcoal placeholder:text-charcoal-lighter/50 outline-none transition-all ${
@@ -106,7 +106,7 @@ export default function LoginPage() {
                       ? "border-destructive focus:border-destructive focus:ring-2 focus:ring-destructive/20"
                       : "border-border focus:border-secondary focus:ring-2 focus:ring-secondary/20"
                   }`}
-                  maxLength={10}
+                  maxLength={11}
                   autoFocus
                 />
               </div>
@@ -153,7 +153,7 @@ export default function LoginPage() {
               variant="secondary"
               size="lg"
               className="w-full !text-white"
-              disabled={loading || phone.length < 10}
+              disabled={loading || phone.length < 11}
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {loading ? "Checking..." : "Continue"}

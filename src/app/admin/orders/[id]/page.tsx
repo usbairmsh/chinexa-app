@@ -90,18 +90,6 @@ export default function OrderDetailPage() {
             <p className="text-xs text-charcoal-lighter">{formatDateShort(order.created_at as string)}</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <AdminButton variant="outline" size="sm" onClick={() => window.open(`/invoice?id=${encodeURIComponent(id)}`, "_blank")}><Printer className="h-3.5 w-3.5" /> Invoice</AdminButton>
-          {order.status !== "received" && order.status !== "not_received" && (
-            <AdminButton size="sm" onClick={() => {
-              const nextMap: Record<string, string> = { pending: "confirmed", confirmed: "processing", processing: "shipped", shipped: "on_delivery", on_delivery: "received" };
-              const next = nextMap[order.status as string];
-              if (next) handleStatusUpdate(next);
-            }}>
-              <ArrowUpRight className="h-3.5 w-3.5" /> Advance Status
-            </AdminButton>
-          )}
-        </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-5">
@@ -155,7 +143,9 @@ export default function OrderDetailPage() {
                       <div className="pb-4 pt-1">
                         <p className="text-sm font-medium text-charcoal capitalize">{String(step.status)}</p>
                         <p className="text-[10px] text-charcoal-lighter">{String(step.note || "")}</p>
-                        <p className="text-[10px] text-charcoal-lighter">{formatDateShort(step.created_at as string)}</p>
+                        <p className="text-[10px] text-charcoal-lighter">
+                          {new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true }).format(new Date(step.created_at as string))}
+                        </p>
                       </div>
                     </div>
                   );

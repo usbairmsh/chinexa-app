@@ -1,11 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
-import { execute } from "@/lib/db";
+import { type RowDataPacket } from "mysql2/promise";
+import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const body = await req.json();
+
+    // Validate point range if being updated
+    if (body.min_points !== undefined && body.max_points !== undefined) {
+      if (Number(body.min_points) >= Number(body.max_points)) {
+        return NextResponse.json({ error: "Min points must be less than max points" }, { status: 400 });
+      }
+      // Check overlap with other tiers (exclude self)
+      const existing = await query<RowDataPacket[]>(
+        "SELECT name, min_points, max_points FROM membership_tiers WHERE id != ? AND is_active = 1",
+        [id]
+      );
+      for (const tier of existing) {
+        const eMin = Number(tier.min_points);
+        const eMax = Number(tier.max_points);
+        const nMin = Number(body.min_points);
+        const nMax = Number(body.max_points);
+        if (nMin <= eMax && nMax >= eMin) {
+          return NextResponse.json({ error: `Point range overlaps with "${tier.name}" (${eMin}–${eMax} points)` }, { status: 400 });
+        }
+      }
+    }
+
     const fields: string[] = [];
     const values: (string | number | null)[] = [];
 

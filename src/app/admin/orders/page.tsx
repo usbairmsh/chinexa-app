@@ -7,7 +7,7 @@ import { triggerDashboardRefresh } from "@/lib/dashboard-events";
 import {
   Search, MoreHorizontal, Eye, Truck, Package, Clock, CheckCircle2,
   XCircle, DollarSign, ArrowUpRight, Check,
-  Download, Printer, ShoppingCart, PackageCheck, MapPin, ThumbsDown
+  Download, Printer, ShoppingCart, PackageCheck, MapPin, ThumbsDown, Copy
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +48,7 @@ export default function OrderManagementPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [orders, setOrders] = useState<Order[]>([]);
+  const [copiedId, setCopiedId] = useState("");
   const [loading, setLoading] = useState(true);
   const [statusDialog, setStatusDialog] = useState<Order | null>(null);
   const [newStatus, setNewStatus] = useState<OrderStatus | "">("");
@@ -236,10 +237,19 @@ export default function OrderManagementPage() {
                       <motion.tr key={order.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                         className="border-b border-border/10 hover:bg-pearl/50 transition-colors">
                         <td className="px-4 py-3">
-                          <Link href={`/admin/orders/${order.id}`} className="group">
-                            <p className="font-semibold text-charcoal group-hover:text-secondary transition-colors">{order.id}</p>
-                            <p className="text-[10px] text-charcoal-lighter">{formatDateShort(order.date)}</p>
-                          </Link>
+                          <div className="flex items-center gap-1.5">
+                            <Link href={`/admin/orders/${order.id}`} className="group">
+                              <p className="font-semibold text-charcoal group-hover:text-secondary transition-colors">{order.id}</p>
+                              <p className="text-[10px] text-charcoal-lighter">{formatDateShort(order.date)}</p>
+                            </Link>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.id); setCopiedId(order.id); setTimeout(() => setCopiedId(""), 1500); }}
+                              className="p-1 rounded hover:bg-pearl text-charcoal-lighter hover:text-secondary transition-colors shrink-0"
+                              title="Copy Order ID"
+                            >
+                              {copiedId === order.id ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
+                            </button>
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">

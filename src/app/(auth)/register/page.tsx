@@ -113,7 +113,7 @@ function RegisterForm() {
           <Input
             label="Phone Number *"
             type="tel"
-            placeholder="+880 1XXXXXXXXX"
+            placeholder="+88 01XXXXXXXXX"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             icon={<Phone className="h-4 w-4" />}

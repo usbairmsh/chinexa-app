@@ -24,6 +24,26 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+
+    // Validate min < max
+    if (Number(body.min_points) >= Number(body.max_points)) {
+      return NextResponse.json({ error: "Min points must be less than max points" }, { status: 400 });
+    }
+
+    // Check for overlapping point ranges with existing tiers
+    const existing = await query<RowDataPacket[]>(
+      "SELECT name, min_points, max_points FROM membership_tiers WHERE is_active = 1"
+    );
+    for (const tier of existing) {
+      const eMin = Number(tier.min_points);
+      const eMax = Number(tier.max_points);
+      const nMin = Number(body.min_points);
+      const nMax = Number(body.max_points);
+      if (nMin <= eMax && nMax >= eMin) {
+        return NextResponse.json({ error: `Point range overlaps with "${tier.name}" (${eMin}–${eMax} points)` }, { status: 400 });
+      }
+    }
+
     const id = `tier-${Date.now()}`;
     await execute(
       "INSERT INTO membership_tiers (id, name, min_points, max_points, points_multiplier, color, badge_name, badge_color, badge_opacity, benefits, sort_order, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",

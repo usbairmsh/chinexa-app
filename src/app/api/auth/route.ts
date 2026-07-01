@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 
-// Normalize Bangladesh phone: "01712345678" → "+88017..."
+// Normalize Bangladesh phone: "01712345678" → "+8801712345678"
 function normalizePhone(phone: string): string {
   const cleaned = phone.replace(/[\s-]/g, "");
   if (cleaned.startsWith("+880")) return cleaned;
+  if (cleaned.startsWith("+88") && !cleaned.startsWith("+880")) return `+880${cleaned.slice(3)}`;
   if (cleaned.startsWith("880")) return `+${cleaned}`;
-  if (cleaned.startsWith("0")) return `+880${cleaned.slice(1)}`;
+  if (cleaned.startsWith("88") && cleaned.length === 13) return `+${cleaned}`;
+  if (cleaned.startsWith("0") && cleaned.length === 11) return `+88${cleaned}`;
   return cleaned;
 }
 
