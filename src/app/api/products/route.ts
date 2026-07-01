@@ -37,7 +37,8 @@ function buildProduct(row: ProductRow, images: ImageRow[], variants: VariantRow[
     images: images.filter((i) => i.product_id === row.id).map((i) => ({ id: i.id, url: i.url, alt: i.alt || "", order: i.order })),
     category_id: row.category_id, category_name: row.category_name,
     subcategory: row.subcategory || undefined,
-    tags: JSON.parse(row.tags || "[]"), badges: JSON.parse(row.badges || "[]"),
+    tags: typeof row.tags === "string" ? JSON.parse(row.tags || "[]") : row.tags || [],
+    badges: typeof row.badges === "string" ? JSON.parse(row.badges || "[]") : row.badges || [],
     variants: variants.filter((v) => v.product_id === row.id).map((v) => ({
       id: v.id, name: v.name, type: v.type as "size" | "color" | "shade" | "weight",
       value: v.value, hex: v.hex || undefined,

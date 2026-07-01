@@ -14,13 +14,13 @@ export async function GET(req: NextRequest) {
     if (slug) {
       const rows = await query<BlogRow[]>("SELECT * FROM blog_posts WHERE slug = ? LIMIT 1", [slug]);
       if (rows.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
-      return NextResponse.json({ ...rows[0], tags: JSON.parse((rows[0].tags as string) || "[]"), is_published: !!rows[0].is_published });
+      return NextResponse.json({ ...rows[0], tags: typeof rows[0].tags === "string" ? JSON.parse(rows[0].tags || "[]") : rows[0].tags || [], is_published: !!rows[0].is_published });
     }
     const all = searchParams.get("all");
     const safeLimit = Math.max(1, Math.min(Math.floor(limit), 100));
     const sql = all ? `SELECT * FROM blog_posts ORDER BY created_at DESC LIMIT ${safeLimit}` : `SELECT * FROM blog_posts WHERE is_published = 1 ORDER BY published_at DESC LIMIT ${safeLimit}`;
     const rows = await query<BlogRow[]>(sql);
-    return NextResponse.json(rows.map((r) => ({ ...r, tags: JSON.parse((r.tags as string) || "[]"), is_published: !!r.is_published })));
+    return NextResponse.json(rows.map((r) => ({ ...r, tags: typeof r.tags === "string" ? JSON.parse(r.tags || "[]") : r.tags || [], is_published: !!r.is_published })));
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
   }

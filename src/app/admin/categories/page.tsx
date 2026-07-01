@@ -160,6 +160,31 @@ export default function AdminCategoriesPage() {
     }).catch(() => {});
   };
 
+  const moveSubcategory = async (parentCat: Category, subIdx: number, direction: "up" | "down") => {
+    if (!parentCat.children || parentCat.children.length < 2) return;
+    const swapIdx = direction === "up" ? subIdx - 1 : subIdx + 1;
+    if (swapIdx < 0 || swapIdx >= parentCat.children.length) return;
+
+    const children = [...parentCat.children];
+    [children[subIdx], children[swapIdx]] = [children[swapIdx], children[subIdx]];
+
+    // Update order in database for each subcategory
+    try {
+      await Promise.all(
+        children.map((child, i) =>
+          fetch(`/api/categories/${child.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ order: i }),
+          })
+        )
+      );
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      window.location.reload();
+    } catch {}
+  };
+
   const visibleCount = allCategories.filter((c) => isCategoryVisible(c)).length;
   const hiddenCount = allCategories.length - visibleCount;
 
@@ -259,28 +284,48 @@ export default function AdminCategoriesPage() {
                       </div>
 
                       {cat.children && cat.children.length > 0 && (
-                        <div className="border-t border-border/15 bg-pearl/20 px-3 py-2">
-                          <div className="flex flex-wrap gap-1.5 ml-14">
-                            {cat.children.map((sub) => (
-                              <span key={sub.id} className="flex items-center gap-1 rounded-full bg-white border border-border/30 px-2.5 py-1 text-[10px] group cursor-pointer hover:border-secondary/30 transition-colors"
-                                onClick={() => openEditSub({ ...sub, parent_id: cat.id })}
-                              >
-                                <FolderTree className="h-2.5 w-2.5 text-secondary" />
-                                <span className="font-medium">{sub.name}</span>
-                                <span className="text-charcoal-lighter">({sub.product_count})</span>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); openEditSub({ ...sub, parent_id: cat.id }); }}
-                                  className="ml-0.5 text-charcoal-lighter/50 hover:text-secondary transition-colors opacity-0 group-hover:opacity-100"
+                        <div className="border-t border-border/15 bg-pearl/20 px-3 py-2.5">
+                          <div className="flex flex-col gap-1 ml-14">
+                            {cat.children.map((sub, subIdx) => (
+                              <div key={sub.id} className="flex items-center gap-1.5 group">
+                                {/* Subcategory sort buttons */}
+                                <div className="flex gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); moveSubcategory(cat, subIdx, "up"); }}
+                                    disabled={subIdx === 0}
+                                    className="h-5 w-5 flex items-center justify-center rounded hover:bg-white disabled:opacity-20 transition-colors"
+                                  >
+                                    <ChevronUp className="h-3 w-3 text-charcoal-lighter" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); moveSubcategory(cat, subIdx, "down"); }}
+                                    disabled={subIdx === cat.children!.length - 1}
+                                    className="h-5 w-5 flex items-center justify-center rounded hover:bg-white disabled:opacity-20 transition-colors"
+                                  >
+                                    <ChevronDown className="h-3 w-3 text-charcoal-lighter" />
+                                  </button>
+                                </div>
+                                <span
+                                  className="flex items-center gap-1 rounded-full bg-white border border-border/30 px-2.5 py-1 text-[10px] cursor-pointer hover:border-secondary/30 transition-colors"
+                                  onClick={() => openEditSub({ ...sub, parent_id: cat.id })}
                                 >
-                                  <Edit className="h-2.5 w-2.5" />
-                                </button>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); setDeleteDialog(sub as Category); }}
-                                  className="text-charcoal-lighter/50 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
-                                >
-                                  <Trash2 className="h-2.5 w-2.5" />
-                                </button>
-                              </span>
+                                  <FolderTree className="h-2.5 w-2.5 text-secondary" />
+                                  <span className="font-medium">{sub.name}</span>
+                                  <span className="text-charcoal-lighter">({sub.product_count})</span>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); openEditSub({ ...sub, parent_id: cat.id }); }}
+                                    className="ml-0.5 text-charcoal-lighter/50 hover:text-secondary transition-colors opacity-0 group-hover:opacity-100"
+                                  >
+                                    <Edit className="h-2.5 w-2.5" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setDeleteDialog(sub as Category); }}
+                                    className="text-charcoal-lighter/50 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                                  >
+                                    <Trash2 className="h-2.5 w-2.5" />
+                                  </button>
+                                </span>
+                              </div>
                             ))}
                           </div>
                         </div>

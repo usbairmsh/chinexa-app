@@ -7,7 +7,7 @@ import { validate, validationError } from "@/lib/validate";
 export async function GET() {
   try {
     const rows = await query<RowDataPacket[]>("SELECT * FROM coupons ORDER BY created_at DESC");
-    return NextResponse.json(rows.map((r) => ({ ...r, is_active: !!r.is_active, applicable_categories: r.applicable_categories ? JSON.parse(r.applicable_categories as string) : null, applicable_products: r.applicable_products ? JSON.parse(r.applicable_products as string) : null })));
+    return NextResponse.json(rows.map((r) => ({ ...r, is_active: !!r.is_active, applicable_categories: typeof r.applicable_categories === "string" ? JSON.parse(r.applicable_categories) : r.applicable_categories || null, applicable_products: typeof r.applicable_products === "string" ? JSON.parse(r.applicable_products) : r.applicable_products || null })));
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
   }

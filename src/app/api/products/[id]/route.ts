@@ -29,8 +29,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       is_active: !!product.is_active,
       is_featured: !!product.is_featured,
       average_rating: Number(product.average_rating),
-      tags: JSON.parse((product.tags as string) || "[]"),
-      badges: JSON.parse((product.badges as string) || "[]"),
+      tags: typeof product.tags === "string" ? JSON.parse(product.tags || "[]") : product.tags || [],
+      badges: typeof product.badges === "string" ? JSON.parse(product.badges || "[]") : product.badges || [],
       images: images.map((i) => ({ id: i.id, url: i.url, alt: i.alt || "", order: i.order })),
       variants: variants.map((v) => ({ id: v.id, name: v.name, type: v.type, value: v.value, hex: v.hex || undefined, price_adjustment: Number(v.price_adjustment), stock: v.stock, sku: v.sku, image: v.image || undefined, focal_point: v.focal_point || undefined })),
     });
