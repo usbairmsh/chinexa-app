@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { validate, validationError, dependencyError } from "@/lib/validate";
 
 interface CategoryRow extends RowDataPacket {
   id: string; name: string; slug: string; description: string | null;
@@ -53,6 +54,14 @@ export async function PUT(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    const err = validate([
+      { field: "name", value: body.name, rules: ["required", "string", { minLength: 2 }], label: "Category name" },
+    ]);
+    if (err) return validationError(err);
+    if (body.parent_id) {
+      const parent = await query<RowDataPacket[]>("SELECT id FROM categories WHERE id = ?", [body.parent_id]);
+      if (parent.length === 0) return dependencyError("Parent category", body.parent_id);
+    }
     const id = body.id || `cat-${Date.now()}`;
     const slug = body.slug || body.name.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-");
     await execute(
@@ -62,6 +71,10 @@ export async function POST(req: NextRequest) {
     await logActivity("Created category", "category", id, body.name);
     return NextResponse.json({ success: true, id, slug }, { status: 201 });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Error";
+    if (message.includes("Duplicate entry")) {
+      return NextResponse.json({ error: "A category with this slug already exists" }, { status: 409 });
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

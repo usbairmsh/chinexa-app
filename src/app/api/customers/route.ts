@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
-import { query, execute } from "@/lib/db";
+import { query, execute, escapeLike } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
   try {
@@ -11,12 +11,13 @@ export async function GET(req: NextRequest) {
 
     let where = "WHERE 1=1";
     const params: (string | number)[] = [];
-    if (search) { where += " AND (name LIKE ? OR phone LIKE ? OR email LIKE ?)"; const q = `%${search}%`; params.push(q, q, q); }
+    if (search) { where += " AND (name LIKE ? OR phone LIKE ? OR email LIKE ?)"; const q = `%${escapeLike(search)}%`; params.push(q, q, q); }
 
     const countRows = await query<RowDataPacket[]>(`SELECT COUNT(*) as total FROM customers ${where}`, params);
     const total = (countRows[0] as { total: number })?.total || 0;
-    const offset = (page - 1) * pageSize;
-    const rows = await query<RowDataPacket[]>(`SELECT * FROM customers ${where} ORDER BY created_at DESC LIMIT ${Number(pageSize)} OFFSET ${Number(offset)}`, params);
+    const safeLimit = Math.max(1, Math.min(Math.floor(pageSize), 100));
+    const safeOffset = Math.max(0, Math.floor((page - 1) * safeLimit));
+    const rows = await query<RowDataPacket[]>(`SELECT * FROM customers ${where} ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`, params);
 
     // Get total items bought per customer
     const customerIds = rows.map((r) => r.id as string);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { validationError } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,10 @@ export async function GET(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
+
+    if (!body.key && !body.settings) {
+      return validationError("No settings provided to update");
+    }
 
     // Single key update
     if (body.key) {

@@ -35,6 +35,7 @@ export default function AdminCategoriesPage() {
   const [saved, setSaved] = useState(false);
 
   // Form
+  const [editCategory, setEditCategory] = useState<Category | null>(null);
   const [formName, setFormName] = useState("");
   const [formSlug, setFormSlug] = useState("");
   const [formDesc, setFormDesc] = useState("");
@@ -44,22 +45,54 @@ export default function AdminCategoriesPage() {
   const [autoSlug, setAutoSlug] = useState(true);
 
   const handleNameChange = (val: string) => { setFormName(val); if (autoSlug) setFormSlug(slugify(val)); };
-  const resetForm = () => { setFormName(""); setFormSlug(""); setFormDesc(""); setFormImage(""); setFormParentId(""); setShowInTopbar(true); setAutoSlug(true); };
+  const resetForm = () => { setEditCategory(null); setFormName(""); setFormSlug(""); setFormDesc(""); setFormImage(""); setFormParentId(""); setShowInTopbar(true); setAutoSlug(true); };
 
-  const handleCreate = async () => {
+  const openEdit = (cat: Category) => {
+    setEditCategory(cat);
+    setFormName(cat.name);
+    setFormSlug(cat.slug);
+    setFormDesc(cat.description || "");
+    setFormImage(cat.image || "");
+    setFormParentId(cat.parent_id || "");
+    setShowInTopbar(cat.is_active);
+    setAutoSlug(false);
+    setDialogOpen(true);
+  };
+
+  const openEditSub = (sub: { id: string; name: string; slug?: string; description?: string; parent_id?: string; product_count: number }) => {
+    setEditCategory(sub as Category);
+    setFormName(sub.name);
+    setFormSlug(sub.slug || slugify(sub.name));
+    setFormDesc(sub.description || "");
+    setFormImage("");
+    setFormParentId(sub.parent_id || "");
+    setShowInTopbar(true);
+    setAutoSlug(false);
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
     if (!formName.trim()) return;
     const slug = formSlug.trim() || slugify(formName);
-    // Save to database
     try {
-      await fetch("/api/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: formName.trim(), slug, description: formDesc.trim(), image: formImage, parent_id: formParentId || null, is_active: showInTopbar }),
-      });
+      if (editCategory) {
+        // Update existing
+        await fetch(`/api/categories/${editCategory.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: formName.trim(), slug, description: formDesc.trim(), image: formImage || null, is_active: showInTopbar }),
+        });
+      } else {
+        // Create new
+        await fetch("/api/categories", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: formName.trim(), slug, description: formDesc.trim(), image: formImage, parent_id: formParentId || null, is_active: showInTopbar }),
+        });
+      }
     } catch {}
     setDialogOpen(false); resetForm(); setSaved(true);
     setTimeout(() => setSaved(false), 2500);
-    // Refresh categories from DB
     window.location.reload();
   };
 
@@ -209,7 +242,7 @@ export default function AdminCategoriesPage() {
                             <MoreHorizontal className="h-4 w-4 text-charcoal-lighter" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openEdit(cat)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => isCustom ? toggleCategory(cat.id) : toggleSeedCategory(cat.id)}>
                               {visible ? <><EyeOff className="h-3.5 w-3.5 mr-2" /> Hide from Topbar</> : <><Eye className="h-3.5 w-3.5 mr-2" /> Show in Topbar</>}
                             </DropdownMenuItem>
@@ -229,11 +262,21 @@ export default function AdminCategoriesPage() {
                         <div className="border-t border-border/15 bg-pearl/20 px-3 py-2">
                           <div className="flex flex-wrap gap-1.5 ml-14">
                             {cat.children.map((sub) => (
-                              <span key={sub.id} className="flex items-center gap-1 rounded-full bg-white border border-border/30 px-2 py-0.5 text-[9px] group">
-                                <FolderTree className="h-2.5 w-2.5 text-secondary" /> {sub.name} ({sub.product_count})
+                              <span key={sub.id} className="flex items-center gap-1 rounded-full bg-white border border-border/30 px-2.5 py-1 text-[10px] group cursor-pointer hover:border-secondary/30 transition-colors"
+                                onClick={() => openEditSub({ ...sub, parent_id: cat.id })}
+                              >
+                                <FolderTree className="h-2.5 w-2.5 text-secondary" />
+                                <span className="font-medium">{sub.name}</span>
+                                <span className="text-charcoal-lighter">({sub.product_count})</span>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); openEditSub({ ...sub, parent_id: cat.id }); }}
+                                  className="ml-0.5 text-charcoal-lighter/50 hover:text-secondary transition-colors opacity-0 group-hover:opacity-100"
+                                >
+                                  <Edit className="h-2.5 w-2.5" />
+                                </button>
                                 <button
                                   onClick={(e) => { e.stopPropagation(); setDeleteDialog(sub as Category); }}
-                                  className="ml-0.5 text-charcoal-lighter/50 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                                  className="text-charcoal-lighter/50 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
                                 >
                                   <Trash2 className="h-2.5 w-2.5" />
                                 </button>
@@ -252,7 +295,7 @@ export default function AdminCategoriesPage() {
       </div>
 
       {/* ═══════ CREATE CATEGORY MODAL — Responsive ═══════ */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) { setDialogOpen(false); resetForm(); } else setDialogOpen(true); }}>
         <DialogContent className="w-[95vw] max-w-lg p-0 overflow-hidden max-h-[90vh] flex flex-col">
           {/* Header */}
           <div className="bg-gradient-to-br from-primary-light to-pearl px-5 sm:px-6 pt-5 pb-3 shrink-0">
@@ -261,8 +304,8 @@ export default function AdminCategoriesPage() {
                 <FolderTree className="h-4 w-4 text-secondary" />
               </div>
               <div>
-                <DialogTitle className="text-base sm:text-lg">{formParentId ? "Add Subcategory" : "Create Category"}</DialogTitle>
-                <DialogDescription className="text-[11px]">{formParentId ? `Under ${allCategories.find((c) => c.id === formParentId)?.name || "parent"}` : "Add a new category to your store"}</DialogDescription>
+                <DialogTitle className="text-base sm:text-lg">{editCategory ? `Edit ${formParentId ? "Subcategory" : "Category"}` : formParentId ? "Add Subcategory" : "Create Category"}</DialogTitle>
+                <DialogDescription className="text-[11px]">{editCategory ? `Update ${editCategory.name}` : formParentId ? `Under ${allCategories.find((c) => c.id === formParentId)?.name || "parent"}` : "Add a new category to your store"}</DialogDescription>
               </div>
             </div>
           </div>
@@ -342,7 +385,9 @@ export default function AdminCategoriesPage() {
           {/* Footer */}
           <div className="px-5 sm:px-6 py-3 bg-pearl/30 border-t border-border/20 flex items-center justify-end gap-2 shrink-0">
             <AdminButton variant="outline" size="sm" onClick={() => setDialogOpen(false)}>Cancel</AdminButton>
-            <AdminButton size="sm" onClick={handleCreate} disabled={!formName.trim()}><Plus className="h-3.5 w-3.5" /> Create</AdminButton>
+            <AdminButton size="sm" onClick={handleSave} disabled={!formName.trim()}>
+              {editCategory ? <><Check className="h-3.5 w-3.5" /> Save Changes</> : <><Plus className="h-3.5 w-3.5" /> Create</>}
+            </AdminButton>
           </div>
         </DialogContent>
       </Dialog>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
-import { query, execute } from "@/lib/db";
+import { query, execute, escapeLike } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 
 interface StockRow extends RowDataPacket {
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     else if (filter === "out") { where += " AND p.stock_quantity = 0"; }
     else if (filter === "overstock") { where += " AND p.stock_quantity > p.max_stock"; }
 
-    if (search) { where += " AND (p.name LIKE ? OR p.sku LIKE ?)"; const q = `%${search}%`; params.push(q, q); }
+    if (search) { where += " AND (p.name LIKE ? OR p.sku LIKE ?)"; const q = `%${escapeLike(search)}%`; params.push(q, q); }
     if (category) { where += " AND p.category_id = ?"; params.push(category); }
 
     let orderBy = "ORDER BY p.stock_quantity ASC";
@@ -46,8 +46,8 @@ export async function GET(req: NextRequest) {
     const products = await query<StockRow[]>(`
       SELECT p.id, p.name, p.sku, p.stock_quantity, p.min_stock, p.max_stock, p.price, p.category_name, p.is_active,
              (SELECT url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.\`order\` LIMIT 1) as image_url
-      FROM products p ${where} ${orderBy} LIMIT ? OFFSET ?
-    `, [...params, pageSize, (page - 1) * pageSize]);
+      FROM products p ${where} ${orderBy} LIMIT ${Math.max(1, Math.min(Math.floor(pageSize), 100))} OFFSET ${Math.max(0, Math.floor((page - 1) * pageSize))}
+    `, params);
 
     // Summary stats — use min_stock/max_stock for thresholds
     const [totalProducts] = await query<StatsRow[]>("SELECT COUNT(*) as count FROM products WHERE is_active = 1");

@@ -37,3 +37,8 @@ export async function execute(
   const [result] = await pool.execute<ResultSetHeader>(sql, params);
   return result;
 }
+
+/** Escape LIKE wildcard characters in user search input */
+export function escapeLike(str: string): string {
+  return str.replace(/[%_\\]/g, "\\$&");
+}

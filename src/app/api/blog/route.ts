@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { validate, validationError } from "@/lib/validate";
 
 interface BlogRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -16,8 +17,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ...rows[0], tags: JSON.parse((rows[0].tags as string) || "[]"), is_published: !!rows[0].is_published });
     }
     const all = searchParams.get("all");
-    const sql = all ? "SELECT * FROM blog_posts ORDER BY created_at DESC LIMIT ?" : "SELECT * FROM blog_posts WHERE is_published = 1 ORDER BY published_at DESC LIMIT ?";
-    const rows = await query<BlogRow[]>(sql, [limit]);
+    const safeLimit = Math.max(1, Math.min(Math.floor(limit), 100));
+    const sql = all ? `SELECT * FROM blog_posts ORDER BY created_at DESC LIMIT ${safeLimit}` : `SELECT * FROM blog_posts WHERE is_published = 1 ORDER BY published_at DESC LIMIT ${safeLimit}`;
+    const rows = await query<BlogRow[]>(sql);
     return NextResponse.json(rows.map((r) => ({ ...r, tags: JSON.parse((r.tags as string) || "[]"), is_published: !!r.is_published })));
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
@@ -27,6 +29,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    const err = validate([
+      { field: "title", value: body.title, rules: ["required", "string", { minLength: 3 }], label: "Blog title" },
+    ]);
+    if (err) return validationError(err);
     const id = `blog-${Date.now()}`;
     const slug = body.slug || body.title.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-");
     await execute(
@@ -36,6 +42,10 @@ export async function POST(req: NextRequest) {
     await logActivity("Created blog post", "blog", id, body.title);
     return NextResponse.json({ success: true, id, slug }, { status: 201 });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Error";
+    if (message.includes("Duplicate entry")) {
+      return NextResponse.json({ error: "A blog post with this title already exists" }, { status: 409 });
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

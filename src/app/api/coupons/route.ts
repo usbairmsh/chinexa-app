@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { validate, validationError } from "@/lib/validate";
 
 export async function GET() {
   try {
@@ -15,6 +16,18 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    const err = validate([
+      { field: "code", value: body.code, rules: ["required", "string", { minLength: 2 }], label: "Coupon code" },
+      { field: "discount_value", value: Number(body.discount_value), rules: ["required", "number", "positive"], label: "Discount value" },
+      { field: "discount_type", value: body.discount_type || "percentage", rules: [{ oneOf: ["percentage", "fixed"] }], label: "Discount type" },
+    ]);
+    if (err) return validationError(err);
+    if (body.discount_type === "percentage" && Number(body.discount_value) > 100) {
+      return validationError("Percentage discount cannot exceed 100%");
+    }
+    if (body.valid_from && body.valid_until && new Date(body.valid_from) >= new Date(body.valid_until)) {
+      return validationError("Valid-from date must be before valid-until date");
+    }
     const id = `coupon-${Date.now()}`;
     await execute(
       "INSERT INTO coupons (id, code, description, discount_type, discount_value, min_order_amount, max_discount_amount, usage_limit, valid_from, valid_until, is_active, applicable_categories, applicable_products) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -23,6 +36,10 @@ export async function POST(req: NextRequest) {
     await logActivity("Created coupon", "coupon", id, body.code);
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Error";
+    if (message.includes("Duplicate entry")) {
+      return NextResponse.json({ error: "A coupon with this code already exists" }, { status: 409 });
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

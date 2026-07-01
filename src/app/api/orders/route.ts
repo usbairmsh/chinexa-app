@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
-import { query, execute } from "@/lib/db";
+import { query, execute, escapeLike } from "@/lib/db";
+import { validate, validationError } from "@/lib/validate";
 
 interface OrderRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -24,12 +25,14 @@ export async function GET(req: NextRequest) {
     let where = "WHERE 1=1";
     const params: (string | number)[] = [];
     if (status) { where += " AND status = ?"; params.push(status); }
-    if (search) { where += " AND (order_number LIKE ? OR customer_name LIKE ? OR customer_phone LIKE ?)"; const q = `%${search}%`; params.push(q, q, q); }
+    if (search) { where += " AND (order_number LIKE ? OR customer_name LIKE ? OR customer_phone LIKE ?)"; const q = `%${escapeLike(search)}%`; params.push(q, q, q); }
 
     const countRows = await query<RowDataPacket[]>(`SELECT COUNT(*) as total FROM orders ${where}`, params);
     const total = (countRows[0] as { total: number })?.total || 0;
 
-    const orders = await query<OrderRow[]>(`SELECT * FROM orders ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`, [...params, pageSize, (page - 1) * pageSize]);
+    const safeLimit = Math.max(1, Math.min(Math.floor(pageSize), 100));
+    const safeOffset = Math.max(0, Math.floor((page - 1) * safeLimit));
+    const orders = await query<OrderRow[]>(`SELECT * FROM orders ${where} ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`, params);
 
     return NextResponse.json({ data: orders.map((o) => ({ ...o, is_active: undefined })), total, page, page_size: pageSize, total_pages: Math.ceil(total / pageSize) });
   } catch (error: unknown) {
@@ -40,6 +43,20 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    const err = validate([
+      { field: "customer_name", value: body.customer_name, rules: ["required", "string"], label: "Customer name" },
+      { field: "customer_phone", value: body.customer_phone, rules: ["required", "string"], label: "Customer phone" },
+      { field: "total", value: Number(body.total), rules: ["required", "number", "positive"], label: "Order total" },
+    ]);
+    if (err) return validationError(err);
+    if (!body.items || !Array.isArray(body.items) || body.items.length === 0) {
+      return validationError("Order must contain at least one item");
+    }
+    for (const item of body.items) {
+      if (!item.product_name || !item.quantity || item.quantity < 1) {
+        return validationError("Each order item must have a product name and quantity of at least 1");
+      }
+    }
     const id = `ord-${Date.now()}`;
     const orderNumber = `ORD-${String(Date.now()).slice(-6)}`;
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { validate, validationError } from "@/lib/validate";
 
 interface BannerRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -23,6 +24,12 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    const err = validate([
+      { field: "title", value: body.title, rules: ["required", "string"], label: "Banner title" },
+      { field: "image", value: body.image, rules: ["required", "string"], label: "Banner image" },
+      { field: "position", value: body.position || "hero", rules: [{ oneOf: ["hero", "promo", "category", "popup"] }], label: "Position" },
+    ]);
+    if (err) return validationError(err);
     const id = `banner-${Date.now()}`;
     await execute(
       "INSERT INTO banners (id, title, subtitle, image, mobile_image, link, cta_text, position, focal_point, `order`, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",

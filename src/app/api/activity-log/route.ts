@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const limit = Math.min(Number(searchParams.get("limit")) || 50, 200);
+    const limit = Math.max(1, Math.min(Math.floor(Number(searchParams.get("limit")) || 50), 200));
     const entityType = searchParams.get("entity_type");
 
     let sql = "SELECT * FROM activity_log";

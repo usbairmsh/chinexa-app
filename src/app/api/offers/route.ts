@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { validate, validationError } from "@/lib/validate";
 
 interface OfferRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -19,12 +20,20 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    const err = validate([
+      { field: "title", value: body.title, rules: ["required", "string"], label: "Offer title" },
+      { field: "discount", value: body.discount, rules: ["required", "string"], label: "Discount" },
+    ]);
+    if (err) return validationError(err);
+    if (body.start_date && body.end_date && new Date(body.start_date) >= new Date(body.end_date)) {
+      return validationError("Start date must be before end date");
+    }
     const id = `offer-${Date.now()}`;
     await execute(
       "INSERT INTO offers (id, title, description, type, category, discount, start_date, end_date, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [id, body.title, body.description || null, body.type || "seasonal", body.category || null, body.discount, body.start_date || null, body.end_date || null, body.is_active !== false ? 1 : 0]
     );
-    await logActivity("Created offer", "banner", id, body.title);
+    await logActivity("Created offer", "offer", id, body.title);
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

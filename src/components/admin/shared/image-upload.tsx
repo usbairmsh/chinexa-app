@@ -54,6 +54,10 @@ export function ImageUpload({
       if (imageIndex) formData.append("image_index", imageIndex);
 
       const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        throw new Error("Upload failed — server returned an unexpected response");
+      }
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.error || "Upload failed");

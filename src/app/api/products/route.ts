@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
-import { query } from "@/lib/db";
+import { query, escapeLike } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { validate, validationError, dependencyError } from "@/lib/validate";
 
 interface ProductRow extends RowDataPacket {
   id: string; name: string; slug: string; description: string; short_description: string;
@@ -71,8 +72,12 @@ export async function GET(req: NextRequest) {
 
     if (category) { where += " AND p.category_id = ?"; params.push(category); }
     if (subcategory) { where += " AND p.subcategory = ?"; params.push(subcategory); }
-    if (search) { where += " AND (p.name LIKE ? OR p.description LIKE ? OR p.tags LIKE ?)"; const q = `%${search}%`; params.push(q, q, q); }
-    if (badges) { where += " AND p.badges LIKE ?"; params.push(`%${badges}%`); }
+    if (search) {
+      const q = `%${escapeLike(search)}%`;
+      where += ` AND (p.name LIKE ? OR p.sku LIKE ? OR p.category_name LIKE ? OR p.subcategory LIKE ? OR p.tags LIKE ? OR p.ingredients LIKE ? OR p.short_description LIKE ? OR EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND (pv.name LIKE ? OR pv.value LIKE ?)))`;
+      params.push(q, q, q, q, q, q, q, q, q);
+    }
+    if (badges) { where += " AND p.badges LIKE ?"; params.push(`%${escapeLike(badges)}%`); }
     if (minPrice) { where += " AND p.price >= ?"; params.push(Number(minPrice)); }
     if (maxPrice) { where += " AND p.price <= ?"; params.push(Number(maxPrice)); }
     if (featured === "true") { where += " AND p.is_featured = 1"; }
@@ -93,9 +98,11 @@ export async function GET(req: NextRequest) {
     const offset = limit ? 0 : (page - 1) * pageSize;
 
     // Products
+    const safeLimit = Math.max(1, Math.min(Math.floor(actualLimit), 100));
+    const safeOffset = Math.max(0, Math.floor(offset));
     const products = await query<ProductRow[]>(
-      `SELECT p.* FROM products p ${where} ${orderBy} LIMIT ? OFFSET ?`,
-      [...params, actualLimit, offset]
+      `SELECT p.* FROM products p ${where} ${orderBy} LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+      params
     );
 
     if (products.length === 0) {
@@ -127,6 +134,26 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+
+    // Validate required fields
+    const err = validate([
+      { field: "name", value: body.name, rules: ["required", "string", { minLength: 2 }, { maxLength: 255 }], label: "Product name" },
+      { field: "price", value: Number(body.price), rules: ["required", "number", "positive"], label: "Price" },
+    ]);
+    if (err) return validationError(err);
+
+    // Validate category exists if provided
+    if (body.category_id) {
+      const catRows = await query<RowDataPacket[]>("SELECT id, name FROM categories WHERE id = ?", [body.category_id]);
+      if (catRows.length === 0) return dependencyError("Category", body.category_id);
+      if (!body.category_name) body.category_name = catRows[0].name;
+    }
+
+    // Validate price logic
+    if (body.compare_at_price && Number(body.compare_at_price) <= Number(body.price)) {
+      return validationError("Compare-at price must be higher than the selling price");
+    }
+
     const id = `prod-${Date.now()}`;
     const slug = body.name.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-").replace(/^-+|-+$/g, "");
     const sku = body.sku || `PRD-${Date.now().toString(36).toUpperCase()}`;
@@ -183,7 +210,9 @@ export async function POST(req: NextRequest) {
     await logActivity("Created product", "product", id, body.name);
     return NextResponse.json({ success: true, id, slug }, { status: 201 });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("Duplicate entry") && message.includes("slug")) return NextResponse.json({ error: "A product with this name already exists" }, { status: 409 });
+    if (message.includes("Duplicate entry") && message.includes("sku")) return NextResponse.json({ error: "A product with this SKU already exists" }, { status: 409 });
+    return NextResponse.json({ error: "Failed to create product. Please check all fields and try again." }, { status: 500 });
   }
 }
