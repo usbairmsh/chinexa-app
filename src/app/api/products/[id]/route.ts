@@ -57,7 +57,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     for (const [key, col] of Object.entries(map)) {
       if (body[key] !== undefined) {
         fields.push(`${col} = ?`);
-        values.push(["is_active", "is_featured"].includes(key) ? (body[key] ? 1 : 0) : body[key]);
+        let val = body[key];
+        if (["is_active", "is_featured"].includes(key)) val = val ? 1 : 0;
+        // Convert empty strings to null for FK columns
+        if (["category_id", "category_name", "subcategory"].includes(key) && val === "") val = null;
+        values.push(val);
       }
     }
     if (body.tags) { fields.push("tags = ?"); values.push(JSON.stringify(body.tags)); }
