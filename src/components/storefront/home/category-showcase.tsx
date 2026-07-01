@@ -58,7 +58,7 @@ export function CategoryShowcase() {
                   className="object-cover transition-transform duration-700 group-hover:scale-105"
                   sizes={index === 0 ? "(max-width: 640px) 100vw, 50vw" : "(max-width: 640px) 50vw, 25vw"}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-charcoal/70 via-charcoal/20 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-4 lg:p-6">
                   <h3 className="font-heading text-lg lg:text-xl font-semibold text-white mb-1">
                     {category.name}

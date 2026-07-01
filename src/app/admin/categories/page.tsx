@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
+import { BrandMultiSelect } from "@/components/admin/shared/brand-multi-select";
 import { useCategories } from "@/hooks/queries/use-categories";
 import { useCategoriesStore } from "@/stores/categories.store";
 import { slugify, cn } from "@/lib/utils";
@@ -403,39 +404,7 @@ export default function AdminCategoriesPage() {
 
             {/* Associated Brands */}
             {!formParentId && allBrands.length > 0 && (
-              <div>
-                <label className="block text-sm font-medium text-charcoal-light mb-1.5">Associated Brands</label>
-                <p className="text-[10px] text-charcoal-lighter mb-2">Select brands to show in this category&apos;s filter</p>
-                <div className="max-h-36 overflow-y-auto border border-border/30 rounded-xl bg-white">
-                  {allBrands.map((brand) => (
-                    <button
-                      key={brand.id}
-                      type="button"
-                      onClick={() => toggleFormBrand(brand.id)}
-                      className={cn(
-                        "w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-pearl transition-colors border-b border-border/10 last:border-0",
-                        formBrandIds.includes(brand.id) && "bg-secondary/5"
-                      )}
-                    >
-                      <span className="text-charcoal">{brand.name}</span>
-                      {formBrandIds.includes(brand.id) && <Check className="h-4 w-4 text-secondary shrink-0" />}
-                    </button>
-                  ))}
-                </div>
-                {formBrandIds.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {formBrandIds.map((id) => {
-                      const b = allBrands.find((br) => br.id === id);
-                      return b ? (
-                        <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary/10 text-secondary text-[10px] font-medium">
-                          {b.name}
-                          <button type="button" onClick={() => toggleFormBrand(id)} className="hover:text-destructive"><X className="h-2.5 w-2.5" /></button>
-                        </span>
-                      ) : null;
-                    })}
-                  </div>
-                )}
-              </div>
+              <BrandMultiSelect brands={allBrands} selected={formBrandIds} onToggle={toggleFormBrand} />
             )}
 
             <Separator />
