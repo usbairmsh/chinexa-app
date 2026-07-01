@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (orderIds.length > 0) {
       const placeholders = orderIds.map(() => "?").join(",");
       const items = await query<RowDataPacket[]>(
-        `SELECT oi.order_id, oi.quantity, oi.price, p.name, COALESCE((SELECT pi.url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.sort_order LIMIT 1), '') as image FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id IN (${placeholders})`,
+        `SELECT oi.order_id, oi.quantity, oi.unit_price as price, oi.product_name as name, COALESCE(oi.product_image, '') as image FROM order_items oi WHERE oi.order_id IN (${placeholders})`,
         orderIds
       );
       for (const item of items) {
