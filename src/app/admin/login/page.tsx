@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Lock, User, Loader2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 export default function AdminLoginPage() {
@@ -12,6 +13,7 @@ export default function AdminLoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -36,10 +38,13 @@ export default function AdminLoginPage() {
         return;
       }
 
-      // Set admin cookies only — do NOT touch customer auth store
-      document.cookie = `chinexa-role=${data.user.role}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
-      document.cookie = `chinexa-admin-id=${data.user.id}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
-      document.cookie = `chinexa-admin-name=${encodeURIComponent(data.user.name)}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+      // Remember Me: 30 days. Otherwise: session cookie (no max-age)
+      const cookieOpts = rememberMe
+        ? `path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
+        : `path=/; SameSite=Lax`;
+      document.cookie = `chinexa-role=${data.user.role}; ${cookieOpts}`;
+      document.cookie = `chinexa-admin-id=${data.user.id}; ${cookieOpts}`;
+      document.cookie = `chinexa-admin-name=${encodeURIComponent(data.user.name)}; ${cookieOpts}`;
 
       router.push("/admin");
     } catch {
@@ -92,9 +97,14 @@ export default function AdminLoginPage() {
               </div>
             </div>
 
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <Checkbox checked={rememberMe} onCheckedChange={(v) => setRememberMe(!!v)} />
+              <span className="text-sm text-charcoal-lighter">Remember Me</span>
+            </label>
+
             {error && <p className="text-xs text-destructive text-center">{error}</p>}
 
-            <Button type="submit" variant="secondary" size="lg" className="w-full" disabled={loading}>
+            <Button type="submit" variant="secondary" size="lg" className="w-full !text-white" disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {loading ? "Signing in..." : "Sign In"}
             </Button>

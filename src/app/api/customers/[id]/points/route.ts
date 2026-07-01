@@ -6,8 +6,9 @@ export const dynamic = "force-dynamic";
 
 interface TierData {
   id: string; name: string; min_points: number; max_points: number;
-  points_multiplier: number; color: string; benefits: string[];
-  sort_order: number; is_active: boolean;
+  points_multiplier: number; color: string;
+  badge_name: string; badge_color: string; badge_opacity: number;
+  benefits: string[]; sort_order: number; is_active: boolean;
 }
 
 // GET /api/customers/[id]/points — get points balance, history, and tier
@@ -39,6 +40,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       max_points: Number(t.max_points),
       points_multiplier: Number(t.points_multiplier),
       color: t.color as string,
+      badge_name: (t.badge_name as string) || "ChineXa General",
+      badge_color: (t.badge_color as string) || "#3B82F6",
+      badge_opacity: Number(t.badge_opacity ?? 1),
       benefits: typeof t.benefits === "string" ? JSON.parse(t.benefits) : t.benefits || [],
       sort_order: Number(t.sort_order),
       is_active: !!t.is_active,

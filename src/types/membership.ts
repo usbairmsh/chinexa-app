@@ -5,6 +5,9 @@ export interface MembershipTier {
   max_points: number;
   points_multiplier: number;
   color: string;
+  badge_name: string;
+  badge_color: string;
+  badge_opacity: number;
   benefits: string[];
   sort_order: number;
   is_active: boolean;

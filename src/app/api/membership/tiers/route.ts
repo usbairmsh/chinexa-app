@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const id = `tier-${Date.now()}`;
     await execute(
-      "INSERT INTO membership_tiers (id, name, min_points, max_points, points_multiplier, color, benefits, sort_order, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO membership_tiers (id, name, min_points, max_points, points_multiplier, color, badge_name, badge_color, badge_opacity, benefits, sort_order, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [
         id,
         body.name,
@@ -34,6 +34,9 @@ export async function POST(req: NextRequest) {
         body.max_points || 0,
         body.points_multiplier || 1,
         body.color || "bg-gray-100 text-gray-600",
+        body.badge_name || "ChineXa General",
+        body.badge_color || "#3B82F6",
+        body.badge_opacity ?? 1,
         JSON.stringify(body.benefits || []),
         body.sort_order || 0,
         body.is_active !== false ? 1 : 0,

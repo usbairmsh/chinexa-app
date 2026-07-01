@@ -6,6 +6,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Phone, MessageCircle, Smartphone, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 // Validate Bangladeshi phone: must be 10 digits starting with 1 (after removing leading 0)
@@ -21,6 +22,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [phone, setPhone] = useState("");
   const [method, setMethod] = useState<"sms" | "whatsapp">("sms");
+  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -60,7 +62,7 @@ export default function LoginPage() {
         setError(data.error || "This account has been deactivated. Contact support to reactivate.");
       } else if (data.found) {
         // Registered — go to OTP verification
-        router.push(`/verify?phone=${encodeURIComponent(fullPhone)}&method=${method}`);
+        router.push(`/verify?phone=${encodeURIComponent(fullPhone)}&method=${method}&remember=${rememberMe ? "1" : "0"}`);
       } else {
         // Not registered — go to registration page with phone pre-filled
         router.push(`/register?phone=${encodeURIComponent(fullPhone)}`);
@@ -141,11 +143,16 @@ export default function LoginPage() {
               </div>
             </div>
 
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <Checkbox checked={rememberMe} onCheckedChange={(v) => setRememberMe(!!v)} />
+              <span className="text-sm text-charcoal-lighter">Remember Me</span>
+            </label>
+
             <Button
               type="submit"
               variant="secondary"
               size="lg"
-              className="w-full"
+              className="w-full !text-white"
               disabled={loading || phone.length < 10}
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}

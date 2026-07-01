@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useAuthStore } from "@/stores/auth.store";
 import { DEFAULT_OTP } from "@/lib/constants";
 import { getInitials, cn } from "@/lib/utils";
+import { VerifiedBadge } from "@/components/shared/verified-badge";
 
 const deactivationReasons = [
   "I no longer need this account",
@@ -151,7 +152,10 @@ export default function ProfilePage() {
                 </AvatarFallback>
               </Avatar>
               <div className="text-center sm:text-left">
-                <h3 className="font-heading text-lg font-semibold text-charcoal">{user?.name || "Guest User"}</h3>
+                <h3 className="font-heading text-lg font-semibold text-charcoal flex items-center gap-1.5">
+                  {user?.name || "Guest User"}
+                  {tierName !== "Bronze" && <VerifiedBadge color={tierColor.includes("orange") ? "#F97316" : tierColor.includes("gray") ? "#6B7280" : tierColor.includes("amber") ? "#F59E0B" : tierColor.includes("violet") ? "#8B5CF6" : "#3B82F6"} size={18} tooltip={tierName} />}
+                </h3>
                 <p className="text-sm text-charcoal-lighter">{user?.phone || "Not signed in"}</p>
                 <div className="flex items-center gap-2 mt-2 justify-center sm:justify-start">
                   <Badge className={cn("text-[10px]", tierColor)}>

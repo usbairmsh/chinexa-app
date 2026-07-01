@@ -89,6 +89,10 @@ function VerifyForm() {
       const mode = searchParams.get("mode"); // "register" or null (login)
       const name = searchParams.get("name");
       const email = searchParams.get("email");
+      const remember = searchParams.get("remember") !== "0"; // default true
+      const cookieOpts = remember
+        ? `path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
+        : `path=/; SameSite=Lax`;
 
       if (mode === "register" && name) {
         // Register the customer after OTP verification
@@ -100,7 +104,7 @@ function VerifyForm() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Registration failed");
 
-        document.cookie = `chinexa-role=customer; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+        document.cookie = `chinexa-role=customer; ${cookieOpts}`;
         login({
           user: { id: data.user.id, name: data.user.name, email: data.user.email, phone: data.user.phone, role: "customer" },
           token: `token-${Date.now()}`,
@@ -120,7 +124,7 @@ function VerifyForm() {
         if (data.blocked) {
           throw new Error(data.error || "This account has been deactivated.");
         } else if (data.found) {
-          document.cookie = `chinexa-role=customer; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+          document.cookie = `chinexa-role=customer; ${cookieOpts}`;
           login({
             user: data.user,
             token: `token-${Date.now()}`,

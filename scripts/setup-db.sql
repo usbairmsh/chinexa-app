@@ -391,6 +391,9 @@ CREATE TABLE IF NOT EXISTS membership_tiers (
   max_points INT NOT NULL DEFAULT 0,
   points_multiplier DECIMAL(4,2) DEFAULT 1.00,
   color VARCHAR(50) DEFAULT 'bg-gray-100 text-gray-600',
+  badge_name VARCHAR(100) DEFAULT 'ChineXa General',
+  badge_color VARCHAR(20) DEFAULT '#3B82F6',
+  badge_opacity DECIMAL(3,2) DEFAULT 1.00,
   benefits JSON,
   sort_order INT DEFAULT 0,
   is_active BOOLEAN DEFAULT TRUE,
@@ -448,8 +451,10 @@ INSERT IGNORE INTO settings (`key`, value) VALUES
   ('points_enabled', 'true');
 
 -- Insert default membership tiers
-INSERT IGNORE INTO membership_tiers (id, name, min_points, max_points, points_multiplier, color, benefits, sort_order) VALUES
-  ('tier-bronze', 'Bronze', 1, 500, 1.00, 'bg-orange-100 text-orange-700', '["Basic member benefits"]', 1),
-  ('tier-silver', 'Silver', 501, 1100, 1.50, 'bg-gray-100 text-gray-600', '["5% extra discount", "Priority support"]', 2),
-  ('tier-gold', 'Gold', 1101, 1800, 2.00, 'bg-amber-50 text-amber-700', '["10% extra discount", "Free shipping", "Early access to sales"]', 3),
-  ('tier-platinum', 'Platinum', 1801, 2500, 3.00, 'bg-violet-50 text-violet-700', '["15% extra discount", "Free shipping", "VIP support", "Exclusive products"]', 4);
+INSERT IGNORE INTO membership_tiers (id, name, min_points, max_points, points_multiplier, color, badge_name, badge_color, badge_opacity, benefits, sort_order) VALUES
+  ('tier-general', 'General', 1, 500, 1.00, 'bg-blue-100 text-blue-700', 'ChineXa General', '#3B82F6', 0.70, '["Basic member benefits"]', 1),
+  ('tier-elite', 'Elite', 501, 1100, 1.50, 'bg-emerald-100 text-emerald-700', 'ChineXa Elite', '#10B981', 0.80, '["5% extra discount", "Priority support"]', 2),
+  ('tier-signature', 'Signature', 1101, 1800, 2.00, 'bg-amber-100 text-amber-700', 'ChineXa Signature', '#F59E0B', 0.85, '["10% extra discount", "Free shipping", "Early access to sales"]', 3),
+  ('tier-prestige', 'Prestige', 1801, 2500, 2.50, 'bg-purple-100 text-purple-700', 'ChineXa Prestige', '#8B5CF6', 0.90, '["15% extra discount", "Free shipping", "VIP support"]', 4),
+  ('tier-royal', 'Royal', 2501, 3500, 3.00, 'bg-rose-100 text-rose-700', 'ChineXa Royal', '#E11D48', 0.95, '["20% extra discount", "Free express shipping", "VIP support", "Exclusive products"]', 5),
+  ('tier-black', 'Black', 3501, 99999, 4.00, 'bg-gray-900 text-white', 'ChineXa Black', '#1a1a1a', 1.00, '["25% extra discount", "Free express shipping", "Personal shopper", "Exclusive early access", "Birthday gifts"]', 6);

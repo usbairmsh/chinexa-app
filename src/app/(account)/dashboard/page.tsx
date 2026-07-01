@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 
 import { useAuthStore } from "@/stores/auth.store";
+import { useCustomerBadge } from "@/hooks/use-customer-badge";
+import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { useWishlistStore } from "@/stores/wishlist.store";
 import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
 
@@ -33,6 +35,7 @@ interface OrderData {
 
 export default function AccountDashboard() {
   const user = useAuthStore((s) => s.user);
+  const badgeData = useCustomerBadge();
   const wishlistCount = useWishlistStore((s) => s.items.length);
 
   const [loyaltyPoints, setLoyaltyPoints] = useState(0);
@@ -101,8 +104,10 @@ export default function AccountDashboard() {
               <p className="text-xs font-medium text-secondary uppercase tracking-widest mb-1">
                 <Badge className={cn("text-[10px]", tierColor)}>{loyaltyTier} Member</Badge>
               </p>
-              <h2 className="font-heading text-xl sm:text-2xl font-semibold text-charcoal mb-2">
-                Welcome back, {user?.name || "Beautiful"}! &#10024;
+              <h2 className="font-heading text-xl sm:text-2xl font-semibold text-charcoal mb-2 flex items-center gap-1.5 flex-wrap">
+                Welcome back, {user?.name || "Beautiful"}!
+                {badgeData && <VerifiedBadge color={badgeData.badge_color} opacity={badgeData.badge_opacity} size={22} tooltip={badgeData.badge_name} />}
+                &#10024;
               </h2>
               <p className="text-sm text-charcoal-lighter max-w-md mb-4">
                 You have {loyaltyPoints.toLocaleString()} loyalty points.{nextTierName ? ` Keep shopping to reach ${nextTierName} status.` : " You've reached the highest tier!"}

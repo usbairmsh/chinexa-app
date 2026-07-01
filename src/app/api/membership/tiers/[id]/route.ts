@@ -15,6 +15,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       max_points: "max_points",
       points_multiplier: "points_multiplier",
       color: "color",
+      badge_name: "badge_name",
+      badge_color: "badge_color",
+      badge_opacity: "badge_opacity",
       sort_order: "sort_order",
     })) {
       if (body[k] !== undefined) {

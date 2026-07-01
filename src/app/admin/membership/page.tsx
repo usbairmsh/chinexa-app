@@ -5,6 +5,8 @@ import {
   Crown, Edit, Trash2, Plus, Save, Loader2, Star,
   Settings, Award, TrendingUp, X
 } from "lucide-react";
+import { VerifiedBadge } from "@/components/shared/verified-badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,6 +48,9 @@ export default function AdminMembershipPage() {
   const [formColor, setFormColor] = useState("bg-gray-100 text-gray-600");
   const [formBenefits, setFormBenefits] = useState<string[]>([""]);
   const [formSortOrder, setFormSortOrder] = useState(0);
+  const [formBadgeName, setFormBadgeName] = useState("ChineXa General");
+  const [formBadgeColor, setFormBadgeColor] = useState("#3B82F6");
+  const [formBadgeOpacity, setFormBadgeOpacity] = useState(1);
   const [formActive, setFormActive] = useState(true);
 
   const fetchTiers = async () => {
@@ -70,6 +75,7 @@ export default function AdminMembershipPage() {
   const resetForm = () => {
     setFormName(""); setFormMinPoints(0); setFormMaxPoints(0);
     setFormMultiplier(1); setFormColor("bg-gray-100 text-gray-600");
+    setFormBadgeName("ChineXa General"); setFormBadgeColor("#3B82F6"); setFormBadgeOpacity(1);
     setFormBenefits([""]); setFormSortOrder(0); setFormActive(true);
     setEditTier(null);
   };
@@ -87,6 +93,9 @@ export default function AdminMembershipPage() {
     setFormMaxPoints(tier.max_points);
     setFormMultiplier(tier.points_multiplier);
     setFormColor(tier.color);
+    setFormBadgeName(tier.badge_name || "ChineXa General");
+    setFormBadgeColor(tier.badge_color || "#3B82F6");
+    setFormBadgeOpacity(tier.badge_opacity ?? 1);
     setFormBenefits(tier.benefits.length > 0 ? tier.benefits : [""]);
     setFormSortOrder(tier.sort_order);
     setFormActive(tier.is_active);
@@ -103,6 +112,9 @@ export default function AdminMembershipPage() {
         max_points: formMaxPoints,
         points_multiplier: formMultiplier,
         color: formColor,
+        badge_name: formBadgeName,
+        badge_color: formBadgeColor,
+        badge_opacity: formBadgeOpacity,
         benefits: formBenefits.filter((b) => b.trim()),
         sort_order: formSortOrder,
         is_active: formActive,
@@ -247,11 +259,19 @@ export default function AdminMembershipPage() {
                 </div>
 
                 {/* Multiplier */}
-                <div className="flex items-center gap-1.5 mb-3">
+                <div className="flex items-center gap-1.5 mb-2">
                   <TrendingUp className="h-3.5 w-3.5 text-secondary" />
                   <span className="text-sm font-semibold text-charcoal">{tier.points_multiplier}x</span>
                   <span className="text-[10px] text-charcoal-lighter">points multiplier</span>
                 </div>
+
+                {/* Badge Preview */}
+                {tier.badge_name && (
+                  <div className="flex items-center gap-1.5 mb-3 p-2 rounded-lg bg-pearl/50">
+                    <VerifiedBadge color={tier.badge_color || "#3B82F6"} opacity={tier.badge_opacity ?? 1} size={18} />
+                    <span className="text-[11px] font-medium text-charcoal">{tier.badge_name}</span>
+                  </div>
+                )}
 
                 {/* Benefits */}
                 {tier.benefits && tier.benefits.length > 0 && (
@@ -318,6 +338,40 @@ export default function AdminMembershipPage() {
                     {c.label}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Verified Badge */}
+            <div className="space-y-3 p-3 rounded-xl bg-pearl/40 border border-border/20">
+              <label className="block text-sm font-medium text-charcoal-lighter">Verified Badge</label>
+              <div>
+                <label className="block text-xs text-charcoal-lighter mb-1">Badge Name</label>
+                <Select value={formBadgeName} onValueChange={setFormBadgeName}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["ChineXa General", "ChineXa Elite", "ChineXa Signature", "ChineXa Prestige", "ChineXa Royal", "ChineXa Black"].map((b) => (
+                      <SelectItem key={b} value={b}>{b}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-charcoal-lighter mb-1">Color</label>
+                  <div className="flex items-center gap-2">
+                    <input type="color" value={formBadgeColor} onChange={(e) => setFormBadgeColor(e.target.value)} className="h-9 w-12 rounded-lg border border-border cursor-pointer" />
+                    <Input value={formBadgeColor} onChange={(e) => setFormBadgeColor(e.target.value)} className="flex-1 font-mono text-xs" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-charcoal-lighter mb-1">Opacity ({Math.round(formBadgeOpacity * 100)}%)</label>
+                  <input type="range" min="0.3" max="1" step="0.05" value={formBadgeOpacity} onChange={(e) => setFormBadgeOpacity(Number(e.target.value))} className="w-full mt-2 accent-secondary" />
+                </div>
+              </div>
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-white">
+                <span className="text-xs text-charcoal-lighter">Preview:</span>
+                <span className="text-sm font-medium text-charcoal">Customer Name</span>
+                <VerifiedBadge color={formBadgeColor} opacity={formBadgeOpacity} size={18} tooltip={formBadgeName} />
               </div>
             </div>
 

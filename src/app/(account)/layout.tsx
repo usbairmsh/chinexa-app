@@ -11,6 +11,8 @@ import {
 import { motion } from "framer-motion";
 import { Header } from "@/components/layout/header/header";
 import { PageLoader } from "@/components/shared/page-loader";
+import { VerifiedBadge } from "@/components/shared/verified-badge";
+import { useCustomerBadge } from "@/hooks/use-customer-badge";
 import { Footer } from "@/components/layout/footer/footer";
 import { CartDrawer } from "@/components/storefront/cart/cart-drawer";
 import { SearchOverlay } from "@/components/storefront/search/search-overlay";
@@ -37,6 +39,7 @@ export default function AccountLayout({
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuthStore();
+  const badge = useCustomerBadge();
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -81,8 +84,9 @@ export default function AccountLayout({
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <p className="font-medium text-charcoal truncate">
+                      <p className="font-medium text-charcoal truncate flex items-center gap-1">
                         {user?.name || "Guest User"}
+                        {badge && <VerifiedBadge color={badge.badge_color} opacity={badge.badge_opacity} size={14} tooltip={badge.badge_name} />}
                       </p>
                       <p className="text-xs text-charcoal-lighter truncate">
                         {user?.phone || "Not signed in"}
