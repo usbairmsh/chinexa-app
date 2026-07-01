@@ -106,7 +106,7 @@ export default function AccountDashboard() {
               </p>
               <h2 className="font-heading text-xl sm:text-2xl font-semibold text-charcoal mb-2 flex items-center gap-1.5 flex-wrap">
                 Welcome back, {user?.name || "Beautiful"}!
-                {badgeData && <VerifiedBadge color={badgeData.badge_color} opacity={badgeData.badge_opacity} size={22} tooltip={badgeData.badge_name} />}
+                {badgeData && <VerifiedBadge color={badgeData.badge_color} opacity={badgeData.badge_opacity} size={26} tooltip={badgeData.badge_name} />}
                 &#10024;
               </h2>
               <p className="text-sm text-charcoal-lighter max-w-md mb-4">

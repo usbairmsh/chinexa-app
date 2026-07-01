@@ -268,7 +268,7 @@ export default function AdminMembershipPage() {
                 {/* Badge Preview */}
                 {tier.badge_name && (
                   <div className="flex items-center gap-1.5 mb-3 p-2 rounded-lg bg-pearl/50">
-                    <VerifiedBadge color={tier.badge_color || "#3B82F6"} opacity={tier.badge_opacity ?? 1} size={18} />
+                    <VerifiedBadge color={tier.badge_color || "#3B82F6"} opacity={tier.badge_opacity ?? 1} size={22} />
                     <span className="text-[11px] font-medium text-charcoal">{tier.badge_name}</span>
                   </div>
                 )}
@@ -371,7 +371,7 @@ export default function AdminMembershipPage() {
               <div className="flex items-center gap-2 p-2 rounded-lg bg-white">
                 <span className="text-xs text-charcoal-lighter">Preview:</span>
                 <span className="text-sm font-medium text-charcoal">Customer Name</span>
-                <VerifiedBadge color={formBadgeColor} opacity={formBadgeOpacity} size={18} tooltip={formBadgeName} />
+                <VerifiedBadge color={formBadgeColor} opacity={formBadgeOpacity} size={22} tooltip={formBadgeName} />
               </div>
             </div>
 

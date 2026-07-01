@@ -154,7 +154,7 @@ export default function ProfilePage() {
               <div className="text-center sm:text-left">
                 <h3 className="font-heading text-lg font-semibold text-charcoal flex items-center gap-1.5">
                   {user?.name || "Guest User"}
-                  {tierName !== "Bronze" && <VerifiedBadge color={tierColor.includes("orange") ? "#F97316" : tierColor.includes("gray") ? "#6B7280" : tierColor.includes("amber") ? "#F59E0B" : tierColor.includes("violet") ? "#8B5CF6" : "#3B82F6"} size={18} tooltip={tierName} />}
+                  {tierName !== "General" && <VerifiedBadge color={tierColor.includes("orange") ? "#F97316" : tierColor.includes("gray") ? "#6B7280" : tierColor.includes("amber") ? "#F59E0B" : tierColor.includes("violet") ? "#8B5CF6" : "#3B82F6"} size={22} tooltip={tierName} />}
                 </h3>
                 <p className="text-sm text-charcoal-lighter">{user?.phone || "Not signed in"}</p>
                 <div className="flex items-center gap-2 mt-2 justify-center sm:justify-start">

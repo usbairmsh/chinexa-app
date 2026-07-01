@@ -86,7 +86,7 @@ export default function AccountLayout({
                     <div className="min-w-0">
                       <p className="font-medium text-charcoal truncate flex items-center gap-1">
                         {user?.name || "Guest User"}
-                        {badge && <VerifiedBadge color={badge.badge_color} opacity={badge.badge_opacity} size={14} tooltip={badge.badge_name} />}
+                        {badge && <VerifiedBadge color={badge.badge_color} opacity={badge.badge_opacity} size={17} tooltip={badge.badge_name} />}
                       </p>
                       <p className="text-xs text-charcoal-lighter truncate">
                         {user?.phone || "Not signed in"}
