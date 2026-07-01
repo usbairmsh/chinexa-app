@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, MoreHorizontal, Copy, Percent, BadgeDollarSign, Loader2, AlertTriangle, Check, Tag } from "lucide-react";
+import { Plus, Edit, Trash2, MoreHorizontal, Copy, Percent, BadgeDollarSign, Loader2, AlertTriangle, Check, Tag, Users, Crown } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,16 @@ export default function AdminCouponsPage() {
   const [deleteDialog, setDeleteDialog] = useState<Coupon | null>(null);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState("");
+
+  // Assign state
+  const [assignDialog, setAssignDialog] = useState<Coupon | null>(null);
+  const [assignMode, setAssignMode] = useState<"tier" | "customer">("tier");
+  const [assignTier, setAssignTier] = useState("");
+  const [assignCustomerSearch, setAssignCustomerSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<{ id: string; name: string; phone: string }[]>([]);
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
+  const [tiers, setTiers] = useState<{ id: string; name: string; color: string }[]>([]);
+  const [assignSaving, setAssignSaving] = useState(false);
 
   // Form
   const [formCode, setFormCode] = useState("");
@@ -116,6 +126,50 @@ export default function AdminCouponsPage() {
     setTimeout(() => setCopied(""), 1500);
   };
 
+  const openAssign = async (coupon: Coupon) => {
+    setAssignDialog(coupon);
+    setAssignMode("tier");
+    setAssignTier("");
+    setSelectedCustomerIds([]);
+    setAssignCustomerSearch("");
+    setSearchResults([]);
+    try {
+      const res = await fetch("/api/membership/tiers");
+      const data = await res.json();
+      if (Array.isArray(data)) setTiers(data);
+    } catch {}
+  };
+
+  const handleSearchCustomers = async (q: string) => {
+    setAssignCustomerSearch(q);
+    if (q.length < 2) { setSearchResults([]); return; }
+    try {
+      const res = await fetch(`/api/customers?search=${encodeURIComponent(q)}&page_size=10`);
+      const data = await res.json();
+      if (data?.data) setSearchResults(data.data);
+    } catch {}
+  };
+
+  const toggleCustomerSelect = (id: string) => {
+    setSelectedCustomerIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  };
+
+  const handleAssign = async () => {
+    if (!assignDialog) return;
+    setAssignSaving(true);
+    try {
+      const payload: { customer_ids?: string[]; tier_name?: string } = {};
+      if (assignMode === "tier" && assignTier) payload.tier_name = assignTier;
+      if (assignMode === "customer" && selectedCustomerIds.length > 0) payload.customer_ids = selectedCustomerIds;
+      if (!payload.tier_name && !payload.customer_ids) return;
+      await fetch(`/api/coupons/${assignDialog.id}/assign`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setAssignDialog(null);
+    } catch {} finally { setAssignSaving(false); }
+  };
+
   const activeCount = coupons.filter((c) => c.is_active).length;
 
   return (
@@ -163,6 +217,7 @@ export default function AdminCouponsPage() {
                       <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => openEdit(coupon)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openAssign(coupon)}><Users className="h-3.5 w-3.5 mr-2" /> Assign</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDialog(coupon)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>
                       </DropdownMenuContent>
@@ -271,6 +326,92 @@ export default function AdminCouponsPage() {
           <DialogFooter>
             <AdminButton variant="outline" onClick={() => setDeleteDialog(null)}>Cancel</AdminButton>
             <AdminButton variant="danger" onClick={handleDelete}><Trash2 className="h-3.5 w-3.5" /> Delete</AdminButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Dialog */}
+      <Dialog open={!!assignDialog} onOpenChange={(open) => { if (!open) setAssignDialog(null); }}>
+        <DialogContent className="w-[95vw] max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
+            <DialogTitle>Assign Coupon</DialogTitle>
+            <DialogDescription>
+              Assign <code className="font-mono font-bold">{assignDialog?.code}</code> to a tier or specific customers
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-4 py-2">
+            {/* Mode Toggle */}
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setAssignMode("tier")} className={cn("flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-medium border transition-all", assignMode === "tier" ? "border-secondary bg-secondary/10 text-secondary" : "border-border/30 text-charcoal-lighter hover:bg-pearl")}>
+                <Crown className="h-3.5 w-3.5" /> By Tier
+              </button>
+              <button type="button" onClick={() => setAssignMode("customer")} className={cn("flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-medium border transition-all", assignMode === "customer" ? "border-secondary bg-secondary/10 text-secondary" : "border-border/30 text-charcoal-lighter hover:bg-pearl")}>
+                <Users className="h-3.5 w-3.5" /> By Customer
+              </button>
+            </div>
+
+            {assignMode === "tier" ? (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-charcoal-lighter">Select Tier</label>
+                <div className="space-y-2">
+                  {tiers.map((tier) => (
+                    <button
+                      key={tier.id}
+                      type="button"
+                      onClick={() => setAssignTier(tier.name)}
+                      className={cn(
+                        "w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left",
+                        assignTier === tier.name ? "border-secondary bg-secondary/5" : "border-border/30 hover:bg-pearl/50"
+                      )}
+                    >
+                      <Badge className={cn("text-[10px]", tier.color)}>{tier.name}</Badge>
+                      <span className="text-xs text-charcoal-lighter">All {tier.name} members</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <Input
+                  label="Search Customers"
+                  placeholder="Type name or phone..."
+                  value={assignCustomerSearch}
+                  onChange={(e) => handleSearchCustomers(e.target.value)}
+                />
+                {selectedCustomerIds.length > 0 && (
+                  <p className="text-[10px] text-secondary font-medium">{selectedCustomerIds.length} customer{selectedCustomerIds.length > 1 ? "s" : ""} selected</p>
+                )}
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {searchResults.map((cust) => (
+                    <button
+                      key={cust.id}
+                      type="button"
+                      onClick={() => toggleCustomerSelect(cust.id)}
+                      className={cn(
+                        "w-full flex items-center justify-between p-2.5 rounded-lg border transition-all text-left",
+                        selectedCustomerIds.includes(cust.id) ? "border-secondary bg-secondary/5" : "border-border/20 hover:bg-pearl/50"
+                      )}
+                    >
+                      <div>
+                        <p className="text-xs font-medium text-charcoal">{cust.name}</p>
+                        <p className="text-[10px] text-charcoal-lighter">{cust.phone}</p>
+                      </div>
+                      {selectedCustomerIds.includes(cust.id) && <Check className="h-4 w-4 text-secondary" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="shrink-0 pt-2 border-t border-border/20">
+            <AdminButton variant="outline" onClick={() => setAssignDialog(null)}>Cancel</AdminButton>
+            <AdminButton
+              onClick={handleAssign}
+              disabled={assignSaving || (assignMode === "tier" ? !assignTier : selectedCustomerIds.length === 0)}
+            >
+              {assignSaving && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+              Assign Coupon
+            </AdminButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>

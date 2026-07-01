@@ -41,7 +41,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         await execute("UPDATE orders SET payment_status = 'paid' WHERE id = ?", [id]);
       }
 
-      // Reduce stock when order is received
+      // Reduce stock + award loyalty points when order is received
       if (body.status === "received") {
         const orderItems = await query<RowDataPacket[]>("SELECT product_id, quantity FROM order_items WHERE order_id = ?", [id]);
         for (const item of orderItems) {
@@ -50,6 +50,45 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
               "UPDATE products SET stock_quantity = GREATEST(stock_quantity - ?, 0) WHERE id = ?",
               [item.quantity, item.product_id]
             );
+          }
+        }
+
+        // Award loyalty points
+        if (order.customer_id) {
+          try {
+            // Get points_per_taka setting
+            const settingsRows = await query<RowDataPacket[]>("SELECT value FROM settings WHERE `key` = 'points_per_taka'");
+            const pointsPerTaka = settingsRows.length > 0 ? Number(JSON.parse(settingsRows[0].value as string)) : 10;
+
+            // Get customer's current points to determine tier multiplier
+            const balanceRows = await query<RowDataPacket[]>("SELECT COALESCE(SUM(points), 0) as total FROM customer_points WHERE customer_id = ?", [order.customer_id]);
+            const currentPoints = Number(balanceRows[0]?.total) || 0;
+
+            const tierRows = await query<RowDataPacket[]>(
+              "SELECT points_multiplier FROM membership_tiers WHERE is_active = 1 AND min_points <= ? AND max_points >= ? LIMIT 1",
+              [currentPoints, currentPoints]
+            );
+            const multiplier = tierRows.length > 0 ? Number(tierRows[0].points_multiplier) : 1;
+
+            const orderTotal = Number(order.total) || 0;
+            const basePoints = Math.floor(orderTotal / pointsPerTaka);
+            const earnedPoints = Math.floor(basePoints * multiplier);
+
+            if (earnedPoints > 0) {
+              const pointsId = `pts-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+              await execute(
+                "INSERT INTO customer_points (id, customer_id, points, type, reference_id, description) VALUES (?, ?, ?, 'purchase', ?, ?)",
+                [pointsId, order.customer_id, earnedPoints, id, `Earned from order ${order.order_number} (${multiplier}x multiplier)`]
+              );
+            }
+
+            // Update customer total_spent and total_orders
+            await execute(
+              "UPDATE customers SET total_spent = total_spent + ?, total_orders = total_orders + 1, last_order_at = NOW() WHERE id = ?",
+              [orderTotal, order.customer_id]
+            );
+          } catch {
+            // Don't fail the order status update if points fail
           }
         }
       }

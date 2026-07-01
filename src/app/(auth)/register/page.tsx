@@ -38,38 +38,31 @@ function RegisterForm() {
     setError("");
 
     try {
-      const res = await fetch("/api/auth", {
+      // First check if phone is already registered
+      const checkRes = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "register",
-          name: name.trim(),
-          phone,
-          email: email.trim() || undefined,
-        }),
+        body: JSON.stringify({ action: "login", phone }),
       });
-      const data = await res.json();
+      const checkData = await checkRes.json();
 
-      if (!res.ok) {
-        throw new Error(data.error || "Registration failed");
+      if (checkData.found) {
+        // Already registered — log them in directly
+        document.cookie = `chinexa-role=customer; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+        login({
+          user: checkData.user,
+          token: `token-${Date.now()}`,
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        });
+        setSuccess(true);
+        setTimeout(() => router.push("/"), 1500);
+        return;
       }
 
-      // Set auth cookie + log the user in
-      document.cookie = `chinexa-role=customer; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
-      login({
-        user: {
-          id: data.user.id,
-          name: data.user.name,
-          email: data.user.email,
-          phone: data.user.phone,
-          role: "customer",
-        },
-        token: `token-${Date.now()}`,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      });
-
-      setSuccess(true);
-      setTimeout(() => router.push("/"), 1500);
+      // Not registered — redirect to OTP verification with registration data
+      router.push(
+        `/verify?phone=${encodeURIComponent(phone)}&mode=register&name=${encodeURIComponent(name.trim())}&email=${encodeURIComponent(email.trim())}`
+      );
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
@@ -88,8 +81,8 @@ function RegisterForm() {
           >
             <CheckCircle2 className="h-16 w-16 text-success mx-auto mb-4" />
           </motion.div>
-          <h2 className="font-heading text-xl font-semibold text-charcoal mb-1">Welcome to ChineXa!</h2>
-          <p className="text-sm text-charcoal-lighter">Your account has been created successfully.</p>
+          <h2 className="font-heading text-xl font-semibold text-charcoal mb-1">Welcome Back!</h2>
+          <p className="text-sm text-charcoal-lighter">You already have an account. Logging you in...</p>
         </CardContent>
       </Card>
     );
@@ -141,7 +134,7 @@ function RegisterForm() {
             className="w-full"
             isLoading={loading}
           >
-            Create Account
+            Verify & Create Account
           </Button>
 
           <p className="text-xs text-center text-charcoal-lighter">

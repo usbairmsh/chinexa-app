@@ -381,6 +381,46 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
+-- Membership Tiers
+CREATE TABLE IF NOT EXISTS membership_tiers (
+  id VARCHAR(50) PRIMARY KEY,
+  name VARCHAR(100) NOT NULL UNIQUE,
+  min_points INT NOT NULL DEFAULT 0,
+  max_points INT NOT NULL DEFAULT 0,
+  points_multiplier DECIMAL(4,2) DEFAULT 1.00,
+  color VARCHAR(50) DEFAULT 'bg-gray-100 text-gray-600',
+  benefits JSON,
+  sort_order INT DEFAULT 0,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- Customer Points Ledger
+CREATE TABLE IF NOT EXISTS customer_points (
+  id VARCHAR(50) PRIMARY KEY,
+  customer_id VARCHAR(50) NOT NULL,
+  points INT NOT NULL,
+  type ENUM('purchase', 'bonus', 'redemption', 'admin_adjustment', 'coupon_reward', 'refund') NOT NULL,
+  reference_id VARCHAR(50),
+  description VARCHAR(255),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Customer Coupons (assign coupons to specific customers or tiers)
+CREATE TABLE IF NOT EXISTS customer_coupons (
+  id VARCHAR(50) PRIMARY KEY,
+  coupon_id VARCHAR(50) NOT NULL,
+  customer_id VARCHAR(50),
+  tier_name VARCHAR(100),
+  is_used BOOLEAN DEFAULT FALSE,
+  assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  used_at TIMESTAMP NULL,
+  FOREIGN KEY (coupon_id) REFERENCES coupons(id) ON DELETE CASCADE,
+  FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 -- Insert default settings
 INSERT IGNORE INTO settings (`key`, value) VALUES
   ('store_name', '"ChineXa"'),
@@ -388,4 +428,13 @@ INSERT IGNORE INTO settings (`key`, value) VALUES
   ('store_phone', '"+880 1700-000000"'),
   ('currency', '"BDT"'),
   ('free_delivery_enabled', 'true'),
-  ('free_delivery_threshold', '3000');
+  ('free_delivery_threshold', '3000'),
+  ('points_per_taka', '10'),
+  ('points_enabled', 'true');
+
+-- Insert default membership tiers
+INSERT IGNORE INTO membership_tiers (id, name, min_points, max_points, points_multiplier, color, benefits, sort_order) VALUES
+  ('tier-bronze', 'Bronze', 1, 500, 1.00, 'bg-orange-100 text-orange-700', '["Basic member benefits"]', 1),
+  ('tier-silver', 'Silver', 501, 1100, 1.50, 'bg-gray-100 text-gray-600', '["5% extra discount", "Priority support"]', 2),
+  ('tier-gold', 'Gold', 1101, 1800, 2.00, 'bg-amber-50 text-amber-700', '["10% extra discount", "Free shipping", "Early access to sales"]', 3),
+  ('tier-platinum', 'Platinum', 1801, 2500, 3.00, 'bg-violet-50 text-violet-700', '["15% extra discount", "Free shipping", "VIP support", "Exclusive products"]', 4);

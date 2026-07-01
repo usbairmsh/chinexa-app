@@ -1,25 +1,19 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { motion } from "framer-motion";
 import {
   ShoppingBag, Heart, MapPin, Star, Package, Truck,
-  CheckCircle2, Clock, ArrowRight, Gift, TrendingUp
+  CheckCircle2, Clock, ArrowRight, Gift, TrendingUp, Loader2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+
 import { useAuthStore } from "@/stores/auth.store";
 import { useWishlistStore } from "@/stores/wishlist.store";
-import { formatCurrency, cn } from "@/lib/utils";
-
-const recentOrders = [
-  { id: "ORD-0527", date: "Jun 28, 2026", total: 8500, status: "processing", items: 2, image: "https://picsum.photos/seed/order-1/80/80" },
-  { id: "ORD-0519", date: "Jun 20, 2026", total: 12400, status: "received", items: 3, image: "https://picsum.photos/seed/order-2/80/80" },
-  { id: "ORD-0512", date: "Jun 15, 2026", total: 4800, status: "received", items: 1, image: "https://picsum.photos/seed/order-3/80/80" },
-];
+import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
 
 // Customer-friendly labels
 const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
@@ -32,19 +26,69 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
   not_received: { label: "Delivery Failed", color: "text-destructive bg-destructive/10", icon: Clock },
 };
 
-const loyaltyPoints = 2450;
-const loyaltyTier = "Gold";
-const nextTierAt = 5000;
+interface OrderData {
+  id: string; order_number: string; created_at: string; total: number;
+  status: string; items?: { name: string; image: string; qty: number; price: number }[];
+}
 
 export default function AccountDashboard() {
   const user = useAuthStore((s) => s.user);
   const wishlistCount = useWishlistStore((s) => s.items.length);
 
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
+  const [loyaltyTier, setLoyaltyTier] = useState("Bronze");
+  const [tierColor, setTierColor] = useState("bg-orange-100 text-orange-700");
+  const [nextTierName, setNextTierName] = useState<string | null>(null);
+  const [nextTierAt, setNextTierAt] = useState(0);
+  const [pointsToNext, setPointsToNext] = useState(0);
+  const [recentOrders, setRecentOrders] = useState<OrderData[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [totalAddresses, setTotalAddresses] = useState(0);
+
+  useEffect(() => {
+    if (!user?.id) { setLoadingData(false); return; }
+
+    // Fetch membership data
+    fetch(`/api/customers/${user.id}/points`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && !data.error) {
+          setLoyaltyPoints(data.total_points || 0);
+          if (data.tier) {
+            setLoyaltyTier(data.tier.name);
+            setTierColor(data.tier.color || "bg-orange-100 text-orange-700");
+          }
+          if (data.next_tier) {
+            setNextTierName(data.next_tier.name);
+            setNextTierAt(data.next_tier.min_points);
+            setPointsToNext(data.points_to_next_tier);
+          }
+        }
+      })
+      .catch(() => {});
+
+    // Fetch customer detail for orders + addresses
+    fetch(`/api/customers/${user.id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && !data.error) {
+          setTotalOrders(data.total_orders || 0);
+          setTotalAddresses(data.addresses?.length || 0);
+          if (data.orders) {
+            setRecentOrders(data.orders.slice(0, 3));
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingData(false));
+  }, [user?.id]);
+
   const stats = [
-    { label: "Total Orders", value: "12", icon: ShoppingBag, color: "text-secondary bg-secondary/10", href: "/dashboard/orders" },
-    { label: "Wishlist", value: String(wishlistCount || 3), icon: Heart, color: "text-coral bg-coral-light", href: "/dashboard/wishlist" },
-    { label: "Addresses", value: "2", icon: MapPin, color: "text-blue-500 bg-blue-50", href: "/dashboard/addresses" },
-    { label: "Reviews", value: "5", icon: Star, color: "text-gold bg-gold/10", href: "/dashboard/orders" },
+    { label: "Total Orders", value: String(totalOrders), icon: ShoppingBag, color: "text-secondary bg-secondary/10", href: "/dashboard/orders" },
+    { label: "Wishlist", value: String(wishlistCount || 0), icon: Heart, color: "text-coral bg-coral-light", href: "/dashboard/wishlist" },
+    { label: "Addresses", value: String(totalAddresses), icon: MapPin, color: "text-blue-500 bg-blue-50", href: "/dashboard/addresses" },
+    { label: "Points", value: loyaltyPoints.toLocaleString(), icon: Star, color: "text-gold bg-gold/10", href: "/dashboard/orders" },
   ];
 
   return (
@@ -55,21 +99,24 @@ export default function AccountDashboard() {
           <CardContent className="p-6 sm:p-8">
             <div className="relative z-10">
               <p className="text-xs font-medium text-secondary uppercase tracking-widest mb-1">
-                {loyaltyTier} Member
+                <Badge className={cn("text-[10px]", tierColor)}>{loyaltyTier} Member</Badge>
               </p>
               <h2 className="font-heading text-xl sm:text-2xl font-semibold text-charcoal mb-2">
                 Welcome back, {user?.name || "Beautiful"}! &#10024;
               </h2>
               <p className="text-sm text-charcoal-lighter max-w-md mb-4">
-                You have {loyaltyPoints.toLocaleString()} loyalty points. Keep shopping to unlock exclusive rewards and reach Platinum status.
+                You have {loyaltyPoints.toLocaleString()} loyalty points.{nextTierName ? ` Keep shopping to reach ${nextTierName} status.` : " You've reached the highest tier!"}
               </p>
-              <div className="max-w-xs">
-                <div className="flex items-center justify-between text-[10px] text-charcoal-lighter mb-1">
-                  <span>{loyaltyPoints.toLocaleString()} pts</span>
-                  <span>Platinum at {nextTierAt.toLocaleString()}</span>
+              {nextTierAt > 0 && (
+                <div className="max-w-xs">
+                  <div className="flex items-center justify-between text-[10px] text-charcoal-lighter mb-1">
+                    <span>{loyaltyPoints.toLocaleString()} pts</span>
+                    <span>{nextTierName} at {nextTierAt.toLocaleString()}</span>
+                  </div>
+                  <Progress value={nextTierAt > 0 ? Math.min(((loyaltyPoints) / nextTierAt) * 100, 100) : 100} />
+                  <p className="text-[9px] text-charcoal-lighter mt-1">{pointsToNext} points to go</p>
                 </div>
-                <Progress value={(loyaltyPoints / nextTierAt) * 100} />
-              </div>
+              )}
             </div>
             <div className="absolute right-6 top-1/2 -translate-y-1/2 opacity-[0.07] hidden sm:block">
               <Gift className="h-40 w-40" />
@@ -106,26 +153,34 @@ export default function AccountDashboard() {
           </Link>
         </CardHeader>
         <CardContent className="space-y-3">
-          {recentOrders.map((order) => {
+          {loadingData ? (
+            <div className="flex items-center justify-center py-8 text-charcoal-lighter">
+              <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading...
+            </div>
+          ) : recentOrders.length === 0 ? (
+            <p className="text-sm text-charcoal-lighter text-center py-8">No orders yet. Start shopping!</p>
+          ) : recentOrders.map((order) => {
             const config = statusConfig[order.status] || statusConfig.pending;
             const StatusIcon = config.icon;
+            const displayId = order.order_number || order.id;
+            const itemCount = order.items?.length || 0;
             return (
               <Link
                 key={order.id}
-                href={`/dashboard/orders/${order.id}`}
+                href={`/dashboard/orders/${displayId}`}
                 className="flex items-center gap-4 p-3 rounded-xl hover:bg-pearl/70 transition-colors group"
               >
-                <div className="relative h-14 w-14 rounded-xl overflow-hidden bg-pearl shrink-0">
-                  <Image src={order.image} alt={order.id} fill className="object-cover" sizes="56px" />
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-pearl shrink-0">
+                  <Package className="h-6 w-6 text-charcoal-lighter" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <p className="text-sm font-medium text-charcoal group-hover:text-secondary transition-colors">{order.id}</p>
+                    <p className="text-sm font-medium text-charcoal group-hover:text-secondary transition-colors">{displayId}</p>
                     <span className={cn("inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full", config.color)}>
                       <StatusIcon className="h-3 w-3" /> {config.label}
                     </span>
                   </div>
-                  <p className="text-xs text-charcoal-lighter">{order.date} &middot; {order.items} items</p>
+                  <p className="text-xs text-charcoal-lighter">{formatDateShort(order.created_at)} &middot; {itemCount} item{itemCount !== 1 ? "s" : ""}</p>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-sm font-semibold text-charcoal">{formatCurrency(order.total)}</p>

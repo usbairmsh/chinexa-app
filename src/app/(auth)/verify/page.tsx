@@ -41,6 +41,18 @@ function VerifyForm() {
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
+    // Auto-submit when all 6 digits are filled
+    if (value && index === 5) {
+      const code = newOtp.join("");
+      if (code.length === 6) {
+        setTimeout(() => autoSubmit(code), 100);
+      }
+    } else if (value) {
+      const code = newOtp.join("");
+      if (code.length === 6) {
+        setTimeout(() => autoSubmit(code), 100);
+      }
+    }
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
@@ -58,6 +70,73 @@ function VerifyForm() {
     }
     setOtp(newOtp);
     inputRefs.current[Math.min(pasted.length, 5)]?.focus();
+    // Auto-submit if pasted 6 digits
+    if (pasted.length === 6) {
+      setTimeout(() => autoSubmit(pasted), 100);
+    }
+  };
+
+  const autoSubmit = async (code: string) => {
+    if (loading || success) return;
+    if (code.length !== 6) return;
+    setLoading(true);
+    setError("");
+    try {
+      if (code !== DEFAULT_OTP) {
+        throw new Error("Invalid OTP");
+      }
+
+      const mode = searchParams.get("mode"); // "register" or null (login)
+      const name = searchParams.get("name");
+      const email = searchParams.get("email");
+
+      if (mode === "register" && name) {
+        // Register the customer after OTP verification
+        const res = await fetch("/api/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "register", phone, name, email: email || undefined }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Registration failed");
+
+        document.cookie = `chinexa-role=customer; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+        login({
+          user: { id: data.user.id, name: data.user.name, email: data.user.email, phone: data.user.phone, role: "customer" },
+          token: `token-${Date.now()}`,
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        });
+        setSuccess(true);
+        setTimeout(() => router.push("/"), 1500);
+      } else {
+        // Login flow
+        const res = await fetch("/api/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "login", phone }),
+        });
+        const data = await res.json();
+
+        if (data.found) {
+          document.cookie = `chinexa-role=customer; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+          login({
+            user: data.user,
+            token: `token-${Date.now()}`,
+            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          });
+          setSuccess(true);
+          setTimeout(() => router.push("/"), 1500);
+        } else {
+          router.push(`/register?phone=${encodeURIComponent(phone)}`);
+        }
+      }
+    } catch {
+      setError("Invalid OTP. Please try again.");
+      setOtp(["", "", "", "", "", ""]);
+      inputRefs.current[0]?.focus();
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,41 +146,7 @@ function VerifyForm() {
       setError("Please enter the complete 6-digit code");
       return;
     }
-    setLoading(true);
-    setError("");
-    try {
-      // Verify OTP (accept test OTP for now)
-      if (code !== DEFAULT_OTP) {
-        throw new Error("Invalid OTP");
-      }
-
-      // Check if customer exists in DB by phone
-      const res = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "login", phone }),
-      });
-      const data = await res.json();
-
-      if (data.found) {
-        // Customer exists — log them in
-        document.cookie = `chinexa-role=customer; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
-        login({
-          user: data.user,
-          token: `token-${Date.now()}`,
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        });
-        setSuccess(true);
-        setTimeout(() => router.push("/"), 1500);
-      } else {
-        // Customer not found — redirect to register with phone pre-filled
-        router.push(`/register?phone=${encodeURIComponent(phone)}`);
-      }
-    } catch {
-      setError("Invalid OTP. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    autoSubmit(code);
   };
 
   if (success) {
@@ -115,8 +160,12 @@ function VerifyForm() {
           >
             <CheckCircle2 className="h-16 w-16 text-success mx-auto mb-4" />
           </motion.div>
-          <h2 className="font-heading text-xl font-semibold text-charcoal mb-1">Welcome!</h2>
-          <p className="text-sm text-charcoal-lighter">You have been successfully logged in.</p>
+          <h2 className="font-heading text-xl font-semibold text-charcoal mb-1">
+            {searchParams.get("mode") === "register" ? "Welcome to ChineXa!" : "Welcome Back!"}
+          </h2>
+          <p className="text-sm text-charcoal-lighter">
+            {searchParams.get("mode") === "register" ? "Your account has been created successfully." : "You have been successfully logged in."}
+          </p>
         </CardContent>
       </Card>
     );
@@ -127,7 +176,7 @@ function VerifyForm() {
       <CardHeader className="text-center pb-2">
         <CardTitle className="font-heading text-2xl">Verify Your Number</CardTitle>
         <CardDescription>
-          We sent a 6-digit code to {phone || "your phone"}
+          Enter the 6-digit code sent to {phone || "your phone"}
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-4">

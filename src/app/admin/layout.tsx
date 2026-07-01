@@ -37,6 +37,7 @@ const navSections = [
       { icon: FolderTree, label: "Categories", href: "/admin/categories", perm: "categories" },
       { icon: ShoppingCart, label: "Order Management", href: "/admin/orders", perm: "orders" },
       { icon: Users, label: "Customers", href: "/admin/customers", perm: "customers" },
+      { icon: Star, label: "Membership", href: "/admin/membership", perm: "customers" },
     ],
   },
   {
@@ -100,8 +101,7 @@ export default function AdminLayout({
   // Permissions — null means superadmin (full access), array means restricted
   const [adminPermissions, setAdminPermissions] = useState<string[] | null>(null);
 
-  // Password dialog
-  const [passwordOpen, setPasswordOpen] = useState(false);
+  // Password fields (inside profile modal)
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -158,7 +158,7 @@ export default function AdminLayout({
       if (!res.ok) { setPwError(data.error); return; }
       setPwSuccess(true);
       setCurrentPw(""); setNewPw(""); setConfirmPw("");
-      setTimeout(() => { setPwSuccess(false); setPasswordOpen(false); }, 1500);
+      setTimeout(() => { setPwSuccess(false); }, 1500);
     } catch {} finally { setPwSaving(false); }
   };
 
@@ -300,23 +300,20 @@ export default function AdminLayout({
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-2 hover:bg-pearl rounded-lg px-2 py-1.5 transition-colors">
                 <Avatar className="h-8 w-8">
-                  <AvatarFallback className="text-xs">{adminName ? getInitials(adminName) : "AD"}</AvatarFallback>
+                  <AvatarFallback className="text-xs">{adminName ? getInitials(adminName) : adminUsername ? getInitials(adminUsername) : "AD"}</AvatarFallback>
                 </Avatar>
                 <div className="hidden sm:block text-left">
-                  <p className="text-sm font-medium text-charcoal leading-tight">{adminName || "Admin"}</p>
-                  <p className="text-[10px] text-charcoal-lighter leading-tight">{adminRole === "superadmin" ? "Super Admin" : "Admin"}</p>
+                  <p className="text-sm font-medium text-charcoal leading-tight">{adminName || adminUsername || "Admin"}</p>
+                  <Badge variant={adminRole === "superadmin" ? "destructive" : "secondary"} className="text-[8px] mt-0.5">{adminRole === "superadmin" ? "Super Admin" : "Admin"}</Badge>
                 </div>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 <div className="px-3 py-2 border-b border-border/20">
-                  <p className="text-sm font-medium text-charcoal">{adminName || "Admin"}</p>
+                  <p className="text-sm font-medium text-charcoal">{adminName || adminUsername || "Admin"}</p>
                   <p className="text-[10px] text-charcoal-lighter">@{adminUsername}</p>
                 </div>
                 <DropdownMenuItem onClick={openProfile}>
-                  <User className="h-3.5 w-3.5 mr-2" /> My Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { setPasswordOpen(true); setPwError(""); setCurrentPw(""); setNewPw(""); setConfirmPw(""); }}>
-                  <Key className="h-3.5 w-3.5 mr-2" /> Change Password
+                  <User className="h-3.5 w-3.5 mr-2" /> View Profile
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="text-destructive">
@@ -334,57 +331,55 @@ export default function AdminLayout({
       </div>
 
       {/* Profile Dialog */}
-      <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
-        <DialogContent className="w-[95vw] max-w-sm">
-          <DialogHeader>
+      <Dialog open={profileOpen} onOpenChange={(open) => { if (!open) { setProfileOpen(false); setPwError(""); setCurrentPw(""); setNewPw(""); setConfirmPw(""); } }}>
+        <DialogContent className="w-[95vw] max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2"><User className="h-5 w-5 text-secondary" /> My Profile</DialogTitle>
-            <DialogDescription>Update your display name and contact info</DialogDescription>
+            <DialogDescription>View and update your profile information</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 py-2">
+          <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
+            {/* Profile Header */}
             <div className="flex items-center gap-3 p-3 rounded-xl bg-pearl/60">
-              <Avatar className="h-12 w-12"><AvatarFallback>{adminName ? getInitials(adminName) : "AD"}</AvatarFallback></Avatar>
+              <Avatar className="h-12 w-12"><AvatarFallback className="text-lg font-semibold bg-secondary text-white">{adminName ? getInitials(adminName) : adminUsername ? getInitials(adminUsername) : "AD"}</AvatarFallback></Avatar>
               <div>
-                <p className="font-medium text-charcoal">{adminName}</p>
+                <p className="font-medium text-charcoal">{adminName || adminUsername}</p>
                 <div className="flex items-center gap-2">
                   <code className="text-[10px] text-charcoal-lighter">@{adminUsername}</code>
                   <Badge variant={adminRole === "superadmin" ? "destructive" : "secondary"} className="text-[8px]">{adminRole === "superadmin" ? "Super Admin" : "Admin"}</Badge>
                 </div>
               </div>
             </div>
+
+            {/* Profile Fields */}
             <Input label="Display Name" value={profileName} onChange={(e) => setProfileName(e.target.value)} />
             <Input label="Email" type="email" value={profileEmail} onChange={(e) => setProfileEmail(e.target.value)} />
             <Input label="Phone" value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} />
-          </div>
-          <DialogFooter>
-            <AdminButton variant="outline" onClick={() => setProfileOpen(false)}>Cancel</AdminButton>
-            <AdminButton onClick={handleSaveProfile} disabled={profileSaving} className={profileSuccess ? "!bg-success" : ""}>
-              {profileSaving && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
-              {profileSuccess ? "Saved!" : "Save"}
-            </AdminButton>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
-      {/* Password Dialog */}
-      <Dialog open={passwordOpen} onOpenChange={(open) => { if (!open) { setPasswordOpen(false); setPwError(""); } }}>
-        <DialogContent className="w-[95vw] max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Lock className="h-5 w-5 text-secondary" /> Change Password</DialogTitle>
-            <DialogDescription>Update your admin password</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <Input label="Current Password" type="password" value={currentPw} onChange={(e) => { setCurrentPw(e.target.value); setPwError(""); }} />
-            <Input label="New Password" type="password" placeholder="Min 6 characters" value={newPw} onChange={(e) => { setNewPw(e.target.value); setPwError(""); }} />
-            <Input label="Confirm New Password" type="password" value={confirmPw} onChange={(e) => { setConfirmPw(e.target.value); setPwError(""); }} />
-            {pwError && <p className="text-xs text-destructive">{pwError}</p>}
+            <div className="flex justify-end">
+              <AdminButton size="sm" onClick={handleSaveProfile} disabled={profileSaving} className={profileSuccess ? "!bg-success" : ""}>
+                {profileSaving && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+                {profileSuccess ? "Saved!" : "Save Profile"}
+              </AdminButton>
+            </div>
+
+            {/* Change Password Section */}
+            <Separator />
+            <div>
+              <p className="text-sm font-medium text-charcoal flex items-center gap-2 mb-3"><Lock className="h-4 w-4 text-charcoal-lighter" /> Change Password</p>
+              <div className="space-y-3">
+                <Input label="Current Password" type="password" value={currentPw} onChange={(e) => { setCurrentPw(e.target.value); setPwError(""); }} />
+                <Input label="New Password" type="password" placeholder="Min 6 characters" value={newPw} onChange={(e) => { setNewPw(e.target.value); setPwError(""); }} />
+                <Input label="Confirm New Password" type="password" value={confirmPw} onChange={(e) => { setConfirmPw(e.target.value); setPwError(""); }} />
+                {pwError && <p className="text-xs text-destructive">{pwError}</p>}
+                <div className="flex justify-end">
+                  <AdminButton size="sm" variant="outline" onClick={handleChangePassword} disabled={pwSaving || !currentPw || !newPw} className={pwSuccess ? "!bg-success !text-white !border-success" : ""}>
+                    {pwSaving && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+                    {pwSuccess ? "Changed!" : "Update Password"}
+                  </AdminButton>
+                </div>
+              </div>
+            </div>
           </div>
-          <DialogFooter>
-            <AdminButton variant="outline" onClick={() => setPasswordOpen(false)}>Cancel</AdminButton>
-            <AdminButton onClick={handleChangePassword} disabled={pwSaving} className={pwSuccess ? "!bg-success" : ""}>
-              {pwSaving && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
-              {pwSuccess ? "Changed!" : "Update Password"}
-            </AdminButton>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -9,7 +9,34 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (customers.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const addresses = await query<RowDataPacket[]>("SELECT * FROM customer_addresses WHERE customer_id = ?", [id]);
     const orders = await query<RowDataPacket[]>("SELECT * FROM orders WHERE customer_id = ? ORDER BY created_at DESC", [id]);
-    return NextResponse.json({ ...customers[0], is_active: !!customers[0].is_active, addresses, orders });
+
+    // Fetch order items with product details for each order
+    const orderIds = orders.map((o) => o.id as string);
+    let orderItemsMap = new Map<string, RowDataPacket[]>();
+    if (orderIds.length > 0) {
+      const placeholders = orderIds.map(() => "?").join(",");
+      const items = await query<RowDataPacket[]>(
+        `SELECT oi.order_id, oi.quantity, oi.price, p.name, COALESCE((SELECT pi.url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.sort_order LIMIT 1), '') as image FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id IN (${placeholders})`,
+        orderIds
+      );
+      for (const item of items) {
+        const key = item.order_id as string;
+        if (!orderItemsMap.has(key)) orderItemsMap.set(key, []);
+        orderItemsMap.get(key)!.push(item);
+      }
+    }
+
+    const ordersWithItems = orders.map((o) => ({
+      ...o,
+      items: (orderItemsMap.get(o.id as string) || []).map((i) => ({
+        name: i.name || "Unknown Product",
+        image: i.image || "",
+        qty: Number(i.quantity),
+        price: Number(i.price),
+      })),
+    }));
+
+    return NextResponse.json({ ...customers[0], is_active: !!customers[0].is_active, addresses, orders: ordersWithItems });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
   }

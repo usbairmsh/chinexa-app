@@ -36,8 +36,6 @@ export default function AdminUsersPage() {
   const [addDialog, setAddDialog] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<AdminUser | null>(null);
   const [accessDialog, setAccessDialog] = useState<AdminUser | null>(null);
-  const [passwordDialog, setPasswordDialog] = useState(false);
-  const [profileDialog, setProfileDialog] = useState(false);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState("");
 
@@ -57,16 +55,7 @@ export default function AdminUsersPage() {
   // Access edit
   const [editPerms, setEditPerms] = useState<string[]>([]);
 
-  // Password form
-  const [currentPw, setCurrentPw] = useState("");
-  const [newPw, setNewPw] = useState("");
-  const [confirmPw, setConfirmPw] = useState("");
-  const [pwError, setPwError] = useState("");
 
-  // Profile form
-  const [profileName, setProfileName] = useState("");
-  const [profileEmail, setProfileEmail] = useState("");
-  const [profilePhone, setProfilePhone] = useState("");
 
   const fetchAdmins = async () => {
     try {
@@ -133,36 +122,6 @@ export default function AdminUsersPage() {
     setFormPerms((prev) => checked ? [...prev, perm] : prev.filter((p) => p !== perm));
   };
 
-  const handleChangePassword = async () => {
-    setPwError("");
-    if (!currentPw || !newPw) { setPwError("All fields are required"); return; }
-    if (newPw.length < 6) { setPwError("Min 6 characters"); return; }
-    if (newPw !== confirmPw) { setPwError("Passwords do not match"); return; }
-    setSaving(true);
-    try {
-      const res = await fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "change_password", admin_id: currentAdminId, current_password: currentPw, new_password: newPw }) });
-      const data = await res.json();
-      if (!res.ok) { setPwError(data.error); return; }
-      setPasswordDialog(false); setCurrentPw(""); setNewPw(""); setConfirmPw("");
-      setSuccess("Password changed"); setTimeout(() => setSuccess(""), 3000);
-    } catch {} finally { setSaving(false); }
-  };
-
-  const openProfile = () => {
-    const me = admins.find((a) => a.id === currentAdminId);
-    if (me) { setProfileName(me.name); setProfileEmail(me.email || ""); setProfilePhone(me.phone || ""); }
-    setProfileDialog(true);
-  };
-
-  const handleUpdateProfile = async () => {
-    setSaving(true);
-    try {
-      await fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update_profile", admin_id: currentAdminId, name: profileName.trim(), email: profileEmail.trim(), phone: profilePhone.trim() }) });
-      setProfileDialog(false); fetchAdmins();
-      setSuccess("Profile updated"); setTimeout(() => setSuccess(""), 3000);
-    } catch {} finally { setSaving(false); }
-  };
-
   // Group permissions by section for the checklist UI
   const permsBySection = ALL_PERMISSIONS.reduce((acc, p) => {
     if (!acc[p.section]) acc[p.section] = [];
@@ -180,8 +139,6 @@ export default function AdminUsersPage() {
           <p className="text-sm text-charcoal-lighter">{admins.length} admin{admins.length !== 1 ? "s" : ""}</p>
         </div>
         <div className="flex gap-2">
-          <AdminButton variant="outline" onClick={openProfile}><UserCog className="h-3.5 w-3.5" /> My Profile</AdminButton>
-          <AdminButton variant="outline" onClick={() => { setPasswordDialog(true); setPwError(""); setCurrentPw(""); setNewPw(""); setConfirmPw(""); }}><Key className="h-3.5 w-3.5" /> Change Password</AdminButton>
           {isSuperAdmin && <AdminButton onClick={() => setAddDialog(true)}><Plus className="h-4 w-4 mr-1" /> Add Admin</AdminButton>}
         </div>
       </div>
@@ -376,39 +333,6 @@ export default function AdminUsersPage() {
             <AdminButton onClick={handleSaveAccess} disabled={saving}>
               {saving && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />} Save Access
             </AdminButton>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Change Password */}
-      <Dialog open={passwordDialog} onOpenChange={(open) => { if (!open) { setPasswordDialog(false); setPwError(""); } }}>
-        <DialogContent className="w-[95vw] max-w-sm">
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><Lock className="h-5 w-5 text-secondary" /> Change Password</DialogTitle></DialogHeader>
-          <div className="space-y-3 py-2">
-            <Input label="Current Password" type="password" value={currentPw} onChange={(e) => { setCurrentPw(e.target.value); setPwError(""); }} />
-            <Input label="New Password" type="password" placeholder="Min 6 characters" value={newPw} onChange={(e) => { setNewPw(e.target.value); setPwError(""); }} />
-            <Input label="Confirm" type="password" value={confirmPw} onChange={(e) => { setConfirmPw(e.target.value); setPwError(""); }} />
-            {pwError && <p className="text-xs text-destructive">{pwError}</p>}
-          </div>
-          <DialogFooter>
-            <AdminButton variant="outline" onClick={() => setPasswordDialog(false)}>Cancel</AdminButton>
-            <AdminButton onClick={handleChangePassword} disabled={saving}>{saving && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />} Update</AdminButton>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Profile */}
-      <Dialog open={profileDialog} onOpenChange={setProfileDialog}>
-        <DialogContent className="w-[95vw] max-w-sm">
-          <DialogHeader><DialogTitle>My Profile</DialogTitle></DialogHeader>
-          <div className="space-y-3 py-2">
-            <Input label="Display Name" value={profileName} onChange={(e) => setProfileName(e.target.value)} />
-            <Input label="Email" type="email" value={profileEmail} onChange={(e) => setProfileEmail(e.target.value)} />
-            <Input label="Phone" value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} />
-          </div>
-          <DialogFooter>
-            <AdminButton variant="outline" onClick={() => setProfileDialog(false)}>Cancel</AdminButton>
-            <AdminButton onClick={handleUpdateProfile} disabled={saving}>{saving && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />} Save</AdminButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
