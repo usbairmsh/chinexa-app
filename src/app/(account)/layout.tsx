@@ -73,8 +73,8 @@ export default function AccountLayout({
 
           <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
             {/* ── Sidebar ── */}
-            <aside className="w-full lg:w-[260px] shrink-0">
-              <div className="bg-white rounded-2xl shadow-card border border-border/20 overflow-hidden">
+            <aside className="w-full lg:w-[280px] shrink-0">
+              <div className="bg-white rounded-2xl shadow-card border border-border/20">
                 {/* User Card */}
                 <div className="p-5 bg-gradient-to-br from-primary-light to-pearl">
                   <div className="flex items-center gap-3">
@@ -83,9 +83,9 @@ export default function AccountLayout({
                         {user?.name ? getInitials(user.name) : "G"}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="min-w-0">
-                      <p className="font-medium text-charcoal truncate flex items-center gap-1">
-                        {user?.name || "Guest User"}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-charcoal flex items-center gap-1">
+                        <span className="truncate">{user?.name || "Guest User"}</span>
                         {badge && <VerifiedBadge color={badge.badge_color} opacity={badge.badge_opacity} size={17} tooltip={badge.badge_name} />}
                       </p>
                       <p className="text-xs text-charcoal-lighter truncate">

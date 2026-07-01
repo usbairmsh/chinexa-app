@@ -16,15 +16,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { cn, formatCurrency } from "@/lib/utils";
 import type { MembershipTier } from "@/types/membership";
 
-const colorOptions = [
-  { value: "bg-orange-100 text-orange-700", label: "Bronze", preview: "bg-orange-100" },
-  { value: "bg-gray-100 text-gray-600", label: "Silver", preview: "bg-gray-100" },
-  { value: "bg-amber-50 text-amber-700", label: "Gold", preview: "bg-amber-50" },
-  { value: "bg-violet-50 text-violet-700", label: "Platinum", preview: "bg-violet-50" },
-  { value: "bg-blue-50 text-blue-700", label: "Blue", preview: "bg-blue-50" },
-  { value: "bg-emerald-50 text-emerald-700", label: "Green", preview: "bg-emerald-50" },
-  { value: "bg-rose-50 text-rose-700", label: "Rose", preview: "bg-rose-50" },
-];
+/** Convert hex to light bg + dark text color pair for tier name badges */
+function hexToTierStyle(hex: string): { bg: string; text: string } {
+  return { bg: `${hex}18`, text: hex };
+}
 
 export default function AdminMembershipPage() {
   const [tiers, setTiers] = useState<MembershipTier[]>([]);
@@ -44,7 +39,9 @@ export default function AdminMembershipPage() {
   const [formMinPoints, setFormMinPoints] = useState(0);
   const [formMaxPoints, setFormMaxPoints] = useState(0);
   const [formMultiplier, setFormMultiplier] = useState(1);
-  const [formColor, setFormColor] = useState("bg-gray-100 text-gray-600");
+  const [formColor, setFormColor] = useState("#6B7280");
+  const [showNameColorPicker, setShowNameColorPicker] = useState(false);
+  const [showBadgeColorPicker, setShowBadgeColorPicker] = useState(false);
   const [formBenefits, setFormBenefits] = useState<string[]>([""]);
   const [formSortOrder, setFormSortOrder] = useState(0);
   const [formBadgeEnabled, setFormBadgeEnabled] = useState(false);
@@ -73,7 +70,7 @@ export default function AdminMembershipPage() {
 
   const resetForm = () => {
     setFormName(""); setFormMinPoints(0); setFormMaxPoints(0);
-    setFormMultiplier(1); setFormColor("bg-gray-100 text-gray-600");
+    setFormMultiplier(1); setFormColor("#6B7280"); setShowNameColorPicker(false); setShowBadgeColorPicker(false);
     setFormBadgeEnabled(false); setFormBadgeColor("#3B82F6"); setFormBadgeOpacity(1);
     setFormBenefits([""]); setFormSortOrder(0); setFormActive(true);
     setEditTier(null);
@@ -249,7 +246,16 @@ export default function AdminMembershipPage() {
                 {/* Tier Header */}
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <Badge className={cn("text-xs font-semibold mb-2", tier.color)}>{tier.name}</Badge>
+                    <span
+                      className="inline-block px-3 py-1 rounded-full text-xs font-semibold mb-2"
+                      style={{
+                        backgroundColor: tier.color.startsWith("#") ? `${tier.color}18` : undefined,
+                        color: tier.color.startsWith("#") ? tier.color : undefined,
+                      }}
+                    >
+                      {!tier.color.startsWith("#") && <Badge className={cn("text-xs font-semibold", tier.color)}>{tier.name}</Badge>}
+                      {tier.color.startsWith("#") && tier.name}
+                    </span>
                     <p className="text-[10px] text-charcoal-lighter">
                       {tier.min_points.toLocaleString()} — {tier.max_points.toLocaleString()} points
                     </p>
@@ -319,25 +325,40 @@ export default function AdminMembershipPage() {
               <Input label="Sort Order" type="number" value={formSortOrder} onChange={(e) => setFormSortOrder(Number(e.target.value))} min={0} />
             </div>
 
-            {/* Color Picker */}
+            {/* Tier Name Badge Color */}
             <div>
-              <label className="block text-sm font-medium text-charcoal-lighter mb-1.5">Badge Color</label>
-              <div className="flex flex-wrap gap-2">
-                {colorOptions.map((c) => (
-                  <button
-                    key={c.value}
-                    type="button"
-                    onClick={() => setFormColor(c.value)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-full text-[10px] font-medium border-2 transition-all",
-                      c.value,
-                      formColor === c.value ? "border-charcoal scale-105" : "border-transparent opacity-70 hover:opacity-100"
-                    )}
-                  >
-                    {c.label}
-                  </button>
-                ))}
+              <label className="block text-sm font-medium text-charcoal-lighter mb-1.5">Tier Name Badge Color</label>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowNameColorPicker(!showNameColorPicker)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:border-secondary transition-colors"
+                >
+                  <span className="h-5 w-5 rounded-full border border-border/30" style={{ backgroundColor: formColor.startsWith("#") ? formColor : "#6B7280" }} />
+                  <span className="text-xs font-mono text-charcoal">{formColor.startsWith("#") ? formColor : "#6B7280"}</span>
+                </button>
+                {/* Preview */}
+                <span
+                  className="px-3 py-1 rounded-full text-[10px] font-semibold"
+                  style={{
+                    backgroundColor: (formColor.startsWith("#") ? formColor : "#6B7280") + "18",
+                    color: formColor.startsWith("#") ? formColor : "#6B7280",
+                  }}
+                >
+                  {formName || "Tier Name"}
+                </span>
               </div>
+              {showNameColorPicker && (
+                <div className="mt-2 p-3 rounded-xl border border-border/30 bg-white shadow-lg relative">
+                  <button type="button" onClick={() => setShowNameColorPicker(false)} className="absolute top-2 right-2 p-1 hover:bg-pearl rounded-full text-charcoal-lighter hover:text-charcoal transition-colors">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                  <div className="flex items-center gap-3">
+                    <input type="color" value={formColor.startsWith("#") ? formColor : "#6B7280"} onChange={(e) => setFormColor(e.target.value)} className="h-10 w-14 rounded-lg border border-border cursor-pointer" />
+                    <Input value={formColor.startsWith("#") ? formColor : "#6B7280"} onChange={(e) => setFormColor(e.target.value)} className="flex-1 font-mono text-xs" placeholder="#6B7280" />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Verified Badge */}
@@ -348,19 +369,31 @@ export default function AdminMembershipPage() {
               </label>
               {formBadgeEnabled && (
                 <>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowBadgeColorPicker(!showBadgeColorPicker)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:border-secondary transition-colors"
+                    >
+                      <span className="h-5 w-5 rounded-full border border-border/30" style={{ backgroundColor: formBadgeColor }} />
+                      <span className="text-xs font-mono text-charcoal">{formBadgeColor}</span>
+                    </button>
                     <div>
-                      <label className="block text-xs text-charcoal-lighter mb-1">Badge Color</label>
-                      <div className="flex items-center gap-2">
-                        <input type="color" value={formBadgeColor} onChange={(e) => setFormBadgeColor(e.target.value)} className="h-9 w-12 rounded-lg border border-border cursor-pointer" />
-                        <Input value={formBadgeColor} onChange={(e) => setFormBadgeColor(e.target.value)} className="flex-1 font-mono text-xs" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-charcoal-lighter mb-1">Opacity ({Math.round(formBadgeOpacity * 100)}%)</label>
-                      <input type="range" min="0.3" max="1" step="0.05" value={formBadgeOpacity} onChange={(e) => setFormBadgeOpacity(Number(e.target.value))} className="w-full mt-2 accent-secondary" />
+                      <label className="block text-[10px] text-charcoal-lighter">Opacity {Math.round(formBadgeOpacity * 100)}%</label>
+                      <input type="range" min="0.3" max="1" step="0.05" value={formBadgeOpacity} onChange={(e) => setFormBadgeOpacity(Number(e.target.value))} className="w-24 accent-secondary" />
                     </div>
                   </div>
+                  {showBadgeColorPicker && (
+                    <div className="p-3 rounded-xl border border-border/30 bg-white shadow-lg relative">
+                      <button type="button" onClick={() => setShowBadgeColorPicker(false)} className="absolute top-2 right-2 p-1 hover:bg-pearl rounded-full text-charcoal-lighter hover:text-charcoal transition-colors">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                      <div className="flex items-center gap-3">
+                        <input type="color" value={formBadgeColor} onChange={(e) => setFormBadgeColor(e.target.value)} className="h-10 w-14 rounded-lg border border-border cursor-pointer" />
+                        <Input value={formBadgeColor} onChange={(e) => setFormBadgeColor(e.target.value)} className="flex-1 font-mono text-xs" placeholder="#3B82F6" />
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 p-2 rounded-lg bg-white">
                     <span className="text-xs text-charcoal-lighter">Preview:</span>
                     <span className="text-sm font-medium text-charcoal">Customer Name</span>
