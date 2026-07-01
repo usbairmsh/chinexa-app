@@ -1,72 +1,79 @@
 import type { MetadataRoute } from "next";
-import pool from "@/lib/db";
-import { type RowDataPacket } from "mysql2/promise";
+
+export const dynamic = "force-dynamic";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const entries: MetadataRoute.Sitemap = [];
-
-  // Static pages
-  const staticPages = [
-    { path: "", priority: 1.0, changeFrequency: "daily" as const },
-    { path: "/products", priority: 0.9, changeFrequency: "daily" as const },
-    { path: "/about", priority: 0.5, changeFrequency: "monthly" as const },
-    { path: "/contact", priority: 0.5, changeFrequency: "monthly" as const },
-    { path: "/faq", priority: 0.4, changeFrequency: "monthly" as const },
-    { path: "/blog", priority: 0.7, changeFrequency: "weekly" as const },
+  const entries: MetadataRoute.Sitemap = [
+    { url: siteUrl, lastModified: new Date(), changeFrequency: "daily", priority: 1.0 },
+    { url: `${siteUrl}/products`, lastModified: new Date(), changeFrequency: "daily", priority: 0.9 },
+    { url: `${siteUrl}/about`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.5 },
+    { url: `${siteUrl}/contact`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.5 },
+    { url: `${siteUrl}/faq`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.4 },
+    { url: `${siteUrl}/blog`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.7 },
   ];
 
-  for (const page of staticPages) {
-    entries.push({
-      url: `${siteUrl}${page.path}`,
-      lastModified: new Date(),
-      changeFrequency: page.changeFrequency,
-      priority: page.priority,
-    });
-  }
-
   try {
-    // Products
-    const [products] = await pool.execute<RowDataPacket[]>(
-      "SELECT slug, updated_at FROM products WHERE is_active = 1 ORDER BY updated_at DESC"
-    );
-    for (const p of products) {
-      entries.push({
-        url: `${siteUrl}/products/${p.slug}`,
-        lastModified: p.updated_at ? new Date(p.updated_at as string) : new Date(),
-        changeFrequency: "weekly",
-        priority: 0.8,
-      });
+    // Fetch dynamic data via internal API to avoid direct DB import issues in standalone build
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
+    const [productsRes, categoriesRes, blogRes] = await Promise.all([
+      fetch(`${baseUrl}/api/products?page_size=100&limit=500`, { cache: "no-store" }).catch(() => null),
+      fetch(`${baseUrl}/api/categories`, { cache: "no-store" }).catch(() => null),
+      fetch(`${baseUrl}/api/blog?all=1&limit=100`, { cache: "no-store" }).catch(() => null),
+    ]);
+
+    if (productsRes?.ok) {
+      const prodData = await productsRes.json();
+      const products = prodData?.data || prodData || [];
+      if (Array.isArray(products)) {
+        for (const p of products) {
+          if (p.slug) {
+            entries.push({
+              url: `${siteUrl}/products/${p.slug}`,
+              lastModified: p.updated_at ? new Date(p.updated_at) : new Date(),
+              changeFrequency: "weekly",
+              priority: 0.8,
+            });
+          }
+        }
+      }
     }
 
-    // Categories
-    const [categories] = await pool.execute<RowDataPacket[]>(
-      "SELECT slug, updated_at FROM categories WHERE is_active = 1"
-    );
-    for (const c of categories) {
-      entries.push({
-        url: `${siteUrl}/categories/${c.slug}`,
-        lastModified: c.updated_at ? new Date(c.updated_at as string) : new Date(),
-        changeFrequency: "weekly",
-        priority: 0.7,
-      });
+    if (categoriesRes?.ok) {
+      const categories = await categoriesRes.json();
+      if (Array.isArray(categories)) {
+        for (const c of categories) {
+          if (c.slug) {
+            entries.push({
+              url: `${siteUrl}/categories/${c.slug}`,
+              lastModified: c.updated_at ? new Date(c.updated_at) : new Date(),
+              changeFrequency: "weekly",
+              priority: 0.7,
+            });
+          }
+        }
+      }
     }
 
-    // Blog posts
-    const [posts] = await pool.execute<RowDataPacket[]>(
-      "SELECT slug, updated_at FROM blog_posts WHERE is_published = 1 ORDER BY published_at DESC"
-    );
-    for (const post of posts) {
-      entries.push({
-        url: `${siteUrl}/blog/${post.slug}`,
-        lastModified: post.updated_at ? new Date(post.updated_at as string) : new Date(),
-        changeFrequency: "monthly",
-        priority: 0.6,
-      });
+    if (blogRes?.ok) {
+      const posts = await blogRes.json();
+      if (Array.isArray(posts)) {
+        for (const post of posts) {
+          if (post.slug) {
+            entries.push({
+              url: `${siteUrl}/blog/${post.slug}`,
+              lastModified: post.updated_at ? new Date(post.updated_at) : new Date(),
+              changeFrequency: "monthly",
+              priority: 0.6,
+            });
+          }
+        }
+      }
     }
   } catch {
-    // If DB is not available, return static pages only
+    // If APIs fail, return static pages only
   }
 
   return entries;
