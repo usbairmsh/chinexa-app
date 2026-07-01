@@ -76,12 +76,25 @@ export default async function ProductLayout({
         "SELECT url FROM product_images WHERE product_id = ? ORDER BY `order` LIMIT 1",
         [p.id]
       );
+      // Get variant prices for price range
+      const [variantRows] = await pool.execute<RowDataPacket[]>(
+        "SELECT price_adjustment FROM product_variants WHERE product_id = ?", [p.id]
+      );
+      const basePrice = Number(p.price);
+      let highPrice: number | undefined;
+      if (variantRows.length > 1) {
+        const prices = variantRows.map((v) => basePrice + Number(v.price_adjustment));
+        const maxP = Math.max(...prices);
+        if (maxP > basePrice) highPrice = maxP;
+      }
+
       productData = {
         name: p.name as string,
         description: ((p.short_description || p.description || "") as string).slice(0, 300),
         image: images.length > 0 ? (images[0].url as string) : "/logo.png",
         sku: p.sku as string,
-        price: Number(p.price),
+        price: basePrice,
+        highPrice,
         availability: (Number(p.stock_quantity) > 0 ? "InStock" : "OutOfStock") as "InStock" | "OutOfStock",
         rating: Number(p.average_rating) || undefined,
         reviewCount: Number(p.review_count) || undefined,

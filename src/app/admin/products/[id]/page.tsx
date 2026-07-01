@@ -6,7 +6,7 @@ import { useRouter, useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Save, Eye, X, Plus, Trash2,
-  ImagePlus, Tag, Globe, Sparkles, Package, BarChart3, Loader2
+  ImagePlus, Tag, Globe, Sparkles, Package, BarChart3, Loader2, Copy, Check
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
 import { ImagePositionEditor } from "@/components/admin/shared/image-position-editor";
 import { cn } from "@/lib/utils";
@@ -54,7 +55,67 @@ export default function EditProductPage() {
   const [subcategory, setSubcategory] = useState("");
   const [seoTitle, setSeoTitle] = useState("");
   const [seoDesc, setSeoDesc] = useState("");
+  const [seoPromptOpen, setSeoPromptOpen] = useState(false);
+  const [seoPromptCopied, setSeoPromptCopied] = useState(false);
   const [isActive, setIsActive] = useState(true);
+
+  const buildSeoPrompt = () => {
+    const catName = dbCategories.find((c) => c.id === categoryId)?.name || "";
+    const validVariants = variants.filter((v) => v.name && v.price);
+    const prices = validVariants.map((v) => Number(v.price)).filter((p) => p > 0);
+    const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+    const priceDisplay = minPrice === maxPrice || prices.length <= 1 ? (minPrice ? `৳${minPrice}` : "") : `৳${minPrice} — ৳${maxPrice}`;
+    const comparePrices = validVariants.map((v) => Number(v.compare_price)).filter((p) => p > 0);
+    const maxCompare = comparePrices.length > 0 ? Math.max(...comparePrices) : 0;
+    const discount = maxCompare > 0 && minPrice > 0 ? Math.round((1 - minPrice / maxCompare) * 100) : 0;
+
+    const lines = [
+      "You are an expert e-commerce SEO specialist. Analyze the following product details and generate:",
+      "1. An SEO Title (max 60 characters)",
+      "2. A Meta Description (exactly 150-160 characters)",
+      "",
+      "=== PRODUCT DETAILS ===",
+      `Product Name: ${productName}`,
+      catName ? `Category: ${catName}` : "",
+      subcategory ? `Subcategory: ${subcategory}` : "",
+      priceDisplay ? `Price: ${priceDisplay}` : "",
+      discount > 0 ? `Discount: Up to ${discount}% off` : "",
+      origin ? `Country of Origin: ${origin}` : "",
+      weight ? `Weight/Size: ${weight}` : "",
+      shortDesc ? `Short Description: ${shortDesc}` : "",
+      fullDesc ? `Full Description: ${fullDesc}` : "",
+      ingredients ? `Key Ingredients: ${ingredients}` : "",
+      tags ? `Tags: ${tags}` : "",
+      validVariants.length > 1 ? `Available Variants: ${validVariants.map((v) => `${v.name} (${v.type}, ৳${v.price})`).join(", ")}` : "",
+      "",
+      "=== STORE CONTEXT ===",
+      "Store: ChineXa (chinexabd.com) — Premium beauty & lifestyle store in Bangladesh",
+      "Target Audience: Women in Bangladesh looking for authentic beauty products",
+      "Shipping: Free delivery on orders over ৳3,000. Cash on delivery available.",
+      "USP: Authentic imported products, 7-day returns, verified genuine items",
+      "",
+      "=== SEO REQUIREMENTS ===",
+      "- Title must include the product name and end with '| ChineXa'",
+      "- Title should include a high-value keyword (e.g., origin country for imported items, key ingredient for skincare)",
+      "- Description must naturally include the starting price in ৳ (BDT)",
+      "- Description should mention one trust signal (free delivery / COD / authentic / genuine)",
+      "- Description must be action-oriented (start with a verb like Shop, Discover, Get, Try)",
+      "- Use keywords that Bangladeshi shoppers would actually search for",
+      "- Do NOT use generic filler words. Every word must add SEO value.",
+      "",
+      "Respond in this exact format:",
+      "SEO Title: [your title here]",
+      "Meta Description: [your description here]",
+    ];
+    return lines.filter(Boolean).join("\n");
+  };
+
+  const handleCopyPrompt = () => {
+    navigator.clipboard.writeText(buildSeoPrompt());
+    setSeoPromptCopied(true);
+    setTimeout(() => setSeoPromptCopied(false), 2000);
+  };
   const [isFeatured, setIsFeatured] = useState(false);
   const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
   const [variants, setVariants] = useState<VariantRow[]>([]);
@@ -382,8 +443,28 @@ export default function EditProductPage() {
               <Card>
                 <CardHeader><CardTitle className="text-base flex items-center gap-2"><BarChart3 className="h-4 w-4 text-secondary" /> SEO</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-charcoal-lighter">Paste from ChatGPT / Gemini, or write manually</p>
+                    <button type="button" onClick={() => setSeoPromptOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary/10 text-secondary text-[11px] font-medium hover:bg-secondary/20 transition-colors">
+                      <Copy className="h-3 w-3" /> Copy for AI
+                    </button>
+                  </div>
                   <Input label="SEO Title" value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} />
-                  <Textarea label="Meta Description" className="min-h-[80px]" value={seoDesc} onChange={(e) => setSeoDesc(e.target.value)} />
+                  <div>
+                    <Textarea label="Meta Description" className="min-h-[80px]" value={seoDesc} onChange={(e) => setSeoDesc(e.target.value)} />
+                    <p className={cn("text-[10px] mt-1 text-right", seoDesc.length === 0 ? "text-charcoal-lighter" : seoDesc.length >= 150 && seoDesc.length <= 160 ? "text-success font-medium" : seoDesc.length > 160 ? "text-destructive" : "text-warning")}>
+                      {seoDesc.length}/160 chars {seoDesc.length >= 150 && seoDesc.length <= 160 ? "— Perfect!" : seoDesc.length > 160 ? "— Too long" : seoDesc.length > 0 ? "— Aim for 150-160" : ""}
+                    </p>
+                  </div>
+                  <Separator />
+                  <div>
+                    <p className="text-xs font-semibold text-charcoal-lighter uppercase tracking-wider mb-2">Google Search Preview</p>
+                    <div className="p-4 rounded-xl border border-border/30 bg-white">
+                      <p className="text-blue-600 text-base font-medium truncate">{seoTitle || productName || "Product Name"}</p>
+                      <p className="text-green-700 text-xs">chinexabd.com/products/{productName ? productName.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-").replace(/^-+|-+$/g, "") : "product-slug"}</p>
+                      <p className="text-sm text-charcoal-light mt-1 line-clamp-2">{seoDesc || shortDesc || "Your meta description will appear here..."}</p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
@@ -444,6 +525,27 @@ export default function EditProductPage() {
           </Card>
         </div>
       </div>
+
+      {/* SEO Prompt Modal */}
+      <Dialog open={seoPromptOpen} onOpenChange={setSeoPromptOpen}>
+        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-secondary" /> AI SEO Prompt</DialogTitle>
+            <DialogDescription>Copy this prompt and paste it in ChatGPT, Gemini, or Claude to generate SEO title &amp; description</DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto py-2">
+            <pre className="whitespace-pre-wrap text-xs text-charcoal bg-pearl/60 rounded-xl p-4 border border-border/30 font-mono leading-relaxed select-all">
+              {buildSeoPrompt()}
+            </pre>
+          </div>
+          <div className="flex justify-end gap-2 pt-2 shrink-0">
+            <button onClick={() => setSeoPromptOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal transition-colors">Close</button>
+            <button onClick={handleCopyPrompt} className={cn("flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all", seoPromptCopied ? "bg-success text-white" : "bg-charcoal text-white hover:bg-secondary")}>
+              {seoPromptCopied ? <><Check className="h-3 w-3" /> Copied!</> : <><Copy className="h-3 w-3" /> Copy Prompt</>}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

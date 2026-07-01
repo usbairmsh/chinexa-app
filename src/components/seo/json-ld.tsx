@@ -54,6 +54,7 @@ interface ProductJsonLdProps {
   image: string;
   sku: string;
   price: number;
+  highPrice?: number;
   currency?: string;
   availability?: "InStock" | "OutOfStock" | "PreOrder";
   rating?: number;
@@ -64,10 +65,45 @@ interface ProductJsonLdProps {
 }
 
 export function ProductJsonLd({
-  name, description, image, sku, price, currency = "BDT",
+  name, description, image, sku, price, highPrice, currency = "BDT",
   availability = "InStock", rating, reviewCount, brand, category, url,
 }: ProductJsonLdProps) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
+  const priceValidUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const offers = highPrice && highPrice > price
+    ? {
+        "@type": "AggregateOffer",
+        url: `${siteUrl}${url}`,
+        priceCurrency: currency,
+        lowPrice: price.toFixed(2),
+        highPrice: highPrice.toFixed(2),
+        offerCount: 2,
+        availability: `https://schema.org/${availability}`,
+        seller: { "@type": "Organization", name: "ChineXa" },
+      }
+    : {
+        "@type": "Offer",
+        url: `${siteUrl}${url}`,
+        priceCurrency: currency,
+        price: price.toFixed(2),
+        priceValidUntil,
+        availability: `https://schema.org/${availability}`,
+        itemCondition: "https://schema.org/NewCondition",
+        seller: { "@type": "Organization", name: "ChineXa" },
+        shippingDetails: {
+          "@type": "OfferShippingDetails",
+          shippingDestination: { "@type": "DefinedRegion", addressCountry: "BD" },
+          deliveryTime: { "@type": "ShippingDeliveryTime", handlingTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 3, unitCode: "DAY" }, transitTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 5, unitCode: "DAY" } },
+        },
+        hasMerchantReturnPolicy: {
+          "@type": "MerchantReturnPolicy",
+          returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+          merchantReturnDays: 7,
+          returnMethod: "https://schema.org/ReturnByMail",
+        },
+      };
+
   const schema: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -77,14 +113,7 @@ export function ProductJsonLd({
     sku,
     brand: { "@type": "Brand", name: brand || "ChineXa" },
     category,
-    offers: {
-      "@type": "Offer",
-      url: `${siteUrl}${url}`,
-      priceCurrency: currency,
-      price: price.toFixed(2),
-      availability: `https://schema.org/${availability}`,
-      seller: { "@type": "Organization", name: "ChineXa" },
-    },
+    offers,
   };
 
   if (rating && reviewCount) {
