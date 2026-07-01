@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Bell, Package, Tag, Star, Gift, Loader2 } from "lucide-react";
+import { Bell, Package, Tag, Star, Gift } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -78,8 +78,17 @@ export default function NotificationsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-6 w-6 animate-spin text-charcoal-lighter" />
+      <div className="space-y-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="rounded-xl border border-border/20 p-4 flex gap-3">
+            <div className="h-10 w-10 bg-pearl rounded-xl animate-pulse shrink-0" />
+            <div className="flex-1">
+              <div className="h-4 w-32 bg-pearl rounded animate-pulse mb-2" />
+              <div className="h-3 w-48 bg-pearl rounded animate-pulse mb-1.5" />
+              <div className="h-2.5 w-16 bg-pearl rounded animate-pulse" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }

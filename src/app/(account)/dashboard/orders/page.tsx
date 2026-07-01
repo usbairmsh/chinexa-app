@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Package, Truck, CheckCircle2, Clock, XCircle, MapPin, PackageCheck, ThumbsDown, Loader2 } from "lucide-react";
+import { Package, Truck, CheckCircle2, Clock, XCircle, MapPin, PackageCheck, ThumbsDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -126,8 +126,28 @@ export default function OrdersPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-6 w-6 animate-spin text-charcoal-lighter" />
+      <div className="space-y-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="rounded-xl border border-border/20 p-4">
+            <div className="h-4 w-32 bg-pearl rounded animate-pulse mb-3" />
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 bg-pearl rounded-lg animate-pulse shrink-0" />
+                <div className="flex-1">
+                  <div className="h-3 w-48 bg-pearl rounded animate-pulse mb-1.5" />
+                  <div className="h-2.5 w-20 bg-pearl rounded animate-pulse" />
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 bg-pearl rounded-lg animate-pulse shrink-0" />
+                <div className="flex-1">
+                  <div className="h-3 w-40 bg-pearl rounded animate-pulse mb-1.5" />
+                  <div className="h-2.5 w-16 bg-pearl rounded animate-pulse" />
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     );
   }

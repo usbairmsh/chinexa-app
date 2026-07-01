@@ -16,12 +16,24 @@ function parseCrop(val?: string) {
 // ─── Promo Banner Strip ───
 export function PromoBannerStrip() {
   const [banners, setBanners] = useState<Banner[]>([]);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     fetch("/api/banners?position=promo")
       .then((r) => r.json())
       .then((data) => { if (Array.isArray(data)) setBanners(data); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
+
+  if (loading) {
+    return (
+      <section className="py-8 bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="rounded-2xl bg-pearl animate-pulse aspect-[16/7]" />
+        </div>
+      </section>
+    );
+  }
 
   if (banners.length === 0) return null;
 
@@ -72,12 +84,24 @@ export function PromoBannerStrip() {
 // ─── Category Banner (full-width single banner) ───
 export function CategoryBanner() {
   const [banners, setBanners] = useState<Banner[]>([]);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     fetch("/api/banners?position=category")
       .then((r) => r.json())
       .then((data) => { if (Array.isArray(data)) setBanners(data); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
+
+  if (loading) {
+    return (
+      <section className="py-4">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="rounded-2xl bg-pearl animate-pulse aspect-[21/7]" />
+        </div>
+      </section>
+    );
+  }
 
   if (banners.length === 0) return null;
   const banner = banners[0];

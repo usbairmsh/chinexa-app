@@ -7,7 +7,7 @@ import { useCategories } from "@/hooks/queries/use-categories";
 import { ArrowRight } from "lucide-react";
 
 export function CategoryShowcase() {
-  const { data: categories } = useCategories();
+  const { data: categories, isLoading } = useCategories();
   const mainCategories = categories?.filter((c) => !c.parent_id).slice(0, 7) || [];
 
   return (
@@ -27,6 +27,16 @@ export function CategoryShowcase() {
           </p>
         </motion.div>
 
+        {isLoading && mainCategories.length === 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className={`rounded-2xl bg-pearl animate-pulse aspect-[4/5] ${i === 0 ? "col-span-2 row-span-2" : ""}`}
+              />
+            ))}
+          </div>
+        ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
           {mainCategories.map((category, index) => (
             <motion.div
@@ -62,6 +72,7 @@ export function CategoryShowcase() {
             </motion.div>
           ))}
         </div>
+        )}
       </div>
     </section>
   );

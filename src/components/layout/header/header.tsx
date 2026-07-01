@@ -23,7 +23,7 @@ export function Header() {
   const { mobileMenuOpen, setMobileMenuOpen, setSearchOverlayOpen, setCartDrawerOpen } = useUIStore();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const hiddenSeedIds = useCategoriesStore((s) => s.hiddenSeedIds);
-  const [navItems, setNavItems] = useState<NavItem[]>([]);
+  const [navItems, setNavItems] = useState<NavItem[]>(MAIN_NAV);
   const [announcement, setAnnouncement] = useState<{ visible: boolean; text: string; phone: string }>({ visible: true, text: "", phone: "+880 1700-000000" });
 
   useEffect(() => {

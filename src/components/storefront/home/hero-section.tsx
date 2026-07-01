@@ -29,6 +29,15 @@ export function HeroSection() {
     return () => clearInterval(timer);
   }, [slides.length]);
 
+  // Show shimmer while banners are loading — no text flash
+  if (!banners) {
+    return (
+      <section className="relative h-[70vh] sm:h-[80vh] bg-hero-gradient flex items-center justify-center">
+        <div className="absolute inset-0 bg-gradient-to-r from-pearl via-white to-pearl animate-pulse" />
+      </section>
+    );
+  }
+
   if (slides.length === 0 || !slides[current]) {
     return (
       <section className="relative h-[70vh] sm:h-[80vh] bg-hero-gradient flex items-center justify-center">

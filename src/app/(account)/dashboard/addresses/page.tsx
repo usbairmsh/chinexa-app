@@ -121,7 +121,22 @@ export default function AddressesPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-charcoal-lighter" /></div>
+        <div className="grid sm:grid-cols-2 gap-4">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-border/20 p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-9 w-9 bg-pearl rounded-xl animate-pulse" />
+                <div className="h-4 w-20 bg-pearl rounded animate-pulse" />
+              </div>
+              <div className="space-y-2">
+                <div className="h-3 w-32 bg-pearl rounded animate-pulse" />
+                <div className="h-3 w-28 bg-pearl rounded animate-pulse" />
+                <div className="h-3 w-48 bg-pearl rounded animate-pulse" />
+                <div className="h-3 w-36 bg-pearl rounded animate-pulse" />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="grid sm:grid-cols-2 gap-4">
           {addresses.map((addr, i) => {

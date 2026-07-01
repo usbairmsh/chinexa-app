@@ -97,6 +97,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                 src={product.images[1].url}
                 alt={`${product.name} alternate`}
                 fill
+                loading="lazy"
                 className="object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
               />
