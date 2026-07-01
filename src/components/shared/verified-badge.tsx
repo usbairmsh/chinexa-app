@@ -20,23 +20,17 @@ export function VerifiedBadge({ color = "#3B82F6", opacity = 1, size = 16, class
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
-        {/* Star/badge shape */}
+        {/* Starburst seal shape */}
         <path
-          d="M12 1.5l2.39 3.19 3.96.58-2.59 3.22.34 4.01L12 10.95 7.9 12.5l.34-4.01L5.65 5.27l3.96-.58L12 1.5z"
-          fill={color}
-          opacity={opacity}
-          transform="scale(1.15) translate(-1.5, -1)"
-        />
-        <path
-          d="M12 2l2.09 2.79 3.46.5-2.27 2.82.3 3.51L12 9.87 8.42 11.62l.3-3.51L6.45 5.29l3.46-.5L12 2z"
+          d="M12 0l2.4 4.8 4.8-2.4-0.6 5.4 5.4 0.6-3.6 4.2 3.6 4.2-5.4 0.6 0.6 5.4-4.8-2.4L12 24l-2.4-4.8-4.8 2.4 0.6-5.4-5.4-0.6 3.6-4.2-3.6-4.2 5.4-0.6-0.6-5.4 4.8 2.4z"
           fill={color}
           opacity={opacity}
         />
         {/* Checkmark */}
         <path
-          d="M9.5 11.5l2 2 3.5-4.5"
+          d="M8.5 12.5l2.5 2.5 4.5-5"
           stroke="white"
-          strokeWidth="2"
+          strokeWidth="2.2"
           strokeLinecap="round"
           strokeLinejoin="round"
           fill="none"
