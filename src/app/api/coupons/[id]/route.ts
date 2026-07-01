@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { execute } from "@/lib/db";
+import { logActivity } from "@/lib/log-activity";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -13,6 +14,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (body.valid_from !== undefined) { fields.push("valid_from = ?"); values.push(body.valid_from); }
     if (body.valid_until !== undefined) { fields.push("valid_until = ?"); values.push(body.valid_until); }
     if (fields.length > 0) { values.push(id); await execute(`UPDATE coupons SET ${fields.join(", ")} WHERE id = ?`, values); }
+    await logActivity("Updated coupon", "coupon", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
@@ -20,6 +22,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try { const { id } = await params; await execute("DELETE FROM coupons WHERE id = ?", [id]); return NextResponse.json({ success: true }); }
+  try { const { id } = await params; await execute("DELETE FROM coupons WHERE id = ?", [id]); await logActivity("Deleted coupon", "coupon", id); return NextResponse.json({ success: true }); }
   catch (error: unknown) { return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 }); }
 }

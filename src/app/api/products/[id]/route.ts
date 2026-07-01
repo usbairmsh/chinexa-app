@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
+import { logActivity } from "@/lib/log-activity";
 
 interface ProductRow extends RowDataPacket { [key: string]: unknown; }
 interface ImageRow extends RowDataPacket { id: string; product_id: string; url: string; alt: string; order: number; }
@@ -93,6 +94,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       }
     }
 
+    await logActivity("Updated product", "product", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
@@ -110,6 +112,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     if (categoryId) {
       await execute("UPDATE categories SET product_count = (SELECT COUNT(*) FROM products WHERE category_id = ? AND is_active = 1) WHERE id = ?", [categoryId, categoryId]);
     }
+    await logActivity("Deleted product", "product", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

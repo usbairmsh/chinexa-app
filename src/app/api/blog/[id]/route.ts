@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { execute } from "@/lib/db";
+import { logActivity } from "@/lib/log-activity";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -28,6 +29,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (fields.length === 0) return NextResponse.json({ error: "No fields" }, { status: 400 });
     values.push(id);
     await execute(`UPDATE blog_posts SET ${fields.join(", ")}, updated_at = NOW() WHERE id = ?`, values);
+    await logActivity("Updated blog post", "blog", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
@@ -38,6 +40,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   try {
     const { id } = await params;
     await execute("DELETE FROM blog_posts WHERE id = ?", [id]);
+    await logActivity("Deleted blog post", "blog", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

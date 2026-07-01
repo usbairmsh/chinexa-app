@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
+import { logActivity } from "@/lib/log-activity";
 
 interface BannerRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -27,6 +28,7 @@ export async function POST(req: NextRequest) {
       "INSERT INTO banners (id, title, subtitle, image, mobile_image, link, cta_text, position, focal_point, `order`, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [id, body.title, body.subtitle || null, body.image, body.mobile_image || null, body.link || null, body.cta_text || null, body.position || "hero", body.focal_point || "50% 50%", body.order || 0, body.is_active !== false ? 1 : 0]
     );
+    await logActivity("Created banner", "banner", id, body.title);
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

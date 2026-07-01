@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
+import { logActivity } from "@/lib/log-activity";
 
 interface BlogRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -32,6 +33,7 @@ export async function POST(req: NextRequest) {
       "INSERT INTO blog_posts (id, title, slug, excerpt, content, featured_image, category, tags, author_name, is_published, published_at, reading_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [id, body.title, slug, body.excerpt || null, body.content || null, body.featured_image || null, body.category || null, JSON.stringify(body.tags || []), body.author_name || "ChineXa Team", body.is_published ? 1 : 0, body.is_published ? new Date().toISOString().slice(0, 19).replace("T", " ") : null, body.reading_time || 5]
     );
+    await logActivity("Created blog post", "blog", id, body.title);
     return NextResponse.json({ success: true, id, slug }, { status: 201 });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

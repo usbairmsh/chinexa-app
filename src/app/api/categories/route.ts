@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
+import { logActivity } from "@/lib/log-activity";
 
 interface CategoryRow extends RowDataPacket {
   id: string; name: string; slug: string; description: string | null;
@@ -58,6 +59,7 @@ export async function POST(req: NextRequest) {
       "INSERT INTO categories (id, name, slug, description, image, parent_id, `order`, is_active, product_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [id, body.name, slug, body.description || null, body.image || null, body.parent_id || null, body.order || 0, body.is_active !== false ? 1 : 0, 0]
     );
+    await logActivity("Created category", "category", id, body.name);
     return NextResponse.json({ success: true, id, slug }, { status: 201 });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

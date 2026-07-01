@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
+import { logActivity } from "@/lib/log-activity";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -52,6 +53,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
     if (body.is_active !== undefined) { fields.push("is_active = ?"); values.push(body.is_active ? 1 : 0); }
     if (fields.length > 0) { values.push(id); await execute(`UPDATE customers SET ${fields.join(", ")} WHERE id = ?`, values); }
+    await logActivity("Updated customer", "customer", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
@@ -74,6 +76,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         [id]
       );
     }
+    await logActivity("Deactivated customer", "customer", id, hard ? "Hard delete" : "Soft delete");
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

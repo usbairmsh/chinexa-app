@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
+import { logActivity } from "@/lib/log-activity";
 
 export async function GET() {
   try {
@@ -19,6 +20,7 @@ export async function POST(req: NextRequest) {
       "INSERT INTO coupons (id, code, description, discount_type, discount_value, min_order_amount, max_discount_amount, usage_limit, valid_from, valid_until, is_active, applicable_categories, applicable_products) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [id, body.code, body.description || null, body.discount_type || "percentage", body.discount_value || 0, body.min_order_amount || null, body.max_discount_amount || null, body.usage_limit || null, body.valid_from || null, body.valid_until || null, body.is_active !== false ? 1 : 0, body.applicable_categories ? JSON.stringify(body.applicable_categories) : null, body.applicable_products ? JSON.stringify(body.applicable_products) : null]
     );
+    await logActivity("Created coupon", "coupon", id, body.code);
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

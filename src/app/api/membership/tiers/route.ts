@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
+import { logActivity } from "@/lib/log-activity";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
         body.is_active !== false ? 1 : 0,
       ]
     );
+    await logActivity("Created membership tier", "membership", id, body.name);
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
+import { logActivity } from "@/lib/log-activity";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,7 @@ export async function PUT(req: NextRequest) {
     if (body.key) {
       const val = JSON.stringify(body.value);
       await execute("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?, updated_at = NOW()", [body.key, val, val]);
+      await logActivity("Updated settings", "settings", body.key);
       return NextResponse.json({ success: true });
     }
 
@@ -61,6 +63,7 @@ export async function PUT(req: NextRequest) {
         const val = JSON.stringify(v);
         await execute("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?, updated_at = NOW()", [k, val, val]);
       }
+      await logActivity("Updated settings", "settings", undefined, `Bulk update: ${Object.keys(body.settings).join(", ")}`);
       return NextResponse.json({ success: true });
     }
 
