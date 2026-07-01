@@ -43,6 +43,7 @@ function buildProduct(row: ProductRow, images: ImageRow[], variants: VariantRow[
       id: v.id, name: v.name, type: v.type as "size" | "color" | "shade" | "weight",
       value: v.value, hex: v.hex || undefined,
       price_adjustment: Number(v.price_adjustment), stock: v.stock, sku: v.sku,
+      image: v.image || undefined,
     })),
     stock_quantity: row.stock_quantity, is_active: !!row.is_active, is_featured: !!row.is_featured,
     average_rating: Number(row.average_rating), review_count: row.review_count,

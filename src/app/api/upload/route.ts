@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
+import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
+    const folder = (formData.get("folder") as string) || "products";
     const productId = formData.get("product_id") as string | null;
     const imageIndex = formData.get("image_index") as string | null;
 
@@ -25,14 +27,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "File too large. Max 5MB" }, { status: 400 });
     }
 
-    // Generate filename: product_id_XXXX.ext
+    // Sanitize folder name — only allow alphanumeric, dash, underscore
+    const safeFolder = folder.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 30) || "general";
+
+    // Generate unique filename
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-    const id = productId || `temp_${Date.now()}`;
-    const index = imageIndex || String(Date.now()).slice(-4);
-    const fileName = `${id}_${index}.${ext}`;
+    const uniqueId = crypto.randomBytes(8).toString("hex");
+    let fileName: string;
+
+    if (productId && imageIndex) {
+      fileName = `${productId}_${imageIndex}_${uniqueId}.${ext}`;
+    } else if (productId) {
+      fileName = `${productId}_${uniqueId}.${ext}`;
+    } else {
+      fileName = `${Date.now()}_${uniqueId}.${ext}`;
+    }
 
     // Ensure upload directory exists
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
+    const uploadDir = path.join(process.cwd(), "public", "uploads", safeFolder);
     if (!existsSync(uploadDir)) {
       await mkdir(uploadDir, { recursive: true });
     }
@@ -44,7 +56,7 @@ export async function POST(req: NextRequest) {
     await writeFile(filePath, buffer);
 
     // Return the API-served URL path
-    const url = `/api/uploads/products/${fileName}`;
+    const url = `/api/uploads/${safeFolder}/${fileName}`;
 
     return NextResponse.json({
       success: true,

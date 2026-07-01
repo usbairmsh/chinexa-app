@@ -344,7 +344,7 @@ export default function AdminBannersPage() {
               <Input label="Subtitle" placeholder="Discover radiance with our new arrivals" value={formSubtitle} onChange={(e) => setFormSubtitle(e.target.value)} />
             </div>
             <div className="space-y-1">
-              <ImageUpload label="Banner Image *" value={formImage} onChange={setFormImage} aspectRatio="video" placeholder="Upload banner image" />
+              <ImageUpload label="Banner Image *" value={formImage} onChange={setFormImage} aspectRatio="video" placeholder="Upload banner image" folder="banners" />
               <div className="flex items-start gap-1.5 px-1"><Info className="h-3 w-3 text-charcoal-lighter shrink-0 mt-0.5" /><p className="text-[10px] text-charcoal-lighter leading-tight">Recommended: <span className="font-semibold">1920 x 800px</span>. Larger images can be repositioned below.</p></div>
             </div>
             {formImage && <ImagePositionEditor imageUrl={formImage} crop={formCrop} onChange={setFormCrop} />}

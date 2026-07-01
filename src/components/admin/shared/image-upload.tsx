@@ -14,6 +14,7 @@ interface ImageUploadProps {
   aspectRatio?: "square" | "video" | "portrait";
   productId?: string;
   imageIndex?: string;
+  folder?: string;
 }
 
 export function ImageUpload({
@@ -25,6 +26,7 @@ export function ImageUpload({
   aspectRatio = "square",
   productId,
   imageIndex,
+  folder = "products",
 }: ImageUploadProps) {
   const [mode, setMode] = useState<"upload" | "url">(value && value.startsWith("http") ? "url" : "upload");
   const [urlInput, setUrlInput] = useState(value?.startsWith("http") ? value : "");
@@ -50,6 +52,7 @@ export function ImageUpload({
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("folder", folder);
       if (productId) formData.append("product_id", productId);
       if (imageIndex) formData.append("image_index", imageIndex);
 

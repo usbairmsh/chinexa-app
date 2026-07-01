@@ -137,7 +137,8 @@ export default function ProductDetailPage() {
   const wishlisted = isInWishlist(product.id);
   const activeVariant = product.variants.find((v) => v.id === selectedVariant);
   const finalPrice = product.price + (activeVariant?.price_adjustment || 0);
-  const discountPercent = product.compare_at_price ? Math.round((1 - product.price / product.compare_at_price) * 100) : 0;
+  const finalComparePrice = product.compare_at_price ? product.compare_at_price + (activeVariant?.price_adjustment || 0) : undefined;
+  const discountPercent = finalComparePrice ? Math.round((1 - finalPrice / finalComparePrice) * 100) : 0;
 
   const handleAddToCart = () => {
     addToCart({
@@ -149,7 +150,7 @@ export default function ProductDetailPage() {
       variant_id: activeVariant?.id,
       variant_name: activeVariant?.name,
       price: finalPrice,
-      compare_at_price: product.compare_at_price,
+      compare_at_price: finalComparePrice,
       quantity,
       stock: activeVariant?.stock || product.stock_quantity,
     });
@@ -324,9 +325,9 @@ export default function ProductDetailPage() {
                   <span className="text-3xl font-bold text-charcoal">
                     {formatCurrency(finalPrice)}
                   </span>
-                  {product.compare_at_price && (
+                  {finalComparePrice && (
                     <span className="text-lg text-charcoal-lighter line-through">
-                      {formatCurrency(product.compare_at_price)}
+                      {formatCurrency(finalComparePrice)}
                     </span>
                   )}
                   {discountPercent > 0 && (

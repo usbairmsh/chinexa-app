@@ -385,7 +385,7 @@ export default function AdminCategoriesPage() {
             <Textarea label="Description" placeholder="Brief description for SEO..." value={formDesc} onChange={(e) => setFormDesc(e.target.value)} className="min-h-[70px]" />
 
             {!formParentId && (
-              <ImageUpload label="Category Image" aspectRatio="video" value={formImage} onChange={setFormImage} />
+              <ImageUpload label="Category Image" aspectRatio="video" value={formImage} onChange={setFormImage} folder="categories" />
             )}
 
             <Separator />

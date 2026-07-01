@@ -203,7 +203,7 @@ export default function AdminBlogPage() {
             </div>
             <Textarea label="Excerpt" placeholder="Brief summary for listing pages..." value={formExcerpt} onChange={(e) => setFormExcerpt(e.target.value)} className="min-h-[60px]" />
             <Textarea label="Content" placeholder="Write your blog post content here..." value={formContent} onChange={(e) => setFormContent(e.target.value)} className="min-h-[200px]" />
-            <ImageUpload label="Featured Image" value={formImage} onChange={setFormImage} aspectRatio="video" placeholder="Upload featured image (1200x675 recommended)" />
+            <ImageUpload label="Featured Image" value={formImage} onChange={setFormImage} aspectRatio="video" placeholder="Upload featured image (1200x675 recommended)" folder="blog" />
             <div className="grid grid-cols-2 gap-3">
               <Input label="Category" placeholder="Skincare, Fashion, Beauty" value={formCategory} onChange={(e) => setFormCategory(e.target.value)} />
               <Input label="Tags (comma separated)" placeholder="skincare, guide, tips" value={formTags} onChange={(e) => setFormTags(e.target.value)} />
