@@ -21,6 +21,7 @@ import { ImageUpload } from "@/components/admin/shared/image-upload";
 import { ImagePositionEditor } from "@/components/admin/shared/image-position-editor";
 import { cn } from "@/lib/utils";
 import { CountrySearch } from "@/components/admin/shared/country-search";
+import { BrandSearch } from "@/components/admin/shared/brand-search";
 
 type VariantRow = {
   id: string; type: "size" | "color" | "shade" | "weight";
@@ -53,6 +54,8 @@ export default function EditProductPage() {
   const [howToUse, setHowToUse] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [subcategory, setSubcategory] = useState("");
+  const [brandId, setBrandId] = useState("");
+  const [dbBrands, setDbBrands] = useState<{ id: string; name: string }[]>([]);
   const [seoTitle, setSeoTitle] = useState("");
   const [seoDesc, setSeoDesc] = useState("");
   const [seoPromptOpen, setSeoPromptOpen] = useState(false);
@@ -129,6 +132,9 @@ export default function EditProductPage() {
         children: Array.isArray(c.children) ? (c.children as Record<string, unknown>[]).map((s) => ({ id: s.id as string, name: s.name as string })) : [],
       })));
     }).catch(() => {});
+    fetch("/api/brands").then((r) => r.json()).then((data) => {
+      if (Array.isArray(data)) setDbBrands(data.filter((b: Record<string, unknown>) => b.is_active).map((b: Record<string, unknown>) => ({ id: b.id as string, name: b.name as string })));
+    }).catch(() => {});
 
     fetch(`/api/products/${id}`).then((r) => r.json()).then((p) => {
       if (p.error) { setLoading(false); return; }
@@ -143,6 +149,7 @@ export default function EditProductPage() {
       setHowToUse(p.how_to_use || "");
       setCategoryId(p.category_id || "");
       setSubcategory(p.subcategory || "");
+      setBrandId(p.brand_id || "");
       setSeoTitle(p.seo_title || "");
       setSeoDesc(p.seo_description || "");
       setIsActive(!!p.is_active);
@@ -201,6 +208,8 @@ export default function EditProductPage() {
         category_id: categoryId || null,
         category_name: dbCategories.find((c) => c.id === categoryId)?.name || null,
         subcategory: subcategory.trim() || null,
+        brand_id: brandId || null,
+        brand_name: dbBrands.find((b) => b.id === brandId)?.name || null,
         seo_title: seoTitle.trim() || null, seo_description: seoDesc.trim() || null,
         is_active: isActive, is_featured: isFeatured, badges: selectedBadges,
         images: images.filter((img) => img.url).map((img) => ({ url: img.url, alt: img.alt, variant_id: img.variant_id || null, focal_point: img.focal_point || null })),
@@ -498,6 +507,8 @@ export default function EditProductPage() {
                   </Select>
                 ) : null;
               })()}
+              {/* Brand */}
+              <BrandSearch brands={dbBrands} value={brandId} onChange={setBrandId} />
             </CardContent>
           </Card>
           <Card>

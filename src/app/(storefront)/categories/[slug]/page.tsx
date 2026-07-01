@@ -178,38 +178,6 @@ export default function CategoryPage() {
         </div>
       )}
 
-      {/* Subcategory Pills */}
-      {subcategories.length > 0 && (
-        <div className="border-b border-border/30">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-3">
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              <button
-                onClick={() => updateParams({ subcategory: undefined })}
-                className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
-                  !params.subcategory
-                    ? "bg-secondary text-white shadow-[0_4px_15px_rgba(192,57,43,0.25)]"
-                    : "bg-pearl text-charcoal-lighter hover:bg-primary-light hover:text-charcoal"
-                }`}
-              >
-                All
-              </button>
-              {subcategories.map((sub) => (
-                <button
-                  key={sub.id}
-                  onClick={() => updateParams({ subcategory: params.subcategory === sub.slug ? undefined : sub.slug })}
-                  className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
-                    params.subcategory === sub.slug
-                      ? "bg-secondary text-white shadow-[0_4px_15px_rgba(192,57,43,0.25)]"
-                      : "bg-pearl text-charcoal-lighter hover:bg-primary-light hover:text-charcoal"
-                  }`}
-                >
-                  {sub.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex gap-8">

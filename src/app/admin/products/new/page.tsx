@@ -22,6 +22,7 @@ import { ImageUpload } from "@/components/admin/shared/image-upload";
 import { ImagePositionEditor } from "@/components/admin/shared/image-position-editor";
 import { cn } from "@/lib/utils";
 import { CountrySearch } from "@/components/admin/shared/country-search";
+import { BrandSearch } from "@/components/admin/shared/brand-search";
 
 type VariantRow = {
   id: string;
@@ -623,15 +624,7 @@ export default function AddProductPage() {
                 ) : null;
               })()}
               {/* Brand */}
-              {dbBrands.length > 0 && (
-                <Select value={brandId} onValueChange={setBrandId}>
-                  <SelectTrigger><SelectValue placeholder="Select Brand (optional)" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">No Brand</SelectItem>
-                    {dbBrands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              )}
+              <BrandSearch brands={dbBrands} value={brandId} onChange={setBrandId} />
             </CardContent>
           </Card>
 
