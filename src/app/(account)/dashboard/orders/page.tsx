@@ -98,9 +98,13 @@ export default function OrdersPage() {
   const user = useAuthStore((s) => s.user);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
+    if (!mounted) return;
     if (!user?.id) { setLoading(false); return; }
+    setLoading(true);
     fetch(`/api/customers/${user.id}`)
       .then((r) => r.json())
       .then((data) => {
@@ -118,7 +122,7 @@ export default function OrdersPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [user?.id]);
+  }, [user?.id, mounted]);
 
   const activeOrders = orders.filter(o => ["pending", "confirmed", "processing", "shipped", "on_delivery"].includes(o.status));
   const completedOrders = orders.filter(o => o.status === "received");

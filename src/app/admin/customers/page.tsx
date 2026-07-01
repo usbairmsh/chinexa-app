@@ -4,9 +4,9 @@ import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import {
   Search, Users, DollarSign, ShoppingCart, TrendingUp, ArrowUpDown,
-  ChevronRight, Mail, Phone,
+  ChevronRight, Mail, Phone, Edit,
   MapPin, Package, Clock, CheckCircle2, Truck, XCircle, Calendar,
-  ArrowLeft, Loader2, Crown, Gift, Plus, Tag
+  ArrowLeft, Loader2, Crown, Gift, Plus, Tag, Save
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { formatCurrency, formatDateShort, getInitials, cn } from "@/lib/utils";
 
@@ -58,7 +59,24 @@ const tierColors: Record<string, string> = {
 
 type SortKey = "name" | "orders" | "spent" | "lastOrder" | "joined";
 
+function getCookie(name: string): string {
+  if (typeof document === "undefined") return "";
+  const match = document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`));
+  return match ? match[2] : "";
+}
+
 export default function AdminCustomersPage() {
+  const adminRole = getCookie("chinexa-role");
+  const canEditCustomer = adminRole === "superadmin";
+
+  // Edit customer dialog
+  const [editCustomerOpen, setEditCustomerOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editActive, setEditActive] = useState(true);
+  const [editSaving, setEditSaving] = useState(false);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [tierFilter, setTierFilter] = useState("all");
@@ -157,6 +175,31 @@ export default function AdminCustomersPage() {
     setCouponDialogOpen(true);
   };
 
+  const openEditCustomer = () => {
+    if (!selectedCustomer) return;
+    setEditName(selectedCustomer.name);
+    setEditEmail(selectedCustomer.email);
+    setEditPhone(selectedCustomer.phone);
+    setEditActive(selectedCustomer.isActive);
+    setEditCustomerOpen(true);
+  };
+
+  const handleSaveCustomer = async () => {
+    if (!selectedCustomer) return;
+    setEditSaving(true);
+    try {
+      await fetch(`/api/customers/${selectedCustomer.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editName.trim(), email: editEmail.trim() || null, phone: editPhone.trim(), is_active: editActive }),
+      });
+      setEditCustomerOpen(false);
+      // Update local state
+      setSelectedCustomer({ ...selectedCustomer, name: editName.trim(), email: editEmail.trim(), phone: editPhone.trim(), isActive: editActive });
+      fetchCustomers();
+    } catch {} finally { setEditSaving(false); }
+  };
+
   // Fetch customer detail with orders when selecting
   const handleSelectCustomer = async (customer: Customer) => {
     setLoadingDetail(true);
@@ -248,6 +291,11 @@ export default function AdminCustomersPage() {
           </div>
           <Badge className={cn("text-[10px]", tierColor)}><Crown className="h-3 w-3 mr-1" />{tierName}</Badge>
           <Badge variant={c.isActive ? "success" : "destructive"} className="text-[10px]">{c.isActive ? "Active" : "Inactive"}</Badge>
+          {canEditCustomer && (
+            <button onClick={openEditCustomer} className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-border text-[11px] font-medium text-charcoal-lighter hover:border-secondary hover:text-secondary transition-all">
+              <Edit className="h-3 w-3" /> Edit
+            </button>
+          )}
         </div>
 
         <div className="grid lg:grid-cols-3 gap-5">
@@ -476,6 +524,31 @@ export default function AdminCustomersPage() {
               <button onClick={() => setCouponDialogOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
               <button onClick={handleAssignCoupon} disabled={!selectedCouponId} className="px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(192,57,43,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300">
                 Assign Coupon
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Customer Dialog */}
+        <Dialog open={editCustomerOpen} onOpenChange={setEditCustomerOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2"><Edit className="h-5 w-5 text-secondary" /> Edit Customer</DialogTitle>
+              <DialogDescription>Update customer profile details</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <Input label="Full Name" value={editName} onChange={(e) => setEditName(e.target.value)} />
+              <Input label="Email" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
+              <Input label="Phone" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
+              <div className="flex items-center gap-3">
+                <Switch checked={editActive} onCheckedChange={setEditActive} />
+                <span className="text-sm text-charcoal-lighter">{editActive ? "Active" : "Inactive"}</span>
+              </div>
+            </div>
+            <DialogFooter>
+              <button onClick={() => setEditCustomerOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
+              <button onClick={handleSaveCustomer} disabled={editSaving || !editName.trim()} className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(192,57,43,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300">
+                {editSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save
               </button>
             </DialogFooter>
           </DialogContent>

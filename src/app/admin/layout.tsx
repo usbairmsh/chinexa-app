@@ -72,7 +72,11 @@ const navSections = [
 ];
 
 // All available permission keys (for the access management UI)
-export const ALL_PERMISSIONS = navSections.flatMap((s) => s.items.map((i) => ({ key: i.perm, label: i.label, section: s.label })));
+export const ALL_PERMISSIONS = [
+  ...navSections.flatMap((s) => s.items.map((i) => ({ key: i.perm, label: i.label, section: s.label }))),
+  { key: "edit_customers", label: "Edit Customer Profiles", section: "Advanced" },
+  { key: "edit_orders", label: "Edit Order Details", section: "Advanced" },
+];
 
 export default function AdminLayout({
   children,

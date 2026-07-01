@@ -45,7 +45,7 @@ export default function AddressesPage() {
   const [fDefault, setFDefault] = useState(false);
 
   const fetchAddresses = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id) { setLoading(false); return; }
     try {
       const res = await fetch(`/api/customers/${user.id}/addresses`);
       const data = await res.json();

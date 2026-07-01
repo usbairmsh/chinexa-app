@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import {
   Plus, Search, MoreHorizontal, Edit, Trash2, Eye, Package, Check, X,
   ExternalLink, AlertTriangle, EyeOff, RotateCcw, DollarSign, ChevronDown,
-  ChevronRight, Loader2, Save, Award
+  ChevronRight, Loader2, Save, Award, Copy
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
@@ -130,22 +130,37 @@ export default function AdminProductsPage() {
               ) : (
                 <div className="w-5" />
               )}
-              <Link href={`/admin/products/${product.id}`} className="flex items-center gap-3 group">
+              <div className="flex items-center gap-3 cursor-pointer group" onClick={() => router.push(`/admin/products/${product.id}`)}>
                 <div className="relative h-11 w-11 rounded-lg overflow-hidden bg-pearl shrink-0">
                   <Image src={product.images[0]?.url || "https://placehold.co/44x44"} alt={product.name} fill className="object-cover" sizes="44px" unoptimized={product.images[0]?.url?.includes("/uploads/")} />
                   {!product.is_active && <div className="absolute inset-0 bg-white/60 flex items-center justify-center"><EyeOff className="h-4 w-4 text-charcoal-lighter" /></div>}
                 </div>
                 <div className="min-w-0">
                   <p className="font-medium text-charcoal truncate max-w-[200px] group-hover:text-secondary transition-colors">{product.name}</p>
-                  <p className="text-[10px] text-charcoal-lighter">{product.sku}{hasVariants ? ` · ${product.variants.length} variants` : ""}</p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-[10px] text-charcoal-lighter">{product.sku}{hasVariants ? ` · ${product.variants.length} variants` : ""}</p>
+                    <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(product.sku); setCopiedSku(product.sku); setTimeout(() => setCopiedSku(""), 1500); }} className="p-0.5 rounded hover:bg-pearl text-charcoal-lighter hover:text-secondary transition-colors" title="Copy SKU">
+                      {copiedSku === product.sku ? <Check className="h-2.5 w-2.5 text-success" /> : <Copy className="h-2.5 w-2.5" />}
+                    </button>
+                  </div>
                 </div>
-              </Link>
+              </div>
             </div>
           </td>
 
           {/* Category */}
           <td className="px-4 py-3 hidden sm:table-cell">
             <span className="text-xs text-charcoal-light">{product.category_name}</span>
+          </td>
+
+          {/* Brand */}
+          <td className="px-4 py-3 hidden lg:table-cell">
+            <span className="text-xs text-charcoal-light">{product.brand_name || "—"}</span>
+          </td>
+
+          {/* Country */}
+          <td className="px-4 py-3 hidden xl:table-cell">
+            <span className="text-xs text-charcoal-light">{product.country_of_origin || "—"}</span>
           </td>
 
           {/* Price */}
@@ -259,10 +274,14 @@ export default function AdminProductsPage() {
     );
   };
 
+  const [copiedSku, setCopiedSku] = useState("");
+
   const tableHead = (
     <tr className="border-b border-border/30 text-left">
       <th className="px-4 py-3 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider">Product</th>
       <th className="px-4 py-3 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden sm:table-cell">Category</th>
+      <th className="px-4 py-3 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden lg:table-cell">Brand</th>
+      <th className="px-4 py-3 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden xl:table-cell">Country</th>
       <th className="px-4 py-3 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider">Price</th>
       <th className="px-4 py-3 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden md:table-cell">Stock</th>
       <th className="px-4 py-3 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden md:table-cell">Status</th>

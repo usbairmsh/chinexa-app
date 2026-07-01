@@ -43,6 +43,14 @@ export default function ProductDetailPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const [shared, setShared] = useState(false);
+
+  const handleShare = () => {
+    const url = `${window.location.origin}/products/${product?.slug || ""}`;
+    navigator.clipboard.writeText(url);
+    setShared(true);
+    setTimeout(() => setShared(false), 5000);
+  };
 
   // Reviews
   const [productReviews, setProductReviews] = useState<ReviewData[]>([]);
@@ -450,8 +458,16 @@ export default function ProductDetailPage() {
                       <Heart className={cn("h-4 w-4", wishlisted && "fill-current")} />
                       {wishlisted ? "In Wishlist" : "Add to Wishlist"}
                     </button>
-                    <button className="flex items-center gap-2 h-10 px-5 rounded-full border border-border text-sm font-medium text-charcoal-light hover:border-charcoal hover:text-charcoal transition-all duration-200">
-                      <Share2 className="h-4 w-4" /> Share
+                    <button
+                      onClick={handleShare}
+                      className={cn(
+                        "flex items-center gap-2 h-10 px-5 rounded-full border text-sm font-medium transition-all duration-300",
+                        shared
+                          ? "border-success bg-success text-white"
+                          : "border-border text-charcoal-light hover:border-charcoal hover:text-charcoal"
+                      )}
+                    >
+                      {shared ? <><Check className="h-4 w-4" /> Link Copied!</> : <><Share2 className="h-4 w-4" /> Share</>}
                     </button>
                   </div>
                 </>
@@ -474,8 +490,16 @@ export default function ProductDetailPage() {
                     <Heart className={cn("h-5 w-5", wishlisted && "fill-current")} />
                     {wishlisted ? "Added to Wishlist" : "Add to Wishlist"}
                   </button>
-                  <button className="flex items-center justify-center gap-2 w-full h-10 rounded-full border border-border text-sm font-medium text-charcoal-light hover:border-charcoal hover:text-charcoal transition-all duration-200">
-                    <Share2 className="h-4 w-4" /> Share
+                  <button
+                    onClick={handleShare}
+                    className={cn(
+                      "flex items-center justify-center gap-2 w-full h-10 rounded-full border text-sm font-medium transition-all duration-300",
+                      shared
+                        ? "border-success bg-success text-white"
+                        : "border-border text-charcoal-light hover:border-charcoal hover:text-charcoal"
+                    )}
+                  >
+                    {shared ? <><Check className="h-4 w-4" /> Link Copied!</> : <><Share2 className="h-4 w-4" /> Share</>}
                   </button>
                 </>
               )}

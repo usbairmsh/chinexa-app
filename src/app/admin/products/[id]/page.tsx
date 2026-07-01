@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Save, Eye, X, Plus, Trash2,
-  ImagePlus, Tag, Globe, Sparkles, Package, BarChart3, Loader2, Copy, Check
+  ImagePlus, Tag, Globe, Sparkles, Package, BarChart3, Loader2, Copy, Check, Edit
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
 import { ImagePositionEditor } from "@/components/admin/shared/image-position-editor";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { CountrySearch } from "@/components/admin/shared/country-search";
 import { BrandSearch } from "@/components/admin/shared/brand-search";
 
@@ -37,6 +38,7 @@ export default function EditProductPage() {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState<"basic" | "media" | "variants" | "seo">("basic");
   const [loading, setLoading] = useState(true);
+  const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -249,15 +251,24 @@ export default function EditProductPage() {
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
-            <h1 className="font-heading text-2xl font-semibold text-charcoal">Edit Product</h1>
+            <h1 className="font-heading text-2xl font-semibold text-charcoal">{editMode ? "Edit Product" : "Product Details"}</h1>
             <p className="text-xs text-charcoal-lighter">{productName || "Loading..."}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <AdminButton variant="outline" size="sm" onClick={() => window.open(`/products/${sku}`, "_blank")}><Eye className="h-3.5 w-3.5" /> Preview</AdminButton>
-          <AdminButton size="sm" onClick={handleSave} disabled={saving} className={saved ? "!bg-success hover:!bg-success" : ""}>
-            <Save className="h-3.5 w-3.5" /> {saving ? "Saving..." : saved ? "Saved!" : "Save Changes"}
-          </AdminButton>
+          {editMode ? (
+            <>
+              <AdminButton variant="outline" size="sm" onClick={() => setEditMode(false)}>Cancel</AdminButton>
+              <AdminButton size="sm" onClick={handleSave} disabled={saving} className={saved ? "!bg-success hover:!bg-success" : ""}>
+                <Save className="h-3.5 w-3.5" /> {saving ? "Saving..." : saved ? "Saved!" : "Save Changes"}
+              </AdminButton>
+            </>
+          ) : (
+            <AdminButton size="sm" onClick={() => setEditMode(true)}>
+              <Edit className="h-3.5 w-3.5" /> Edit Product
+            </AdminButton>
+          )}
         </div>
       </div>
 
@@ -274,6 +285,85 @@ export default function EditProductPage() {
         </motion.div>
       )}
 
+      {/* View Mode */}
+      {!editMode && (
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-5">
+            <Card><CardContent className="p-5">
+              <div className="flex items-start gap-4">
+                {images[0]?.url && (
+                  <div className="relative h-24 w-24 rounded-xl overflow-hidden bg-pearl shrink-0">
+                    <Image src={images[0].url} alt={productName} fill className="object-cover" sizes="96px" unoptimized={images[0].url.includes("/uploads/")} />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <h2 className="font-heading text-xl font-semibold text-charcoal">{productName}</h2>
+                  <div className="flex items-center gap-2 mt-1 text-sm text-charcoal-lighter">
+                    <span className="font-mono">{sku}</span>
+                    {origin && <span>· {origin}</span>}
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    {dbCategories.find((c) => c.id === categoryId) && <Badge variant="outline" className="text-[10px]">{dbCategories.find((c) => c.id === categoryId)?.name}</Badge>}
+                    {subcategory && <Badge variant="outline" className="text-[10px]">{subcategory}</Badge>}
+                    {dbBrands.find((b) => b.id === brandId) && <Badge className="text-[10px] bg-secondary/10 text-secondary">{dbBrands.find((b) => b.id === brandId)?.name}</Badge>}
+                  </div>
+                </div>
+              </div>
+            </CardContent></Card>
+
+            {shortDesc && <Card><CardContent className="p-5"><h3 className="text-sm font-semibold text-charcoal mb-2">Short Description</h3><p className="text-sm text-charcoal-lighter">{shortDesc}</p></CardContent></Card>}
+            {fullDesc && <Card><CardContent className="p-5"><h3 className="text-sm font-semibold text-charcoal mb-2">Description</h3><p className="text-sm text-charcoal-lighter whitespace-pre-wrap">{fullDesc}</p></CardContent></Card>}
+
+            {variants.length > 0 && variants[0].name && (
+              <Card><CardContent className="p-5">
+                <h3 className="text-sm font-semibold text-charcoal mb-3">Variants ({variants.filter((v) => v.name).length})</h3>
+                <div className="space-y-2">
+                  {variants.filter((v) => v.name).map((v) => (
+                    <div key={v.id} className="flex items-center justify-between p-2 rounded-lg bg-pearl/40">
+                      <div>
+                        <span className="text-sm font-medium text-charcoal">{v.name}</span>
+                        <span className="text-xs text-charcoal-lighter ml-2">({v.type})</span>
+                        <span className="text-xs text-charcoal-lighter ml-2 font-mono">{v.sku}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-sm font-semibold text-charcoal">{formatCurrency(Number(v.price))}</span>
+                        <span className="text-xs text-charcoal-lighter ml-2">Stock: {v.stock}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent></Card>
+            )}
+          </div>
+
+          <div className="space-y-5">
+            <Card><CardContent className="p-5">
+              <h3 className="text-sm font-semibold text-charcoal mb-3">Pricing</h3>
+              <p className="text-2xl font-bold text-charcoal">{formatCurrency(Number(variants[0]?.price || 0))}</p>
+              {variants[0]?.compare_price && <p className="text-sm text-charcoal-lighter line-through">{formatCurrency(Number(variants[0].compare_price))}</p>}
+            </CardContent></Card>
+
+            <Card><CardContent className="p-5">
+              <h3 className="text-sm font-semibold text-charcoal mb-3">Status</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between"><span className="text-xs text-charcoal-lighter">Active</span><Badge variant={isActive ? "success" : "destructive"} className="text-[10px]">{isActive ? "Yes" : "No"}</Badge></div>
+                <div className="flex justify-between"><span className="text-xs text-charcoal-lighter">Featured</span><Badge variant={isFeatured ? "success" : "default"} className="text-[10px]">{isFeatured ? "Yes" : "No"}</Badge></div>
+                <div className="flex justify-between"><span className="text-xs text-charcoal-lighter">Stock</span><span className="text-xs font-medium">{variants[0]?.stock || 0}</span></div>
+              </div>
+            </CardContent></Card>
+
+            {(ingredients || howToUse) && (
+              <Card><CardContent className="p-5 space-y-3">
+                {ingredients && <div><h3 className="text-sm font-semibold text-charcoal mb-1">Ingredients</h3><p className="text-xs text-charcoal-lighter">{ingredients}</p></div>}
+                {howToUse && <div><h3 className="text-sm font-semibold text-charcoal mb-1">How to Use</h3><p className="text-xs text-charcoal-lighter">{howToUse}</p></div>}
+              </CardContent></Card>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Mode */}
+      {editMode && <>
       <div className="flex gap-1 bg-pearl/60 p-1 rounded-xl">
         {tabs.map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
@@ -527,6 +617,8 @@ export default function EditProductPage() {
           </Card>
         </div>
       </div>
+
+      </>}
 
       {/* SEO Prompt Modal */}
       <Dialog open={seoPromptOpen} onOpenChange={setSeoPromptOpen}>

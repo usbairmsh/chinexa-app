@@ -48,9 +48,14 @@ export default function AccountDashboard() {
   const [loadingData, setLoadingData] = useState(true);
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalAddresses, setTotalAddresses] = useState(0);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
+    if (!mounted) return;
     if (!user?.id) { setLoadingData(false); return; }
+    setLoadingData(true);
 
     // Fetch membership data
     fetch(`/api/customers/${user.id}/points`)
@@ -85,7 +90,7 @@ export default function AccountDashboard() {
       })
       .catch(() => {})
       .finally(() => setLoadingData(false));
-  }, [user?.id]);
+  }, [user?.id, mounted]);
 
   const stats = [
     { label: "Total Orders", value: String(totalOrders), icon: ShoppingBag, color: "text-secondary bg-secondary/10", href: "/dashboard/orders" },

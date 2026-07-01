@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowLeft, Package, Truck, CheckCircle2, Clock, MapPin, CreditCard,
-  Copy, Phone, Mail, User, Printer, Download, XCircle, ArrowUpRight, MessageSquare, ShoppingCart
+  Copy, Phone, Mail, User, Printer, Download, XCircle, ArrowUpRight, MessageSquare, ShoppingCart, Edit, Save, Loader2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AdminButton } from "@/components/admin/shared/admin-button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
 
 const statusIcons: Record<string, typeof Clock> = {
@@ -22,9 +24,25 @@ const statusIcons: Record<string, typeof Clock> = {
   shipped: Truck, on_delivery: MapPin, received: CheckCircle2, not_received: XCircle,
 };
 
+function getCookie(name: string): string {
+  if (typeof document === "undefined") return "";
+  const match = document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`));
+  return match ? match[2] : "";
+}
+
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const adminRole = getCookie("chinexa-role");
+  const canEditOrder = adminRole === "superadmin";
+
   const [order, setOrder] = useState<Record<string, unknown> | null>(null);
+
+  // Edit order dialog
+  const [editOrderOpen, setEditOrderOpen] = useState(false);
+  const [editStatus, setEditStatus] = useState("");
+  const [editPaymentStatus, setEditPaymentStatus] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [note, setNote] = useState("");
   const [noteSaved, setNoteSaved] = useState(false);
@@ -46,6 +64,27 @@ export default function OrderDetailPage() {
   const handleStatusUpdate = async (status: string) => {
     await fetch(`/api/orders/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
     setOrder((prev) => prev ? { ...prev, status } : prev);
+  };
+
+  const openEditOrder = () => {
+    if (!order) return;
+    setEditStatus(String(order.status || "pending"));
+    setEditPaymentStatus(String(order.payment_status || "pending"));
+    setEditNotes(String(order.notes || ""));
+    setEditOrderOpen(true);
+  };
+
+  const handleSaveOrder = async () => {
+    setEditSaving(true);
+    try {
+      await fetch(`/api/orders/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: editStatus, payment_status: editPaymentStatus, notes: editNotes }),
+      });
+      setOrder((prev) => prev ? { ...prev, status: editStatus, payment_status: editPaymentStatus, notes: editNotes } : prev);
+      setEditOrderOpen(false);
+    } catch {} finally { setEditSaving(false); }
   };
 
   if (loading) {
@@ -90,6 +129,11 @@ export default function OrderDetailPage() {
             <p className="text-xs text-charcoal-lighter">{formatDateShort(order.created_at as string)}</p>
           </div>
         </div>
+        {canEditOrder && (
+          <button onClick={openEditOrder} className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-border text-[11px] font-medium text-charcoal-lighter hover:border-secondary hover:text-secondary transition-all">
+            <Edit className="h-3 w-3" /> Edit Order
+          </button>
+        )}
       </div>
 
       <div className="grid lg:grid-cols-3 gap-5">
@@ -216,6 +260,47 @@ export default function OrderDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Edit Order Dialog */}
+      <Dialog open={editOrderOpen} onOpenChange={setEditOrderOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Edit className="h-5 w-5 text-secondary" /> Edit Order</DialogTitle>
+            <DialogDescription>{(order.order_number as string) || id}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Order Status</label>
+              <Select value={editStatus} onValueChange={setEditStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["pending", "confirmed", "processing", "shipped", "on_delivery", "received", "not_received"].map((s) => (
+                    <SelectItem key={s} value={s} className="capitalize">{s.replace("_", " ")}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Payment Status</label>
+              <Select value={editPaymentStatus} onValueChange={setEditPaymentStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["pending", "paid", "failed", "refunded"].map((s) => (
+                    <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Textarea label="Order Notes" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Internal notes..." className="min-h-[60px]" />
+          </div>
+          <DialogFooter>
+            <button onClick={() => setEditOrderOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
+            <button onClick={handleSaveOrder} disabled={editSaving} className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(192,57,43,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300">
+              {editSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

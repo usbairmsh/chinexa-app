@@ -33,7 +33,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
 
   const fetchNotifications = async () => {
-    if (!user?.id) return;
+    if (!user?.id) { setLoading(false); return; }
     try {
       const res = await fetch(`/api/notifications?customer_id=${user.id}`);
       const data = await res.json();
