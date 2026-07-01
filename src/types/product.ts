@@ -32,6 +32,8 @@ export interface Product {
   category_id: string;
   category_name: string;
   subcategory?: string;
+  brand_id?: string;
+  brand_name?: string;
   tags: string[];
   badges: ProductBadge[];
   variants: ProductVariant[];

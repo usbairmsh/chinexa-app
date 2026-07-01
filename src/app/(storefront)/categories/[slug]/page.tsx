@@ -190,38 +190,6 @@ export default function CategoryPage() {
         </div>
       )}
 
-      {/* Subcategory Pills */}
-      {subcategories.length > 0 && (
-        <div className="border-b border-border/30">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-3">
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              <button
-                onClick={() => { setSelectedSubs([]); updateParams({ subcategory: undefined }); }}
-                className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
-                  selectedSubs.length === 0
-                    ? "bg-secondary text-white shadow-[0_4px_15px_rgba(192,57,43,0.25)]"
-                    : "bg-pearl text-charcoal-lighter hover:bg-primary-light hover:text-charcoal"
-                }`}
-              >
-                All
-              </button>
-              {subcategories.map((sub) => (
-                <button
-                  key={sub.id}
-                  onClick={() => toggleSub(sub.slug)}
-                  className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
-                    selectedSubs.includes(sub.slug)
-                      ? "bg-secondary text-white shadow-[0_4px_15px_rgba(192,57,43,0.25)]"
-                      : "bg-pearl text-charcoal-lighter hover:bg-primary-light hover:text-charcoal"
-                  }`}
-                >
-                  {sub.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
@@ -274,14 +242,14 @@ export default function CategoryPage() {
               </div>
             ) : (() => {
               let filtered = data?.data || [];
-              // Filter by selected brands (client-side)
+              // Filter by selected brands
               if (selectedBrands.length > 0) {
-                filtered = filtered.filter((p) => selectedBrands.includes((p as unknown as { brand_name?: string }).brand_name || ""));
+                filtered = filtered.filter((p) => selectedBrands.includes(p.brand_name || ""));
               }
-              // Filter by selected subcategories (client-side for multi-select)
-              if (selectedSubs.length > 1) {
+              // Filter by selected subcategories
+              if (selectedSubs.length > 0) {
                 const subNames = selectedSubs.map((s) => subcategories.find((sc) => sc.slug === s)?.name).filter(Boolean);
-                filtered = filtered.filter((p) => subNames.includes((p as unknown as { subcategory?: string }).subcategory || ""));
+                filtered = filtered.filter((p) => subNames.includes(p.subcategory || ""));
               }
               const hasFilters = selectedBrands.length > 0 || selectedSubs.length > 0;
               return filtered.length === 0 ? (
