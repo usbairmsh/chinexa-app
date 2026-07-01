@@ -46,7 +46,12 @@ function RegisterForm() {
       });
       const checkData = await checkRes.json();
 
-      if (checkData.found) {
+      if (checkData.blocked) {
+        setError(checkData.error || "This phone number belongs to a deactivated account.");
+        return;
+      }
+
+      if (checkData.found && checkData.user) {
         // Already registered — log them in directly
         document.cookie = `chinexa-role=customer; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
         login({
