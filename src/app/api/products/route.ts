@@ -61,6 +61,7 @@ export async function GET(req: NextRequest) {
     const pageSize = Number(searchParams.get("page_size")) || 12;
     const category = searchParams.get("category");
     const subcategory = searchParams.get("subcategory");
+    const brand = searchParams.get("brand");
     const sortBy = searchParams.get("sort_by") || "featured";
     const search = searchParams.get("search");
     const badges = searchParams.get("badges");
@@ -91,8 +92,28 @@ export async function GET(req: NextRequest) {
       params.push(category, category, category, category, category);
     }
     if (subcategory) {
-      where += " AND (p.subcategory = ? OR p.subcategory IN (SELECT name FROM categories WHERE slug = ?))";
-      params.push(subcategory, subcategory);
+      // Support comma-separated subcategories for multi-select
+      const subs = subcategory.split(",").map((s) => s.trim()).filter(Boolean);
+      if (subs.length === 1) {
+        where += " AND (p.subcategory = ? OR p.subcategory IN (SELECT name FROM categories WHERE slug = ?))";
+        params.push(subs[0], subs[0]);
+      } else if (subs.length > 1) {
+        const placeholders = subs.map(() => "?").join(",");
+        where += ` AND (p.subcategory IN (${placeholders}) OR p.subcategory IN (SELECT name FROM categories WHERE slug IN (${placeholders})))`;
+        params.push(...subs, ...subs);
+      }
+    }
+    if (brand) {
+      // Support comma-separated brands for multi-select
+      const brandNames = brand.split(",").map((b) => b.trim()).filter(Boolean);
+      if (brandNames.length === 1) {
+        where += " AND p.brand_name = ?";
+        params.push(brandNames[0]);
+      } else if (brandNames.length > 1) {
+        const placeholders = brandNames.map(() => "?").join(",");
+        where += ` AND p.brand_name IN (${placeholders})`;
+        params.push(...brandNames);
+      }
     }
     if (search) {
       const q = `%${escapeLike(search)}%`;

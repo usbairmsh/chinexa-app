@@ -61,6 +61,7 @@ export interface ProductListParams {
   page_size?: number;
   category?: string;
   subcategory?: string;
+  brand?: string;
   min_price?: number;
   max_price?: number;
   sort_by?: "featured" | "newest" | "price_asc" | "price_desc" | "rating" | "name_asc" | "name_desc";

@@ -32,15 +32,15 @@ export default function CategoryPage() {
   const [priceRange, setPriceRange] = useState([0, 30000]);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedSubs, setSelectedSubs] = useState<string[]>([]);
-  const [brands, setBrands] = useState<{ id: string; name: string; logo?: string }[]>([]);
+  const [brands, setBrands] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     fetch("/api/brands").then((r) => r.json()).then((data) => {
-      if (Array.isArray(data)) setBrands(data.filter((b: Record<string, unknown>) => b.is_active).map((b: Record<string, unknown>) => ({ id: b.id as string, name: b.name as string, logo: (b.logo as string) || undefined })));
+      if (Array.isArray(data)) setBrands(data.filter((b: Record<string, unknown>) => b.is_active).map((b: Record<string, unknown>) => ({ id: b.id as string, name: b.name as string })));
     }).catch(() => {});
   }, []);
 
-  const { data, isLoading } = useProducts(params);
+  const { data, isLoading, isFetching } = useProducts(params);
 
   const updateParams = (updates: Partial<ProductListParams>) => {
     setParams((prev) => ({ ...prev, ...updates, page: 1 }));
@@ -49,14 +49,15 @@ export default function CategoryPage() {
   const subcategories = category?.children || [];
 
   const toggleBrand = (name: string) => {
-    setSelectedBrands((prev) => prev.includes(name) ? prev.filter((b) => b !== name) : [...prev, name]);
+    const next = selectedBrands.includes(name) ? selectedBrands.filter((b) => b !== name) : [...selectedBrands, name];
+    setSelectedBrands(next);
+    updateParams({ brand: next.length > 0 ? next.join(",") : undefined });
   };
 
   const toggleSub = (subSlug: string) => {
-    setSelectedSubs((prev) => prev.includes(subSlug) ? prev.filter((s) => s !== subSlug) : [...prev, subSlug]);
-    // Also update params for API filtering (use first selected sub or clear)
     const next = selectedSubs.includes(subSlug) ? selectedSubs.filter((s) => s !== subSlug) : [...selectedSubs, subSlug];
-    updateParams({ subcategory: next[0] || undefined });
+    setSelectedSubs(next);
+    updateParams({ subcategory: next.length > 0 ? next.join(",") : undefined });
   };
 
   const FilterContent = () => (
@@ -111,7 +112,7 @@ export default function CategoryPage() {
         size="sm"
         className="w-full text-destructive"
         onClick={() => {
-          setParams({ page: 1, page_size: 12, sort_by: "featured", category: slug });
+          setParams({ page: 1, page_size: 12, sort_by: "featured", category: slug, subcategory: undefined, brand: undefined });
           setPriceRange([0, 30000]);
           setSelectedBrands([]);
           setSelectedSubs([]);
@@ -240,35 +241,32 @@ export default function CategoryPage() {
                   </div>
                 ))}
               </div>
-            ) : (() => {
-              let filtered = data?.data || [];
-              // Filter by selected brands
-              if (selectedBrands.length > 0) {
-                filtered = filtered.filter((p) => selectedBrands.includes(p.brand_name || ""));
-              }
-              // Filter by selected subcategories
-              if (selectedSubs.length > 0) {
-                const subNames = selectedSubs.map((s) => subcategories.find((sc) => sc.slug === s)?.name).filter(Boolean);
-                filtered = filtered.filter((p) => subNames.includes(p.subcategory || ""));
-              }
-              const hasFilters = selectedBrands.length > 0 || selectedSubs.length > 0;
-              return filtered.length === 0 ? (
+            ) : isFetching ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="relative">
+                    <div className="h-10 w-10 rounded-full border-[3px] border-pearl" />
+                    <div className="absolute inset-0 h-10 w-10 rounded-full border-[3px] border-secondary border-t-transparent animate-spin" />
+                  </div>
+                  <p className="text-sm text-charcoal-lighter">Loading products...</p>
+                </div>
+              </div>
+            ) : !data?.data?.length ? (
               <div className="text-center py-20">
-                <p className="text-charcoal-lighter">No products found{hasFilters ? " matching your filters" : " in this category"}.</p>
+                <p className="text-charcoal-lighter">No products found{selectedBrands.length > 0 || selectedSubs.length > 0 ? " matching your filters" : " in this category"}.</p>
               </div>
             ) : (
               <motion.div
-                key={`${params.page}-${params.sort_by}-${selectedSubs.join(",")}-${selectedBrands.join(",")}`}
+                key={`${params.page}-${params.sort_by}-${params.subcategory}-${params.brand}`}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:gap-6"
               >
-                {filtered.map((product, index) => (
+                {data.data.map((product, index) => (
                   <ProductCard key={product.id} product={product} index={index} />
                 ))}
               </motion.div>
-            );
-            })()}
+            )}
 
             {data && data.total_pages > 1 && (
               <Pagination
