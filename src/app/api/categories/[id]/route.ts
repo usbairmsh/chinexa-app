@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { execute } from "@/lib/db";
+import { type RowDataPacket } from "mysql2/promise";
+import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { deleteUploadedFile } from "@/lib/delete-upload";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -26,10 +28,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    // Delete subcategories first (children with parent_id = this id)
+    // Get images before deleting
+    const cats = await query<RowDataPacket[]>("SELECT image FROM categories WHERE id = ? OR parent_id = ?", [id, id]);
+    // Delete subcategories first, then the category
     await execute("DELETE FROM categories WHERE parent_id = ?", [id]);
-    // Delete the category (products.category_id will be SET NULL by FK constraint)
     await execute("DELETE FROM categories WHERE id = ?", [id]);
+    // Clean up image files
+    for (const cat of cats) {
+      await deleteUploadedFile(cat.image as string);
+    }
     await logActivity("Deleted category", "category", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

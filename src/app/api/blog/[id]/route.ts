@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { execute } from "@/lib/db";
+import { type RowDataPacket } from "mysql2/promise";
+import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { deleteUploadedFile } from "@/lib/delete-upload";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -39,7 +41,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    const rows = await query<RowDataPacket[]>("SELECT featured_image FROM blog_posts WHERE id = ?", [id]);
     await execute("DELETE FROM blog_posts WHERE id = ?", [id]);
+    if (rows.length > 0) {
+      await deleteUploadedFile(rows[0].featured_image as string);
+    }
     await logActivity("Deleted blog post", "blog", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

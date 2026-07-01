@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { deleteUploadedFile } from "@/lib/delete-upload";
 
 interface ProductRow extends RowDataPacket { [key: string]: unknown; }
 interface ImageRow extends RowDataPacket { id: string; product_id: string; url: string; alt: string; order: number; }
@@ -104,10 +105,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    // Get category before deleting to update count
+    // Get images and category before deleting
     const product = await query<ProductRow[]>("SELECT category_id FROM products WHERE id = ? LIMIT 1", [id]);
     const categoryId = product[0]?.category_id as string | null;
+    const images = await query<RowDataPacket[]>("SELECT url FROM product_images WHERE product_id = ?", [id]);
+    const variants = await query<RowDataPacket[]>("SELECT image FROM product_variants WHERE product_id = ? AND image IS NOT NULL", [id]);
+
     await execute("DELETE FROM products WHERE id = ?", [id]);
+
+    // Clean up image files
+    for (const img of images) { await deleteUploadedFile(img.url as string); }
+    for (const v of variants) { await deleteUploadedFile(v.image as string); }
+
     // Update category product count
     if (categoryId) {
       await execute("UPDATE categories SET product_count = (SELECT COUNT(*) FROM products WHERE category_id = ? AND is_active = 1) WHERE id = ?", [categoryId, categoryId]);
