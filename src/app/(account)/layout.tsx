@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Header } from "@/components/layout/header/header";
+import { PageLoader } from "@/components/shared/page-loader";
 import { Footer } from "@/components/layout/footer/footer";
 import { CartDrawer } from "@/components/storefront/cart/cart-drawer";
 import { SearchOverlay } from "@/components/storefront/search/search-overlay";
@@ -48,6 +50,7 @@ export default function AccountLayout({
 
   return (
     <>
+      <Suspense><PageLoader /></Suspense>
       <Header />
       <main className="flex-1 bg-pearl/40">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 lg:py-10">

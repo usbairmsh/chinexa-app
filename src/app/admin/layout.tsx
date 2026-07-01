@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -18,6 +18,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { AdminButton } from "@/components/admin/shared/admin-button";
+import { PageLoader } from "@/components/shared/page-loader";
 import { Badge } from "@/components/ui/badge";
 
 function getCookie(name: string): string {
@@ -258,6 +259,7 @@ export default function AdminLayout({
 
   return (
     <div className="flex h-screen bg-pearl overflow-hidden">
+      <Suspense><PageLoader /></Suspense>
       {/* Desktop Sidebar */}
       <aside
         className={cn(
