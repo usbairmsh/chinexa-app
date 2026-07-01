@@ -50,6 +50,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       min_stock: "min_stock", max_stock: "max_stock",
       description: "description", short_description: "short_description", sku: "sku",
       category_id: "category_id", category_name: "category_name", subcategory: "subcategory",
+      brand_id: "brand_id", brand_name: "brand_name",
       is_active: "is_active", is_featured: "is_featured", country_of_origin: "country_of_origin",
       weight: "weight", ingredients: "ingredients", how_to_use: "how_to_use",
       seo_title: "seo_title", seo_description: "seo_description",
@@ -60,7 +61,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         let val = body[key];
         if (["is_active", "is_featured"].includes(key)) val = val ? 1 : 0;
         // Convert empty strings to null for FK columns
-        if (["category_id", "category_name", "subcategory"].includes(key) && val === "") val = null;
+        if (["category_id", "category_name", "subcategory", "brand_id", "brand_name"].includes(key) && val === "") val = null;
         values.push(val);
       }
     }

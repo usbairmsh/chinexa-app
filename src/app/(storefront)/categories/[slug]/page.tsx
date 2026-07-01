@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -30,6 +30,14 @@ export default function CategoryPage() {
     category: slug,
   });
   const [priceRange, setPriceRange] = useState([0, 30000]);
+  const [selectedBrand, setSelectedBrand] = useState<string | undefined>(undefined);
+  const [brands, setBrands] = useState<{ id: string; name: string; logo?: string }[]>([]);
+
+  useEffect(() => {
+    fetch("/api/brands").then((r) => r.json()).then((data) => {
+      if (Array.isArray(data)) setBrands(data.filter((b: Record<string, unknown>) => b.is_active).map((b: Record<string, unknown>) => ({ id: b.id as string, name: b.name as string, logo: (b.logo as string) || undefined })));
+    }).catch(() => {});
+  }, []);
 
   const { data, isLoading } = useProducts(params);
 
@@ -137,16 +145,49 @@ export default function CategoryPage() {
         )}
       </div>
 
+      {/* Brands Pills */}
+      {brands.length > 0 && (
+        <div className="border-b border-border/30">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              <button
+                onClick={() => setSelectedBrand(undefined)}
+                className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                  !selectedBrand
+                    ? "bg-secondary text-white shadow-[0_4px_15px_rgba(192,57,43,0.25)]"
+                    : "bg-pearl text-charcoal-lighter hover:bg-primary-light hover:text-charcoal"
+                }`}
+              >
+                All Brands
+              </button>
+              {brands.map((brand) => (
+                <button
+                  key={brand.id}
+                  onClick={() => setSelectedBrand(selectedBrand === brand.name ? undefined : brand.name)}
+                  className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                    selectedBrand === brand.name
+                      ? "bg-secondary text-white shadow-[0_4px_15px_rgba(192,57,43,0.25)]"
+                      : "bg-pearl text-charcoal-lighter hover:bg-primary-light hover:text-charcoal"
+                  }`}
+                >
+                  {brand.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Subcategory Pills */}
       {subcategories.length > 0 && (
         <div className="border-b border-border/30">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-3">
             <div className="flex gap-2 overflow-x-auto pb-1">
               <button
                 onClick={() => updateParams({ subcategory: undefined })}
-                className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
                   !params.subcategory
-                    ? "bg-secondary text-white"
+                    ? "bg-secondary text-white shadow-[0_4px_15px_rgba(192,57,43,0.25)]"
                     : "bg-pearl text-charcoal-lighter hover:bg-primary-light hover:text-charcoal"
                 }`}
               >
@@ -156,9 +197,9 @@ export default function CategoryPage() {
                 <button
                   key={sub.id}
                   onClick={() => updateParams({ subcategory: params.subcategory === sub.slug ? undefined : sub.slug })}
-                  className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
                     params.subcategory === sub.slug
-                      ? "bg-secondary text-white"
+                      ? "bg-secondary text-white shadow-[0_4px_15px_rgba(192,57,43,0.25)]"
                       : "bg-pearl text-charcoal-lighter hover:bg-primary-light hover:text-charcoal"
                   }`}
                 >
@@ -218,22 +259,27 @@ export default function CategoryPage() {
                   </div>
                 ))}
               </div>
-            ) : data?.data.length === 0 ? (
+            ) : (() => {
+              const filtered = selectedBrand
+                ? (data?.data || []).filter((p) => (p as unknown as { brand_name?: string }).brand_name === selectedBrand)
+                : data?.data || [];
+              return filtered.length === 0 ? (
               <div className="text-center py-20">
-                <p className="text-charcoal-lighter">No products found in this category.</p>
+                <p className="text-charcoal-lighter">No products found{selectedBrand ? ` for ${selectedBrand}` : " in this category"}.</p>
               </div>
             ) : (
               <motion.div
-                key={`${params.page}-${params.sort_by}-${params.subcategory}`}
+                key={`${params.page}-${params.sort_by}-${params.subcategory}-${selectedBrand}`}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:gap-6"
               >
-                {data?.data.map((product, index) => (
+                {filtered.map((product, index) => (
                   <ProductCard key={product.id} product={product} index={index} />
                 ))}
               </motion.div>
-            )}
+            );
+            })()}
 
             {data && data.total_pages > 1 && (
               <Pagination

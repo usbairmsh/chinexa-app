@@ -18,7 +18,9 @@ import type { Offer, OfferApplicability } from "@/types/offer";
 
 const applicabilityConfig: Record<string, { label: string; icon: typeof Globe; color: string }> = {
   store: { label: "Store-wide", icon: Globe, color: "bg-blue-50 text-blue-600" },
+  products: { label: "Products", icon: ShoppingCart, color: "bg-pink-50 text-pink-600" },
   categories: { label: "Categories", icon: FolderTree, color: "bg-emerald-50 text-emerald-600" },
+  tiers: { label: "Membership Tiers", icon: Users, color: "bg-rose-50 text-rose-600" },
   subcategories: { label: "Subcategories", icon: FolderTree, color: "bg-violet-50 text-violet-600" },
   customers: { label: "Customers", icon: Users, color: "bg-amber-50 text-amber-600" },
 };
@@ -46,8 +48,9 @@ export default function AdminOffersPage() {
   const [searchResults, setSearchResults] = useState<{ id: string; name: string; extra?: string }[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
 
-  // Categories/subcategories cache
+  // Categories/subcategories/tiers cache
   const [allCategories, setAllCategories] = useState<{ id: string; name: string; children?: { id: string; name: string }[] }[]>([]);
+  const [allTiers, setAllTiers] = useState<{ id: string; name: string }[]>([]);
 
   const fetchOffers = async () => {
     try {
@@ -61,6 +64,9 @@ export default function AdminOffersPage() {
     fetchOffers();
     fetch("/api/categories").then((r) => r.json()).then((data) => {
       if (Array.isArray(data)) setAllCategories(data);
+    }).catch(() => {});
+    fetch("/api/membership/tiers").then((r) => r.json()).then((data) => {
+      if (Array.isArray(data)) setAllTiers(data.map((t: Record<string, unknown>) => ({ id: t.id as string, name: t.name as string })));
     }).catch(() => {});
   }, []);
 
@@ -121,25 +127,34 @@ export default function AdminOffersPage() {
     setOffers((prev) => prev.map((o) => o.id === offer.id ? { ...o, is_active: newActive } : o));
   };
 
-  // Search handler for customers by phone
-  const handleCustomerSearch = async (q: string) => {
+  // Search handler for customers/products
+  const handleSearch = async (q: string) => {
     setSearchQuery(q);
-    if (q.length < 3) { setSearchResults([]); return; }
+    if (q.length < 2) { setSearchResults([]); return; }
     setSearchLoading(true);
     try {
-      const res = await fetch(`/api/customers?search=${encodeURIComponent(q)}&page_size=10`);
-      const data = await res.json();
-      if (data?.data) setSearchResults(data.data.map((c: Record<string, unknown>) => ({ id: c.id as string, name: c.name as string, extra: c.phone as string })));
+      if (formApplicability === "customers") {
+        const res = await fetch(`/api/customers?search=${encodeURIComponent(q)}&page_size=10`);
+        const data = await res.json();
+        if (data?.data) setSearchResults(data.data.map((c: Record<string, unknown>) => ({ id: c.id as string, name: c.name as string, extra: c.phone as string })));
+      } else if (formApplicability === "products") {
+        const res = await fetch(`/api/products?search=${encodeURIComponent(q)}&all=1&page_size=10`);
+        const data = await res.json();
+        if (data?.data) setSearchResults(data.data.map((p: Record<string, unknown>) => ({ id: p.id as string, name: p.name as string, extra: p.sku as string })));
+      }
     } catch {} finally { setSearchLoading(false); }
   };
 
-  // Get category/subcategory options based on applicability
-  const getCategoryOptions = () => {
+  // Get list options based on applicability
+  const getListOptions = () => {
     if (formApplicability === "categories") {
       return allCategories.map((c) => ({ id: c.id, name: c.name }));
     }
     if (formApplicability === "subcategories") {
       return allCategories.flatMap((c) => (c.children || []).map((s) => ({ id: s.id, name: `${c.name} → ${s.name}` })));
+    }
+    if (formApplicability === "tiers") {
+      return allTiers;
     }
     return [];
   };
@@ -249,7 +264,9 @@ export default function AdminOffersPage() {
                   <SelectItem value="store"><span className="flex items-center gap-2"><Globe className="h-3.5 w-3.5" /> Store-wide (All products)</span></SelectItem>
                   <SelectItem value="categories"><span className="flex items-center gap-2"><FolderTree className="h-3.5 w-3.5" /> Specific Categories</span></SelectItem>
                   <SelectItem value="subcategories"><span className="flex items-center gap-2"><FolderTree className="h-3.5 w-3.5" /> Specific Subcategories</span></SelectItem>
+                  <SelectItem value="products"><span className="flex items-center gap-2"><ShoppingCart className="h-3.5 w-3.5" /> Specific Products</span></SelectItem>
                   <SelectItem value="customers"><span className="flex items-center gap-2"><Users className="h-3.5 w-3.5" /> Specific Customers</span></SelectItem>
+                  <SelectItem value="tiers"><span className="flex items-center gap-2"><Users className="h-3.5 w-3.5" /> Membership Tiers</span></SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -271,16 +288,16 @@ export default function AdminOffersPage() {
                   </div>
                 )}
 
-                {/* Customer search */}
-                {formApplicability === "customers" && (
+                {/* Customer / Product search */}
+                {(formApplicability === "customers" || formApplicability === "products") && (
                   <div>
                     <div className="flex items-center gap-2 px-3 rounded-xl border border-border bg-pearl/30">
                       <Search className="h-3.5 w-3.5 text-charcoal-lighter shrink-0" />
                       <input
                         type="text"
                         value={searchQuery}
-                        onChange={(e) => handleCustomerSearch(e.target.value)}
-                        placeholder="Search by phone number (e.g., 01712...)"
+                        onChange={(e) => handleSearch(e.target.value)}
+                        placeholder={formApplicability === "customers" ? "Search by phone number (e.g., 01712...)" : "Search by product name or SKU..."}
                         className="w-full py-2.5 text-sm bg-transparent outline-none text-charcoal placeholder:text-charcoal-lighter/50"
                       />
                       {searchLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-charcoal-lighter shrink-0" />}
@@ -305,12 +322,12 @@ export default function AdminOffersPage() {
                   </div>
                 )}
 
-                {/* Category/Subcategory selection */}
-                {(formApplicability === "categories" || formApplicability === "subcategories") && (
+                {/* Category/Subcategory/Tier selection */}
+                {(formApplicability === "categories" || formApplicability === "subcategories" || formApplicability === "tiers") && (
                   <div className="max-h-44 overflow-y-auto border border-border/30 rounded-xl bg-white">
-                    {getCategoryOptions().length === 0 ? (
+                    {getListOptions().length === 0 ? (
                       <p className="px-3 py-4 text-xs text-charcoal-lighter text-center">No {formApplicability} found</p>
-                    ) : getCategoryOptions().map((opt) => {
+                    ) : getListOptions().map((opt) => {
                       const isSelected = formSelectedIds.some((s) => s.id === opt.id);
                       return (
                         <button key={opt.id} type="button" onClick={() => toggleSelected(opt)}

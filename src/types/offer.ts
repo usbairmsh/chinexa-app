@@ -1,4 +1,4 @@
-export type OfferApplicability = "store" | "categories" | "subcategories" | "customers";
+export type OfferApplicability = "store" | "categories" | "subcategories" | "products" | "customers" | "tiers";
 
 export interface Offer {
   id: string;

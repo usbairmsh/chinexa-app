@@ -50,6 +50,8 @@ export default function AddProductPage() {
   const [activeTab, setActiveTab] = useState<"basic" | "media" | "variants" | "seo">("basic");
   const [saving, setSaving] = useState(false);
   const [dbCategories, setDbCategories] = useState<{ id: string; name: string; children: { id: string; name: string; slug: string }[] }[]>([]);
+  const [dbBrands, setDbBrands] = useState<{ id: string; name: string }[]>([]);
+  const [brandId, setBrandId] = useState("");
 
   useEffect(() => {
     fetch("/api/categories")
@@ -63,6 +65,9 @@ export default function AddProductPage() {
         }
       })
       .catch(() => {});
+    fetch("/api/brands").then((r) => r.json()).then((data) => {
+      if (Array.isArray(data)) setDbBrands(data.filter((b: Record<string, unknown>) => b.is_active).map((b: Record<string, unknown>) => ({ id: b.id as string, name: b.name as string })));
+    }).catch(() => {});
   }, []);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -226,6 +231,8 @@ export default function AddProductPage() {
         category_id: categoryId || null,
         category_name: dbCategories.find((c) => c.id === categoryId)?.name || categoryId || null,
         subcategory: subcategory.trim() || null,
+        brand_id: brandId || null,
+        brand_name: dbBrands.find((b) => b.id === brandId)?.name || null,
         seo_title: seoTitle.trim() || null,
         seo_description: seoDesc.trim() || null,
         is_active: isActive,
@@ -615,6 +622,16 @@ export default function AddProductPage() {
                   </Select>
                 ) : null;
               })()}
+              {/* Brand */}
+              {dbBrands.length > 0 && (
+                <Select value={brandId} onValueChange={setBrandId}>
+                  <SelectTrigger><SelectValue placeholder="Select Brand (optional)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No Brand</SelectItem>
+                    {dbBrands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
             </CardContent>
           </Card>
 

@@ -181,14 +181,15 @@ export async function POST(req: NextRequest) {
     const sku = body.sku || `PRD-${Date.now().toString(36).toUpperCase()}`;
 
     await query(
-      `INSERT INTO products (id, name, slug, description, short_description, sku, price, compare_at_price, currency, category_id, category_name, subcategory, tags, badges, stock_quantity, min_stock, max_stock, is_active, is_featured, country_of_origin, weight, ingredients, how_to_use, seo_title, seo_description)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'BDT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO products (id, name, slug, description, short_description, sku, price, compare_at_price, currency, category_id, category_name, subcategory, brand_id, brand_name, tags, badges, stock_quantity, min_stock, max_stock, is_active, is_featured, country_of_origin, weight, ingredients, how_to_use, seo_title, seo_description)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'BDT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id, body.name, slug,
         body.description || "", body.short_description || "",
         sku, Number(body.price) || 0, body.compare_at_price ? Number(body.compare_at_price) : null,
         body.category_id || null, body.category_name || body.category_id || "",
         body.subcategory || null,
+        body.brand_id || null, body.brand_name || null,
         JSON.stringify(body.tags || []), JSON.stringify(body.badges || []),
         Number(body.stock_quantity) || 0, Number(body.min_stock) || 10, Number(body.max_stock) || 100,
         body.is_active !== false ? 1 : 0, body.is_featured ? 1 : 0,

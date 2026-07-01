@@ -45,11 +45,28 @@ CREATE TABLE IF NOT EXISTS products (
   weight VARCHAR(50),
   ingredients TEXT,
   how_to_use TEXT,
+  brand_id VARCHAR(50),
+  brand_name VARCHAR(255),
   seo_title VARCHAR(255),
   seo_description TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- Brands
+CREATE TABLE IF NOT EXISTS brands (
+  id VARCHAR(50) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL UNIQUE,
+  slug VARCHAR(255) NOT NULL UNIQUE,
+  logo VARCHAR(500),
+  country VARCHAR(100),
+  description TEXT,
+  website VARCHAR(500),
+  certifications JSON,
+  is_active BOOLEAN DEFAULT TRUE,
+  product_count INT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
 -- Product Images
@@ -345,7 +362,7 @@ CREATE TABLE IF NOT EXISTS offers (
   id VARCHAR(50) PRIMARY KEY,
   title VARCHAR(255) NOT NULL,
   description TEXT,
-  applicability ENUM('store', 'categories', 'subcategories', 'customers') DEFAULT 'store',
+  applicability ENUM('store', 'categories', 'subcategories', 'products', 'customers', 'tiers') DEFAULT 'store',
   applicable_ids JSON,
   discount VARCHAR(100) NOT NULL,
   start_date DATE,

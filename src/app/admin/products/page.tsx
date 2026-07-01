@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import {
   Plus, Search, MoreHorizontal, Edit, Trash2, Eye, Package, Check, X,
   ExternalLink, AlertTriangle, EyeOff, RotateCcw, DollarSign, ChevronDown,
-  ChevronRight, Loader2, Save
+  ChevronRight, Loader2, Save, Award
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
@@ -277,7 +277,10 @@ export default function AdminProductsPage() {
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Products</h1>
           <p className="text-sm text-charcoal-lighter">{data?.total || 0} total products</p>
         </div>
-        <Link href="/admin/products/new"><AdminButton><Plus className="h-4 w-4" /> Add Product</AdminButton></Link>
+        <div className="flex gap-2">
+          <Link href="/admin/brands"><AdminButton variant="outline"><Award className="h-4 w-4" /> Brands</AdminButton></Link>
+          <Link href="/admin/products/new"><AdminButton><Plus className="h-4 w-4" /> Add Product</AdminButton></Link>
+        </div>
       </div>
 
       {/* Tabs */}
