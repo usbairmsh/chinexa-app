@@ -15,7 +15,8 @@ export async function GET(req: NextRequest) {
 
     const countRows = await query<RowDataPacket[]>(`SELECT COUNT(*) as total FROM customers ${where}`, params);
     const total = (countRows[0] as { total: number })?.total || 0;
-    const rows = await query<RowDataPacket[]>(`SELECT * FROM customers ${where} ORDER BY total_spent DESC LIMIT ? OFFSET ?`, [...params, pageSize, (page - 1) * pageSize]);
+    const offset = (page - 1) * pageSize;
+    const rows = await query<RowDataPacket[]>(`SELECT * FROM customers ${where} ORDER BY created_at DESC LIMIT ${Number(pageSize)} OFFSET ${Number(offset)}`, params);
 
     // Get total items bought per customer
     const customerIds = rows.map((r) => r.id as string);

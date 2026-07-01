@@ -86,24 +86,24 @@ export default function AdminCustomersPage() {
   const [selectedCouponId, setSelectedCouponId] = useState("");
 
   // Fetch customers from DB
-  useEffect(() => {
-    fetch("/api/customers?page_size=100")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.data?.length > 0) {
-          setDbCustomers(data.data.map((c: Record<string, unknown>) => ({
-            id: c.id as string, name: c.name as string, email: (c.email as string) || "",
-            phone: c.phone as string, division: "", district: "", address: "",
-            totalOrders: Number(c.total_orders) || 0, totalSpent: Number(c.total_spent) || 0,
-            totalItems: Number(c.total_items) || 0, avgOrderValue: Number(c.total_orders) > 0 ? Math.round(Number(c.total_spent) / Number(c.total_orders)) : 0,
-            lastOrderDate: (c.last_order_at as string) || (c.created_at as string) || "", joinedDate: (c.created_at as string) || "",
-            isActive: c.is_active !== false, tier: Number(c.total_spent) >= 100000 ? "Platinum" as const : Number(c.total_spent) >= 50000 ? "Gold" as const : Number(c.total_spent) >= 20000 ? "Silver" as const : "Bronze" as const,
-            orders: [],
-          })));
-        }
-      })
-      .catch(() => {});
-  }, []);
+  const fetchCustomers = async () => {
+    try {
+      const res = await fetch("/api/customers?page_size=100");
+      const data = await res.json();
+      if (data?.data && Array.isArray(data.data)) {
+        setDbCustomers(data.data.map((c: Record<string, unknown>) => ({
+          id: c.id as string, name: c.name as string, email: (c.email as string) || "",
+          phone: c.phone as string, division: "", district: "", address: "",
+          totalOrders: Number(c.total_orders) || 0, totalSpent: Number(c.total_spent) || 0,
+          totalItems: Number(c.total_items) || 0, avgOrderValue: Number(c.total_orders) > 0 ? Math.round(Number(c.total_spent) / Number(c.total_orders)) : 0,
+          lastOrderDate: (c.last_order_at as string) || (c.created_at as string) || "", joinedDate: (c.created_at as string) || "",
+          isActive: c.is_active !== false, tier: Number(c.total_spent) >= 100000 ? "Platinum" as const : Number(c.total_spent) >= 50000 ? "Gold" as const : Number(c.total_spent) >= 20000 ? "Silver" as const : "Bronze" as const,
+          orders: [],
+        })));
+      }
+    } catch {}
+  };
+  useEffect(() => { fetchCustomers(); }, []);
 
   // Fetch membership data for selected customer
   const fetchMembershipData = async (customerId: string) => {
