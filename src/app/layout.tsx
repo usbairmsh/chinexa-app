@@ -99,6 +99,25 @@ export default function RootLayout({
       className={`${playfairDisplay.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-body text-charcoal bg-background">
+        {/* Initial splash screen — hides after React hydrates */}
+        <div id="initial-loader" style={{
+          position: "fixed", inset: 0, zIndex: 99999,
+          display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "16px",
+          background: "#fff",
+        }}>
+          <div style={{ width: 48, height: 48, border: "3px solid #f0e6e3", borderTop: "3px solid #C0392B", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+          <style dangerouslySetInnerHTML={{ __html: `@keyframes spin{to{transform:rotate(360deg)}} #initial-loader.fade-out{opacity:0;pointer-events:none;transition:opacity 0.3s ease}` }} />
+        </div>
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function(){
+            var loader=document.getElementById('initial-loader');
+            if(!loader)return;
+            function hide(){loader.classList.add('fade-out');setTimeout(function(){loader.style.display='none'},300)}
+            if(document.readyState==='complete'){hide()}
+            else{window.addEventListener('load',hide)}
+            setTimeout(hide,5000);
+          })();
+        `}} />
         <Providers>{children}</Providers>
       </body>
     </html>
