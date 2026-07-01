@@ -74,22 +74,25 @@ export async function GET(req: NextRequest) {
     const params: (string | number)[] = [];
 
     if (category) {
+      // Check if this slug is a subcategory (has a parent_id) or a parent category
       where += ` AND (
-        p.category_id = ?
-        OR p.category_id IN (SELECT id FROM categories WHERE slug = ?)
-        OR p.subcategory = ?
-        OR p.subcategory IN (SELECT name FROM categories WHERE slug = ?)
-        OR p.category_id IN (SELECT parent_id FROM categories WHERE slug = ? AND parent_id IS NOT NULL)
+        CASE
+          WHEN EXISTS (SELECT 1 FROM categories WHERE slug = ? AND parent_id IS NOT NULL)
+          THEN (
+            p.subcategory IN (SELECT name FROM categories WHERE slug = ?)
+            OR p.category_id IN (SELECT id FROM categories WHERE slug = ?)
+          )
+          ELSE (
+            p.category_id = ?
+            OR p.category_id IN (SELECT id FROM categories WHERE slug = ?)
+          )
+        END
       )`;
       params.push(category, category, category, category, category);
     }
     if (subcategory) {
-      where += ` AND (
-        p.subcategory = ?
-        OR p.subcategory IN (SELECT name FROM categories WHERE slug = ? OR id = ?)
-        OR p.category_id IN (SELECT id FROM categories WHERE slug = ? OR name = ?)
-      )`;
-      params.push(subcategory, subcategory, subcategory, subcategory, subcategory);
+      where += " AND (p.subcategory = ? OR p.subcategory IN (SELECT name FROM categories WHERE slug = ?))";
+      params.push(subcategory, subcategory);
     }
     if (search) {
       const q = `%${escapeLike(search)}%`;
