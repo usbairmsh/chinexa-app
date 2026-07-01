@@ -419,7 +419,7 @@ export default function ProductDetailPage() {
                         "flex-1 h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
                         addedToCart
                           ? "bg-charcoal text-white"
-                          : "bg-charcoal text-white hover:bg-secondary hover:shadow-[0_4px_24px_rgba(192,57,43,0.35)]"
+                          : "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px]"
                       )}
                     >
                       <AnimatePresence mode="wait">
@@ -468,7 +468,7 @@ export default function ProductDetailPage() {
                       "w-full h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-200 cursor-pointer flex items-center justify-center gap-2",
                       wishlisted
                         ? "bg-secondary text-white hover:bg-secondary-dark"
-                        : "bg-charcoal text-white hover:bg-secondary hover:shadow-[0_4px_24px_rgba(192,57,43,0.35)]"
+                        : "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px]"
                     )}
                   >
                     <Heart className={cn("h-5 w-5", wishlisted && "fill-current")} />

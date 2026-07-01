@@ -131,7 +131,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                 <div className="bg-gradient-to-t from-black/50 to-transparent pt-8 pb-3 px-3">
                   <button
                     onClick={openModal}
-                    className="w-full h-12 flex items-center justify-center gap-2 rounded-full bg-charcoal text-[14px] font-body font-semibold tracking-wide hover:bg-secondary hover:shadow-[0_4px_24px_rgba(192,57,43,0.35)] active:scale-[0.97] transition-all duration-200 !text-white"
+                    className="w-full h-12 flex items-center justify-center gap-2 rounded-full bg-secondary text-[14px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 !text-white"
                   >
                     <ShoppingBag className="h-[18px] w-[18px]" />
                     Add to Bag
@@ -296,7 +296,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                     "w-full h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2",
                     added
                       ? "bg-success text-white"
-                      : "bg-charcoal text-white hover:bg-secondary hover:shadow-[0_4px_24px_rgba(192,57,43,0.35)]"
+                      : "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px]"
                   )}
                 >
                   <AnimatePresence mode="wait">

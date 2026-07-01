@@ -174,7 +174,7 @@ export default function AdminDashboard() {
             </span>
           </Link>
           <Link href="/admin/products/new">
-            <span className="inline-flex items-center gap-1.5 h-9 px-5 rounded-full bg-charcoal text-white text-[12px] font-body font-semibold tracking-wide hover:bg-secondary hover:shadow-[0_4px_20px_rgba(192,57,43,0.3)] active:scale-[0.97] transition-all duration-200 cursor-pointer">
+            <span className="inline-flex items-center gap-1.5 h-9 px-5 rounded-full bg-secondary text-white text-[12px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 cursor-pointer">
               <Package className="h-3.5 w-3.5" /> Add Product
             </span>
           </Link>

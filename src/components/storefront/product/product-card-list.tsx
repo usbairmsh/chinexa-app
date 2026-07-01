@@ -136,7 +136,7 @@ export function ProductCardList({ product, index = 0 }: ProductCardListProps) {
               {product.stock_quantity > 0 && (
                 <button
                   onClick={handleAddToCart}
-                  className="flex h-9 items-center gap-1.5 px-4 rounded-full bg-charcoal font-body text-[12px] font-semibold tracking-wide hover:bg-secondary hover:shadow-[0_4px_24px_rgba(192,57,43,0.35)] active:scale-[0.97] transition-all duration-200 !text-white"
+                  className="flex h-9 items-center gap-1.5 px-4 rounded-full bg-secondary font-body text-[12px] font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 !text-white"
                 >
                   <ShoppingBag className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Add to Bag</span>

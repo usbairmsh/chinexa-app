@@ -385,7 +385,7 @@ export default function AddProductPage() {
                   </div>
                   <button
                     onClick={addVariant}
-                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full bg-charcoal text-white text-[12px] font-body font-semibold tracking-wide hover:bg-secondary hover:shadow-[0_4px_20px_rgba(192,57,43,0.3)] active:scale-[0.97] transition-all duration-200 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full bg-secondary text-white text-[12px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 cursor-pointer"
                   >
                     <Plus className="h-3.5 w-3.5" /> Add Variant
                   </button>
@@ -686,7 +686,7 @@ export default function AddProductPage() {
           </div>
           <div className="flex justify-end gap-2 pt-2 shrink-0">
             <button onClick={() => setSeoPromptOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal transition-colors">Close</button>
-            <button onClick={handleCopyPrompt} className={cn("flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all", seoPromptCopied ? "bg-success text-white" : "bg-charcoal text-white hover:bg-secondary")}>
+            <button onClick={handleCopyPrompt} className={cn("flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all", seoPromptCopied ? "bg-success text-white" : "bg-secondary text-white hover:bg-secondary-dark")}>
               {seoPromptCopied ? <><Check className="h-3 w-3" /> Copied!</> : <><Copy className="h-3 w-3" /> Copy Prompt</>}
             </button>
           </div>

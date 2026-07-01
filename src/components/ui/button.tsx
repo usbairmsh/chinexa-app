@@ -5,28 +5,28 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-body text-sm font-medium tracking-wide transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 cursor-pointer active:scale-[0.97]",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-body text-sm font-semibold tracking-wide transition-all duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 cursor-pointer active:scale-[0.96]",
   {
     variants: {
       variant: {
         default:
-          "bg-charcoal text-white hover:bg-charcoal-light hover:shadow-lg",
+          "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px]",
         primary:
-          "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_4px_20px_rgba(192,57,43,0.3)]",
+          "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px]",
         secondary:
-          "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_4px_20px_rgba(192,57,43,0.3)]",
+          "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px]",
         outline:
-          "border border-charcoal/20 bg-white text-charcoal hover:bg-secondary hover:text-white hover:border-secondary hover:shadow-[0_4px_20px_rgba(192,57,43,0.2)]",
+          "border-2 border-secondary/30 bg-white text-secondary hover:bg-secondary hover:text-white hover:border-secondary hover:shadow-[0_6px_25px_rgba(192,57,43,0.25)] hover:-translate-y-[1px]",
         ghost:
-          "text-charcoal-light hover:bg-pearl hover:text-charcoal",
+          "text-charcoal-light hover:bg-pearl hover:text-charcoal hover:shadow-sm",
         link:
           "text-secondary underline-offset-4 hover:underline hover:text-secondary-dark",
         luxury:
-          "bg-gradient-to-r from-secondary to-coral text-white hover:shadow-[0_4px_20px_rgba(192,57,43,0.3)] hover:brightness-110",
+          "bg-gradient-to-r from-secondary to-coral text-white hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:brightness-110 hover:-translate-y-[1px]",
         destructive:
-          "bg-destructive text-white hover:bg-destructive/90 hover:shadow-lg",
+          "bg-destructive text-white hover:bg-destructive/90 hover:shadow-[0_6px_20px_rgba(239,68,68,0.3)] hover:-translate-y-[1px]",
         gold:
-          "bg-gold text-white hover:bg-gold-light hover:shadow-lg",
+          "bg-gold text-white hover:bg-gold-light hover:shadow-[0_6px_20px_rgba(212,175,55,0.3)] hover:-translate-y-[1px]",
       },
       size: {
         default: "h-10 px-6 py-2.5 text-[13px]",

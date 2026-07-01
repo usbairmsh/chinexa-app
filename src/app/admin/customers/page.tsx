@@ -437,7 +437,7 @@ export default function AdminCustomersPage() {
             </div>
             <DialogFooter>
               <button onClick={() => setPointsDialogOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
-              <button onClick={handleGivePoints} disabled={!pointsAmount} className="px-4 py-2 rounded-lg bg-charcoal text-white text-xs font-medium hover:bg-secondary disabled:opacity-40 transition-colors">
+              <button onClick={handleGivePoints} disabled={!pointsAmount} className="px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(192,57,43,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300">
                 {pointsAmount >= 0 ? "Give" : "Deduct"} {Math.abs(pointsAmount)} Points
               </button>
             </DialogFooter>
@@ -474,7 +474,7 @@ export default function AdminCustomersPage() {
             </div>
             <DialogFooter>
               <button onClick={() => setCouponDialogOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
-              <button onClick={handleAssignCoupon} disabled={!selectedCouponId} className="px-4 py-2 rounded-lg bg-charcoal text-white text-xs font-medium hover:bg-secondary disabled:opacity-40 transition-colors">
+              <button onClick={handleAssignCoupon} disabled={!selectedCouponId} className="px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(192,57,43,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300">
                 Assign Coupon
               </button>
             </DialogFooter>

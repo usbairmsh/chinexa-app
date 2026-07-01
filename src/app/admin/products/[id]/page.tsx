@@ -540,7 +540,7 @@ export default function EditProductPage() {
           </div>
           <div className="flex justify-end gap-2 pt-2 shrink-0">
             <button onClick={() => setSeoPromptOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal transition-colors">Close</button>
-            <button onClick={handleCopyPrompt} className={cn("flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all", seoPromptCopied ? "bg-success text-white" : "bg-charcoal text-white hover:bg-secondary")}>
+            <button onClick={handleCopyPrompt} className={cn("flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all", seoPromptCopied ? "bg-success text-white" : "bg-secondary text-white hover:bg-secondary-dark")}>
               {seoPromptCopied ? <><Check className="h-3 w-3" /> Copied!</> : <><Copy className="h-3 w-3" /> Copy Prompt</>}
             </button>
           </div>
