@@ -73,8 +73,8 @@ export async function GET(req: NextRequest) {
     let where = all ? "WHERE 1=1" : "WHERE p.is_active = 1";
     const params: (string | number)[] = [];
 
-    if (category) { where += " AND p.category_id = ?"; params.push(category); }
-    if (subcategory) { where += " AND p.subcategory = ?"; params.push(subcategory); }
+    if (category) { where += " AND (p.category_id = ? OR p.category_id IN (SELECT id FROM categories WHERE slug = ?))"; params.push(category, category); }
+    if (subcategory) { where += " AND (p.subcategory = ? OR p.category_id IN (SELECT id FROM categories WHERE slug = ? OR name = ?))"; params.push(subcategory, subcategory, subcategory); }
     if (search) {
       const q = `%${escapeLike(search)}%`;
       where += ` AND (p.name LIKE ? OR p.sku LIKE ? OR p.category_name LIKE ? OR p.subcategory LIKE ? OR p.tags LIKE ? OR p.ingredients LIKE ? OR p.short_description LIKE ? OR EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND (pv.name LIKE ? OR pv.value LIKE ?)))`;
