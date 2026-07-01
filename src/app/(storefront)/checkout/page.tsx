@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { CreditCard, Truck, FileText, CheckCircle2, MapPin, Clock, Tag, X, Loader2 } from "lucide-react";
+import { CreditCard, Truck, FileText, CheckCircle2, MapPin, Clock, Tag, X, Loader2, Home, Briefcase, Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useAuthStore } from "@/stores/auth.store";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -99,6 +102,64 @@ export default function CheckoutPage() {
   const [billingPostal, setBillingPostal] = useState("");
   const [billingDivision, setBillingDivision] = useState("");
   const [billingDistrict, setBillingDistrict] = useState("");
+
+  // Saved addresses
+  const user = useAuthStore((s) => s.user);
+  interface SavedAddress {
+    id: string; label: string; name: string; phone: string;
+    address_line_1: string; address_line_2?: string;
+    city?: string; district?: string; division?: string; postal_code?: string;
+    is_default: boolean;
+  }
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [useNewAddress, setUseNewAddress] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    fetch(`/api/customers/${user.id}/addresses`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setSavedAddresses(data);
+          // Auto-select default address
+          const defaultAddr = data.find((a: SavedAddress) => a.is_default) || data[0];
+          if (defaultAddr) {
+            setSelectedAddressId(defaultAddr.id);
+            applyAddress(defaultAddr);
+          }
+        } else {
+          setUseNewAddress(true);
+        }
+      })
+      .catch(() => { setUseNewAddress(true); });
+  }, [user?.id]);
+
+  const applyAddress = (addr: SavedAddress) => {
+    setCustomerName(addr.name || user?.name || "");
+    setCustomerPhone(addr.phone || user?.phone || "");
+    setBillingAddress(addr.address_line_1 || "");
+    setBillingAddress2(addr.address_line_2 || "");
+    setBillingCity(addr.city || "");
+    setBillingDivision(addr.division || "");
+    setBillingDistrict(addr.district || "");
+    setBillingPostal(addr.postal_code || "");
+  };
+
+  const handleSelectAddress = (addr: SavedAddress) => {
+    setSelectedAddressId(addr.id);
+    setUseNewAddress(false);
+    applyAddress(addr);
+  };
+
+  const handleUseNew = () => {
+    setSelectedAddressId(null);
+    setUseNewAddress(true);
+    setCustomerName(user?.name || "");
+    setCustomerPhone(user?.phone || "");
+    setBillingAddress(""); setBillingAddress2(""); setBillingCity("");
+    setBillingDivision(""); setBillingDistrict(""); setBillingPostal("");
+  };
 
   // Shipping
   const [differentShipping, setDifferentShipping] = useState(false);
@@ -199,6 +260,22 @@ export default function CheckoutPage() {
       const data = await res.json();
       setOrderNumber(data.order_number || data.id || "");
       triggerDashboardRefresh();
+
+      // Auto-save new address to user profile if logged in and using new address
+      if (user?.id && (useNewAddress || savedAddresses.length === 0) && billingAddress.trim()) {
+        fetch(`/api/customers/${user.id}/addresses`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            label: "Home", name: customerName, phone: customerPhone,
+            address_line_1: billingAddress, address_line_2: billingAddress2 || null,
+            city: billingCity || null, district: billingDistrict || null,
+            division: billingDivision || null, postal_code: billingPostal || null,
+            is_default: savedAddresses.length === 0,
+          }),
+        }).catch(() => {});
+      }
+
       setStep(4);
       setTimeout(() => clearCart(), 2000);
     } catch {
@@ -242,6 +319,65 @@ export default function CheckoutPage() {
             {/* ═══ STEP 1: Information ═══ */}
             {step === 1 && (
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                {/* Saved Addresses */}
+                {savedAddresses.length > 0 && (
+                  <div>
+                    <h2 className="font-heading text-xl font-semibold text-charcoal mb-3">Deliver To</h2>
+                    <div className="grid gap-2">
+                      {savedAddresses.map((addr) => {
+                        const isSelected = selectedAddressId === addr.id && !useNewAddress;
+                        const Icon = addr.label === "Office" ? Briefcase : Home;
+                        return (
+                          <button
+                            key={addr.id}
+                            type="button"
+                            onClick={() => handleSelectAddress(addr)}
+                            className={cn(
+                              "w-full flex items-start gap-3 p-4 rounded-xl border text-left transition-all duration-200",
+                              isSelected
+                                ? "border-secondary bg-secondary/5 shadow-[0_2px_12px_rgba(192,57,43,0.1)]"
+                                : "border-border/50 hover:border-secondary/40"
+                            )}
+                          >
+                            <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg shrink-0 mt-0.5", isSelected ? "bg-secondary/10 text-secondary" : "bg-pearl text-charcoal-lighter")}>
+                              <Icon className="h-4 w-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <span className="text-sm font-semibold text-charcoal">{addr.label}</span>
+                                {addr.is_default && <Badge variant="secondary" className="text-[8px] !text-white">Default</Badge>}
+                                {isSelected && <CheckCircle2 className="h-4 w-4 text-secondary ml-auto shrink-0" />}
+                              </div>
+                              <p className="text-xs text-charcoal">{addr.name} &middot; {addr.phone}</p>
+                              <p className="text-xs text-charcoal-lighter truncate">{addr.address_line_1}{addr.address_line_2 ? `, ${addr.address_line_2}` : ""}</p>
+                              <p className="text-xs text-charcoal-lighter">{[addr.city, addr.district, addr.division].filter(Boolean).join(", ")}</p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        onClick={handleUseNew}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-4 rounded-xl border text-left transition-all duration-200",
+                          useNewAddress
+                            ? "border-secondary bg-secondary/5"
+                            : "border-dashed border-border/50 hover:border-secondary/40"
+                        )}
+                      >
+                        <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg shrink-0", useNewAddress ? "bg-secondary/10 text-secondary" : "bg-pearl text-charcoal-lighter")}>
+                          <Plus className="h-4 w-4" />
+                        </div>
+                        <span className="text-sm font-medium text-charcoal">Use a new address</span>
+                        {useNewAddress && <CheckCircle2 className="h-4 w-4 text-secondary ml-auto shrink-0" />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Contact & Address Form — show when using new address or no saved addresses */}
+                {(useNewAddress || savedAddresses.length === 0) && (
+                  <>
                 <h2 className="font-heading text-xl font-semibold text-charcoal">Contact Information</h2>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Input label="Full Name" placeholder="Fatima Akter" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
@@ -275,6 +411,9 @@ export default function CheckoutPage() {
                   <Input label="City / Area" placeholder="Gulshan-2" value={billingCity} onChange={(e) => setBillingCity(e.target.value)} />
                   <Input label="Postal Code (Optional)" placeholder="1212" value={billingPostal} onChange={(e) => setBillingPostal(e.target.value)} />
                 </div>
+
+                  </>
+                )}
 
                 {/* Different Shipping Address */}
                 <div className="pt-2">
@@ -350,7 +489,7 @@ export default function CheckoutPage() {
                   <p className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-2">{validationError}</p>
                 )}
 
-                <Button variant="secondary" size="lg" className="w-full sm:w-auto" onClick={() => {
+                <Button variant="secondary" size="lg" className="w-full sm:w-auto !text-white" onClick={() => {
                   setValidationError("");
                   if (!customerName.trim()) { setValidationError("Full name is required"); return; }
                   if (!customerPhone.trim()) { setValidationError("Phone number is required"); return; }
@@ -412,7 +551,7 @@ export default function CheckoutPage() {
 
                 <div className="flex gap-3">
                   <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
-                  <Button variant="secondary" size="lg" onClick={() => setStep(3)}>Continue to Payment</Button>
+                  <Button variant="secondary" size="lg" className="!text-white" onClick={() => setStep(3)}>Continue to Payment</Button>
                 </div>
               </motion.div>
             )}
@@ -502,7 +641,7 @@ export default function CheckoutPage() {
 
                 <div className="flex gap-3">
                   <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
-                  <Button variant="secondary" size="lg" onClick={handlePlaceOrder} isLoading={placing} disabled={placing}>
+                  <Button variant="secondary" size="lg" className="!text-white" onClick={handlePlaceOrder} isLoading={placing} disabled={placing}>
                     {placing ? "Placing Order..." : `Place Order — ${formatCurrency(finalTotal)}`}
                   </Button>
                 </div>
@@ -582,7 +721,7 @@ export default function CheckoutPage() {
                 Order #{orderNumber || "Processing"} has been placed successfully.<br />You will receive a confirmation via SMS shortly.
               </p>
               <div className="flex gap-3 justify-center">
-                <Link href="/products"><Button variant="primary">Continue Shopping</Button></Link>
+                <Link href="/products"><Button variant="primary" className="!text-white">Continue Shopping</Button></Link>
                 <Link href="/track-order"><Button variant="outline">Track Order</Button></Link>
               </div>
             </motion.div>

@@ -20,7 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ImageUpload } from "@/components/admin/shared/image-upload";
 import { ImagePositionEditor } from "@/components/admin/shared/image-position-editor";
 import { cn } from "@/lib/utils";
-import { COUNTRIES } from "@/lib/countries";
+import { CountrySearch } from "@/components/admin/shared/country-search";
 
 type VariantRow = {
   id: string; type: "size" | "color" | "shade" | "weight";
@@ -293,16 +293,7 @@ export default function EditProductPage() {
                 <CardHeader><CardTitle className="text-base flex items-center gap-2"><Globe className="h-4 w-4 text-secondary" /> Origin & Details</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid sm:grid-cols-2 gap-4">
-                    <Select value={origin} onValueChange={setOrigin}>
-                      <SelectTrigger><SelectValue placeholder="Country of Origin" /></SelectTrigger>
-                      <SelectContent className="max-h-60">
-                        {COUNTRIES.map((c) => (
-                          <SelectItem key={c.code} value={c.name}>
-                            <span className="flex items-center gap-2">{c.flag} {c.name}</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <CountrySearch value={origin} onChange={setOrigin} />
                     <Input label="Tags (comma separated)" value={tags} onChange={(e) => setTags(e.target.value)} />
                   </div>
                   <Textarea label="Ingredients" className="min-h-[80px]" value={ingredients} onChange={(e) => setIngredients(e.target.value)} />

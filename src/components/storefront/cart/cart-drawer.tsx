@@ -180,7 +180,7 @@ export function CartDrawer() {
                   </p>
                   <Separator />
                   <Link href="/checkout" onClick={() => setCartDrawerOpen(false)}>
-                    <Button variant="secondary" className="w-full">Checkout</Button>
+                    <Button variant="secondary" className="w-full !text-white">Checkout</Button>
                   </Link>
                   <Link href="/cart" onClick={() => setCartDrawerOpen(false)}>
                     <Button variant="outline" className="w-full">View Cart</Button>

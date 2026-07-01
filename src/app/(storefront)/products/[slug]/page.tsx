@@ -371,8 +371,8 @@ export default function ProductDetailPage() {
                         className={cn(
                           "relative flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all duration-200",
                           selectedVariant === variant.id
-                            ? "border-secondary bg-secondary text-white shadow-[0_2px_12px_rgba(192,57,43,0.25)]"
-                            : "border-border text-charcoal hover:border-charcoal",
+                            ? "border-secondary bg-secondary !text-white shadow-[0_6px_25px_rgba(192,57,43,0.3)]"
+                            : "border-border text-charcoal hover:border-secondary hover:text-secondary",
                           variant.stock === 0 && "opacity-30 cursor-not-allowed line-through"
                         )}
                       >

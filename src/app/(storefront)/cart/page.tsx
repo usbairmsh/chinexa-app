@@ -205,7 +205,7 @@ export default function CartPage() {
               )}
 
               <Link href="/checkout">
-                <Button variant="secondary" size="lg" className="w-full">
+                <Button variant="secondary" size="lg" className="w-full !text-white">
                   Checkout <ArrowRight className="h-4 w-4 ml-1" />
                 </Button>
               </Link>
