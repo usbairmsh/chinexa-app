@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
 
     await execute(
       `INSERT INTO orders (id, order_number, customer_id, customer_name, customer_phone, subtotal, shipping_cost, discount, tax, total, status, payment_method, payment_status, transaction_id, coupon_code, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, orderNumber, customerId, body.customer_name, body.customer_phone, body.subtotal || 0, body.shipping_cost || 0, body.discount || 0, body.tax || 0, body.total || 0, body.status || "pending", body.payment_method || "COD", body.payment_status || "pending", body.transaction_id || null, body.coupon_code || null, body.notes || null]
+      [id, orderNumber, customerId, body.customer_name, body.customer_phone, body.subtotal || 0, body.shipping_cost || 0, body.discount || 0, body.tax || 0, body.total || 0, body.status || "pending", (body.payment_method || "COD").toUpperCase(), body.payment_status || "pending", body.transaction_id || null, body.coupon_code || null, body.notes || null]
     );
 
     // Order items

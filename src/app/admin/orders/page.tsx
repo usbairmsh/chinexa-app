@@ -68,7 +68,7 @@ export default function OrderManagementPage() {
         phone: (o.customer_phone as string) || "",
         total: Number(o.total),
         status: (o.status as OrderStatus) || "pending",
-        payment: (o.payment_method as string) || "COD",
+        payment: ((o.payment_method as string) || "COD").toUpperCase(),
         payment_status: (o.payment_status as PaymentStatus) || "pending",
         items: 0,
         date: (o.created_at as string) || new Date().toISOString(),

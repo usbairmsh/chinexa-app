@@ -43,6 +43,16 @@ const divisionToZone: Record<string, string> = {
   Mymensingh: "mymensingh",
 };
 
+// Bangladesh phone: must start with 01 and be 11 digits
+function isValidBDPhone(phone: string): boolean {
+  const cleaned = phone.replace(/[\s-]/g, "");
+  return /^01[3-9]\d{8}$/.test(cleaned) || /^\+8801[3-9]\d{8}$/.test(cleaned) || /^8801[3-9]\d{8}$/.test(cleaned);
+}
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, getSubtotal, clearCart, couponCode, couponDiscount, applyCoupon, removeCoupon } = useCartStore();
@@ -54,7 +64,8 @@ export default function CheckoutPage() {
   useEffect(() => setMounted(true), []);
 
   const [step, setStep] = useState(1);
-  const [paymentMethod, setPaymentMethod] = useState("cod");
+  const [paymentMethod, setPaymentMethod] = useState("COD");
+  const [transactionId, setTransactionId] = useState("");
   const [orderNumber, setOrderNumber] = useState("");
   const [placing, setPlacing] = useState(false);
   const [validationError, setValidationError] = useState("");
@@ -107,6 +118,9 @@ export default function CheckoutPage() {
   const [billingDivision, setBillingDivision] = useState("");
   const [billingDistrict, setBillingDistrict] = useState("");
 
+  // Field-level errors
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
   // Saved addresses
   const user = useAuthStore((s) => s.user);
   interface SavedAddress {
@@ -126,7 +140,6 @@ export default function CheckoutPage() {
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           setSavedAddresses(data);
-          // Auto-select default address
           const defaultAddr = data.find((a: SavedAddress) => a.is_default) || data[0];
           if (defaultAddr) {
             setSelectedAddressId(defaultAddr.id);
@@ -154,6 +167,7 @@ export default function CheckoutPage() {
     setSelectedAddressId(addr.id);
     setUseNewAddress(false);
     applyAddress(addr);
+    setFieldErrors({});
   };
 
   const handleUseNew = () => {
@@ -163,6 +177,7 @@ export default function CheckoutPage() {
     setCustomerPhone(user?.phone || "");
     setBillingAddress(""); setBillingAddress2(""); setBillingCity("");
     setBillingDivision(""); setBillingDistrict(""); setBillingPostal("");
+    setFieldErrors({});
   };
 
   // Shipping
@@ -185,9 +200,7 @@ export default function CheckoutPage() {
     if (!mounted || !activeDivision) return 0;
     const subtotal = getSubtotal();
     if (freeDeliveryEnabled && subtotal >= freeDeliveryThreshold) return 0;
-
     const zoneId = divisionToZone[activeDivision] || "dhaka-city";
-    // Check if Dhaka district is not Dhaka city — use suburbs
     if (activeDivision === "Dhaka" && activeDistrict && activeDistrict !== "Dhaka") {
       const subZone = zones.find((z) => z.id === "dhaka-sub");
       if (subZone?.isActive) return subZone.charge;
@@ -215,7 +228,58 @@ export default function CheckoutPage() {
 
   const [stockError, setStockError] = useState<string[]>([]);
 
+  // ─── STEP 1 VALIDATION ───
+  const validateStep1 = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    if (!customerName.trim()) errors.customerName = "Full name is required";
+    else if (customerName.trim().length < 3) errors.customerName = "Name must be at least 3 characters";
+
+    if (!customerPhone.trim()) errors.customerPhone = "Phone number is required";
+    else if (!isValidBDPhone(customerPhone)) errors.customerPhone = "Enter a valid Bangladesh phone number (01XXXXXXXXX)";
+
+    if (customerEmail.trim() && !isValidEmail(customerEmail)) errors.customerEmail = "Enter a valid email address";
+
+    if (useNewAddress || savedAddresses.length === 0) {
+      if (!billingAddress.trim()) errors.billingAddress = "Address is required";
+      else if (billingAddress.trim().length < 5) errors.billingAddress = "Address must be at least 5 characters";
+      if (!billingDivision) errors.billingDivision = "Division is required";
+      if (!billingDistrict) errors.billingDistrict = "District is required";
+      if (!billingCity.trim()) errors.billingCity = "City / Area is required";
+    }
+
+    if (differentShipping) {
+      if (!shippingName.trim()) errors.shippingName = "Recipient name is required";
+      if (!shippingPhone.trim()) errors.shippingPhone = "Phone number is required";
+      else if (!isValidBDPhone(shippingPhone)) errors.shippingPhone = "Enter a valid Bangladesh phone number";
+      if (!shippingAddress.trim()) errors.shippingAddress = "Shipping address is required";
+      if (!shippingDivision) errors.shippingDivision = "Division is required";
+      if (!shippingDistrict) errors.shippingDistrict = "District is required";
+      if (!shippingCity.trim()) errors.shippingCity = "City / Area is required";
+    }
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setValidationError("Please fix the highlighted fields above");
+      return false;
+    }
+    setValidationError("");
+    return true;
+  };
+
+  // ─── STEP 3 VALIDATION ───
+  const validateStep3 = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (paymentMethod !== "COD" && !transactionId.trim()) {
+      errors.transactionId = "Transaction ID is required for online payments";
+    }
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return false;
+    return true;
+  };
+
   const handlePlaceOrder = async () => {
+    if (!validateStep3()) return;
     setPlacing(true);
     setStockError([]);
 
@@ -279,6 +343,7 @@ export default function CheckoutPage() {
           total: finalTotal,
           payment_method: paymentMethod,
           payment_status: "pending",
+          transaction_id: paymentMethod !== "COD" ? transactionId.trim() : null,
           coupon_code: couponCode || null,
           items: orderItems,
           billing_address: billingAddr,
@@ -288,7 +353,6 @@ export default function CheckoutPage() {
 
       const data = await res.json();
 
-      // Handle stock conflict from server
       if (!res.ok && data.out_of_stock) {
         setStockError(data.out_of_stock);
         setPlacing(false);
@@ -298,7 +362,7 @@ export default function CheckoutPage() {
       setOrderNumber(data.order_number || data.id || "");
       triggerDashboardRefresh();
 
-      // Auto-save new address to user profile if logged in and using new address
+      // Auto-save new address to user profile
       if (user?.id && (useNewAddress || savedAddresses.length === 0) && billingAddress.trim()) {
         fetch(`/api/customers/${user.id}/addresses`, {
           method: "POST",
@@ -330,6 +394,13 @@ export default function CheckoutPage() {
 
   const billingDistricts = billingDivision ? (DISTRICTS[billingDivision] || []) : [];
   const shippingDistricts = shippingDivision ? (DISTRICTS[shippingDivision] || []) : [];
+
+  // Helper to show inline error
+  const FieldError = ({ field }: { field: string }) => {
+    const err = fieldErrors[field];
+    if (!err) return null;
+    return <p className="text-xs text-destructive mt-1">{err}</p>;
+  };
 
   return (
     <div className="bg-white min-h-screen">
@@ -412,40 +483,56 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                {/* Contact & Address Form — show when using new address or no saved addresses */}
+                {/* Contact & Address Form */}
                 {(useNewAddress || savedAddresses.length === 0) && (
                   <>
                 <h2 className="font-heading text-xl font-semibold text-charcoal">Contact Information</h2>
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Input label="Full Name" placeholder="Fatima Akter" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
-                  <Input label="Phone Number" placeholder="01XXXXXXXXX" type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
-                  <Input label="Email (Optional)" placeholder="email@example.com" type="email" className="sm:col-span-2" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
+                  <div>
+                    <Input label="Full Name *" placeholder="Fatima Akter" value={customerName} onChange={(e) => { setCustomerName(e.target.value); setFieldErrors((p) => ({ ...p, customerName: "" })); }} className={fieldErrors.customerName ? "border-destructive" : ""} />
+                    <FieldError field="customerName" />
+                  </div>
+                  <div>
+                    <Input label="Phone Number *" placeholder="01XXXXXXXXX" type="tel" value={customerPhone} onChange={(e) => { setCustomerPhone(e.target.value); setFieldErrors((p) => ({ ...p, customerPhone: "" })); }} className={fieldErrors.customerPhone ? "border-destructive" : ""} />
+                    <FieldError field="customerPhone" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Input label="Email (Optional)" placeholder="email@example.com" type="email" value={customerEmail} onChange={(e) => { setCustomerEmail(e.target.value); setFieldErrors((p) => ({ ...p, customerEmail: "" })); }} className={fieldErrors.customerEmail ? "border-destructive" : ""} />
+                    <FieldError field="customerEmail" />
+                  </div>
                 </div>
 
-                {/* Billing Address */}
                 <h2 className="font-heading text-xl font-semibold text-charcoal pt-4">Billing Address</h2>
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Input label="Address Line 1" placeholder="House/Flat, Road" className="sm:col-span-2" value={billingAddress} onChange={(e) => setBillingAddress(e.target.value)} />
+                  <div className="sm:col-span-2">
+                    <Input label="Address Line 1 *" placeholder="House/Flat, Road" value={billingAddress} onChange={(e) => { setBillingAddress(e.target.value); setFieldErrors((p) => ({ ...p, billingAddress: "" })); }} className={fieldErrors.billingAddress ? "border-destructive" : ""} />
+                    <FieldError field="billingAddress" />
+                  </div>
                   <Input label="Address Line 2 (Optional)" placeholder="Area, Landmark" className="sm:col-span-2" value={billingAddress2} onChange={(e) => setBillingAddress2(e.target.value)} />
                   <div>
-                    <label className="block text-sm font-medium text-charcoal-light mb-1.5">Division</label>
-                    <Select value={billingDivision} onValueChange={(v) => { setBillingDivision(v); setBillingDistrict(""); }}>
-                      <SelectTrigger><SelectValue placeholder="Select Division" /></SelectTrigger>
+                    <label className="block text-sm font-medium text-charcoal-light mb-1.5">Division *</label>
+                    <Select value={billingDivision} onValueChange={(v) => { setBillingDivision(v); setBillingDistrict(""); setFieldErrors((p) => ({ ...p, billingDivision: "", billingDistrict: "" })); }}>
+                      <SelectTrigger className={fieldErrors.billingDivision ? "border-destructive" : ""}><SelectValue placeholder="Select Division" /></SelectTrigger>
                       <SelectContent>
                         {DIVISIONS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    <FieldError field="billingDivision" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-charcoal-light mb-1.5">District</label>
-                    <Select value={billingDistrict} onValueChange={setBillingDistrict} disabled={!billingDivision}>
-                      <SelectTrigger><SelectValue placeholder={billingDivision ? "Select District" : "Select division first"} /></SelectTrigger>
+                    <label className="block text-sm font-medium text-charcoal-light mb-1.5">District *</label>
+                    <Select value={billingDistrict} onValueChange={(v) => { setBillingDistrict(v); setFieldErrors((p) => ({ ...p, billingDistrict: "" })); }} disabled={!billingDivision}>
+                      <SelectTrigger className={fieldErrors.billingDistrict ? "border-destructive" : ""}><SelectValue placeholder={billingDivision ? "Select District" : "Select division first"} /></SelectTrigger>
                       <SelectContent>
                         {billingDistricts.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    <FieldError field="billingDistrict" />
                   </div>
-                  <Input label="City / Area" placeholder="Gulshan-2" value={billingCity} onChange={(e) => setBillingCity(e.target.value)} />
+                  <div>
+                    <Input label="City / Area *" placeholder="Gulshan-2" value={billingCity} onChange={(e) => { setBillingCity(e.target.value); setFieldErrors((p) => ({ ...p, billingCity: "" })); }} className={fieldErrors.billingCity ? "border-destructive" : ""} />
+                    <FieldError field="billingCity" />
+                  </div>
                   <Input label="Postal Code (Optional)" placeholder="1212" value={billingPostal} onChange={(e) => setBillingPostal(e.target.value)} />
                 </div>
 
@@ -455,7 +542,7 @@ export default function CheckoutPage() {
                 {/* Different Shipping Address */}
                 <div className="pt-2">
                   <label className="flex items-center gap-3 cursor-pointer">
-                    <Checkbox checked={differentShipping} onCheckedChange={(v) => setDifferentShipping(!!v)} />
+                    <Checkbox checked={differentShipping} onCheckedChange={(v) => { setDifferentShipping(!!v); setFieldErrors({}); }} />
                     <span className="text-sm font-medium text-charcoal">Ship to a different address</span>
                   </label>
                 </div>
@@ -466,29 +553,43 @@ export default function CheckoutPage() {
                       <MapPin className="h-5 w-5 text-secondary" /> Shipping Address
                     </h2>
                     <div className="grid sm:grid-cols-2 gap-4">
-                      <Input label="Recipient Name" placeholder="Full name" value={shippingName} onChange={(e) => setShippingName(e.target.value)} />
-                      <Input label="Phone Number" placeholder="01XXXXXXXXX" type="tel" value={shippingPhone} onChange={(e) => setShippingPhone(e.target.value)} />
-                      <Input label="Address Line 1" placeholder="House/Flat, Road" className="sm:col-span-2" value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} />
+                      <div>
+                        <Input label="Recipient Name *" placeholder="Full name" value={shippingName} onChange={(e) => { setShippingName(e.target.value); setFieldErrors((p) => ({ ...p, shippingName: "" })); }} className={fieldErrors.shippingName ? "border-destructive" : ""} />
+                        <FieldError field="shippingName" />
+                      </div>
+                      <div>
+                        <Input label="Phone Number *" placeholder="01XXXXXXXXX" type="tel" value={shippingPhone} onChange={(e) => { setShippingPhone(e.target.value); setFieldErrors((p) => ({ ...p, shippingPhone: "" })); }} className={fieldErrors.shippingPhone ? "border-destructive" : ""} />
+                        <FieldError field="shippingPhone" />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <Input label="Address Line 1 *" placeholder="House/Flat, Road" value={shippingAddress} onChange={(e) => { setShippingAddress(e.target.value); setFieldErrors((p) => ({ ...p, shippingAddress: "" })); }} className={fieldErrors.shippingAddress ? "border-destructive" : ""} />
+                        <FieldError field="shippingAddress" />
+                      </div>
                       <Input label="Address Line 2 (Optional)" placeholder="Area, Landmark" className="sm:col-span-2" value={shippingAddress2} onChange={(e) => setShippingAddress2(e.target.value)} />
                       <div>
-                        <label className="block text-sm font-medium text-charcoal-light mb-1.5">Division</label>
-                        <Select value={shippingDivision} onValueChange={(v) => { setShippingDivision(v); setShippingDistrict(""); }}>
-                          <SelectTrigger><SelectValue placeholder="Select Division" /></SelectTrigger>
+                        <label className="block text-sm font-medium text-charcoal-light mb-1.5">Division *</label>
+                        <Select value={shippingDivision} onValueChange={(v) => { setShippingDivision(v); setShippingDistrict(""); setFieldErrors((p) => ({ ...p, shippingDivision: "", shippingDistrict: "" })); }}>
+                          <SelectTrigger className={fieldErrors.shippingDivision ? "border-destructive" : ""}><SelectValue placeholder="Select Division" /></SelectTrigger>
                           <SelectContent>
                             {DIVISIONS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                           </SelectContent>
                         </Select>
+                        <FieldError field="shippingDivision" />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-charcoal-light mb-1.5">District</label>
-                        <Select value={shippingDistrict} onValueChange={setShippingDistrict} disabled={!shippingDivision}>
-                          <SelectTrigger><SelectValue placeholder={shippingDivision ? "Select District" : "Select division first"} /></SelectTrigger>
+                        <label className="block text-sm font-medium text-charcoal-light mb-1.5">District *</label>
+                        <Select value={shippingDistrict} onValueChange={(v) => { setShippingDistrict(v); setFieldErrors((p) => ({ ...p, shippingDistrict: "" })); }} disabled={!shippingDivision}>
+                          <SelectTrigger className={fieldErrors.shippingDistrict ? "border-destructive" : ""}><SelectValue placeholder={shippingDivision ? "Select District" : "Select division first"} /></SelectTrigger>
                           <SelectContent>
                             {shippingDistricts.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                           </SelectContent>
                         </Select>
+                        <FieldError field="shippingDistrict" />
                       </div>
-                      <Input label="City / Area" placeholder="Area name" value={shippingCity} onChange={(e) => setShippingCity(e.target.value)} />
+                      <div>
+                        <Input label="City / Area *" placeholder="Area name" value={shippingCity} onChange={(e) => { setShippingCity(e.target.value); setFieldErrors((p) => ({ ...p, shippingCity: "" })); }} className={fieldErrors.shippingCity ? "border-destructive" : ""} />
+                        <FieldError field="shippingCity" />
+                      </div>
                       <Input label="Postal Code (Optional)" placeholder="1205" value={shippingPostal} onChange={(e) => setShippingPostal(e.target.value)} />
                     </div>
                   </motion.div>
@@ -527,25 +628,14 @@ export default function CheckoutPage() {
                 )}
 
                 <Button variant="secondary" size="lg" className="w-full sm:w-auto !text-white" onClick={() => {
-                  setValidationError("");
-                  if (!customerName.trim()) { setValidationError("Full name is required"); return; }
-                  if (!customerPhone.trim()) { setValidationError("Phone number is required"); return; }
-                  if (!billingAddress.trim()) { setValidationError("Billing address is required"); return; }
-                  if (!billingDivision) { setValidationError("Please select a division to calculate delivery charge"); return; }
-                  if (!billingDistrict) { setValidationError("Please select a district"); return; }
-                  if (differentShipping) {
-                    if (!shippingAddress.trim()) { setValidationError("Shipping address is required"); return; }
-                    if (!shippingDivision) { setValidationError("Please select shipping division"); return; }
-                    if (!shippingDistrict) { setValidationError("Please select shipping district"); return; }
-                  }
-                  setStep(2);
+                  if (validateStep1()) setStep(2);
                 }}>
                   Continue to Shipping
                 </Button>
               </motion.div>
             )}
 
-            {/* ═══ STEP 2: Shipping ═══ */}
+            {/* ═══ STEP 2: Shipping + Coupon ═══ */}
             {step === 2 && (
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
                 <h2 className="font-heading text-xl font-semibold text-charcoal">Shipping Method</h2>
@@ -586,39 +676,7 @@ export default function CheckoutPage() {
 
                 <Textarea label="Order Notes (Optional)" placeholder="Any special delivery instructions..." />
 
-                <div className="flex gap-3">
-                  <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
-                  <Button variant="secondary" size="lg" className="!text-white" onClick={() => setStep(3)}>Continue to Payment</Button>
-                </div>
-              </motion.div>
-            )}
-
-            {/* ═══ STEP 3: Payment ═══ */}
-            {step === 3 && (
-              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                <h2 className="font-heading text-xl font-semibold text-charcoal">Payment Method</h2>
-                <div className="space-y-3">
-                  {activePaymentMethods.map((method) => (
-                    <label key={method.id}
-                      className={cn("flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors",
-                        paymentMethod === method.id ? "border-secondary bg-primary-light" : "border-border hover:border-secondary")}>
-                      <div className="flex items-center gap-3">
-                        <input type="radio" name="payment" value={method.id} checked={paymentMethod === method.id} onChange={() => setPaymentMethod(method.id)} className="accent-secondary" />
-                        <span className="text-sm font-medium text-charcoal">{method.name}</span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-                {paymentMethod !== "cod" && (
-                  <div className="p-4 rounded-xl bg-pearl/50 space-y-3">
-                    <Input label="Transaction ID" placeholder="Enter transaction ID" />
-                    <p className="text-xs text-charcoal-lighter">
-                      {(() => { const m = activePaymentMethods.find((pm) => pm.id === paymentMethod); return m && 'account_number' in m && m.account_number ? `Please send payment to: ${m.account_number}` : `Please send payment via ${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)}`; })()}
-                    </p>
-                  </div>
-                )}
-
-                {/* Coupon Code */}
+                {/* Coupon Code — moved here from Step 3 */}
                 <div>
                   <h3 className="text-sm font-medium text-charcoal mb-2">Have a coupon?</h3>
                   {couponCode ? (
@@ -652,6 +710,41 @@ export default function CheckoutPage() {
                     </div>
                   )}
                 </div>
+
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
+                  <Button variant="secondary" size="lg" className="!text-white" onClick={() => setStep(3)}>Continue to Payment</Button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ═══ STEP 3: Payment ═══ */}
+            {step === 3 && (
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                <h2 className="font-heading text-xl font-semibold text-charcoal">Payment Method</h2>
+                <div className="space-y-3">
+                  {activePaymentMethods.map((method) => (
+                    <label key={method.id}
+                      className={cn("flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors",
+                        paymentMethod === method.id ? "border-secondary bg-primary-light" : "border-border hover:border-secondary")}>
+                      <div className="flex items-center gap-3">
+                        <input type="radio" name="payment" value={method.id} checked={paymentMethod === method.id} onChange={() => { setPaymentMethod(method.id); setFieldErrors({}); }} className="accent-secondary" />
+                        <span className="text-sm font-medium text-charcoal">{method.name}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                {paymentMethod !== "COD" && (
+                  <div className="p-4 rounded-xl bg-pearl/50 space-y-3">
+                    <div>
+                      <Input label="Transaction ID *" placeholder="Enter transaction ID" value={transactionId} onChange={(e) => { setTransactionId(e.target.value); setFieldErrors((p) => ({ ...p, transactionId: "" })); }} className={fieldErrors.transactionId ? "border-destructive" : ""} />
+                      <FieldError field="transactionId" />
+                    </div>
+                    <p className="text-xs text-charcoal-lighter">
+                      {(() => { const m = activePaymentMethods.find((pm) => pm.id === paymentMethod); return m && 'account_number' in m && m.account_number ? `Please send payment to: ${m.account_number}` : `Please send payment via ${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)}`; })()}
+                    </p>
+                  </div>
+                )}
 
                 {/* Price Breakdown */}
                 <div className="p-4 rounded-xl border border-border/30 bg-pearl/20 space-y-2 text-sm">
@@ -694,8 +787,6 @@ export default function CheckoutPage() {
                 </div>
               </motion.div>
             )}
-
-            {/* Step 4 is rendered outside this col-span-3 div */}
           </div>
 
           {/* ═══ Order Summary Sidebar ═══ */}
@@ -756,7 +847,7 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          {/* ═══ STEP 4: Done — full width centered ═══ */}
+          {/* ═══ STEP 4: Done ═══ */}
           {step === 4 && (
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="col-span-full text-center py-16">
               <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", damping: 15, delay: 0.2 }}>

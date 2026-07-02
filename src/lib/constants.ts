@@ -20,7 +20,7 @@ export const ORDER_STATUSES = [
 ] as const;
 
 export const PAYMENT_METHODS = [
-  { id: "cod", name: "Cash on Delivery", icon: "Banknote" },
+  { id: "COD", name: "Cash on Delivery", icon: "Banknote" },
   { id: "bkash", name: "bKash", icon: "Smartphone" },
   { id: "nagad", name: "Nagad", icon: "Smartphone" },
   { id: "rocket", name: "Rocket", icon: "Smartphone" },

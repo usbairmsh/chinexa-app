@@ -73,7 +73,7 @@ export default function AdminSettingsPage() {
 
   // ═══ PAYMENT ═══
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
-    { id: "cod", name: "Cash on Delivery", enabled: true, account_number: "", instructions: "Pay when you receive" },
+    { id: "COD", name: "Cash on Delivery", enabled: true, account_number: "", instructions: "Pay when you receive" },
     { id: "bkash", name: "bKash", enabled: true, account_number: "", instructions: "" },
     { id: "nagad", name: "Nagad", enabled: true, account_number: "", instructions: "" },
     { id: "rocket", name: "Rocket", enabled: false, account_number: "", instructions: "" },
@@ -345,7 +345,7 @@ export default function AdminSettingsPage() {
             {paymentMethods.map((m) => (
               <Card key={m.id} className={cn(!m.enabled && "opacity-60")}>
                 <CardHeader><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><CreditCard className="h-4 w-4 text-secondary" /> {m.name}</CardTitle><Switch checked={m.enabled} onCheckedChange={(v) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, enabled: v } : pm))} /></div></CardHeader>
-                {m.enabled && m.id !== "cod" && (
+                {m.enabled && m.id !== "COD" && (
                   <CardContent className="space-y-3">
                     <Input label="Account / Phone" value={m.account_number} onChange={(e) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, account_number: e.target.value } : pm))} placeholder="01XXXXXXXXX" />
                     <Input label="Instructions" value={m.instructions} onChange={(e) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, instructions: e.target.value } : pm))} />
