@@ -59,7 +59,7 @@ export default async function StorefrontLayout({
       <WebsiteJsonLd />
       <Suspense><PageLoader /></Suspense>
       <Header />
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 overflow-x-hidden">{children}</main>
       <Footer />
       <CartDrawer />
       <SearchOverlay />

@@ -55,7 +55,7 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 py-6 sm:py-8">
         <Breadcrumb items={[{ label: "Shopping Bag" }]} className="mb-8" />
         <EmptyState
           icon={ShoppingBag}
@@ -69,8 +69,8 @@ export default function CartPage() {
   }
 
   return (
-    <div className="bg-white min-h-screen">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+    <div className="bg-white min-h-screen overflow-x-hidden">
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 py-6 sm:py-8">
         <Breadcrumb items={[{ label: "Shopping Bag" }]} className="mb-8" />
         <h1 className="font-heading text-2xl sm:text-3xl font-semibold text-charcoal mb-8">
           Shopping Bag ({getItemCount()})
@@ -87,9 +87,9 @@ export default function CartPage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0, x: -50 }}
-                  className="flex gap-4 sm:gap-6 py-6 border-b border-border/30"
+                  className="flex gap-3 sm:gap-6 py-4 sm:py-6 border-b border-border/30"
                 >
-                  <div className="relative h-28 w-20 sm:h-40 sm:w-32 flex-shrink-0 rounded-xl overflow-hidden bg-pearl">
+                  <div className="relative h-24 w-[68px] sm:h-40 sm:w-32 flex-shrink-0 rounded-xl overflow-hidden bg-pearl">
                     <Image
                       src={item.product_image}
                       alt={item.product_name}
@@ -142,7 +142,7 @@ export default function CartPage() {
 
           {/* Summary */}
           <div>
-            <div className="sticky top-24 rounded-2xl border border-border/30 bg-pearl/30 p-4 sm:p-6">
+            <div className="sticky top-24 rounded-2xl border border-border/30 bg-pearl/30 p-3 sm:p-6">
               <h3 className="font-heading text-base sm:text-lg font-semibold text-charcoal mb-4">Order Summary</h3>
 
               <div className="space-y-3 text-sm">

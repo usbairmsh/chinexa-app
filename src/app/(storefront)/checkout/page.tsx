@@ -417,8 +417,8 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="bg-white min-h-screen">
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-8">
+    <div className="bg-white min-h-screen overflow-x-hidden">
+      <div className="mx-auto max-w-4xl px-3 sm:px-6 lg:px-8 py-6 sm:py-8">
         <Breadcrumb items={[{ label: "Cart", href: "/cart" }, { label: "Checkout" }]} className="mb-6" />
 
         {/* Steps */}
@@ -473,13 +473,13 @@ export default function CheckoutPage() {
                             type="button"
                             onClick={() => handleSelectAddress(addr)}
                             className={cn(
-                              "w-full flex items-start gap-3 p-4 rounded-xl border text-left transition-all duration-200",
+                              "w-full flex items-start gap-2.5 sm:gap-3 p-3 sm:p-4 rounded-xl border text-left transition-all duration-200",
                               isSelected
-                                ? "border-secondary bg-secondary/5 shadow-[0_2px_12px_rgba(192,57,43,0.1)]"
+                                ? "border-secondary bg-secondary/5"
                                 : "border-border/50 hover:border-secondary/40"
                             )}
                           >
-                            <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg shrink-0 mt-0.5", isSelected ? "bg-secondary/10 text-secondary" : "bg-pearl text-charcoal-lighter")}>
+                            <div className={cn("flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg shrink-0 mt-0.5", isSelected ? "bg-secondary/10 text-secondary" : "bg-pearl text-charcoal-lighter")}>
                               <Icon className="h-4 w-4" />
                             </div>
                             <div className="flex-1 min-w-0">
@@ -499,13 +499,13 @@ export default function CheckoutPage() {
                         type="button"
                         onClick={handleUseNew}
                         className={cn(
-                          "w-full flex items-center gap-3 p-4 rounded-xl border text-left transition-all duration-200",
+                          "w-full flex items-center gap-2.5 sm:gap-3 p-3 sm:p-4 rounded-xl border text-left transition-all duration-200",
                           useNewAddress
                             ? "border-secondary bg-secondary/5"
                             : "border-dashed border-border/50 hover:border-secondary/40"
                         )}
                       >
-                        <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg shrink-0", useNewAddress ? "bg-secondary/10 text-secondary" : "bg-pearl text-charcoal-lighter")}>
+                        <div className={cn("flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg shrink-0", useNewAddress ? "bg-secondary/10 text-secondary" : "bg-pearl text-charcoal-lighter")}>
                           <Plus className="h-4 w-4" />
                         </div>
                         <span className="text-sm font-medium text-charcoal">Use a new address</span>
@@ -824,7 +824,7 @@ export default function CheckoutPage() {
           {/* ═══ Order Summary Sidebar ═══ */}
           {step < 4 && (
             <div className="lg:col-span-2 order-1 lg:order-2">
-              <div className="lg:sticky lg:top-24 rounded-2xl border border-border/30 bg-pearl/30 p-4 sm:p-5">
+              <div className="lg:sticky lg:top-24 rounded-2xl border border-border/30 bg-pearl/30 p-3 sm:p-5">
                 <h3 className="font-heading text-base font-semibold text-charcoal mb-4">
                   Order Summary ({items.length})
                 </h3>
