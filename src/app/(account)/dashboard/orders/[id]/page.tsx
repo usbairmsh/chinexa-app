@@ -4,11 +4,14 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Package, Truck, CheckCircle2, Clock, MapPin, CreditCard, Copy, PackageCheck, Loader2, ShoppingBag } from "lucide-react";
+import { ArrowLeft, Package, Truck, CheckCircle2, Clock, MapPin, CreditCard, Copy, PackageCheck, Loader2, ShoppingBag, RotateCcw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency, cn } from "@/lib/utils";
 
@@ -21,6 +24,8 @@ const customerStatusLabels: Record<string, string> = {
   on_delivery: "Out for Delivery",
   received: "Delivered",
   not_received: "Delivery Failed",
+  returned: "Returned",
+  cancelled: "Cancelled",
 };
 
 // Full timeline steps for customer display
@@ -62,6 +67,11 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [returnReason, setReturnReason] = useState("");
+  const [returnDesc, setReturnDesc] = useState("");
+  const [returnSubmitting, setReturnSubmitting] = useState(false);
+  const [returnSubmitted, setReturnSubmitted] = useState(false);
 
   useEffect(() => {
     fetch(`/api/orders/${encodeURIComponent(id)}`)
@@ -75,6 +85,24 @@ export default function OrderDetailPage() {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  };
+
+  const handleReturn = async () => {
+    if (!returnReason || !order) return;
+    setReturnSubmitting(true);
+    try {
+      const res = await fetch("/api/returns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order_id: order.id, reason: returnReason, description: returnDesc.trim() || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      setReturnSubmitted(true);
+      setReturnOpen(false);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to submit return request");
+    } finally { setReturnSubmitting(false); }
   };
 
   if (loading) {
@@ -251,6 +279,17 @@ export default function OrderDetailPage() {
           <Card>
             <CardContent className="p-4 space-y-2">
               <Button variant="outline" className="w-full text-sm" onClick={() => window.open(`/invoice?id=${encodeURIComponent(order.order_number)}`, "_blank")}>Download Invoice</Button>
+              {order.status === "received" && !returnSubmitted && (
+                <Button variant="outline" className="w-full text-sm text-secondary border-secondary/30" onClick={() => setReturnOpen(true)}>
+                  <RotateCcw className="h-3.5 w-3.5 mr-1" /> Request Return
+                </Button>
+              )}
+              {returnSubmitted && (
+                <div className="p-3 rounded-xl bg-success/10 border border-success/20 text-center">
+                  <p className="text-xs font-medium text-success">Return request submitted!</p>
+                  <p className="text-[10px] text-success/70 mt-0.5">We&apos;ll review and get back to you</p>
+                </div>
+              )}
               <Link href="/contact">
                 <Button variant="ghost" className="w-full text-sm text-charcoal-lighter">Need Help?</Button>
               </Link>
@@ -258,6 +297,40 @@ export default function OrderDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Return Request Dialog */}
+      <Dialog open={returnOpen} onOpenChange={setReturnOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><RotateCcw className="h-5 w-5 text-secondary" /> Request Return</DialogTitle>
+            <DialogDescription>Submit a return request for order {order?.order_number}. Returns must be within 7 days of delivery.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Reason *</label>
+              <Select value={returnReason} onValueChange={setReturnReason}>
+                <SelectTrigger><SelectValue placeholder="Select reason..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="damaged">Product damaged during delivery</SelectItem>
+                  <SelectItem value="wrong_item">Received wrong item</SelectItem>
+                  <SelectItem value="not_as_described">Product not as described</SelectItem>
+                  <SelectItem value="defective">Product is defective</SelectItem>
+                  <SelectItem value="changed_mind">Changed my mind</SelectItem>
+                  <SelectItem value="other">Other reason</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Textarea label="Description (optional)" value={returnDesc} onChange={(e) => setReturnDesc(e.target.value)} placeholder="Please describe the issue..." className="min-h-[80px]" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReturnOpen(false)}>Cancel</Button>
+            <Button variant="secondary" className="!text-white" onClick={handleReturn} disabled={returnSubmitting || !returnReason}>
+              {returnSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RotateCcw className="h-4 w-4 mr-1" />}
+              Submit Return
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

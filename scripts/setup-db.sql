@@ -146,7 +146,7 @@ CREATE TABLE IF NOT EXISTS orders (
   tax DECIMAL(10,2) DEFAULT 0,
   total DECIMAL(10,2) NOT NULL,
   currency VARCHAR(10) DEFAULT 'BDT',
-  status ENUM('pending', 'confirmed', 'processing', 'shipped', 'on_delivery', 'received', 'not_received') DEFAULT 'pending',
+  status ENUM('pending', 'confirmed', 'processing', 'shipped', 'on_delivery', 'received', 'not_received', 'returned', 'cancelled') DEFAULT 'pending',
   payment_method VARCHAR(50),
   payment_status ENUM('pending', 'paid', 'failed', 'refunded') DEFAULT 'pending',
   transaction_id VARCHAR(100),
@@ -372,6 +372,25 @@ CREATE TABLE IF NOT EXISTS offers (
   usage_count INT DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- Order Returns
+CREATE TABLE IF NOT EXISTS order_returns (
+  id VARCHAR(50) PRIMARY KEY,
+  order_id VARCHAR(50) NOT NULL,
+  order_number VARCHAR(50),
+  customer_id VARCHAR(50),
+  customer_name VARCHAR(255),
+  reason ENUM('damaged', 'wrong_item', 'not_as_described', 'changed_mind', 'defective', 'other') NOT NULL,
+  description TEXT,
+  status ENUM('requested', 'approved', 'rejected', 'received', 'refunded') DEFAULT 'requested',
+  refund_amount DECIMAL(10,2),
+  admin_note TEXT,
+  items JSON,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+  FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- Fraud Alerts

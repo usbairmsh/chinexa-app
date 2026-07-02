@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowLeft, Package, Truck, CheckCircle2, Clock, MapPin, CreditCard,
-  Copy, Phone, Mail, User, Printer, Download, XCircle, ArrowUpRight, MessageSquare, ShoppingCart, Edit, Save, Loader2
+  Copy, Phone, Mail, User, Printer, Download, XCircle, ArrowUpRight, MessageSquare, ShoppingCart, Edit, Save, Loader2, RotateCcw
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +21,7 @@ import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
 
 const statusIcons: Record<string, typeof Clock> = {
   pending: Clock, confirmed: CheckCircle2, processing: Package,
-  shipped: Truck, on_delivery: MapPin, received: CheckCircle2, not_received: XCircle,
+  shipped: Truck, on_delivery: MapPin, received: CheckCircle2, not_received: XCircle, returned: RotateCcw, cancelled: XCircle,
 };
 
 function getCookie(name: string): string {
@@ -45,6 +45,8 @@ export default function OrderDetailPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [note, setNote] = useState("");
+  const [returns, setReturns] = useState<Record<string, unknown>[]>([]);
+  const [returnActionLoading, setReturnActionLoading] = useState("");
   const [noteSaved, setNoteSaved] = useState(false);
 
   useEffect(() => {
@@ -53,6 +55,9 @@ export default function OrderDetailPage() {
       .then(setOrder)
       .catch(() => setOrder(null))
       .finally(() => setLoading(false));
+    fetch(`/api/returns?order_id=${id}`).then((r) => r.json()).then((data) => {
+      if (Array.isArray(data)) setReturns(data);
+    }).catch(() => {});
   }, [id]);
 
   const handleSaveNote = async () => {
@@ -64,6 +69,16 @@ export default function OrderDetailPage() {
   const handleStatusUpdate = async (status: string) => {
     await fetch(`/api/orders/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
     setOrder((prev) => prev ? { ...prev, status } : prev);
+  };
+
+  const handleReturnAction = async (returnId: string, action: "approved" | "rejected" | "refunded") => {
+    setReturnActionLoading(returnId);
+    try {
+      await fetch(`/api/returns/${returnId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: action }) });
+      setReturns((prev) => prev.map((r) => r.id === returnId ? { ...r, status: action } : r));
+      if (action === "approved") setOrder((prev) => prev ? { ...prev, status: "returned" } : prev);
+      if (action === "refunded") setOrder((prev) => prev ? { ...prev, payment_status: "refunded" } : prev);
+    } catch {} finally { setReturnActionLoading(""); }
   };
 
   const openEditOrder = () => {
@@ -258,6 +273,41 @@ export default function OrderDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Returns */}
+          {returns.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-1.5"><RotateCcw className="h-3.5 w-3.5 text-secondary" /> Returns</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                {returns.map((ret) => (
+                  <div key={ret.id as string} className="p-3 rounded-xl border border-border/30 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Badge variant={String(ret.status) === "approved" ? "success" : String(ret.status) === "rejected" ? "destructive" : String(ret.status) === "refunded" ? "success" : "warning"} className="text-[9px] capitalize">{String(ret.status)}</Badge>
+                      <span className="text-[10px] text-charcoal-lighter">{formatDateShort(ret.created_at as string)}</span>
+                    </div>
+                    <p className="text-xs text-charcoal"><span className="font-medium">Reason:</span> {String(ret.reason).replace("_", " ")}</p>
+                    {ret.description ? <p className="text-xs text-charcoal-lighter">{String(ret.description)}</p> : null}
+                    <p className="text-xs text-charcoal"><span className="font-medium">Refund:</span> {formatCurrency(Number(ret.refund_amount))}</p>
+                    {ret.status === "requested" && canEditOrder && (
+                      <div className="flex gap-2 pt-1">
+                        <AdminButton size="xs" onClick={() => handleReturnAction(ret.id as string, "approved")} disabled={returnActionLoading === ret.id}>
+                          {returnActionLoading === ret.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />} Approve
+                        </AdminButton>
+                        <AdminButton variant="danger" size="xs" onClick={() => handleReturnAction(ret.id as string, "rejected")} disabled={returnActionLoading === ret.id}>
+                          <XCircle className="h-3 w-3" /> Reject
+                        </AdminButton>
+                      </div>
+                    )}
+                    {ret.status === "approved" && canEditOrder && (
+                      <AdminButton size="xs" variant="outline" onClick={() => handleReturnAction(ret.id as string, "refunded")} disabled={returnActionLoading === ret.id}>
+                        {returnActionLoading === ret.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CreditCard className="h-3 w-3" />} Mark Refunded
+                      </AdminButton>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 

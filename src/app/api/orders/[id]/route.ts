@@ -42,6 +42,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           on_delivery: { title: "Out for Delivery", message: `Your order ${order.order_number} is out for delivery. It will arrive soon!`, type: "order" },
           received: { title: "Order Delivered", message: `Your order ${order.order_number} has been delivered. Enjoy your purchase!`, type: "order" },
           not_received: { title: "Delivery Issue", message: `There was an issue with the delivery of order ${order.order_number}. Please contact support.`, type: "order" },
+          cancelled: { title: "Order Cancelled", message: `Your order ${order.order_number} has been cancelled. If you were charged, a refund will be processed.`, type: "order" },
+          returned: { title: "Return Processed", message: `Your return for order ${order.order_number} has been processed. Refund will be issued shortly.`, type: "order" },
         };
         const notif = notifMessages[body.status];
         if (notif) {
@@ -56,13 +58,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const paymentMethod = (order.payment_method as string || "").toLowerCase();
       const isCOD = paymentMethod === "cod";
 
-      // COD: payment becomes 'paid' when customer receives the order
-      if (body.status === "received" && isCOD && order.payment_status !== "paid") {
-        await execute("UPDATE orders SET payment_status = 'paid' WHERE id = ?", [id]);
-      }
-
-      // Reduce stock + award loyalty points when order is received
-      if (body.status === "received") {
+      // ─── STOCK REDUCTION on confirmed ───
+      if (body.status === "confirmed") {
         const orderItems = await query<RowDataPacket[]>("SELECT product_id, quantity FROM order_items WHERE order_id = ?", [id]);
         for (const item of orderItems) {
           if (item.product_id) {
@@ -72,6 +69,32 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             );
           }
         }
+      }
+
+      // ─── STOCK RESTORE on cancelled / not_received / returned ───
+      if (["cancelled", "not_received", "returned"].includes(body.status)) {
+        // Only restore if the order was previously confirmed (stock was deducted)
+        const prevStatus = order.status as string;
+        if (["confirmed", "processing", "shipped", "on_delivery", "received"].includes(prevStatus)) {
+          const orderItems = await query<RowDataPacket[]>("SELECT product_id, quantity FROM order_items WHERE order_id = ?", [id]);
+          for (const item of orderItems) {
+            if (item.product_id) {
+              await execute(
+                "UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?",
+                [item.quantity, item.product_id]
+              );
+            }
+          }
+        }
+      }
+
+      // COD: payment becomes 'paid' when customer receives the order
+      if (body.status === "received" && isCOD && order.payment_status !== "paid") {
+        await execute("UPDATE orders SET payment_status = 'paid' WHERE id = ?", [id]);
+      }
+
+      // ─── LOYALTY POINTS on received ───
+      if (body.status === "received") {
 
         // Award loyalty points
         if (order.customer_id) {
