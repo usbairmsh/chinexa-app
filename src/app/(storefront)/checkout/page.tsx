@@ -455,10 +455,10 @@ export default function CheckoutPage() {
 
         <div className="grid lg:grid-cols-5 gap-6 lg:gap-8">
           {/* Form */}
-          <div className="lg:col-span-3 order-2 lg:order-1">
+          <div className="lg:col-span-3 order-2 lg:order-1 min-w-0">
             {/* ═══ STEP 1: Information ═══ */}
             {step === 1 && (
-              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 {/* Saved Addresses */}
                 {savedAddresses.length > 0 && (
                   <div>
@@ -629,7 +629,7 @@ export default function CheckoutPage() {
 
                 {/* Delivery charge preview */}
                 {activeDivision && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 rounded-xl bg-pearl/60 border border-border/20 space-y-2">
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-3 sm:p-4 rounded-xl bg-pearl/60 border border-border/20 space-y-2">
                     <p className="text-xs font-semibold text-charcoal flex items-center gap-1.5">
                       <Truck className="h-3.5 w-3.5 text-secondary" /> Delivery Estimate
                     </p>
@@ -656,7 +656,7 @@ export default function CheckoutPage() {
                 )}
 
                 {validationError && (
-                  <p className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-2">{validationError}</p>
+                  <p className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-3 sm:px-4 py-2">{validationError}</p>
                 )}
 
                 <Button variant="secondary" size="lg" className="w-full sm:w-auto !text-white" onClick={() => {
@@ -669,7 +669,7 @@ export default function CheckoutPage() {
 
             {/* ═══ STEP 2: Shipping + Coupon ═══ */}
             {step === 2 && (
-              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <h2 className="font-heading text-xl font-semibold text-charcoal">Shipping Method</h2>
 
                 {/* Delivery to */}
@@ -682,26 +682,26 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <label className="flex items-center justify-between p-4 rounded-xl border border-secondary bg-primary-light cursor-pointer">
-                    <div className="flex items-center gap-3">
-                      <input type="radio" name="shipping" defaultChecked className="accent-secondary" />
+                  <label className="flex items-center justify-between p-3 sm:p-4 rounded-xl border border-secondary bg-primary-light cursor-pointer">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <input type="radio" name="shipping" defaultChecked className="accent-secondary shrink-0" />
                       <div>
                         <p className="text-sm font-medium text-charcoal">Standard Delivery</p>
                         <p className="text-xs text-charcoal-lighter">{getDeliveryTime()} business days</p>
                       </div>
                     </div>
-                    <span className="text-sm font-semibold">{isFreeShipping ? <span className="text-success">Free</span> : formatCurrency(shippingCost)}</span>
+                    <span className="text-sm font-semibold shrink-0 ml-2">{isFreeShipping ? <span className="text-success">Free</span> : formatCurrency(shippingCost)}</span>
                   </label>
                   {activeDivision === "Dhaka" && (
-                    <label className="flex items-center justify-between p-4 rounded-xl border border-border cursor-pointer hover:border-secondary transition-colors">
-                      <div className="flex items-center gap-3">
-                        <input type="radio" name="shipping" className="accent-secondary" />
+                    <label className="flex items-center justify-between p-3 sm:p-4 rounded-xl border border-border cursor-pointer hover:border-secondary transition-colors">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <input type="radio" name="shipping" className="accent-secondary shrink-0" />
                         <div>
                           <p className="text-sm font-medium text-charcoal">Express Delivery</p>
                           <p className="text-xs text-charcoal-lighter">Next day delivery (Dhaka only)</p>
                         </div>
                       </div>
-                      <span className="text-sm font-semibold">৳200</span>
+                      <span className="text-sm font-semibold shrink-0 ml-2">৳200</span>
                     </label>
                   )}
                 </div>
@@ -752,14 +752,14 @@ export default function CheckoutPage() {
 
             {/* ═══ STEP 3: Payment ═══ */}
             {step === 3 && (
-              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <h2 className="font-heading text-xl font-semibold text-charcoal">Payment Method</h2>
                 <div className="space-y-3">
                   {activePaymentMethods.map((method) => (
                     <label key={method.id}
-                      className={cn("flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors",
+                      className={cn("flex items-center justify-between p-3 sm:p-4 rounded-xl border cursor-pointer transition-colors",
                         paymentMethod === method.id ? "border-secondary bg-primary-light" : "border-border hover:border-secondary")}>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 sm:gap-3">
                         <input type="radio" name="payment" value={method.id} checked={paymentMethod === method.id} onChange={() => { setPaymentMethod(method.id); setFieldErrors({}); }} className="accent-secondary" />
                         <span className="text-sm font-medium text-charcoal">{method.name}</span>
                       </div>
@@ -767,7 +767,7 @@ export default function CheckoutPage() {
                   ))}
                 </div>
                 {paymentMethod !== "COD" && (
-                  <div className="p-4 rounded-xl bg-pearl/50 space-y-3">
+                  <div className="p-3 sm:p-4 rounded-xl bg-pearl/50 space-y-3">
                     <div>
                       <Input label="Transaction ID *" placeholder="Enter transaction ID" value={transactionId} onChange={(e) => { setTransactionId(e.target.value); setFieldErrors((p) => ({ ...p, transactionId: "" })); }} className={fieldErrors.transactionId ? "border-destructive" : ""} />
                       <FieldError field="transactionId" />
@@ -779,7 +779,7 @@ export default function CheckoutPage() {
                 )}
 
                 {/* Price Breakdown */}
-                <div className="p-4 rounded-xl border border-border/30 bg-pearl/20 space-y-2 text-sm">
+                <div className="p-3 sm:p-4 rounded-xl border border-border/30 bg-pearl/20 space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-charcoal-lighter">Subtotal</span>
                     <span>{formatCurrency(subtotal)}</span>
@@ -802,7 +802,7 @@ export default function CheckoutPage() {
                 </div>
 
                 {stockError.length > 0 && (
-                  <div className="p-4 rounded-xl bg-destructive/5 border border-destructive/20 space-y-1">
+                  <div className="p-3 sm:p-4 rounded-xl bg-destructive/5 border border-destructive/20 space-y-1">
                     <p className="text-sm font-semibold text-destructive">Some items are no longer available:</p>
                     {stockError.map((err, i) => (
                       <p key={i} className="text-xs text-destructive/80">• {err}</p>
@@ -823,7 +823,7 @@ export default function CheckoutPage() {
 
           {/* ═══ Order Summary Sidebar ═══ */}
           {step < 4 && (
-            <div className="lg:col-span-2 order-1 lg:order-2">
+            <div className="lg:col-span-2 order-1 lg:order-2 min-w-0">
               <div className="lg:sticky lg:top-24 rounded-2xl border border-border/30 bg-pearl/30 p-3 sm:p-5">
                 <h3 className="font-heading text-base font-semibold text-charcoal mb-4">
                   Order Summary ({items.length})

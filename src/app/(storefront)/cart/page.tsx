@@ -78,7 +78,7 @@ export default function CartPage() {
 
         <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
           {/* Items */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 min-w-0">
             <AnimatePresence mode="popLayout">
               {items.map((item) => (
                 <motion.div
@@ -86,7 +86,7 @@ export default function CartPage() {
                   layout
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  exit={{ opacity: 0, x: -50 }}
+                  exit={{ opacity: 0 }}
                   className="flex gap-3 sm:gap-6 py-4 sm:py-6 border-b border-border/30"
                 >
                   <div className="relative h-24 w-[68px] sm:h-40 sm:w-32 flex-shrink-0 rounded-xl overflow-hidden bg-pearl">
