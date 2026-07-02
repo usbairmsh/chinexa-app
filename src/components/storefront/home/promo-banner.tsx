@@ -114,7 +114,7 @@ export function CategoryBanner() {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="relative rounded-2xl overflow-hidden aspect-[21/7] group"
+          className="relative rounded-2xl overflow-hidden aspect-[16/9] sm:aspect-[21/7] group"
         >
           <Image
             src={banner.image}
@@ -127,7 +127,7 @@ export function CategoryBanner() {
           />
           <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent" />
           <div className="absolute inset-0 flex items-center">
-            <div className="px-8 sm:px-12">
+            <div className="px-4 sm:px-8 lg:px-12">
               <h3 className="text-white font-heading text-2xl sm:text-3xl font-bold">{banner.title}</h3>
               {banner.subtitle && <p className="text-white/80 text-sm mt-1 max-w-md">{banner.subtitle}</p>}
               {banner.cta_text && (
@@ -181,7 +181,7 @@ export function PopupBanner() {
         className="relative max-w-lg w-full rounded-2xl overflow-hidden shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <button onClick={handleDismiss} className="absolute top-3 right-3 z-10 h-8 w-8 flex items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors">
+        <button onClick={handleDismiss} className="absolute top-3 right-3 z-10 h-10 w-10 flex items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors">
           <X className="h-4 w-4" />
         </button>
         <div className="relative aspect-[4/3]">

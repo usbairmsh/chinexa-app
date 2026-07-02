@@ -268,12 +268,12 @@ export default function OrderDetailPage() {
                 <span className="font-medium text-charcoal capitalize">{order.payment_method}</span>
               </div>
               {order.transaction_id && (
-                <div className="flex justify-between items-center">
-                  <span className="text-charcoal-lighter">Transaction ID</span>
-                  <div className="flex items-center gap-1">
-                    <code className="text-xs font-mono text-charcoal">{order.transaction_id}</code>
-                    <button onClick={() => handleCopy(order.transaction_id!)} className="text-charcoal-lighter hover:text-secondary">
-                      <Copy className="h-3 w-3" />
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-charcoal-lighter shrink-0">Transaction ID</span>
+                  <div className="flex items-center gap-1 min-w-0">
+                    <code className="text-xs font-mono text-charcoal truncate">{order.transaction_id}</code>
+                    <button onClick={() => handleCopy(order.transaction_id!)} className="text-charcoal-lighter hover:text-secondary shrink-0 p-1">
+                      <Copy className="h-3.5 w-3.5" />
                     </button>
                     {copied && <span className="text-[9px] text-success">Copied</span>}
                   </div>

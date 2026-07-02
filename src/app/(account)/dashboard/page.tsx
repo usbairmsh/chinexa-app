@@ -184,9 +184,9 @@ export default function AccountDashboard() {
                   <Package className="h-6 w-6 text-charcoal-lighter" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <p className="text-sm font-medium text-charcoal group-hover:text-secondary transition-colors">{displayId}</p>
-                    <span className={cn("inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full", config.color)}>
+                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                    <p className="text-sm font-medium text-charcoal group-hover:text-secondary transition-colors truncate">{displayId}</p>
+                    <span className={cn("inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0", config.color)}>
                       <StatusIcon className="h-3 w-3" /> {config.label}
                     </span>
                   </div>

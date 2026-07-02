@@ -45,7 +45,7 @@ function StorefrontTrustBadges({ badgeIds }: { badgeIds: string[] }) {
   if (badges.length === 0) return null;
 
   return (
-    <div className={cn("grid gap-3", badges.length >= 3 ? "grid-cols-3" : badges.length === 2 ? "grid-cols-2" : "grid-cols-1")}>
+    <div className={cn("grid gap-3", badges.length >= 3 ? "grid-cols-2 sm:grid-cols-3" : badges.length === 2 ? "grid-cols-2" : "grid-cols-1")}>
       {badges.map((badge) => {
         const Icon = getIconById(badge.icon);
         return (
@@ -293,14 +293,14 @@ export default function ProductDetailPage() {
                 <>
                   <button
                     onClick={() => setSelectedImage((p) => (p - 1 + product.images.length) % product.images.length)}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-md opacity-0 group-hover:opacity-100 transition-all hover:bg-white z-10"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-white z-10"
                     aria-label="Previous image"
                   >
                     <ChevronLeft className="h-5 w-5 text-charcoal" />
                   </button>
                   <button
                     onClick={() => setSelectedImage((p) => (p + 1) % product.images.length)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-md opacity-0 group-hover:opacity-100 transition-all hover:bg-white z-10"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-white z-10"
                     aria-label="Next image"
                   >
                     <ChevronRight className="h-5 w-5 text-charcoal" />
@@ -485,7 +485,7 @@ export default function ProductDetailPage() {
                     <button
                       onClick={() => toggleItem(product.id)}
                       className={cn(
-                        "flex items-center gap-2 h-10 px-3 sm:px-5 rounded-full border text-xs sm:text-sm font-medium transition-all duration-200 flex-1 sm:flex-initial justify-center",
+                        "flex items-center gap-2 h-11 px-3 sm:px-5 rounded-full border text-xs sm:text-sm font-medium transition-all duration-200 flex-1 sm:flex-initial justify-center",
                         wishlisted
                           ? "border-secondary bg-secondary/5 text-secondary"
                           : "border-border text-charcoal-light hover:border-charcoal hover:text-charcoal"
@@ -497,7 +497,7 @@ export default function ProductDetailPage() {
                     <button
                       onClick={handleShare}
                       className={cn(
-                        "flex items-center gap-2 h-10 px-3 sm:px-5 rounded-full border text-xs sm:text-sm font-medium transition-all duration-300 shrink-0",
+                        "flex items-center gap-2 h-11 px-3 sm:px-5 rounded-full border text-xs sm:text-sm font-medium transition-all duration-300 shrink-0",
                         shared
                           ? "border-success bg-success text-white"
                           : "border-border text-charcoal-light hover:border-charcoal hover:text-charcoal"

@@ -51,8 +51,8 @@ export function BrandStory() {
                 sizes="(max-width: 1024px) 100vw, 50vw"
               />
             </div>
-            <div className="absolute -bottom-6 -left-6 w-48 h-48 rounded-2xl bg-primary/30 -z-10" />
-            <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full bg-secondary/20 -z-10" />
+            <div className="absolute -bottom-6 -left-6 w-48 h-48 rounded-2xl bg-primary/30 -z-10 hidden sm:block" />
+            <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full bg-secondary/20 -z-10 hidden sm:block" />
           </motion.div>
         </div>
       </div>

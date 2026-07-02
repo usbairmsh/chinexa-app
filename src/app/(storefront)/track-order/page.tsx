@@ -158,7 +158,7 @@ export default function TrackOrderPage() {
             {/* Order Summary */}
             <Card>
               <CardContent className="p-5">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-start justify-between gap-2 mb-4">
                   <div>
                     <h3 className="font-heading text-lg font-semibold text-charcoal">{order.order_number}</h3>
                     <p className="text-xs text-charcoal-lighter">Placed on {formatDateTime(order.created_at)}</p>
@@ -169,8 +169,8 @@ export default function TrackOrderPage() {
                 </div>
                 <div className="space-y-2">
                   {(order.items || []).map((item, i) => (
-                    <div key={i} className="flex justify-between text-sm">
-                      <span className="text-charcoal-light">
+                    <div key={i} className="flex justify-between gap-2 text-sm">
+                      <span className="text-charcoal-light flex-1 min-w-0 truncate">
                         {item.product_name} {item.quantity > 1 ? `x${item.quantity}` : ""}
                       </span>
                       <span className="font-medium text-charcoal">{formatCurrency(Number(item.total_price))}</span>

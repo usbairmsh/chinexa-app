@@ -158,7 +158,7 @@ export default function AddressesPage() {
                         </div>
                       </div>
                       <DropdownMenu>
-                        <DropdownMenuTrigger className="p-1.5 hover:bg-pearl rounded-lg">
+                        <DropdownMenuTrigger className="p-2.5 -m-1 hover:bg-pearl rounded-lg">
                           <MoreHorizontal className="h-4 w-4 text-charcoal-lighter" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -199,7 +199,7 @@ export default function AddressesPage() {
             <DialogDescription>Enter your shipping or billing address</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-charcoal-light mb-1.5">Label</label>
                 <Select value={fLabel} onValueChange={setFLabel}>
@@ -216,7 +216,7 @@ export default function AddressesPage() {
             <Input label="Phone Number" value={fPhone} onChange={(e) => setFPhone(e.target.value)} placeholder="+880 1XXXXXXXXX" type="tel" />
             <Input label="Address Line 1 *" value={fAddr1} onChange={(e) => setFAddr1(e.target.value)} placeholder="House/Flat, Road" />
             <Input label="Address Line 2 (Area)" value={fAddr2} onChange={(e) => setFAddr2(e.target.value)} placeholder="Area, Landmark" />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-charcoal-light mb-1.5">Division</label>
                 <Select value={fDivision} onValueChange={setFDivision}>
@@ -228,7 +228,7 @@ export default function AddressesPage() {
               </div>
               <Input label="District" value={fDistrict} onChange={(e) => setFDistrict(e.target.value)} placeholder="District" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="City" value={fCity} onChange={(e) => setFCity(e.target.value)} placeholder="City" />
               <Input label="Postal Code" value={fPostal} onChange={(e) => setFPostal(e.target.value)} placeholder="1212" />
             </div>

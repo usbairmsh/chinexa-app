@@ -207,11 +207,11 @@ export function Header() {
             </nav>
 
             {/* ── RIGHT: Action Icons (visible on all screens) ── */}
-            <div className="flex items-center gap-0.5 shrink-0 ml-auto lg:ml-0">
+            <div className="flex items-center gap-1 shrink-0 ml-auto lg:ml-0">
               {/* Search */}
               <button
                 onClick={() => setSearchOverlayOpen(true)}
-                className="flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all"
+                className="flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all"
                 aria-label="Search"
               >
                 <Search className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
@@ -220,7 +220,7 @@ export function Header() {
               {/* Wishlist */}
               <Link
                 href="/wishlist"
-                className="relative flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all"
+                className="relative flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all"
                 aria-label="Wishlist"
               >
                 <Heart className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
@@ -235,7 +235,7 @@ export function Header() {
               {pathname !== "/cart" && (
                 <button
                   onClick={() => setCartDrawerOpen(true)}
-                  className="relative flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all"
+                  className="relative flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all"
                   aria-label="Cart"
                 >
                   <ShoppingBag className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
@@ -255,7 +255,7 @@ export function Header() {
               {isAuthenticated ? (
                 <Link
                   href="/dashboard"
-                  className="flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all"
+                  className="flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all"
                   aria-label="Account"
                 >
                   <User className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
@@ -265,7 +265,7 @@ export function Header() {
                   {/* Mobile — icon */}
                   <Link
                     href="/login"
-                    className="flex sm:hidden items-center justify-center h-8 w-8 rounded-full bg-secondary text-white hover:bg-secondary-dark transition-all duration-200"
+                    className="flex sm:hidden items-center justify-center h-9 w-9 rounded-full bg-secondary text-white hover:bg-secondary-dark transition-all duration-200"
                     aria-label="Sign In"
                   >
                     <User className="h-4 w-4" />
@@ -303,7 +303,7 @@ export function Header() {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 300 }}
-              className="fixed inset-y-0 left-0 z-50 w-[300px] bg-white shadow-[20px_0_60px_rgba(0,0,0,0.1)] lg:hidden flex flex-col"
+              className="fixed inset-y-0 left-0 z-50 w-[85vw] max-w-[300px] bg-white shadow-[20px_0_60px_rgba(0,0,0,0.1)] lg:hidden flex flex-col"
             >
               <div className="flex-1 overflow-y-auto overscroll-contain p-5">
                 {/* Mobile Header */}
@@ -311,7 +311,7 @@ export function Header() {
                   <Image src="/logo.png" alt="ChineXa" width={120} height={46} className="h-10 w-auto" />
                   <button
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-center h-8 w-8 rounded-full hover:bg-pearl text-charcoal-lighter"
+                    className="flex items-center justify-center h-10 w-10 rounded-full hover:bg-pearl text-charcoal-lighter"
                   >
                     <X className="h-4 w-4" />
                   </button>

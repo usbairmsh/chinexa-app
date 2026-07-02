@@ -55,7 +55,7 @@ export default function AboutPage() {
                 </p>
               </div>
             </motion.div>
-            <motion.div initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="relative">
+            <motion.div initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="relative overflow-hidden">
               <div className="relative aspect-[4/5] rounded-3xl overflow-hidden">
                 <Image src="https://picsum.photos/seed/about-hero/800/1000" alt="ChineXa team" fill className="object-cover" sizes="(max-width: 1024px) 100vw, 50vw" />
               </div>

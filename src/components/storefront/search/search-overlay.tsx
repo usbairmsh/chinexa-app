@@ -142,7 +142,7 @@ export function SearchOverlay() {
                 )}
                 <button
                   onClick={() => setSearchOverlayOpen(false)}
-                  className="flex items-center justify-center h-8 w-8 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors ml-1"
+                  className="flex items-center justify-center h-10 w-10 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors ml-1"
                   aria-label="Close search"
                 >
                   <X className="h-4 w-4" />
@@ -248,7 +248,7 @@ export function SearchOverlay() {
                             <button
                               key={term}
                               onClick={() => handleRecentClick(term)}
-                              className="px-3 py-1.5 rounded-full bg-pearl text-xs text-charcoal hover:bg-primary-light hover:text-secondary transition-colors"
+                              className="px-4 py-2.5 rounded-full bg-pearl text-xs text-charcoal hover:bg-primary-light hover:text-secondary transition-colors"
                             >
                               {term}
                             </button>
@@ -267,7 +267,7 @@ export function SearchOverlay() {
                           <button
                             key={term}
                             onClick={() => handleTrendingClick(term)}
-                            className="px-3 py-1.5 rounded-full border border-border/30 text-xs text-charcoal-light hover:border-secondary hover:text-secondary hover:bg-primary-light transition-all"
+                            className="px-4 py-2.5 rounded-full border border-border/30 text-xs text-charcoal-light hover:border-secondary hover:text-secondary hover:bg-primary-light transition-all"
                           >
                             {term}
                           </button>

@@ -118,8 +118,8 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
             <button
               onClick={handleWishlist}
               className={cn(
-                "absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full shadow-card transition-all duration-200 opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0",
-                wishlisted ? "bg-secondary text-white opacity-100 translate-x-0" : "bg-white hover:bg-secondary hover:text-white"
+                "absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full shadow-card transition-all duration-200 sm:opacity-0 sm:translate-x-2 sm:group-hover:opacity-100 sm:group-hover:translate-x-0",
+                wishlisted ? "bg-secondary text-white" : "bg-white hover:bg-secondary hover:text-white"
               )}
               aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
             >
@@ -128,13 +128,13 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
 
             {/* Low stock badge */}
             {product.stock_quantity > 0 && product.stock_quantity <= 5 && (
-              <div className="absolute top-3 right-3 z-10">
+              <div className="absolute top-12 right-3 z-10">
                 <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[9px] font-semibold">Only {product.stock_quantity} left!</span>
               </div>
             )}
 
             {/* Add to Bag / Out of Stock */}
-            <div className="absolute bottom-0 left-0 right-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+            <div className="absolute bottom-0 left-0 right-0 sm:translate-y-full sm:group-hover:translate-y-0 transition-transform duration-300">
               <div className="bg-gradient-to-t from-black/50 to-transparent pt-8 pb-3 px-3">
                 {product.stock_quantity > 0 ? (
                   <button
@@ -223,7 +223,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
 
               {/* Product Preview */}
               <div className="flex gap-4 p-5 pb-0">
-                <div className="relative h-28 w-22 sm:h-32 sm:w-24 rounded-xl overflow-hidden bg-pearl shrink-0">
+                <div className="relative h-28 w-[88px] sm:h-32 sm:w-24 rounded-xl overflow-hidden bg-pearl shrink-0">
                   <Image
                     src={product.images[0]?.url || `https://picsum.photos/seed/${product.slug}/200/250`}
                     alt={product.name}

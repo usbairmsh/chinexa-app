@@ -68,7 +68,7 @@ export function CartDrawer() {
               </h2>
               <button
                 onClick={() => setCartDrawerOpen(false)}
-                className="rounded-full p-1.5 text-charcoal-lighter hover:text-charcoal hover:bg-primary-light transition-colors"
+                className="rounded-full p-2.5 text-charcoal-lighter hover:text-charcoal hover:bg-primary-light transition-colors"
                 aria-label="Close cart"
               >
                 <X className="h-4 w-4" />
@@ -136,7 +136,7 @@ export function CartDrawer() {
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                className="flex h-7 w-7 items-center justify-center rounded-full border border-border hover:border-secondary transition-colors"
+                                className="flex h-9 w-9 items-center justify-center rounded-full border border-border hover:border-secondary transition-colors"
                                 aria-label="Decrease quantity"
                               >
                                 <Minus className="h-3 w-3" />
@@ -144,7 +144,7 @@ export function CartDrawer() {
                               <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
                               <button
                                 onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                className="flex h-7 w-7 items-center justify-center rounded-full border border-border hover:border-secondary transition-colors"
+                                className="flex h-9 w-9 items-center justify-center rounded-full border border-border hover:border-secondary transition-colors"
                                 aria-label="Increase quantity"
                               >
                                 <Plus className="h-3 w-3" />
@@ -156,7 +156,7 @@ export function CartDrawer() {
                               </span>
                               <button
                                 onClick={() => removeItem(item.id)}
-                                className="p-1 text-charcoal-lighter hover:text-destructive transition-colors"
+                                className="p-2 text-charcoal-lighter hover:text-destructive transition-colors"
                                 aria-label="Remove item"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
