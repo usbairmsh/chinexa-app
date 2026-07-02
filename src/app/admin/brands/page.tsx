@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { Plus, Edit, Trash2, MoreHorizontal, Loader2, AlertTriangle, Save, X, Globe, Award, Package } from "lucide-react";
+import { Plus, Edit, Trash2, MoreHorizontal, Loader2, AlertTriangle, Save, X, Globe, Award, Package, Home } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,7 @@ import { cn, slugify } from "@/lib/utils";
 interface Brand {
   id: string; name: string; slug: string; logo?: string; country?: string;
   description?: string; website?: string; certifications: string[];
-  is_active: boolean; product_count: number; created_at: string;
+  is_active: boolean; show_on_homepage: boolean; product_count: number; created_at: string;
 }
 
 export default function AdminBrandsPage() {
@@ -40,6 +40,7 @@ export default function AdminBrandsPage() {
   const [fWebsite, setFWebsite] = useState("");
   const [fCerts, setFCerts] = useState<string[]>([""]);
   const [fActive, setFActive] = useState(true);
+  const [fHomepage, setFHomepage] = useState(false);
   const [autoSlug, setAutoSlug] = useState(true);
 
   const fetchBrands = async () => {
@@ -54,7 +55,7 @@ export default function AdminBrandsPage() {
 
   const resetForm = () => {
     setFName(""); setFSlug(""); setFLogo(""); setFCountry(""); setFDesc("");
-    setFWebsite(""); setFCerts([""]); setFActive(true); setAutoSlug(true);
+    setFWebsite(""); setFCerts([""]); setFActive(true); setFHomepage(false); setAutoSlug(true);
     setEditBrand(null);
   };
 
@@ -66,7 +67,7 @@ export default function AdminBrandsPage() {
     setFCountry(brand.country || ""); setFDesc(brand.description || "");
     setFWebsite(brand.website || "");
     setFCerts(brand.certifications.length > 0 ? brand.certifications : [""]);
-    setFActive(brand.is_active); setAutoSlug(false);
+    setFActive(brand.is_active); setFHomepage(brand.show_on_homepage); setAutoSlug(false);
     setDialogOpen(true);
   };
 
@@ -78,7 +79,7 @@ export default function AdminBrandsPage() {
         name: fName.trim(), slug: fSlug.trim() || slugify(fName),
         logo: fLogo || null, country: fCountry || null, description: fDesc.trim() || null,
         website: fWebsite.trim() || null, certifications: fCerts.filter((c) => c.trim()),
-        is_active: fActive,
+        is_active: fActive, show_on_homepage: fHomepage,
       };
       if (editBrand) {
         await fetch(`/api/brands/${editBrand.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -147,11 +148,10 @@ export default function AdminBrandsPage() {
                   </DropdownMenu>
                 </div>
 
-                {brand.certifications.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {brand.certifications.map((c, i) => <Badge key={i} variant="outline" className="text-[9px]">{c}</Badge>)}
-                  </div>
-                )}
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {brand.show_on_homepage && <Badge className="text-[9px] bg-primary/10 text-primary border-primary/20"><Home className="h-2.5 w-2.5 mr-0.5" /> Homepage</Badge>}
+                  {brand.certifications.map((c, i) => <Badge key={i} variant="outline" className="text-[9px]">{c}</Badge>)}
+                </div>
 
                 <div className="flex items-center justify-between pt-3 border-t border-border/30">
                   <div className="flex items-center gap-2">
@@ -194,9 +194,15 @@ export default function AdminBrandsPage() {
                 ))}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Switch checked={fActive} onCheckedChange={setFActive} />
-              <label className="text-sm text-charcoal-lighter">Active</label>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Switch checked={fActive} onCheckedChange={setFActive} />
+                <label className="text-sm text-charcoal-lighter">Active</label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch checked={fHomepage} onCheckedChange={setFHomepage} />
+                <label className="text-sm text-charcoal-lighter flex items-center gap-1"><Home className="h-3 w-3" /> Show on Homepage</label>
+              </div>
             </div>
           </div>
           <DialogFooter className="shrink-0 pt-3">

@@ -8,7 +8,7 @@ import { BrandStory } from "@/components/storefront/home/brand-story";
 import { TrustBadges } from "@/components/storefront/home/trust-badges";
 import { ReviewsMarquee } from "@/components/storefront/home/reviews-marquee";
 import { InstagramFeed } from "@/components/storefront/home/instagram-feed";
-import { FaqSection } from "@/components/storefront/home/faq-section";
+import { BrandsMarquee } from "@/components/storefront/home/brands-marquee";
 import { PromoBannerStrip, CategoryBanner, PopupBanner } from "@/components/storefront/home/promo-banner";
 import { useNewArrivals, useBestsellers, useTrendingProducts, usePreorderProducts } from "@/hooks/queries/use-products";
 
@@ -45,7 +45,7 @@ const defaultSections: SectionConfig[] = [
   { id: "s10", type: "category_banner", title: "", subtitle: "", visible: true, order: 10 },
   { id: "s11", type: "reviews", title: "", subtitle: "", visible: true, order: 11 },
   { id: "s12", type: "instagram", title: "", subtitle: "", visible: true, order: 12 },
-  { id: "s13", type: "faq", title: "", subtitle: "", visible: true, order: 13 },
+  { id: "s13", type: "brands", title: "", subtitle: "", visible: true, order: 13 },
   { id: "s14", type: "popup_banner", title: "", subtitle: "", visible: true, order: 14 },
 ];
 
@@ -138,8 +138,8 @@ export default function HomePage() {
         return <ReviewsMarquee key={section.id} />;
       case "instagram":
         return <InstagramFeed key={section.id} />;
-      case "faq":
-        return <FaqSection key={section.id} />;
+      case "brands":
+        return <BrandsMarquee key={section.id} />;
       default:
         return null;
     }

@@ -43,7 +43,7 @@ const defaultSections: SectionConfig[] = [
   { id: "s10", type: "category_banner", title: "Category Banner", subtitle: "", description: "Full-width category banner (set in Banners > position: category)", visible: true, order: 10 },
   { id: "s11", type: "reviews", title: "Customer Reviews", subtitle: "", description: "Scrolling customer reviews", visible: true, order: 11 },
   { id: "s12", type: "instagram", title: "Instagram Feed", subtitle: "", description: "Social media gallery", visible: true, order: 12 },
-  { id: "s13", type: "faq", title: "FAQ", subtitle: "", description: "Frequently asked questions", visible: true, order: 13 },
+  { id: "s13", type: "brands", title: "Our Brands", subtitle: "", description: "Auto-scrolling brands carousel", visible: true, order: 13 },
   { id: "s14", type: "popup_banner", title: "Popup Banner", subtitle: "", description: "Welcome popup overlay (set in Banners > position: popup)", visible: true, order: 14 },
 ];
 

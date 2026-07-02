@@ -11,7 +11,7 @@ export type SectionType =
   | "reviews"
   | "newsletter"
   | "blog_preview"
-  | "faq"
+  | "brands"
   | "promo_banner";
 
 export interface HomepageSection {

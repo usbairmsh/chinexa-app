@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS brands (
   website VARCHAR(500),
   certifications JSON,
   is_active BOOLEAN DEFAULT TRUE,
+  show_on_homepage BOOLEAN DEFAULT FALSE,
   product_count INT DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;

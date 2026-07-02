@@ -15,6 +15,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
     if (body.certifications !== undefined) { fields.push("certifications = ?"); values.push(JSON.stringify(body.certifications)); }
     if (body.is_active !== undefined) { fields.push("is_active = ?"); values.push(body.is_active ? 1 : 0); }
+    if (body.show_on_homepage !== undefined) { fields.push("show_on_homepage = ?"); values.push(body.show_on_homepage ? 1 : 0); }
     if (fields.length === 0) return NextResponse.json({ error: "No fields" }, { status: 400 });
     values.push(id);
     await execute(`UPDATE brands SET ${fields.join(", ")} WHERE id = ?`, values);

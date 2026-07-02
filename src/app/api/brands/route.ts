@@ -6,12 +6,21 @@ import { validate, validationError } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+let migrated = false;
+
+export async function GET(req: NextRequest) {
   try {
+    if (!migrated) {
+      try { await execute("ALTER TABLE brands ADD COLUMN show_on_homepage BOOLEAN DEFAULT FALSE", []); } catch {}
+      migrated = true;
+    }
     const rows = await query<RowDataPacket[]>("SELECT * FROM brands ORDER BY name ASC");
-    return NextResponse.json(rows.map((r) => ({
+    const showOnHomepage = new URL(req.url).searchParams.get("homepage");
+    const filtered = showOnHomepage === "true" ? rows.filter((r) => r.show_on_homepage) : rows;
+    return NextResponse.json(filtered.map((r) => ({
       ...r,
       is_active: !!r.is_active,
+      show_on_homepage: !!r.show_on_homepage,
       certifications: typeof r.certifications === "string" ? JSON.parse(r.certifications) : r.certifications || [],
     })));
   } catch (error: unknown) {
@@ -31,8 +40,8 @@ export async function POST(req: NextRequest) {
     const slug = body.slug || body.name.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-").replace(/^-+|-+$/g, "");
 
     await execute(
-      "INSERT INTO brands (id, name, slug, logo, country, description, website, certifications, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [id, body.name, slug, body.logo || null, body.country || null, body.description || null, body.website || null, JSON.stringify(body.certifications || []), body.is_active !== false ? 1 : 0]
+      "INSERT INTO brands (id, name, slug, logo, country, description, website, certifications, is_active, show_on_homepage) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [id, body.name, slug, body.logo || null, body.country || null, body.description || null, body.website || null, JSON.stringify(body.certifications || []), body.is_active !== false ? 1 : 0, body.show_on_homepage ? 1 : 0]
     );
     await logActivity("Created brand", "product", id, body.name);
     return NextResponse.json({ success: true, id }, { status: 201 });
