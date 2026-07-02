@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Save, Eye, Upload, X, Plus, Trash2, GripVertical,
-  ImagePlus, Tag, Globe, Sparkles, Package, BarChart3, Copy, Check
+  ImagePlus, Tag, Globe, Sparkles, Package, BarChart3, Copy, Check, Shield
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,21 +23,7 @@ import { ImagePositionEditor } from "@/components/admin/shared/image-position-ed
 import { cn } from "@/lib/utils";
 import { CountrySearch } from "@/components/admin/shared/country-search";
 import { BrandSearch } from "@/components/admin/shared/brand-search";
-import { TRUST_BADGE_OPTIONS } from "@/lib/trust-badges";
-import {
-  Shield, Truck, RotateCcw, BadgeCheck, Banknote, Lock, Zap, Award as AwardIcon,
-  Globe as GlobeIcon, Heart, CheckCircle2, Clock as ClockIcon, Gift as GiftIcon, Headphones, Tag as TagIcon
-} from "lucide-react";
-
-const trustIconMap: Record<string, typeof Shield> = {
-  Shield, Truck, RotateCcw, BadgeCheck, Banknote, Lock, Zap, Award: AwardIcon,
-  Globe: GlobeIcon, Heart, CheckCircle2, Clock: ClockIcon, Gift: GiftIcon, Headphones, Tag: TagIcon,
-};
-
-function TrustBadgeIcon({ name, className }: { name: string; className?: string }) {
-  const Icon = trustIconMap[name] || Shield;
-  return <Icon className={className} />;
-}
+import { getIconById, type TrustBadge } from "@/lib/trust-badges";
 
 type VariantRow = {
   id: string;
@@ -84,6 +70,13 @@ export default function AddProductPage() {
     fetch("/api/brands").then((r) => r.json()).then((data) => {
       if (Array.isArray(data)) setDbBrands(data.filter((b: Record<string, unknown>) => b.is_active).map((b: Record<string, unknown>) => ({ id: b.id as string, name: b.name as string })));
     }).catch(() => {});
+    fetch("/api/settings?key=trust_badges_config").then((r) => r.json()).then((data) => {
+      if (data?.value && Array.isArray(data.value)) {
+        setAvailableTrustBadges(data.value);
+        // Default: select first 3
+        if (data.value.length > 0) setSelectedTrustBadges(data.value.slice(0, 3).map((b: TrustBadge) => b.id));
+      }
+    }).catch(() => {});
   }, []);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -116,7 +109,8 @@ export default function AddProductPage() {
   const [howToUse, setHowToUse] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [subcategory, setSubcategory] = useState("");
-  const [selectedTrustBadges, setSelectedTrustBadges] = useState<string[]>(["authentic", "free_delivery", "returns"]);
+  const [selectedTrustBadges, setSelectedTrustBadges] = useState<string[]>([]);
+  const [availableTrustBadges, setAvailableTrustBadges] = useState<TrustBadge[]>([]);
   const [seoTitle, setSeoTitle] = useState("");
   const [seoDesc, setSeoDesc] = useState("");
   const [seoPromptOpen, setSeoPromptOpen] = useState(false);
@@ -547,42 +541,46 @@ export default function AddProductPage() {
               {/* Trust Badges */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-secondary" /> Trust Badges
-                  </CardTitle>
-                  <CardDescription>Select up to 3 trust badges shown on the product page</CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4 text-secondary" /> Trust Badges</CardTitle>
+                      <CardDescription>Select up to 3 badges. <a href="/admin/trust-badges" target="_blank" className="text-secondary hover:underline">Manage badges</a></CardDescription>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
+                  {availableTrustBadges.length === 0 ? (
+                    <p className="text-xs text-charcoal-lighter text-center py-4">No trust badges configured. <a href="/admin/trust-badges" className="text-secondary hover:underline">Create some</a></p>
+                  ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {TRUST_BADGE_OPTIONS.map((badge) => {
+                    {availableTrustBadges.map((badge) => {
                       const isSelected = selectedTrustBadges.includes(badge.id);
+                      const Icon = getIconById(badge.icon);
                       return (
                         <button
                           key={badge.id}
                           type="button"
                           onClick={() => {
-                            if (isSelected) {
-                              setSelectedTrustBadges((prev) => prev.filter((b) => b !== badge.id));
-                            } else if (selectedTrustBadges.length < 3) {
-                              setSelectedTrustBadges((prev) => [...prev, badge.id]);
-                            }
+                            if (isSelected) setSelectedTrustBadges((prev) => prev.filter((b) => b !== badge.id));
+                            else if (selectedTrustBadges.length < 3) setSelectedTrustBadges((prev) => [...prev, badge.id]);
                           }}
                           disabled={!isSelected && selectedTrustBadges.length >= 3}
                           className={cn(
-                            "flex items-start gap-2 p-3 rounded-xl border text-left transition-all",
+                            "flex items-center gap-2 p-3 rounded-xl border text-left transition-all",
                             isSelected ? "border-secondary bg-secondary/5" : "border-border/30 hover:border-secondary/40",
                             !isSelected && selectedTrustBadges.length >= 3 && "opacity-40 cursor-not-allowed"
                           )}
                         >
-                          <TrustBadgeIcon name={badge.icon} className="h-4 w-4 text-secondary shrink-0 mt-0.5" />
+                          <Icon className="h-4 w-4 text-secondary shrink-0" />
                           <div>
-                            <p className="text-xs font-medium text-charcoal">{badge.label}</p>
-                            <p className="text-[9px] text-charcoal-lighter">{badge.sub}</p>
+                            <p className="text-xs font-medium text-charcoal">{badge.title}</p>
+                            <p className="text-[9px] text-charcoal-lighter">{badge.description}</p>
                           </div>
                         </button>
                       );
                     })}
                   </div>
+                  )}
                   <p className="text-[10px] text-charcoal-lighter mt-2">{selectedTrustBadges.length}/3 selected</p>
                 </CardContent>
               </Card>

@@ -25,6 +25,40 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, cn } from "@/lib/utils";
 import { getCountryFlag } from "@/lib/countries";
 import { useStoreSettings } from "@/hooks/use-store-settings";
+import { getIconById, type TrustBadge } from "@/lib/trust-badges";
+
+function StorefrontTrustBadges({ badgeIds }: { badgeIds: string[] }) {
+  const [badges, setBadges] = useState<TrustBadge[]>([]);
+  useEffect(() => {
+    fetch("/api/settings?key=trust_badges_config")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.value && Array.isArray(data.value)) {
+          const all: TrustBadge[] = data.value;
+          const selected = badgeIds.length > 0 ? all.filter((b) => badgeIds.includes(b.id)) : all.slice(0, 3);
+          setBadges(selected);
+        }
+      })
+      .catch(() => {});
+  }, [badgeIds]);
+
+  if (badges.length === 0) return null;
+
+  return (
+    <div className={cn("grid gap-3", badges.length >= 3 ? "grid-cols-3" : badges.length === 2 ? "grid-cols-2" : "grid-cols-1")}>
+      {badges.map((badge) => {
+        const Icon = getIconById(badge.icon);
+        return (
+          <div key={badge.id} className="flex flex-col items-center text-center p-3 rounded-xl bg-pearl/60">
+            <Icon className="h-5 w-5 text-secondary mb-1.5" />
+            <span className="text-[11px] font-semibold text-charcoal leading-tight">{badge.title}</span>
+            <span className="text-[9px] text-charcoal-lighter">{badge.description}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 interface ReviewData {
   id: string; customer_name: string; rating: number; title: string | null;
@@ -516,43 +550,8 @@ export default function ProductDetailPage() {
                 </div>
               )}
 
-              {/* Trust Promises */}
-              {(() => {
-                const badgeIds = product.trust_badges?.length ? product.trust_badges : ["authentic", "free_delivery", "returns"];
-                const iconMap: Record<string, typeof Shield> = { Shield, Truck, RotateCcw, Zap, Globe, Clock };
-                const badgeData: Record<string, { label: string; sub: string; iconKey: string }> = {
-                  authentic: { label: "100% Authentic", sub: "Verified products", iconKey: "Shield" },
-                  free_delivery: { label: "Free Delivery", sub: `Orders above ৳${free_delivery_threshold.toLocaleString()}`, iconKey: "Truck" },
-                  returns: { label: "7-Day Returns", sub: "Hassle free", iconKey: "RotateCcw" },
-                  genuine: { label: "100% Genuine", sub: "Original products", iconKey: "Shield" },
-                  cash_on_delivery: { label: "Cash on Delivery", sub: "Pay when you receive", iconKey: "Shield" },
-                  secure_payment: { label: "Secure Payment", sub: "SSL encrypted", iconKey: "Shield" },
-                  fast_shipping: { label: "Fast Shipping", sub: "1-3 business days", iconKey: "Zap" },
-                  warranty: { label: "Warranty", sub: "Quality guaranteed", iconKey: "Shield" },
-                  imported: { label: "Imported Original", sub: "Directly sourced", iconKey: "Globe" },
-                  cruelty_free: { label: "Cruelty Free", sub: "Not tested on animals", iconKey: "Shield" },
-                  halal: { label: "Halal Certified", sub: "Certified products", iconKey: "Shield" },
-                  express: { label: "Express Delivery", sub: "Same day available", iconKey: "Clock" },
-                  gift_wrap: { label: "Gift Wrapping", sub: "Available on request", iconKey: "Shield" },
-                  support: { label: "24/7 Support", sub: "Always here to help", iconKey: "Shield" },
-                  best_price: { label: "Best Price", sub: "Price match guarantee", iconKey: "Shield" },
-                };
-                const badges = badgeIds.map((id) => badgeData[id]).filter(Boolean);
-                return (
-                  <div className={cn("grid gap-3", badges.length >= 3 ? "grid-cols-3" : badges.length === 2 ? "grid-cols-2" : "grid-cols-1")}>
-                    {badges.map((trust) => {
-                      const Icon = iconMap[trust.iconKey] || Shield;
-                      return (
-                        <div key={trust.label} className="flex flex-col items-start text-left p-3 rounded-xl bg-pearl/60">
-                          <Icon className="h-5 w-5 text-secondary mb-1.5" />
-                          <span className="text-[11px] font-semibold text-charcoal leading-tight">{trust.label}</span>
-                          <span className="text-[9px] text-charcoal-lighter">{trust.sub}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
+              {/* Trust Promises — loaded from settings */}
+              <StorefrontTrustBadges badgeIds={product.trust_badges || []} />
             </div>
           </motion.div>
         </div>

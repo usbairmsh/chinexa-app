@@ -23,21 +23,8 @@ import { ImagePositionEditor } from "@/components/admin/shared/image-position-ed
 import { cn, formatCurrency } from "@/lib/utils";
 import { CountrySearch } from "@/components/admin/shared/country-search";
 import { BrandSearch } from "@/components/admin/shared/brand-search";
-import { TRUST_BADGE_OPTIONS } from "@/lib/trust-badges";
-import {
-  Shield, Truck as TruckIcon, RotateCcw, BadgeCheck, Banknote, Lock as LockIcon, Zap, Award as AwardIcon,
-  Globe as GlobeIcon, Heart, CheckCircle2, Clock as ClockIcon, Gift as GiftIcon, Headphones, Tag as TagIcon2
-} from "lucide-react";
-
-const trustIconMap: Record<string, typeof Shield> = {
-  Shield, Truck: TruckIcon, RotateCcw, BadgeCheck, Banknote, Lock: LockIcon, Zap, Award: AwardIcon,
-  Globe: GlobeIcon, Heart, CheckCircle2, Clock: ClockIcon, Gift: GiftIcon, Headphones, Tag: TagIcon2,
-};
-
-function TrustBadgeIcon({ name, className }: { name: string; className?: string }) {
-  const Icon = trustIconMap[name] || Shield;
-  return <Icon className={className} />;
-}
+import { getIconById, type TrustBadge } from "@/lib/trust-badges";
+import { Shield } from "lucide-react";
 
 type VariantRow = {
   id: string; type: "size" | "color" | "shade" | "weight";
@@ -73,7 +60,8 @@ export default function EditProductPage() {
   const [subcategory, setSubcategory] = useState("");
   const [brandId, setBrandId] = useState("");
   const [dbBrands, setDbBrands] = useState<{ id: string; name: string }[]>([]);
-  const [selectedTrustBadges, setSelectedTrustBadges] = useState<string[]>(["authentic", "free_delivery", "returns"]);
+  const [selectedTrustBadges, setSelectedTrustBadges] = useState<string[]>([]);
+  const [availableTrustBadges, setAvailableTrustBadges] = useState<TrustBadge[]>([]);
   const [seoTitle, setSeoTitle] = useState("");
   const [seoDesc, setSeoDesc] = useState("");
   const [seoPromptOpen, setSeoPromptOpen] = useState(false);
@@ -152,6 +140,9 @@ export default function EditProductPage() {
     }).catch(() => {});
     fetch("/api/brands").then((r) => r.json()).then((data) => {
       if (Array.isArray(data)) setDbBrands(data.filter((b: Record<string, unknown>) => b.is_active).map((b: Record<string, unknown>) => ({ id: b.id as string, name: b.name as string })));
+    }).catch(() => {});
+    fetch("/api/settings?key=trust_badges_config").then((r) => r.json()).then((data) => {
+      if (data?.value && Array.isArray(data.value)) setAvailableTrustBadges(data.value);
     }).catch(() => {});
 
     fetch(`/api/products/${id}`).then((r) => r.json()).then((p) => {
@@ -551,13 +542,21 @@ export default function EditProductPage() {
               {/* Trust Badges */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4 text-secondary" /> Trust Badges</CardTitle>
-                  <CardDescription>Select up to 3 trust badges shown on the product page</CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4 text-secondary" /> Trust Badges</CardTitle>
+                      <CardDescription>Select up to 3. <a href="/admin/trust-badges" target="_blank" className="text-secondary hover:underline">Manage badges</a></CardDescription>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
+                  {availableTrustBadges.length === 0 ? (
+                    <p className="text-xs text-charcoal-lighter text-center py-4">No trust badges configured. <a href="/admin/trust-badges" className="text-secondary hover:underline">Create some</a></p>
+                  ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {TRUST_BADGE_OPTIONS.map((badge) => {
+                    {availableTrustBadges.map((badge) => {
                       const isSelected = selectedTrustBadges.includes(badge.id);
+                      const Icon = getIconById(badge.icon);
                       return (
                         <button key={badge.id} type="button"
                           onClick={() => {
@@ -565,16 +564,17 @@ export default function EditProductPage() {
                             else if (selectedTrustBadges.length < 3) setSelectedTrustBadges((prev) => [...prev, badge.id]);
                           }}
                           disabled={!isSelected && selectedTrustBadges.length >= 3}
-                          className={cn("flex items-start gap-2 p-3 rounded-xl border text-left transition-all",
+                          className={cn("flex items-center gap-2 p-3 rounded-xl border text-left transition-all",
                             isSelected ? "border-secondary bg-secondary/5" : "border-border/30 hover:border-secondary/40",
                             !isSelected && selectedTrustBadges.length >= 3 && "opacity-40 cursor-not-allowed"
                           )}>
-                          <TrustBadgeIcon name={badge.icon} className="h-4 w-4 text-secondary shrink-0 mt-0.5" />
-                          <div><p className="text-xs font-medium text-charcoal">{badge.label}</p><p className="text-[9px] text-charcoal-lighter">{badge.sub}</p></div>
+                          <Icon className="h-4 w-4 text-secondary shrink-0" />
+                          <div><p className="text-xs font-medium text-charcoal">{badge.title}</p><p className="text-[9px] text-charcoal-lighter">{badge.description}</p></div>
                         </button>
                       );
                     })}
                   </div>
+                  )}
                   <p className="text-[10px] text-charcoal-lighter mt-2">{selectedTrustBadges.length}/3 selected</p>
                 </CardContent>
               </Card>
