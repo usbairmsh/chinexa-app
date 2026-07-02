@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { Plus, Edit, Trash2, MoreHorizontal, FolderTree, Check, AlertTriangle, Eye, EyeOff, Globe, Tag, Sparkles, ChevronUp, ChevronDown, X } from "lucide-react";
+import { Plus, Edit, Trash2, MoreHorizontal, FolderTree, Check, AlertTriangle, Eye, EyeOff, Globe, Tag, Sparkles, ChevronUp, ChevronDown, X, Award } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -344,6 +344,34 @@ export default function AdminCategoriesPage() {
                           </div>
                         </div>
                       )}
+                      {/* Associated Brands */}
+                      {(() => {
+                        const catBrands: { id: string; name: string; product_count: number }[] = Array.isArray((cat as unknown as { brands?: { id: string; name: string; product_count: number }[] }).brands) ? (cat as unknown as { brands: { id: string; name: string; product_count: number }[] }).brands : [];
+                        if (catBrands.length === 0) return null;
+                        const catBrandIds: string[] = catBrands.map((b) => b.id);
+                        return (
+                          <div className="border-t border-border/15 bg-blue-50/30 px-3 py-2.5">
+                            <p className="text-[9px] font-semibold text-charcoal-lighter uppercase tracking-wider ml-14 mb-1.5">Brands</p>
+                            <div className="flex flex-col gap-1 ml-14">
+                              {catBrands.map((brand) => (
+                                <div key={brand.id} className="flex items-center gap-1.5 group">
+                                  <span className="flex items-center gap-1 rounded-full bg-white border border-blue-200/50 px-2.5 py-1 text-[10px] cursor-pointer hover:border-secondary/30 transition-colors">
+                                    <Award className="h-2.5 w-2.5 text-blue-500" />
+                                    <span className="font-medium">{brand.name}</span>
+                                    <span className="text-charcoal-lighter">({brand.product_count})</span>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); const next = catBrandIds.filter((id) => id !== brand.id); fetch(`/api/categories/${cat.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ brand_ids: next }) }).then(() => window.location.reload()); }}
+                                      className="text-charcoal-lighter/50 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                                    >
+                                      <Trash2 className="h-2.5 w-2.5" />
+                                    </button>
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </CardContent>
                   </Card>
                 </motion.div>

@@ -19,18 +19,37 @@ export async function GET() {
     const counts = await query<CountRow[]>("SELECT category_id, COUNT(*) as count FROM products WHERE is_active = 1 AND category_id IS NOT NULL GROUP BY category_id");
     const countMap = new Map(counts.map((c) => [c.category_id, c.count]));
 
+    // Get product counts per subcategory (by name match)
+    interface SubCountRow extends RowDataPacket { subcategory: string; count: number; }
+    const subCounts = await query<SubCountRow[]>("SELECT subcategory, COUNT(*) as count FROM products WHERE is_active = 1 AND subcategory IS NOT NULL AND subcategory != '' GROUP BY subcategory");
+    const subCountMap = new Map(subCounts.map((c) => [c.subcategory, c.count]));
+
+    // Get product counts per brand
+    interface BrandCountRow extends RowDataPacket { brand_name: string; count: number; }
+    const brandCounts = await query<BrandCountRow[]>("SELECT brand_name, COUNT(*) as count FROM products WHERE is_active = 1 AND brand_name IS NOT NULL AND brand_name != '' GROUP BY brand_name");
+    const brandCountMap = new Map(brandCounts.map((c) => [c.brand_name, c.count]));
+
+    // Get brand names for brand_ids mapping
+    const brandRows = await query<RowDataPacket[]>("SELECT id, name FROM brands WHERE is_active = 1");
+    const brandNameMap = new Map(brandRows.map((b) => [b.id as string, b.name as string]));
+
     const parents = rows.filter((r) => !r.parent_id).map((r) => ({
       id: r.id, name: r.name, slug: r.slug, description: r.description || undefined,
       image: r.image || undefined, order: r.order, is_active: !!r.is_active,
       product_count: countMap.get(r.id) || 0,
       brand_ids: typeof r.brand_ids === "string" ? JSON.parse(r.brand_ids) : r.brand_ids || [],
+      brands: (typeof r.brand_ids === "string" ? JSON.parse(r.brand_ids) : r.brand_ids || [])
+        .map((bid: string) => ({ id: bid, name: brandNameMap.get(bid) || bid, product_count: brandCountMap.get(brandNameMap.get(bid) || "") || 0 }))
+        .filter((b: { name: string }) => b.name),
       created_at: r.created_at,
       children: rows.filter((c) => c.parent_id === r.id)
         .sort((a, b) => (a.order || 0) - (b.order || 0))
         .map((c) => ({
           id: c.id, name: c.name, slug: c.slug, parent_id: c.parent_id,
           description: c.description || undefined,
-          order: c.order, is_active: !!c.is_active, product_count: countMap.get(c.id) || 0, created_at: c.created_at,
+          order: c.order, is_active: !!c.is_active,
+          product_count: (countMap.get(c.id) || 0) + (subCountMap.get(c.name as string) || 0),
+          created_at: c.created_at,
         })),
     }));
     return NextResponse.json(parents);

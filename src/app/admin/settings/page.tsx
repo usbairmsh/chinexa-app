@@ -228,7 +228,7 @@ export default function AdminSettingsPage() {
                         </button>
                         <div className="flex items-center gap-2">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full shrink-0" style={{ backgroundColor: platform?.color || "#666" }}>
-                            <span className="text-white">{platform?.icon || <span className="text-xs">{link.platform[0]?.toUpperCase()}</span>}</span>
+                            {platform ? platform.icon("#ffffff") : <span className="text-white text-xs">{link.platform[0]?.toUpperCase()}</span>}
                           </div>
                           <span className="text-xs font-medium text-charcoal">{platform?.name || link.platform}</span>
                         </div>
@@ -263,7 +263,7 @@ export default function AdminSettingsPage() {
                           )}
                         >
                           <div className="flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: p.color }}>
-                            <span className="text-white">{p.icon}</span>
+                            {p.icon("#ffffff")}
                           </div>
                           <span className="text-[10px] font-medium text-charcoal">{p.name}</span>
                         </button>
