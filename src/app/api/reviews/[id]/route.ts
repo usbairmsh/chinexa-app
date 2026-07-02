@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
+import { logActivity } from "@/lib/log-activity";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -24,6 +25,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       }
     }
 
+    if (body.is_approved !== undefined) await logActivity(body.is_approved ? "Approved review" : "Rejected review", "review", id);
+    if (body.admin_reply !== undefined) await logActivity("Replied to review", "review", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
@@ -31,6 +34,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try { const { id } = await params; await execute("DELETE FROM reviews WHERE id = ?", [id]); return NextResponse.json({ success: true }); }
+  try { const { id } = await params; await execute("DELETE FROM reviews WHERE id = ?", [id]); await logActivity("Deleted review", "review", id); return NextResponse.json({ success: true }); }
   catch (error: unknown) { return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 }); }
 }

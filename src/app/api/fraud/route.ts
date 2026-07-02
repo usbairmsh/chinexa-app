@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
+import { logActivity } from "@/lib/log-activity";
 
 interface FraudRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -39,6 +40,7 @@ export async function PUT(req: NextRequest) {
       "UPDATE fraud_alerts SET status = ?, reviewed_by = ?, notes = ?, updated_at = NOW() WHERE id = ?",
       [status, reviewed_by || null, notes || null, id]
     );
+    await logActivity(`Fraud alert ${status}`, "fraud", id, notes || undefined);
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

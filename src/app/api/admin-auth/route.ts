@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
+import { logActivity } from "@/lib/log-activity";
 import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
@@ -24,6 +25,7 @@ export async function POST(req: NextRequest) {
 
       // Update last_login
       await execute("UPDATE admin_users SET last_login = NOW() WHERE id = ?", [admin.id]);
+      await logActivity("Admin logged in", "admin", admin.id as string, admin.username as string, admin.id as string);
 
       return NextResponse.json({
         success: true,
@@ -58,6 +60,7 @@ export async function POST(req: NextRequest) {
         "INSERT INTO admin_users (id, username, password, name, email, phone, role, permissions) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         [id, username, hashed, name, email || null, phone || null, role === "superadmin" ? "superadmin" : "admin", perms]
       );
+      await logActivity("Added new admin", "admin", id, `${name} (${username})`, requester_id);
 
       return NextResponse.json({ success: true, id }, { status: 201 });
     }
@@ -70,6 +73,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Only super admin can update permissions" }, { status: 403 });
       }
       await execute("UPDATE admin_users SET permissions = ? WHERE id = ?", [JSON.stringify(permissions), admin_id]);
+      await logActivity("Updated admin permissions", "admin", admin_id, undefined, requester_id);
       return NextResponse.json({ success: true });
     }
 
@@ -87,6 +91,7 @@ export async function POST(req: NextRequest) {
 
       const hashed = await bcrypt.hash(new_password, 10);
       await execute("UPDATE admin_users SET password = ? WHERE id = ?", [hashed, admin_id]);
+      await logActivity("Changed password", "admin", admin_id, undefined, admin_id);
       return NextResponse.json({ success: true });
     }
 
@@ -103,6 +108,7 @@ export async function POST(req: NextRequest) {
       if (fields.length === 0) return NextResponse.json({ error: "No fields to update" }, { status: 400 });
       values.push(admin_id);
       await execute(`UPDATE admin_users SET ${fields.join(", ")} WHERE id = ?`, values);
+      await logActivity("Updated admin profile", "admin", admin_id, undefined, admin_id);
       return NextResponse.json({ success: true });
     }
 
@@ -125,6 +131,7 @@ export async function POST(req: NextRequest) {
       }
       if (requester_id === admin_id) return NextResponse.json({ error: "Cannot delete yourself" }, { status: 400 });
       await execute("DELETE FROM admin_users WHERE id = ?", [admin_id]);
+      await logActivity("Deleted admin", "admin", admin_id, undefined, requester_id);
       return NextResponse.json({ success: true });
     }
 
@@ -136,6 +143,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Only super admin can manage admins" }, { status: 403 });
       }
       await execute("UPDATE admin_users SET is_active = ? WHERE id = ?", [is_active ? 1 : 0, admin_id]);
+      await logActivity(is_active ? "Activated admin" : "Deactivated admin", "admin", admin_id, undefined, requester_id);
       return NextResponse.json({ success: true });
     }
 

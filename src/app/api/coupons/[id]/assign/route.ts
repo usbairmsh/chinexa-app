@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
+import { logActivity } from "@/lib/log-activity";
 
 // POST /api/coupons/[id]/assign — assign coupon to customer(s) or tier
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -37,6 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       inserted.push(entryId);
     }
 
+    await logActivity("Assigned coupon", "coupon", couponId, tier_name ? `Tier: ${tier_name}` : `${inserted.length} customer(s)`);
     return NextResponse.json({ success: true, assigned: inserted.length }, { status: 201 });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

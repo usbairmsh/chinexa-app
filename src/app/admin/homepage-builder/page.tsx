@@ -75,10 +75,16 @@ export default function AdminHomepageBuilder() {
           const config = data.value as HomepageConfig;
           if (config.sections?.length) {
             // Merge: keep saved sections + add any new default sections not yet in saved config
+            // Also backfill missing description from defaults
+            const defaultByType = new Map(defaultSections.map((s) => [s.type, s]));
+            const savedWithDesc = config.sections.map((s) => ({
+              ...s,
+              description: s.description || defaultByType.get(s.type)?.description || "",
+            }));
             const savedTypes = new Set(config.sections.map((s) => s.type));
             const newSections = defaultSections.filter((s) => !savedTypes.has(s.type));
-            const maxOrder = Math.max(...config.sections.map((s) => s.order), 0);
-            const merged = [...config.sections, ...newSections.map((s, i) => ({ ...s, order: maxOrder + i + 1 }))];
+            const maxOrder = Math.max(...savedWithDesc.map((s) => s.order), 0);
+            const merged = [...savedWithDesc, ...newSections.map((s, i) => ({ ...s, order: maxOrder + i + 1 }))];
             setSections(merged);
           }
           if (config.announcement) {

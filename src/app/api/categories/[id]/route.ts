@@ -20,6 +20,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (fields.length === 0) return NextResponse.json({ error: "No fields to update" }, { status: 400 });
     values.push(id);
     await execute(`UPDATE categories SET ${fields.join(", ")} WHERE id = ?`, values);
+    await logActivity("Updated category", "category", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute, escapeLike } from "@/lib/db";
+import { logActivity } from "@/lib/log-activity";
 
 export async function GET(req: NextRequest) {
   try {
@@ -51,6 +52,7 @@ export async function POST(req: NextRequest) {
         [`addr-${id}`, id, body.address.label || "Home", body.name, body.phone, body.address.address_line_1 || "", body.address.city || null, body.address.district || null, body.address.division || null, body.address.postal_code || null]
       );
     }
+    await logActivity("Created customer", "customer", id, body.name);
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

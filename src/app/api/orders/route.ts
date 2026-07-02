@@ -3,6 +3,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import pool, { query, execute, escapeLike } from "@/lib/db";
 import { type RowDataPacket as StockRow } from "mysql2/promise";
 import { validate, validationError } from "@/lib/validate";
+import { logActivity } from "@/lib/log-activity";
 
 interface OrderRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -172,6 +173,7 @@ export async function POST(req: NextRequest) {
       await execute("UPDATE coupons SET used_count = used_count + 1 WHERE code = ?", [body.coupon_code]);
     }
 
+    await logActivity("New order placed", "order", id, `${orderNumber} — ৳${body.total}`);
     return NextResponse.json({ success: true, id, order_number: orderNumber }, { status: 201 });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

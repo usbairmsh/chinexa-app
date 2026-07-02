@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
+import { logActivity } from "@/lib/log-activity";
 
 // Normalize Bangladesh phone: "01712345678" → "+8801712345678"
 function normalizePhone(phone: string): string {
@@ -130,6 +131,7 @@ export async function POST(req: NextRequest) {
         "UPDATE customers SET is_active = FALSE, deactivated_at = NOW(), deactivation_reason = ? WHERE id = ?",
         [reason || "Customer requested account deletion", customer_id]
       );
+      await logActivity("Customer account deactivated", "customer", customer_id, reason || "Customer requested");
 
       return NextResponse.json({ success: true });
     }
@@ -143,6 +145,7 @@ export async function POST(req: NextRequest) {
         "UPDATE customers SET is_active = TRUE, deactivated_at = NULL, deactivation_reason = NULL WHERE id = ?",
         [customer_id]
       );
+      await logActivity("Customer account reactivated", "customer", customer_id);
 
       return NextResponse.json({ success: true });
     }

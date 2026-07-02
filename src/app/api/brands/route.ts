@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       "INSERT INTO brands (id, name, slug, logo, country, description, website, certifications, is_active, show_on_homepage) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [id, body.name, slug, body.logo || null, body.country || null, body.description || null, body.website || null, JSON.stringify(body.certifications || []), body.is_active !== false ? 1 : 0, body.show_on_homepage ? 1 : 0]
     );
-    await logActivity("Created brand", "product", id, body.name);
+    await logActivity("Created brand", "brand", id, body.name);
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "";
