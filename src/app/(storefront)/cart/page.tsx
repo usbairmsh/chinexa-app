@@ -101,35 +101,35 @@ export default function CartPage() {
                   <div className="flex-1 min-w-0">
                     <Link
                       href={`/products/${item.product_slug}`}
-                      className="font-medium text-charcoal hover:text-secondary transition-colors line-clamp-2"
+                      className="text-sm sm:text-base font-medium text-charcoal hover:text-secondary transition-colors line-clamp-2"
                     >
                       {item.product_name}
                     </Link>
                     {item.variant_name && (
-                      <p className="text-sm text-charcoal-lighter mt-1">{item.variant_name}</p>
+                      <p className="text-xs sm:text-sm text-charcoal-lighter mt-1">{item.variant_name}</p>
                     )}
-                    <p className="text-lg font-semibold text-charcoal mt-2">
+                    <p className="text-base sm:text-lg font-semibold text-charcoal mt-2">
                       {formatCurrency(item.price)}
                     </p>
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between mt-3 sm:mt-4">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          className="flex h-10 w-10 items-center justify-center rounded-full border border-border hover:border-secondary transition-colors"
+                          className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full border border-border hover:border-secondary transition-colors"
                         >
                           <Minus className="h-3 w-3" />
                         </button>
-                        <span className="w-8 text-center font-medium">{item.quantity}</span>
+                        <span className="w-7 sm:w-8 text-center text-sm font-medium">{item.quantity}</span>
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          className="flex h-10 w-10 items-center justify-center rounded-full border border-border hover:border-secondary transition-colors"
+                          className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full border border-border hover:border-secondary transition-colors"
                         >
                           <Plus className="h-3 w-3" />
                         </button>
                       </div>
                       <button
                         onClick={() => removeItem(item.id)}
-                        className="text-charcoal-lighter hover:text-destructive transition-colors p-3"
+                        className="text-charcoal-lighter hover:text-destructive transition-colors p-2 sm:p-3"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -142,8 +142,8 @@ export default function CartPage() {
 
           {/* Summary */}
           <div>
-            <div className="sticky top-24 rounded-2xl border border-border/30 bg-pearl/30 p-6">
-              <h3 className="font-heading text-lg font-semibold text-charcoal mb-4">Order Summary</h3>
+            <div className="sticky top-24 rounded-2xl border border-border/30 bg-pearl/30 p-4 sm:p-6">
+              <h3 className="font-heading text-base sm:text-lg font-semibold text-charcoal mb-4">Order Summary</h3>
 
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">

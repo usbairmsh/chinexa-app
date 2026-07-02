@@ -234,7 +234,7 @@ function VerifyForm() {
               <button
                 type="button"
                 onClick={() => setResendTimer(30)}
-                className="text-sm text-secondary hover:text-secondary-dark font-medium"
+                className="text-sm text-secondary hover:text-secondary-dark font-medium py-2 px-3 rounded-lg"
               >
                 Resend Code
               </button>
