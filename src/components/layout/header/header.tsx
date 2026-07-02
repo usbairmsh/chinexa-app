@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { Search, Heart, ShoppingBag, User, Menu, X, ChevronDown, Phone } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,6 +16,7 @@ import { MAIN_NAV, type NavItem } from "@/data/constants/navigation";
 import { Button } from "@/components/ui/button";
 
 export function Header() {
+  const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -85,7 +87,7 @@ export function Header() {
             <span className="text-[11px] text-charcoal-lighter hidden sm:flex items-center gap-1.5">
               <Phone className="h-3 w-3" /> {announcement.phone || "+880 1700-000000"}
             </span>
-            <p className="text-[11px] text-charcoal-light text-center flex-1 sm:flex-none tracking-wide">
+            <p className="text-[10px] sm:text-[11px] text-charcoal-light text-center flex-1 sm:flex-none tracking-wide truncate px-2 sm:px-0">
               {announcement.text || "Free shipping above ৳3,000 | Use code WELCOME10 for 10% off"}
             </p>
             <div className="hidden sm:flex items-center gap-4 text-[11px] text-charcoal-lighter">
@@ -106,7 +108,7 @@ export function Header() {
         )}
       >
         <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
-          <div className="flex items-center h-[60px] lg:h-[68px]">
+          <div className="flex items-center h-[52px] sm:h-[60px] lg:h-[68px]">
 
             {/* ── LEFT: Hamburger (mobile) + Logo ── */}
             <div className="flex items-center gap-2 lg:gap-0 shrink-0">
@@ -124,7 +126,7 @@ export function Header() {
                   alt="ChineXa"
                   width={216}
                   height={84}
-                  className="h-[58px] lg:h-[67px] w-auto object-contain scale-[1.2]"
+                  className="h-[46px] sm:h-[58px] lg:h-[67px] w-auto object-contain scale-[1.1] sm:scale-[1.2]"
                   priority
                 />
               </Link>
@@ -229,23 +231,25 @@ export function Header() {
                 )}
               </Link>
 
-              {/* Cart */}
-              <button
-                onClick={() => setCartDrawerOpen(true)}
-                className="relative flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all"
-                aria-label="Cart"
-              >
-                <ShoppingBag className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
-                {mounted && cartCount > 0 && (
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute top-0 right-0 sm:top-0.5 sm:right-0.5 flex h-[14px] w-[14px] items-center justify-center rounded-full bg-secondary text-[8px] font-bold text-white ring-2 ring-white"
-                  >
-                    {cartCount}
-                  </motion.span>
-                )}
-              </button>
+              {/* Cart — hidden on cart page */}
+              {pathname !== "/cart" && (
+                <button
+                  onClick={() => setCartDrawerOpen(true)}
+                  className="relative flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all"
+                  aria-label="Cart"
+                >
+                  <ShoppingBag className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+                  {mounted && cartCount > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute top-0 right-0 sm:top-0.5 sm:right-0.5 flex h-[14px] w-[14px] items-center justify-center rounded-full bg-secondary text-[8px] font-bold text-white ring-2 ring-white"
+                    >
+                      {cartCount}
+                    </motion.span>
+                  )}
+                </button>
+              )}
 
               {/* Account */}
               {isAuthenticated ? (

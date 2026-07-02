@@ -155,35 +155,37 @@ export default function OrderDetailPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <Link href="/dashboard/orders" className="flex items-center justify-center h-8 w-8 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors">
+      <div className="flex items-start sm:items-center gap-3 flex-wrap">
+        <Link href="/dashboard/orders" className="flex items-center justify-center h-8 w-8 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors shrink-0">
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <div>
-          <h2 className="font-heading text-xl font-semibold text-charcoal">{order.order_number}</h2>
-          <p className="text-xs text-charcoal-lighter">Placed on {formatDateTime(order.created_at)}</p>
+        <div className="min-w-0 flex-1">
+          <h2 className="font-heading text-lg sm:text-xl font-semibold text-charcoal">{order.order_number}</h2>
+          <p className="text-[11px] sm:text-xs text-charcoal-lighter">Placed on {formatDateTime(order.created_at)}</p>
         </div>
-        <Badge variant={statusVariant} className="ml-auto">{customerStatus}</Badge>
+        <Badge variant={statusVariant} className="shrink-0">{customerStatus}</Badge>
       </div>
 
-      <div className="grid lg:grid-cols-5 gap-5">
+      <div className="grid lg:grid-cols-5 gap-4 sm:gap-5">
         {/* Main — Items + Timeline */}
-        <div className="lg:col-span-3 space-y-5">
+        <div className="lg:col-span-3 space-y-4 sm:space-y-5">
           {/* Items */}
           <Card>
             <CardHeader className="pb-3"><CardTitle className="text-base">Order Items</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               {(order.items || []).map((item, i) => (
-                <div key={i} className="flex gap-4">
-                  <div className="relative h-20 w-20 rounded-xl overflow-hidden bg-pearl shrink-0">
+                <div key={i} className="flex gap-3 sm:gap-4">
+                  <div className="relative h-16 w-16 sm:h-20 sm:w-20 rounded-xl overflow-hidden bg-pearl shrink-0">
                     <Image src={item.product_image || "https://placehold.co/80x80"} alt={item.product_name} fill className="object-cover" sizes="80px" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-charcoal">{item.product_name}</p>
-                    {item.variant && <p className="text-xs text-charcoal-lighter mt-0.5">{item.variant}</p>}
-                    <p className="text-xs text-charcoal-lighter">Qty: {item.quantity}</p>
+                    <p className="text-xs sm:text-sm font-medium text-charcoal line-clamp-2">{item.product_name}</p>
+                    {item.variant && <p className="text-[11px] sm:text-xs text-charcoal-lighter mt-0.5">{item.variant}</p>}
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-[11px] sm:text-xs text-charcoal-lighter">Qty: {item.quantity}</p>
+                      <p className="text-xs sm:text-sm font-semibold text-charcoal">{formatCurrency(Number(item.total_price))}</p>
+                    </div>
                   </div>
-                  <p className="text-sm font-semibold text-charcoal shrink-0">{formatCurrency(Number(item.total_price))}</p>
                 </div>
               ))}
               <Separator />
@@ -237,7 +239,7 @@ export default function OrderDetailPage() {
         </div>
 
         {/* Sidebar — Address + Payment */}
-        <div className="lg:col-span-2 space-y-5">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-5">
           {/* Shipping Address */}
           {order.shipping_address && (
             <Card>

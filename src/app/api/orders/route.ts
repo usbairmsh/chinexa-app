@@ -7,7 +7,24 @@ import { logActivity } from "@/lib/log-activity";
 
 interface OrderRow extends RowDataPacket { [key: string]: unknown; }
 
-// Normalize Bangladesh phone: "01712345678" → "+88017..." and vice versa
+// ─── One-time auto-migration for new columns ───
+let migrated = false;
+async function ensureColumns() {
+  if (migrated) return;
+  migrated = true;
+  try {
+    await execute("ALTER TABLE orders ADD COLUMN stock_deducted BOOLEAN DEFAULT FALSE").catch(() => {});
+    await execute("ALTER TABLE orders ADD COLUMN revenue_counted BOOLEAN DEFAULT FALSE").catch(() => {});
+    await execute("ALTER TABLE order_items ADD COLUMN variant_id VARCHAR(50) AFTER product_id").catch(() => {});
+    // Backfill: existing confirmed+ orders already had stock deducted
+    await execute("UPDATE orders SET stock_deducted = TRUE WHERE status IN ('confirmed','processing','shipped','on_delivery','received') AND stock_deducted = FALSE").catch(() => {});
+    // Backfill: existing received orders already had revenue counted
+    await execute("UPDATE orders SET revenue_counted = TRUE WHERE status = 'received' AND payment_status = 'paid' AND revenue_counted = FALSE").catch(() => {});
+  } catch {
+    // Columns likely already exist
+  }
+}
+
 function normalizePhone(phone: string): string {
   const cleaned = phone.replace(/[\s-]/g, "");
   if (cleaned.startsWith("+880")) return cleaned;
@@ -18,6 +35,7 @@ function normalizePhone(phone: string): string {
 
 export async function GET(req: NextRequest) {
   try {
+    await ensureColumns();
     const { searchParams } = new URL(req.url);
     const page = Number(searchParams.get("page")) || 1;
     const pageSize = Number(searchParams.get("page_size")) || 20;
@@ -44,6 +62,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    await ensureColumns();
     const body = await req.json();
     const err = validate([
       { field: "customer_name", value: body.customer_name, rules: ["required", "string"], label: "Customer name" },
@@ -58,44 +77,6 @@ export async function POST(req: NextRequest) {
       if (!item.product_name || !item.quantity || item.quantity < 1) {
         return validationError("Each order item must have a product name and quantity of at least 1");
       }
-    }
-    // ─── ATOMIC STOCK VALIDATION ───
-    // Use a transaction with row locking to prevent overselling
-    const conn = await pool.getConnection();
-    try {
-      await conn.beginTransaction();
-
-      const outOfStock: string[] = [];
-      for (const item of body.items) {
-        if (item.product_id) {
-          const [rows] = await conn.execute<StockRow[]>(
-            "SELECT stock_quantity, name FROM products WHERE id = ? FOR UPDATE",
-            [item.product_id]
-          );
-          if (rows.length > 0) {
-            const available = Number(rows[0].stock_quantity);
-            if (available < item.quantity) {
-              outOfStock.push(`${rows[0].name} (only ${available} left, you requested ${item.quantity})`);
-            }
-          }
-        }
-      }
-
-      if (outOfStock.length > 0) {
-        await conn.rollback();
-        conn.release();
-        return NextResponse.json({
-          error: "Some items are no longer available",
-          out_of_stock: outOfStock,
-        }, { status: 409 });
-      }
-
-      await conn.commit();
-      conn.release();
-    } catch (txError) {
-      await conn.rollback().catch(() => {});
-      conn.release();
-      throw txError;
     }
 
     const id = `ord-${Date.now()}`;
@@ -112,13 +93,11 @@ export async function POST(req: NextRequest) {
       if (existing.length > 0) {
         customerId = existing[0].id;
       } else if (name) {
-        // Auto-create customer profile from checkout info
         customerId = `cust-${Date.now()}`;
         await execute(
           "INSERT INTO customers (id, name, email, phone, is_active) VALUES (?, ?, ?, ?, TRUE)",
           [customerId, name, body.billing_address?.email || null, normalizedPhone]
         );
-        // Save billing address as default address
         if (body.billing_address?.address_line_1) {
           const a = body.billing_address;
           await execute(
@@ -129,28 +108,94 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Update customer stats
-    if (customerId) {
-      await execute(
-        "UPDATE customers SET total_orders = total_orders + 1, total_spent = total_spent + ?, last_order_at = NOW() WHERE id = ?",
-        [body.total || 0, customerId]
+    // ─── ATOMIC STOCK VALIDATION + DEDUCTION in single transaction ───
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const outOfStock: string[] = [];
+      for (const item of body.items) {
+        if (item.product_id) {
+          if (item.variant_id) {
+            const [rows] = await conn.execute<StockRow[]>(
+              "SELECT pv.stock, p.name FROM product_variants pv JOIN products p ON p.id = pv.product_id WHERE pv.id = ? FOR UPDATE",
+              [item.variant_id]
+            );
+            if (rows.length > 0) {
+              const available = Number(rows[0].stock);
+              if (available < item.quantity) {
+                outOfStock.push(`${rows[0].name} (only ${available} left, you requested ${item.quantity})`);
+              }
+            }
+          } else {
+            const [rows] = await conn.execute<StockRow[]>(
+              "SELECT stock_quantity, name FROM products WHERE id = ? FOR UPDATE",
+              [item.product_id]
+            );
+            if (rows.length > 0) {
+              const available = Number(rows[0].stock_quantity);
+              if (available < item.quantity) {
+                outOfStock.push(`${rows[0].name} (only ${available} left, you requested ${item.quantity})`);
+              }
+            }
+          }
+        }
+      }
+
+      if (outOfStock.length > 0) {
+        await conn.rollback();
+        conn.release();
+        return NextResponse.json({
+          error: "Some items are no longer available",
+          out_of_stock: outOfStock,
+        }, { status: 409 });
+      }
+
+      // Stock is valid — deduct now inside the same transaction
+      for (const item of body.items) {
+        if (item.product_id) {
+          if (item.variant_id) {
+            await conn.execute(
+              "UPDATE product_variants SET stock = GREATEST(stock - ?, 0) WHERE id = ?",
+              [item.quantity, item.variant_id]
+            );
+          }
+          // Always deduct from parent product stock_quantity
+          await conn.execute(
+            "UPDATE products SET stock_quantity = GREATEST(stock_quantity - ?, 0) WHERE id = ?",
+            [item.quantity, item.product_id]
+          );
+        }
+      }
+
+      // Create the order inside the transaction
+      await conn.execute(
+        `INSERT INTO orders (id, order_number, customer_id, customer_name, customer_phone, subtotal, shipping_cost, discount, tax, total, status, payment_method, payment_status, transaction_id, coupon_code, stock_deducted, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?)`,
+        [id, orderNumber, customerId, body.customer_name, body.customer_phone, body.subtotal || 0, body.shipping_cost || 0, body.discount || 0, body.tax || 0, body.total || 0, "pending", (body.payment_method || "COD").toUpperCase(), "pending", body.transaction_id || null, body.coupon_code || null, body.notes || null]
       );
+
+      // Order items
+      if (body.items?.length) {
+        for (let i = 0; i < body.items.length; i++) {
+          const item = body.items[i];
+          await conn.execute(
+            "INSERT INTO order_items (id, order_id, product_id, variant_id, product_name, product_image, product_slug, variant, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [`oi-${id}-${i}`, id, item.product_id || null, item.variant_id || null, item.product_name, item.product_image || null, item.product_slug || null, item.variant || null, item.quantity, item.unit_price, item.total_price || item.unit_price * item.quantity]
+          );
+        }
+      }
+
+      await conn.commit();
+      conn.release();
+    } catch (txError) {
+      await conn.rollback().catch(() => {});
+      conn.release();
+      throw txError;
     }
 
-    await execute(
-      `INSERT INTO orders (id, order_number, customer_id, customer_name, customer_phone, subtotal, shipping_cost, discount, tax, total, status, payment_method, payment_status, transaction_id, coupon_code, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, orderNumber, customerId, body.customer_name, body.customer_phone, body.subtotal || 0, body.shipping_cost || 0, body.discount || 0, body.tax || 0, body.total || 0, body.status || "pending", (body.payment_method || "COD").toUpperCase(), body.payment_status || "pending", body.transaction_id || null, body.coupon_code || null, body.notes || null]
-    );
-
-    // Order items
-    if (body.items?.length) {
-      for (let i = 0; i < body.items.length; i++) {
-        const item = body.items[i];
-        await execute(
-          "INSERT INTO order_items (id, order_id, product_id, product_name, product_image, product_slug, variant, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-          [`oi-${id}-${i}`, id, item.product_id || null, item.product_name, item.product_image || null, item.product_slug || null, item.variant || null, item.quantity, item.unit_price, item.total_price || item.unit_price * item.quantity]
-        );
-      }
+    // Non-transactional side effects (OK to fail independently)
+    if (customerId) {
+      await execute("UPDATE customers SET last_order_at = NOW() WHERE id = ?", [customerId]);
     }
 
     // Addresses
@@ -166,7 +211,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Timeline
-    await execute("INSERT INTO order_timeline (order_id, status, note) VALUES (?, 'pending', 'Order placed')", [id]);
+    await execute("INSERT INTO order_timeline (order_id, status, note) VALUES (?, 'pending', 'Order placed — stock reserved')", [id]);
 
     // Increment coupon usage count
     if (body.coupon_code) {

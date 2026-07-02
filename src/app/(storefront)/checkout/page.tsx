@@ -64,6 +64,7 @@ export default function CheckoutPage() {
   useEffect(() => setMounted(true), []);
 
   const [step, setStep] = useState(1);
+  const [highestStep, setHighestStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState("COD");
   const [transactionId, setTransactionId] = useState("");
   const [orderNumber, setOrderNumber] = useState("");
@@ -278,6 +279,18 @@ export default function CheckoutPage() {
     return true;
   };
 
+  const goToStep = (target: number) => {
+    if (target >= step || target === 4) return;
+    setFieldErrors({});
+    setValidationError("");
+    setStep(target);
+  };
+
+  const advanceStep = (target: number) => {
+    setStep(target);
+    setHighestStep((prev) => Math.max(prev, target));
+  };
+
   const handlePlaceOrder = async () => {
     if (!validateStep3()) return;
     setPlacing(true);
@@ -321,6 +334,7 @@ export default function CheckoutPage() {
 
       const orderItems = items.map((item) => ({
         product_id: item.product_id,
+        variant_id: item.variant_id || null,
         product_name: item.product_name,
         product_image: item.product_image,
         product_slug: item.product_slug,
@@ -377,10 +391,10 @@ export default function CheckoutPage() {
         }).catch(() => {});
       }
 
-      setStep(4);
+      advanceStep(4);
       setTimeout(() => clearCart(), 2000);
     } catch {
-      setStep(4);
+      advanceStep(4);
       setTimeout(() => clearCart(), 2000);
     } finally {
       setPlacing(false);
@@ -408,22 +422,40 @@ export default function CheckoutPage() {
         <Breadcrumb items={[{ label: "Cart", href: "/cart" }, { label: "Checkout" }]} className="mb-6" />
 
         {/* Steps */}
-        <div className="flex items-center justify-center gap-2 mb-10">
-          {steps.map((s, i) => (
-            <div key={s.id} className="flex items-center gap-2">
-              <div className={cn("flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium transition-colors",
-                step >= s.id ? "bg-secondary text-white" : "bg-pearl text-charcoal-lighter")}>
-                {step > s.id ? <CheckCircle2 className="h-4 w-4" /> : s.id}
+        <div className="flex items-center justify-center gap-1 sm:gap-2 mb-8 sm:mb-10">
+          {steps.map((s, i) => {
+            const canClick = s.id < step && s.id !== 4;
+            return (
+              <div key={s.id} className="flex items-center gap-1 sm:gap-2">
+                <button
+                  type="button"
+                  disabled={!canClick}
+                  onClick={() => goToStep(s.id)}
+                  className={cn(
+                    "flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full text-xs sm:text-sm font-medium transition-colors",
+                    step >= s.id ? "bg-secondary text-white" : "bg-pearl text-charcoal-lighter",
+                    canClick ? "cursor-pointer hover:opacity-80" : "cursor-default"
+                  )}
+                >
+                  {step > s.id ? <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : s.id}
+                </button>
+                <span
+                  onClick={() => canClick && goToStep(s.id)}
+                  className={cn(
+                    "hidden sm:block text-sm",
+                    step >= s.id ? "text-charcoal font-medium" : "text-charcoal-lighter",
+                    canClick ? "cursor-pointer hover:opacity-80" : ""
+                  )}
+                >{s.label}</span>
+                {i < steps.length - 1 && <div className={cn("w-5 sm:w-16 h-px", step > s.id ? "bg-secondary" : "bg-border")} />}
               </div>
-              <span className={cn("hidden sm:block text-sm", step >= s.id ? "text-charcoal font-medium" : "text-charcoal-lighter")}>{s.label}</span>
-              {i < steps.length - 1 && <div className={cn("w-8 sm:w-16 h-px", step > s.id ? "bg-secondary" : "bg-border")} />}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        <div className="grid lg:grid-cols-5 gap-8">
+        <div className="grid lg:grid-cols-5 gap-6 lg:gap-8">
           {/* Form */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-3 order-2 lg:order-1">
             {/* ═══ STEP 1: Information ═══ */}
             {step === 1 && (
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
@@ -628,7 +660,7 @@ export default function CheckoutPage() {
                 )}
 
                 <Button variant="secondary" size="lg" className="w-full sm:w-auto !text-white" onClick={() => {
-                  if (validateStep1()) setStep(2);
+                  if (validateStep1()) advanceStep(2);
                 }}>
                   Continue to Shipping
                 </Button>
@@ -711,9 +743,9 @@ export default function CheckoutPage() {
                   )}
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex flex-col-reverse sm:flex-row gap-3">
                   <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
-                  <Button variant="secondary" size="lg" className="!text-white" onClick={() => setStep(3)}>Continue to Payment</Button>
+                  <Button variant="secondary" size="lg" className="w-full sm:w-auto !text-white" onClick={() => advanceStep(3)}>Continue to Payment</Button>
                 </div>
               </motion.div>
             )}
@@ -779,9 +811,9 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                <div className="flex gap-3">
+                <div className="flex flex-col-reverse sm:flex-row gap-3">
                   <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
-                  <Button variant="secondary" size="lg" className="!text-white" onClick={handlePlaceOrder} isLoading={placing} disabled={placing}>
+                  <Button variant="secondary" size="lg" className="w-full sm:w-auto !text-white" onClick={handlePlaceOrder} isLoading={placing} disabled={placing}>
                     {placing ? "Placing Order..." : `Place Order — ${formatCurrency(finalTotal)}`}
                   </Button>
                 </div>
@@ -791,8 +823,8 @@ export default function CheckoutPage() {
 
           {/* ═══ Order Summary Sidebar ═══ */}
           {step < 4 && (
-            <div className="lg:col-span-2">
-              <div className="sticky top-24 rounded-2xl border border-border/30 bg-pearl/30 p-5">
+            <div className="lg:col-span-2 order-1 lg:order-2">
+              <div className="lg:sticky lg:top-24 rounded-2xl border border-border/30 bg-pearl/30 p-4 sm:p-5">
                 <h3 className="font-heading text-base font-semibold text-charcoal mb-4">
                   Order Summary ({items.length})
                 </h3>
@@ -849,18 +881,18 @@ export default function CheckoutPage() {
 
           {/* ═══ STEP 4: Done ═══ */}
           {step === 4 && (
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="col-span-full text-center py-16">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="col-span-full text-center py-10 sm:py-16 order-1">
               <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", damping: 15, delay: 0.2 }}>
-                <CheckCircle2 className="h-20 w-20 text-success mx-auto mb-6" />
+                <CheckCircle2 className="h-16 w-16 sm:h-20 sm:w-20 text-success mx-auto mb-4 sm:mb-6" />
               </motion.div>
-              <h2 className="font-heading text-2xl font-semibold text-charcoal mb-2">Order Confirmed!</h2>
+              <h2 className="font-heading text-xl sm:text-2xl font-semibold text-charcoal mb-2">Order Confirmed!</h2>
               <p className="text-charcoal-lighter mb-2">Thank you for shopping with ChineXa</p>
-              <p className="text-sm text-charcoal mb-8">
+              <p className="text-sm text-charcoal mb-6 sm:mb-8 px-4">
                 Order #{orderNumber || "Processing"} has been placed successfully.<br />You will receive a confirmation via SMS shortly.
               </p>
-              <div className="flex gap-3 justify-center">
-                <Link href="/products"><Button variant="primary" className="!text-white">Continue Shopping</Button></Link>
-                <Link href="/track-order"><Button variant="outline">Track Order</Button></Link>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center px-4">
+                <Link href="/products"><Button variant="primary" className="w-full sm:w-auto !text-white">Continue Shopping</Button></Link>
+                <Link href="/track-order"><Button variant="outline" className="w-full sm:w-auto">Track Order</Button></Link>
               </div>
             </motion.div>
           )}

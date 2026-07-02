@@ -164,11 +164,11 @@ export default function OrdersPage() {
       </div>
 
       <Tabs defaultValue="all">
-        <TabsList className="w-full sm:w-auto">
-          <TabsTrigger value="all">All ({orders.length})</TabsTrigger>
-          <TabsTrigger value="active">Active ({activeOrders.length})</TabsTrigger>
-          <TabsTrigger value="completed">Delivered ({completedOrders.length})</TabsTrigger>
-          <TabsTrigger value="failed">Failed ({failedOrders.length})</TabsTrigger>
+        <TabsList className="w-full sm:w-auto overflow-x-auto scrollbar-hide">
+          <TabsTrigger value="all" className="text-xs sm:text-sm px-2.5 sm:px-4">All ({orders.length})</TabsTrigger>
+          <TabsTrigger value="active" className="text-xs sm:text-sm px-2.5 sm:px-4">Active ({activeOrders.length})</TabsTrigger>
+          <TabsTrigger value="completed" className="text-xs sm:text-sm px-2.5 sm:px-4">Delivered ({completedOrders.length})</TabsTrigger>
+          <TabsTrigger value="failed" className="text-xs sm:text-sm px-2.5 sm:px-4">Failed ({failedOrders.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all">

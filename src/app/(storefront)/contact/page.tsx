@@ -34,7 +34,7 @@ export default function ContactPage() {
       </div>
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid lg:grid-cols-5 gap-10">
+        <div className="grid lg:grid-cols-5 gap-8 lg:gap-10">
           {/* Contact Info */}
           <div className="lg:col-span-2 space-y-4">
             {contactInfo.map((item, i) => (
@@ -51,9 +51,9 @@ export default function ContactPage() {
                       <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-light group-hover:bg-secondary/10 transition-colors">
                         <item.icon className="h-5 w-5 text-secondary" />
                       </div>
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="text-xs text-charcoal-lighter">{item.label}</p>
-                        <p className="text-sm font-medium text-charcoal">{item.value}</p>
+                        <p className="text-sm font-medium text-charcoal break-words">{item.value}</p>
                       </div>
                     </CardContent>
                   </Card>

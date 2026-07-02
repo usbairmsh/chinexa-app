@@ -76,7 +76,7 @@ export default function CartPage() {
           Shopping Bag ({getItemCount()})
         </h1>
 
-        <div className="grid lg:grid-cols-3 gap-8">
+        <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
           {/* Items */}
           <div className="lg:col-span-2">
             <AnimatePresence mode="popLayout">
@@ -89,7 +89,7 @@ export default function CartPage() {
                   exit={{ opacity: 0, x: -50 }}
                   className="flex gap-4 sm:gap-6 py-6 border-b border-border/30"
                 >
-                  <div className="relative h-32 w-24 sm:h-40 sm:w-32 flex-shrink-0 rounded-xl overflow-hidden bg-pearl">
+                  <div className="relative h-28 w-20 sm:h-40 sm:w-32 flex-shrink-0 rounded-xl overflow-hidden bg-pearl">
                     <Image
                       src={item.product_image}
                       alt={item.product_name}

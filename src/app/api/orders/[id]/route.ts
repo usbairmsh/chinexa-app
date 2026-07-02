@@ -1,7 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
-import { query, execute } from "@/lib/db";
+import pool, { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+
+// ─── Helper: restore stock for an order's items ───
+async function restoreStock(conn: import("mysql2/promise").PoolConnection, orderId: string) {
+  const [items] = await conn.execute<RowDataPacket[]>(
+    "SELECT product_id, variant_id, quantity FROM order_items WHERE order_id = ?", [orderId]
+  );
+  for (const item of items) {
+    if (item.product_id) {
+      if (item.variant_id) {
+        await conn.execute(
+          "UPDATE product_variants SET stock = stock + ? WHERE id = ?",
+          [item.quantity, item.variant_id]
+        );
+      }
+      await conn.execute(
+        "UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?",
+        [item.quantity, item.product_id]
+      );
+    }
+  }
+}
+
+// ─── Helper: deduct stock for an order's items ───
+async function deductStock(conn: import("mysql2/promise").PoolConnection, orderId: string) {
+  const [items] = await conn.execute<RowDataPacket[]>(
+    "SELECT product_id, variant_id, quantity FROM order_items WHERE order_id = ?", [orderId]
+  );
+  for (const item of items) {
+    if (item.product_id) {
+      if (item.variant_id) {
+        await conn.execute(
+          "UPDATE product_variants SET stock = GREATEST(stock - ?, 0) WHERE id = ?",
+          [item.quantity, item.variant_id]
+        );
+      }
+      await conn.execute(
+        "UPDATE products SET stock_quantity = GREATEST(stock_quantity - ?, 0) WHERE id = ?",
+        [item.quantity, item.product_id]
+      );
+    }
+  }
+}
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -23,17 +65,123 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id: paramId } = await params;
     const body = await req.json();
 
-    // Resolve the actual database ID (param could be id or order_number)
     const orderRows = await query<RowDataPacket[]>("SELECT * FROM orders WHERE id = ? OR order_number = ? LIMIT 1", [paramId, paramId]);
     if (orderRows.length === 0) return NextResponse.json({ error: "Order not found" }, { status: 404 });
     const order = orderRows[0];
     const id = order.id as string;
+    const prevStatus = order.status as string;
 
-    if (body.status) {
-      await execute("UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?", [body.status, id]);
-      await execute("INSERT INTO order_timeline (order_id, status, note) VALUES (?, ?, ?)", [id, body.status, body.note || `Status changed to ${body.status}`]);
+    if (body.status && body.status !== prevStatus) {
+      const newStatus = body.status as string;
+      const paymentMethod = (order.payment_method as string || "").toLowerCase();
+      const isCOD = paymentMethod === "cod";
+      const stockDeducted = Boolean(order.stock_deducted);
+      const revenueCounted = Boolean(order.revenue_counted);
+      const orderTotal = Number(order.total) || 0;
 
-      // Send customer notification
+      // ─── All stock/financial operations in a single transaction ───
+      const conn = await pool.getConnection();
+      try {
+        await conn.beginTransaction();
+
+        // Update status
+        await conn.execute("UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?", [newStatus, id]);
+
+        // ─── CANCELLED: restore stock + decrement coupon ───
+        if (newStatus === "cancelled") {
+          if (stockDeducted) {
+            await restoreStock(conn, id);
+            await conn.execute("UPDATE orders SET stock_deducted = FALSE WHERE id = ?", [id]);
+          }
+          if (revenueCounted && order.customer_id) {
+            await conn.execute(
+              "UPDATE customers SET total_spent = GREATEST(total_spent - ?, 0), total_orders = GREATEST(total_orders - 1, 0) WHERE id = ?",
+              [orderTotal, order.customer_id]
+            );
+            await conn.execute("UPDATE orders SET revenue_counted = FALSE WHERE id = ?", [id]);
+          }
+          if (order.coupon_code) {
+            await conn.execute("UPDATE coupons SET used_count = GREATEST(used_count - 1, 0) WHERE code = ?", [order.coupon_code]);
+          }
+        }
+
+        // ─── NOT_RECEIVED: restore stock + fraud alert ───
+        if (newStatus === "not_received") {
+          if (stockDeducted) {
+            await restoreStock(conn, id);
+            await conn.execute("UPDATE orders SET stock_deducted = FALSE WHERE id = ?", [id]);
+          }
+          if (revenueCounted && order.customer_id) {
+            await conn.execute(
+              "UPDATE customers SET total_spent = GREATEST(total_spent - ?, 0), total_orders = GREATEST(total_orders - 1, 0) WHERE id = ?",
+              [orderTotal, order.customer_id]
+            );
+            await conn.execute("UPDATE orders SET revenue_counted = FALSE WHERE id = ?", [id]);
+          }
+        }
+
+        // ─── RETURNED (via direct status change, not return-approval flow): restore stock ───
+        if (newStatus === "returned") {
+          if (stockDeducted) {
+            await restoreStock(conn, id);
+            await conn.execute("UPDATE orders SET stock_deducted = FALSE WHERE id = ?", [id]);
+          }
+          if (revenueCounted && order.customer_id) {
+            await conn.execute(
+              "UPDATE customers SET total_spent = GREATEST(total_spent - ?, 0), total_orders = GREATEST(total_orders - 1, 0) WHERE id = ?",
+              [orderTotal, order.customer_id]
+            );
+            await conn.execute("UPDATE orders SET revenue_counted = FALSE WHERE id = ?", [id]);
+          }
+        }
+
+        // ─── CONFIRMED: if stock was restored (e.g. re-confirming after cancel), deduct again ───
+        if (newStatus === "confirmed") {
+          if (!stockDeducted) {
+            await deductStock(conn, id);
+            await conn.execute("UPDATE orders SET stock_deducted = TRUE WHERE id = ?", [id]);
+          }
+          // Non-COD: mark payment as paid on confirmation
+          if (!isCOD && order.payment_status !== "paid") {
+            await conn.execute("UPDATE orders SET payment_status = 'paid' WHERE id = ?", [id]);
+          }
+        }
+
+        // ─── RECEIVED: mark payment paid (COD), count revenue, award loyalty ───
+        if (newStatus === "received") {
+          if (isCOD && order.payment_status !== "paid") {
+            await conn.execute("UPDATE orders SET payment_status = 'paid' WHERE id = ?", [id]);
+          }
+          // Ensure stock is deducted (safety net for legacy orders)
+          if (!stockDeducted) {
+            await deductStock(conn, id);
+            await conn.execute("UPDATE orders SET stock_deducted = TRUE WHERE id = ?", [id]);
+          }
+          // Count revenue only once
+          if (!revenueCounted && order.customer_id) {
+            await conn.execute(
+              "UPDATE customers SET total_spent = total_spent + ?, total_orders = total_orders + 1, last_order_at = NOW() WHERE id = ?",
+              [orderTotal, order.customer_id]
+            );
+            await conn.execute("UPDATE orders SET revenue_counted = TRUE WHERE id = ?", [id]);
+          }
+        }
+
+        await conn.commit();
+        conn.release();
+      } catch (txError) {
+        await conn.rollback().catch(() => {});
+        conn.release();
+        throw txError;
+      }
+
+      // ─── Non-transactional side effects ───
+
+      // Timeline
+      await execute("INSERT INTO order_timeline (order_id, status, note) VALUES (?, ?, ?)",
+        [id, newStatus, body.note || `Status changed to ${newStatus}`]);
+
+      // Customer notification
       if (order.customer_id) {
         const notifMessages: Record<string, { title: string; message: string; type: string }> = {
           confirmed: { title: "Order Confirmed", message: `Your order ${order.order_number} has been confirmed and is being prepared.`, type: "order" },
@@ -45,7 +193,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           cancelled: { title: "Order Cancelled", message: `Your order ${order.order_number} has been cancelled. If you were charged, a refund will be processed.`, type: "order" },
           returned: { title: "Return Processed", message: `Your return for order ${order.order_number} has been processed. Refund will be issued shortly.`, type: "order" },
         };
-        const notif = notifMessages[body.status];
+        const notif = notifMessages[newStatus];
         if (notif) {
           const notifId = `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
           await execute(
@@ -55,100 +203,44 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         }
       }
 
-      const paymentMethod = (order.payment_method as string || "").toLowerCase();
-      const isCOD = paymentMethod === "cod";
+      // Loyalty points on received (non-critical — OK to fail independently)
+      if (newStatus === "received" && !Boolean(order.revenue_counted) && order.customer_id) {
+        try {
+          const settingsRows = await query<RowDataPacket[]>("SELECT value FROM settings WHERE `key` = 'points_per_taka'");
+          const pointsPerTaka = settingsRows.length > 0 ? Number(JSON.parse(settingsRows[0].value as string)) : 10;
 
-      // ─── STOCK REDUCTION on confirmed ───
-      if (body.status === "confirmed") {
-        const orderItems = await query<RowDataPacket[]>("SELECT product_id, quantity FROM order_items WHERE order_id = ?", [id]);
-        for (const item of orderItems) {
-          if (item.product_id) {
+          const balanceRows = await query<RowDataPacket[]>("SELECT COALESCE(SUM(points), 0) as total FROM customer_points WHERE customer_id = ?", [order.customer_id]);
+          const currentPoints = Number(balanceRows[0]?.total) || 0;
+
+          const tierRows = await query<RowDataPacket[]>(
+            "SELECT points_multiplier FROM membership_tiers WHERE is_active = 1 AND min_points <= ? AND max_points >= ? LIMIT 1",
+            [currentPoints, currentPoints]
+          );
+          const multiplier = tierRows.length > 0 ? Number(tierRows[0].points_multiplier) : 1;
+
+          const orderTotal = Number(order.total) || 0;
+          const basePoints = Math.floor(orderTotal / pointsPerTaka);
+          const earnedPoints = Math.floor(basePoints * multiplier);
+
+          if (earnedPoints > 0) {
+            const pointsId = `pts-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
             await execute(
-              "UPDATE products SET stock_quantity = GREATEST(stock_quantity - ?, 0) WHERE id = ?",
-              [item.quantity, item.product_id]
+              "INSERT INTO customer_points (id, customer_id, points, type, reference_id, description) VALUES (?, ?, ?, 'purchase', ?, ?)",
+              [pointsId, order.customer_id, earnedPoints, id, `Earned from order ${order.order_number} (${multiplier}x multiplier)`]
             );
-          }
-        }
-      }
-
-      // ─── STOCK RESTORE on cancelled / not_received / returned ───
-      if (["cancelled", "not_received", "returned"].includes(body.status)) {
-        // Only restore if the order was previously confirmed (stock was deducted)
-        const prevStatus = order.status as string;
-        if (["confirmed", "processing", "shipped", "on_delivery", "received"].includes(prevStatus)) {
-          const orderItems = await query<RowDataPacket[]>("SELECT product_id, quantity FROM order_items WHERE order_id = ?", [id]);
-          for (const item of orderItems) {
-            if (item.product_id) {
-              await execute(
-                "UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?",
-                [item.quantity, item.product_id]
-              );
-            }
-          }
-        }
-      }
-
-      // COD: payment becomes 'paid' when customer receives the order
-      if (body.status === "received" && isCOD && order.payment_status !== "paid") {
-        await execute("UPDATE orders SET payment_status = 'paid' WHERE id = ?", [id]);
-      }
-
-      // ─── LOYALTY POINTS on received ───
-      if (body.status === "received") {
-
-        // Award loyalty points
-        if (order.customer_id) {
-          try {
-            // Get points_per_taka setting
-            const settingsRows = await query<RowDataPacket[]>("SELECT value FROM settings WHERE `key` = 'points_per_taka'");
-            const pointsPerTaka = settingsRows.length > 0 ? Number(JSON.parse(settingsRows[0].value as string)) : 10;
-
-            // Get customer's current points to determine tier multiplier
-            const balanceRows = await query<RowDataPacket[]>("SELECT COALESCE(SUM(points), 0) as total FROM customer_points WHERE customer_id = ?", [order.customer_id]);
-            const currentPoints = Number(balanceRows[0]?.total) || 0;
-
-            const tierRows = await query<RowDataPacket[]>(
-              "SELECT points_multiplier FROM membership_tiers WHERE is_active = 1 AND min_points <= ? AND max_points >= ? LIMIT 1",
-              [currentPoints, currentPoints]
-            );
-            const multiplier = tierRows.length > 0 ? Number(tierRows[0].points_multiplier) : 1;
-
-            const orderTotal = Number(order.total) || 0;
-            const basePoints = Math.floor(orderTotal / pointsPerTaka);
-            const earnedPoints = Math.floor(basePoints * multiplier);
-
-            if (earnedPoints > 0) {
-              const pointsId = `pts-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-              await execute(
-                "INSERT INTO customer_points (id, customer_id, points, type, reference_id, description) VALUES (?, ?, ?, 'purchase', ?, ?)",
-                [pointsId, order.customer_id, earnedPoints, id, `Earned from order ${order.order_number} (${multiplier}x multiplier)`]
-              );
-              // Notify customer about points earned
-              const pNotifId = `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-              await execute(
-                "INSERT INTO customer_notifications (id, customer_id, type, title, message) VALUES (?, ?, 'loyalty', ?, ?)",
-                [pNotifId, order.customer_id, `You earned ${earnedPoints} points!`, `Your purchase from order ${order.order_number} earned you ${earnedPoints} loyalty points.`]
-              ).catch(() => {});
-            }
-
-            // Update customer total_spent and total_orders
+            const pNotifId = `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
             await execute(
-              "UPDATE customers SET total_spent = total_spent + ?, total_orders = total_orders + 1, last_order_at = NOW() WHERE id = ?",
-              [orderTotal, order.customer_id]
-            );
-          } catch {
-            // Don't fail the order status update if points fail
+              "INSERT INTO customer_notifications (id, customer_id, type, title, message) VALUES (?, ?, 'loyalty', ?, ?)",
+              [pNotifId, order.customer_id, `You earned ${earnedPoints} points!`, `Your purchase from order ${order.order_number} earned you ${earnedPoints} loyalty points.`]
+            ).catch(() => {});
           }
+        } catch {
+          // Don't fail the status update if points fail
         }
       }
 
-      // Non-COD (bKash, Nagad, Card, etc.): payment becomes 'paid' when order is confirmed
-      if (body.status === "confirmed" && !isCOD && order.payment_status !== "paid") {
-        await execute("UPDATE orders SET payment_status = 'paid' WHERE id = ?", [id]);
-      }
-
-      // Not Received: auto-flag customer as fraud
-      if (body.status === "not_received") {
+      // Fraud alert on not_received
+      if (newStatus === "not_received") {
         const fraudId = `fraud-${Date.now()}`;
         const riskFactors = JSON.stringify(["Order not received by customer", "Potential fraudulent claim"]);
         await execute(
@@ -157,17 +249,81 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         );
         await logActivity(`Fraud alert created — order not received`, "fraud", fraudId, `Order ${order.order_number}`);
       }
+
+      await logActivity(`Updated order status to ${newStatus}`, "order", id, `Order ${order.order_number}`);
     }
+
+    // Direct field updates (no status change)
     if (body.payment_status) await execute("UPDATE orders SET payment_status = ? WHERE id = ?", [body.payment_status, id]);
     if (body.notes !== undefined) await execute("UPDATE orders SET notes = ? WHERE id = ?", [body.notes, id]);
-    if (body.status) await logActivity(`Updated order status to ${body.status}`, "order", id, `Order ${id}`);
+
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try { const { id } = await params; await execute("DELETE FROM orders WHERE id = ?", [id]); return NextResponse.json({ success: true }); }
-  catch (error: unknown) { return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 }); }
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+
+    const orderRows = await query<RowDataPacket[]>("SELECT * FROM orders WHERE id = ? OR order_number = ? LIMIT 1", [id, id]);
+    if (orderRows.length === 0) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    const order = orderRows[0];
+    const orderId = order.id as string;
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      // Restore stock if it was deducted
+      if (order.stock_deducted) {
+        const [items] = await conn.execute<RowDataPacket[]>(
+          "SELECT product_id, variant_id, quantity FROM order_items WHERE order_id = ?", [orderId]
+        );
+        for (const item of items) {
+          if (item.product_id) {
+            if (item.variant_id) {
+              await conn.execute(
+                "UPDATE product_variants SET stock = stock + ? WHERE id = ?",
+                [item.quantity, item.variant_id]
+              );
+            }
+            await conn.execute(
+              "UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?",
+              [item.quantity, item.product_id]
+            );
+          }
+        }
+      }
+
+      // Reverse customer stats if revenue was counted
+      if (order.revenue_counted && order.customer_id) {
+        const orderTotal = Number(order.total) || 0;
+        await conn.execute(
+          "UPDATE customers SET total_spent = GREATEST(total_spent - ?, 0), total_orders = GREATEST(total_orders - 1, 0) WHERE id = ?",
+          [orderTotal, order.customer_id]
+        );
+      }
+
+      // Decrement coupon usage
+      if (order.coupon_code) {
+        await conn.execute("UPDATE coupons SET used_count = GREATEST(used_count - 1, 0) WHERE code = ?", [order.coupon_code]);
+      }
+
+      await conn.execute("DELETE FROM orders WHERE id = ?", [orderId]);
+
+      await conn.commit();
+      conn.release();
+    } catch (txError) {
+      await conn.rollback().catch(() => {});
+      conn.release();
+      throw txError;
+    }
+
+    await logActivity("Order deleted", "order", orderId, `Order ${order.order_number}`);
+    return NextResponse.json({ success: true });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+  }
 }

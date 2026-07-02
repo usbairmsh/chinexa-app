@@ -96,14 +96,26 @@ function InvoiceContent() {
         @media print {
           body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .no-print { display: none !important; }
-          .invoice-wrapper { box-shadow: none !important; margin: 0 !important; max-width: none !important; }
+          .invoice-wrapper { box-shadow: none !important; margin: 0 !important; max-width: none !important; padding: 20px !important; }
           @page { size: A4; margin: 12mm 15mm; }
+        }
+        @media (max-width: 640px) {
+          .invoice-wrapper { padding: 16px !important; margin-top: 56px !important; }
+          .invoice-header { flex-direction: column !important; gap: 16px !important; }
+          .invoice-header > div:last-child { text-align: left !important; }
+          .invoice-header > div:last-child table { margin-left: 0 !important; }
+          .invoice-addresses { grid-template-columns: 1fr !important; gap: 16px !important; }
+          .invoice-toolbar { padding: 8px 12px !important; }
+          .invoice-toolbar span { font-size: 12px !important; }
+          .invoice-toolbar button { padding: 6px 12px !important; font-size: 12px !important; }
+          .invoice-totals { width: 100% !important; }
+          .invoice-logo { height: 60px !important; }
         }
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
 
       {/* Toolbar — hidden in print */}
-      <div className="no-print" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 50, background: "#1a1a1a", padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="no-print invoice-toolbar" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 50, background: "#1a1a1a", padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>Invoice — {order.order_number}</span>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => window.print()} style={{ padding: "8px 20px", background: "#C0392B", color: "#fff", fontSize: 13, fontWeight: 600, borderRadius: 8, border: "none", cursor: "pointer" }}>
@@ -119,9 +131,9 @@ function InvoiceContent() {
       <div className="invoice-wrapper" style={{ maxWidth: 800, margin: "72px auto 40px", background: "#fff", padding: "40px", boxShadow: "0 2px 20px rgba(0,0,0,0.08)", borderRadius: 8 }}>
 
         {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, paddingBottom: 20, borderBottom: "2px solid #C0392B" }}>
+        <div className="invoice-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, paddingBottom: 20, borderBottom: "2px solid #C0392B" }}>
           <div>
-            <Image src="/logo.png" alt={store_name} width={320} height={124} style={{ height: 90, width: "auto", marginBottom: 10 }} unoptimized />
+            <Image src="/logo.png" alt={store_name} width={320} height={124} className="invoice-logo" style={{ height: 90, width: "auto", marginBottom: 10 }} unoptimized />
             <div style={{ fontSize: 9, color: "#999", lineHeight: 1.6 }}>
               Premium Beauty & Lifestyle<br />
               Dhaka, Bangladesh<br />
@@ -164,7 +176,7 @@ function InvoiceContent() {
         </div>
 
         {/* Bill To / Ship To */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>
+        <div className="invoice-addresses" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>
           <div>
             <div style={{ fontSize: 8, fontWeight: 800, textTransform: "uppercase", letterSpacing: 2, color: "#bbb", marginBottom: 6 }}>Bill To</div>
             <div style={{ fontWeight: 600, fontSize: 11, color: "#1a1a1a" }}>{order.billing_address?.name || order.customer_name}</div>
@@ -181,7 +193,8 @@ function InvoiceContent() {
         </div>
 
         {/* Items Table */}
-        <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 24 }}>
+        <div style={{ overflowX: "auto", marginBottom: 24 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 480 }}>
           <thead>
             <tr style={{ background: "#C0392B" }}>
               <th style={{ textAlign: "left", padding: "7px 10px", fontSize: 8, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: "#fff", borderRadius: "6px 0 0 0" }}>#</th>
@@ -206,10 +219,11 @@ function InvoiceContent() {
             ))}
           </tbody>
         </table>
+        </div>
 
         {/* Totals */}
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 24 }}>
-          <div style={{ width: 240 }}>
+          <div className="invoice-totals" style={{ width: 240 }}>
             <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 10, color: "#666" }}>
               <span>Subtotal</span>
               <span>{formatCurrency(Number(order.subtotal))}</span>

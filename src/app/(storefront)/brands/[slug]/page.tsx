@@ -251,7 +251,7 @@ export default function BrandPage() {
                   value={params.sort_by}
                   onValueChange={(v) => updateParams({ sort_by: v as ProductListParams["sort_by"] })}
                 >
-                  <SelectTrigger className="w-44 h-9 text-xs">
+                  <SelectTrigger className="w-36 sm:w-44 h-9 text-xs">
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
                   <SelectContent>

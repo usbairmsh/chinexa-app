@@ -76,15 +76,15 @@ export default function AccountLayout({
             <aside className="w-full lg:w-[280px] shrink-0">
               <div className="bg-white rounded-2xl shadow-card border border-border/20">
                 {/* User Card */}
-                <div className="p-5 bg-gradient-to-br from-primary-light to-pearl">
+                <div className="p-4 sm:p-5 bg-gradient-to-br from-primary-light to-pearl">
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-12 w-12 ring-2 ring-white shadow-md">
-                      <AvatarFallback className="text-sm font-semibold bg-secondary text-white">
+                    <Avatar className="h-10 w-10 sm:h-12 sm:w-12 ring-2 ring-white shadow-md">
+                      <AvatarFallback className="text-xs sm:text-sm font-semibold bg-secondary text-white">
                         {user?.name ? getInitials(user.name) : "G"}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-charcoal flex items-center gap-1">
+                      <p className="font-medium text-charcoal flex items-center gap-1 text-sm sm:text-base">
                         <span className="truncate">{user?.name || "Guest User"}</span>
                         {badge && <VerifiedBadge color={badge.badge_color} opacity={badge.badge_opacity} size={17} tooltip={badge.badge_name} />}
                       </p>
@@ -95,14 +95,14 @@ export default function AccountLayout({
                   </div>
                 </div>
 
-                {/* Nav Items */}
-                <nav className="p-2">
+                {/* Nav Items — horizontal scroll on mobile, vertical on desktop */}
+                <nav className="p-2 flex lg:flex-col overflow-x-auto lg:overflow-x-visible gap-1 lg:gap-0 scrollbar-hide">
                   {accountNav.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
                       className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150",
+                        "flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-xl text-sm transition-all duration-150 whitespace-nowrap shrink-0",
                         isActive(item.href)
                           ? "bg-secondary/10 text-secondary font-medium"
                           : "text-charcoal/70 hover:bg-pearl hover:text-charcoal"
@@ -111,18 +111,18 @@ export default function AccountLayout({
                       <item.icon className="h-[18px] w-[18px] shrink-0" />
                       <span className="flex-1">{item.label}</span>
                       {isActive(item.href) && (
-                        <ChevronRight className="h-3.5 w-3.5 text-secondary" />
+                        <ChevronRight className="h-3.5 w-3.5 text-secondary hidden lg:block" />
                       )}
                     </Link>
                   ))}
 
-                  <Separator className="my-2" />
+                  <Separator className="my-2 hidden lg:block" />
 
                   {/* Logout */}
                   {isAuthenticated ? (
                     <button
                       onClick={handleLogout}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-charcoal/70 hover:bg-destructive/5 hover:text-destructive transition-all duration-150 w-full"
+                      className="flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-xl text-sm text-charcoal/70 hover:bg-destructive/5 hover:text-destructive transition-all duration-150 w-full whitespace-nowrap shrink-0"
                     >
                       <LogOut className="h-[18px] w-[18px]" />
                       <span>Sign Out</span>
@@ -130,7 +130,7 @@ export default function AccountLayout({
                   ) : (
                     <Link
                       href="/login"
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-secondary font-medium hover:bg-secondary/5 transition-all duration-150"
+                      className="flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-xl text-sm text-secondary font-medium hover:bg-secondary/5 transition-all duration-150 whitespace-nowrap shrink-0"
                     >
                       <LogOut className="h-[18px] w-[18px] rotate-180" />
                       <span>Sign In</span>

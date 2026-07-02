@@ -188,7 +188,7 @@ function VerifyForm() {
       <CardContent className="pt-4">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* OTP Inputs */}
-          <div className="flex justify-center gap-3" onPaste={handlePaste}>
+          <div className="flex justify-center gap-2 sm:gap-3" onPaste={handlePaste}>
             {otp.map((digit, i) => (
               <motion.input
                 key={i}
@@ -202,7 +202,7 @@ function VerifyForm() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
-                className={`h-14 w-12 text-center text-xl font-semibold rounded-luxury border-2 transition-all outline-none ${
+                className={`h-12 w-10 sm:h-14 sm:w-12 text-center text-lg sm:text-xl font-semibold rounded-luxury border-2 transition-all outline-none ${
                   digit
                     ? "border-secondary bg-primary-light"
                     : "border-border focus:border-secondary"

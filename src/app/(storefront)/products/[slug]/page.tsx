@@ -485,25 +485,25 @@ export default function ProductDetailPage() {
                     <button
                       onClick={() => toggleItem(product.id)}
                       className={cn(
-                        "flex items-center gap-2 h-10 px-5 rounded-full border text-sm font-medium transition-all duration-200",
+                        "flex items-center gap-2 h-10 px-3 sm:px-5 rounded-full border text-xs sm:text-sm font-medium transition-all duration-200 flex-1 sm:flex-initial justify-center",
                         wishlisted
                           ? "border-secondary bg-secondary/5 text-secondary"
                           : "border-border text-charcoal-light hover:border-charcoal hover:text-charcoal"
                       )}
                     >
-                      <Heart className={cn("h-4 w-4", wishlisted && "fill-current")} />
-                      {wishlisted ? "In Wishlist" : "Add to Wishlist"}
+                      <Heart className={cn("h-4 w-4 shrink-0", wishlisted && "fill-current")} />
+                      <span className="truncate">{wishlisted ? "In Wishlist" : "Add to Wishlist"}</span>
                     </button>
                     <button
                       onClick={handleShare}
                       className={cn(
-                        "flex items-center gap-2 h-10 px-5 rounded-full border text-sm font-medium transition-all duration-300",
+                        "flex items-center gap-2 h-10 px-3 sm:px-5 rounded-full border text-xs sm:text-sm font-medium transition-all duration-300 shrink-0",
                         shared
                           ? "border-success bg-success text-white"
                           : "border-border text-charcoal-light hover:border-charcoal hover:text-charcoal"
                       )}
                     >
-                      {shared ? <><Check className="h-4 w-4" /> Link Copied!</> : <><Share2 className="h-4 w-4" /> Share</>}
+                      {shared ? <><Check className="h-4 w-4" /> <span className="hidden sm:inline">Link Copied!</span><span className="sm:hidden">Copied</span></> : <><Share2 className="h-4 w-4" /> Share</>}
                     </button>
                   </div>
                 </>
@@ -634,9 +634,9 @@ export default function ProductDetailPage() {
                 {realReviewCount > 0 ? (
                   <div className="space-y-4">
                     {/* Rating Summary */}
-                    <div className="flex items-center gap-6 p-5 rounded-xl bg-pearl/60">
+                    <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 p-4 sm:p-5 rounded-xl bg-pearl/60">
                       <div className="text-center">
-                        <p className="text-4xl font-bold text-charcoal">{realAvgRating}</p>
+                        <p className="text-3xl sm:text-4xl font-bold text-charcoal">{realAvgRating}</p>
                         <div className="flex items-center gap-0.5 mt-1 justify-center">
                           {Array.from({ length: 5 }).map((_, i) => (
                             <Star key={i} className={cn("h-3.5 w-3.5", i < Math.round(Number(realAvgRating)) ? "text-gold fill-gold" : "text-border")} />

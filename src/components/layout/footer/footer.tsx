@@ -18,7 +18,7 @@ export function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="inline-block mb-4">
-              <Image src="/logo.png" alt={store_name} width={320} height={124} className="h-[120px] w-auto" />
+              <Image src="/logo.png" alt={store_name} width={320} height={124} className="h-[72px] sm:h-[90px] lg:h-[120px] w-auto" />
             </Link>
             <p className="text-sm text-charcoal-lighter leading-relaxed mb-4">
               Premium beauty & lifestyle products, curated with love for the modern woman in Bangladesh.
@@ -48,11 +48,11 @@ export function Footer() {
 
         <Separator className="my-8" />
 
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-charcoal-lighter">
+        <div className="flex flex-col items-center gap-3 text-xs text-charcoal-lighter sm:flex-row sm:justify-between sm:gap-4">
           <p>&copy; {new Date().getFullYear()} {store_name}. All rights reserved.</p>
           <p className="flex items-center gap-1.5">Developed by <span className="font-heading font-semibold text-secondary italic tracking-wide">{store_name}</span></p>
           {enabledPayments.length > 0 && (
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
               <span className="font-medium">We Accept:</span>
               {enabledPayments.map((name) => <span key={name}>{name}</span>)}
             </div>
