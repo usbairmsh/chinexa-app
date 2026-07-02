@@ -67,6 +67,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
     if (body.tags) { fields.push("tags = ?"); values.push(JSON.stringify(body.tags)); }
     if (body.badges) { fields.push("badges = ?"); values.push(JSON.stringify(body.badges)); }
+    if (body.trust_badges !== undefined) { fields.push("trust_badges = ?"); values.push(JSON.stringify(body.trust_badges)); }
     if (fields.length > 0) {
       values.push(id);
       await execute(`UPDATE products SET ${fields.join(", ")}, updated_at = NOW() WHERE id = ?`, values);

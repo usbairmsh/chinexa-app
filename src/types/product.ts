@@ -48,6 +48,7 @@ export interface Product {
   weight?: string;
   ingredients?: string;
   how_to_use?: string;
+  trust_badges?: string[];
   created_at: string;
   updated_at: string;
   seo_title?: string;

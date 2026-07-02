@@ -23,6 +23,21 @@ import { ImagePositionEditor } from "@/components/admin/shared/image-position-ed
 import { cn } from "@/lib/utils";
 import { CountrySearch } from "@/components/admin/shared/country-search";
 import { BrandSearch } from "@/components/admin/shared/brand-search";
+import { TRUST_BADGE_OPTIONS } from "@/lib/trust-badges";
+import {
+  Shield, Truck, RotateCcw, BadgeCheck, Banknote, Lock, Zap, Award as AwardIcon,
+  Globe as GlobeIcon, Heart, CheckCircle2, Clock as ClockIcon, Gift as GiftIcon, Headphones, Tag as TagIcon
+} from "lucide-react";
+
+const trustIconMap: Record<string, typeof Shield> = {
+  Shield, Truck, RotateCcw, BadgeCheck, Banknote, Lock, Zap, Award: AwardIcon,
+  Globe: GlobeIcon, Heart, CheckCircle2, Clock: ClockIcon, Gift: GiftIcon, Headphones, Tag: TagIcon,
+};
+
+function TrustBadgeIcon({ name, className }: { name: string; className?: string }) {
+  const Icon = trustIconMap[name] || Shield;
+  return <Icon className={className} />;
+}
 
 type VariantRow = {
   id: string;
@@ -101,6 +116,7 @@ export default function AddProductPage() {
   const [howToUse, setHowToUse] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [subcategory, setSubcategory] = useState("");
+  const [selectedTrustBadges, setSelectedTrustBadges] = useState<string[]>(["authentic", "free_delivery", "returns"]);
   const [seoTitle, setSeoTitle] = useState("");
   const [seoDesc, setSeoDesc] = useState("");
   const [seoPromptOpen, setSeoPromptOpen] = useState(false);
@@ -234,6 +250,7 @@ export default function AddProductPage() {
         subcategory: subcategory.trim() || null,
         brand_id: brandId || null,
         brand_name: dbBrands.find((b) => b.id === brandId)?.name || null,
+        trust_badges: selectedTrustBadges,
         seo_title: seoTitle.trim() || null,
         seo_description: seoDesc.trim() || null,
         is_active: isActive,
@@ -527,6 +544,49 @@ export default function AddProductPage() {
           {/* SEO */}
           {activeTab === "seo" && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              {/* Trust Badges */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-secondary" /> Trust Badges
+                  </CardTitle>
+                  <CardDescription>Select up to 3 trust badges shown on the product page</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {TRUST_BADGE_OPTIONS.map((badge) => {
+                      const isSelected = selectedTrustBadges.includes(badge.id);
+                      return (
+                        <button
+                          key={badge.id}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedTrustBadges((prev) => prev.filter((b) => b !== badge.id));
+                            } else if (selectedTrustBadges.length < 3) {
+                              setSelectedTrustBadges((prev) => [...prev, badge.id]);
+                            }
+                          }}
+                          disabled={!isSelected && selectedTrustBadges.length >= 3}
+                          className={cn(
+                            "flex items-start gap-2 p-3 rounded-xl border text-left transition-all",
+                            isSelected ? "border-secondary bg-secondary/5" : "border-border/30 hover:border-secondary/40",
+                            !isSelected && selectedTrustBadges.length >= 3 && "opacity-40 cursor-not-allowed"
+                          )}
+                        >
+                          <TrustBadgeIcon name={badge.icon} className="h-4 w-4 text-secondary shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-medium text-charcoal">{badge.label}</p>
+                            <p className="text-[9px] text-charcoal-lighter">{badge.sub}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-charcoal-lighter mt-2">{selectedTrustBadges.length}/3 selected</p>
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">

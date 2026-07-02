@@ -7,7 +7,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, ShoppingBag, Minus, Plus, Share2, Shield, Truck, RotateCcw,
-  ChevronLeft, ChevronRight, Star, Check, Clock, Package, Globe, Sparkles, Copy, Loader2, X
+  ChevronLeft, ChevronRight, Star, Check, Clock, Package, Globe, Sparkles, Copy, Loader2, X, Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -517,19 +517,42 @@ export default function ProductDetailPage() {
               )}
 
               {/* Trust Promises */}
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { icon: Shield, label: "100% Authentic", sub: "Verified products" },
-                  { icon: Truck, label: "Free Delivery", sub: `Orders above ৳${free_delivery_threshold.toLocaleString()}` },
-                  { icon: RotateCcw, label: "7-Day Returns", sub: "Hassle free" },
-                ].map((trust) => (
-                  <div key={trust.label} className="flex flex-col items-center text-center p-3 rounded-xl bg-pearl/60">
-                    <trust.icon className="h-5 w-5 text-secondary mb-1.5" />
-                    <span className="text-[11px] font-semibold text-charcoal leading-tight">{trust.label}</span>
-                    <span className="text-[9px] text-charcoal-lighter">{trust.sub}</span>
+              {(() => {
+                const badgeIds = product.trust_badges?.length ? product.trust_badges : ["authentic", "free_delivery", "returns"];
+                const iconMap: Record<string, typeof Shield> = { Shield, Truck, RotateCcw, Zap, Globe, Clock };
+                const badgeData: Record<string, { label: string; sub: string; iconKey: string }> = {
+                  authentic: { label: "100% Authentic", sub: "Verified products", iconKey: "Shield" },
+                  free_delivery: { label: "Free Delivery", sub: `Orders above ৳${free_delivery_threshold.toLocaleString()}`, iconKey: "Truck" },
+                  returns: { label: "7-Day Returns", sub: "Hassle free", iconKey: "RotateCcw" },
+                  genuine: { label: "100% Genuine", sub: "Original products", iconKey: "Shield" },
+                  cash_on_delivery: { label: "Cash on Delivery", sub: "Pay when you receive", iconKey: "Shield" },
+                  secure_payment: { label: "Secure Payment", sub: "SSL encrypted", iconKey: "Shield" },
+                  fast_shipping: { label: "Fast Shipping", sub: "1-3 business days", iconKey: "Zap" },
+                  warranty: { label: "Warranty", sub: "Quality guaranteed", iconKey: "Shield" },
+                  imported: { label: "Imported Original", sub: "Directly sourced", iconKey: "Globe" },
+                  cruelty_free: { label: "Cruelty Free", sub: "Not tested on animals", iconKey: "Shield" },
+                  halal: { label: "Halal Certified", sub: "Certified products", iconKey: "Shield" },
+                  express: { label: "Express Delivery", sub: "Same day available", iconKey: "Clock" },
+                  gift_wrap: { label: "Gift Wrapping", sub: "Available on request", iconKey: "Shield" },
+                  support: { label: "24/7 Support", sub: "Always here to help", iconKey: "Shield" },
+                  best_price: { label: "Best Price", sub: "Price match guarantee", iconKey: "Shield" },
+                };
+                const badges = badgeIds.map((id) => badgeData[id]).filter(Boolean);
+                return (
+                  <div className={cn("grid gap-3", badges.length >= 3 ? "grid-cols-3" : badges.length === 2 ? "grid-cols-2" : "grid-cols-1")}>
+                    {badges.map((trust) => {
+                      const Icon = iconMap[trust.iconKey] || Shield;
+                      return (
+                        <div key={trust.label} className="flex flex-col items-start text-left p-3 rounded-xl bg-pearl/60">
+                          <Icon className="h-5 w-5 text-secondary mb-1.5" />
+                          <span className="text-[11px] font-semibold text-charcoal leading-tight">{trust.label}</span>
+                          <span className="text-[9px] text-charcoal-lighter">{trust.sub}</span>
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
-              </div>
+                );
+              })()}
             </div>
           </motion.div>
         </div>
