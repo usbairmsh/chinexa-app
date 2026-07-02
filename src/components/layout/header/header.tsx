@@ -28,13 +28,17 @@ export function Header() {
 
   useEffect(() => {
     setMounted(true);
-    // Fetch announcement bar config
-    fetch("/api/settings?key=homepage_config")
+    // Fetch announcement bar + store phone from settings
+    fetch("/api/settings?keys=announcement,store_phone,homepage_config")
       .then((r) => r.json())
       .then((data) => {
-        if (data?.value?.announcement) {
-          setAnnouncement(data.value.announcement);
+        // Prefer the direct announcement key from settings page
+        if (data?.announcement) {
+          setAnnouncement({ visible: data.announcement.visible !== false, text: data.announcement.text || "", phone: data.store_phone || announcement.phone });
+        } else if (data?.homepage_config?.announcement) {
+          setAnnouncement({ ...data.homepage_config.announcement, phone: data.store_phone || announcement.phone });
         }
+        if (data?.store_phone) setAnnouncement((prev) => ({ ...prev, phone: data.store_phone }));
       })
       .catch(() => {});
     // Fetch categories from database — this is the single source of truth
