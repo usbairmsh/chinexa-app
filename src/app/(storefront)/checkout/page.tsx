@@ -209,9 +209,34 @@ export default function CheckoutPage() {
   const total = subtotal + shippingCost;
   const finalTotal = Math.max(0, total - (couponDiscount || 0));
 
+  const [stockError, setStockError] = useState<string[]>([]);
+
   const handlePlaceOrder = async () => {
     setPlacing(true);
+    setStockError([]);
+
     try {
+      // Validate stock before placing order
+      const validateRes = await fetch("/api/cart/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: items.map((item) => ({ product_id: item.product_id, variant_id: item.variant_id, quantity: item.quantity })),
+        }),
+      });
+      const validateData = await validateRes.json();
+
+      if (!validateData.valid) {
+        const issues = (validateData.items || [])
+          .filter((i: { in_stock: boolean }) => !i.in_stock)
+          .map((i: { product_name: string; available: number; requested: number }) =>
+            i.available === 0 ? `${i.product_name} is out of stock` : `${i.product_name} — only ${i.available} left (you have ${i.requested})`
+          );
+        setStockError(issues);
+        setPlacing(false);
+        return;
+      }
+
       const billingAddr = {
         name: customerName, phone: customerPhone, email: customerEmail || null,
         address_line_1: billingAddress, address_line_2: billingAddress2 || null,
@@ -258,6 +283,14 @@ export default function CheckoutPage() {
       });
 
       const data = await res.json();
+
+      // Handle stock conflict from server
+      if (!res.ok && data.out_of_stock) {
+        setStockError(data.out_of_stock);
+        setPlacing(false);
+        return;
+      }
+
       setOrderNumber(data.order_number || data.id || "");
       triggerDashboardRefresh();
 
@@ -638,6 +671,16 @@ export default function CheckoutPage() {
                     <span>{formatCurrency(finalTotal)}</span>
                   </div>
                 </div>
+
+                {stockError.length > 0 && (
+                  <div className="p-4 rounded-xl bg-destructive/5 border border-destructive/20 space-y-1">
+                    <p className="text-sm font-semibold text-destructive">Some items are no longer available:</p>
+                    {stockError.map((err, i) => (
+                      <p key={i} className="text-xs text-destructive/80">• {err}</p>
+                    ))}
+                    <p className="text-xs text-charcoal-lighter mt-2">Please update your cart and try again.</p>
+                  </div>
+                )}
 
                 <div className="flex gap-3">
                   <Button variant="outline" onClick={() => setStep(2)}>Back</Button>

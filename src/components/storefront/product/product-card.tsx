@@ -126,10 +126,17 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               <Heart className={cn("h-4 w-4", wishlisted && "fill-current")} />
             </button>
 
-            {/* Add to Bag — slides up on hover, same style as PDP */}
-            {product.stock_quantity > 0 && (
-              <div className="absolute bottom-0 left-0 right-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                <div className="bg-gradient-to-t from-black/50 to-transparent pt-8 pb-3 px-3">
+            {/* Low stock badge */}
+            {product.stock_quantity > 0 && product.stock_quantity <= 5 && (
+              <div className="absolute top-3 right-3 z-10">
+                <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[9px] font-semibold">Only {product.stock_quantity} left!</span>
+              </div>
+            )}
+
+            {/* Add to Bag / Out of Stock */}
+            <div className="absolute bottom-0 left-0 right-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+              <div className="bg-gradient-to-t from-black/50 to-transparent pt-8 pb-3 px-3">
+                {product.stock_quantity > 0 ? (
                   <button
                     onClick={openModal}
                     className="w-full h-12 flex items-center justify-center gap-2 rounded-full bg-secondary text-[14px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 !text-white"
@@ -137,9 +144,13 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                     <ShoppingBag className="h-[18px] w-[18px]" />
                     Add to Bag
                   </button>
-                </div>
+                ) : (
+                  <div className="w-full h-12 flex items-center justify-center rounded-full bg-charcoal/80 text-white text-[14px] font-semibold cursor-not-allowed">
+                    Out of Stock
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
 
           {/* Info */}

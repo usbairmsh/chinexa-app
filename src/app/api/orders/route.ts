@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
-import { query, execute, escapeLike } from "@/lib/db";
+import pool, { query, execute, escapeLike } from "@/lib/db";
+import { type RowDataPacket as StockRow } from "mysql2/promise";
 import { validate, validationError } from "@/lib/validate";
 
 interface OrderRow extends RowDataPacket { [key: string]: unknown; }
@@ -57,6 +58,45 @@ export async function POST(req: NextRequest) {
         return validationError("Each order item must have a product name and quantity of at least 1");
       }
     }
+    // ─── ATOMIC STOCK VALIDATION ───
+    // Use a transaction with row locking to prevent overselling
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const outOfStock: string[] = [];
+      for (const item of body.items) {
+        if (item.product_id) {
+          const [rows] = await conn.execute<StockRow[]>(
+            "SELECT stock_quantity, name FROM products WHERE id = ? FOR UPDATE",
+            [item.product_id]
+          );
+          if (rows.length > 0) {
+            const available = Number(rows[0].stock_quantity);
+            if (available < item.quantity) {
+              outOfStock.push(`${rows[0].name} (only ${available} left, you requested ${item.quantity})`);
+            }
+          }
+        }
+      }
+
+      if (outOfStock.length > 0) {
+        await conn.rollback();
+        conn.release();
+        return NextResponse.json({
+          error: "Some items are no longer available",
+          out_of_stock: outOfStock,
+        }, { status: 409 });
+      }
+
+      await conn.commit();
+      conn.release();
+    } catch (txError) {
+      await conn.rollback().catch(() => {});
+      conn.release();
+      throw txError;
+    }
+
     const id = `ord-${Date.now()}`;
     const orderNumber = `ORD-${String(Date.now()).slice(-6)}`;
 
