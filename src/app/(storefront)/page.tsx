@@ -74,8 +74,16 @@ export default function HomePage() {
     const savedTypes = new Set(config.sections.map((s) => s.type));
     const newSections = defaultSections.filter((s) => !savedTypes.has(s.type));
     if (newSections.length === 0) return config.sections;
+    const usedIds = new Set(config.sections.map((s) => s.id));
     const maxOrder = Math.max(...config.sections.map((s) => s.order), 0);
-    return [...config.sections, ...newSections.map((s, i) => ({ ...s, order: maxOrder + i + 1 }))];
+    return [
+      ...config.sections,
+      ...newSections.map((s, i) => ({
+        ...s,
+        id: usedIds.has(s.id) ? `s${Date.now()}-${i}` : s.id,
+        order: maxOrder + i + 1,
+      })),
+    ];
   })();
   const trustBadges = config?.trust_badges;
   const visibleSections = sections.filter((s) => s.visible).sort((a, b) => a.order - b.order);
