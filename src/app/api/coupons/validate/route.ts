@@ -21,7 +21,14 @@ export async function POST(req: NextRequest) {
       discount = Number(coupon.discount_value);
     }
 
-    return NextResponse.json({ valid: true, discount: Math.round(discount), message: `Coupon applied! You save ৳${Math.round(discount)}` });
+    return NextResponse.json({
+      valid: true,
+      discount: Math.round(discount),
+      discount_type: coupon.discount_type,
+      discount_value: Number(coupon.discount_value),
+      max_discount_amount: coupon.max_discount_amount ? Number(coupon.max_discount_amount) : null,
+      message: `Coupon applied! You save ৳${Math.round(discount)}`,
+    });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
   }

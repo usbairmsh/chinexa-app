@@ -8,17 +8,21 @@ interface CartState {
   items: CartItem[];
   couponCode: string | null;
   couponDiscount: number;
+  couponType: "percentage" | "fixed" | null;
+  couponValue: number;
+  couponMaxDiscount: number | null;
 
   addItem: (item: CartItem) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
-  applyCoupon: (code: string, discount: number) => void;
+  applyCoupon: (code: string, discount: number, type?: "percentage" | "fixed", value?: number, maxDiscount?: number | null) => void;
   removeCoupon: () => void;
 
   getSubtotal: () => number;
   getShipping: () => number;
   getDiscount: () => number;
+  getSavings: () => number;
   getTotal: () => number;
   getItemCount: () => number;
 }
@@ -29,6 +33,9 @@ export const useCartStore = create<CartState>()(
       items: [],
       couponCode: null,
       couponDiscount: 0,
+      couponType: null,
+      couponValue: 0,
+      couponMaxDiscount: null,
 
       addItem: (item) =>
         set((state) => {
@@ -61,12 +68,18 @@ export const useCartStore = create<CartState>()(
               ),
         })),
 
-      clearCart: () => set({ items: [], couponCode: null, couponDiscount: 0 }),
+      clearCart: () => set({ items: [], couponCode: null, couponDiscount: 0, couponType: null, couponValue: 0, couponMaxDiscount: null }),
 
-      applyCoupon: (code, discount) =>
-        set({ couponCode: code, couponDiscount: discount }),
+      applyCoupon: (code, discount, type, value, maxDiscount) =>
+        set({
+          couponCode: code,
+          couponDiscount: discount,
+          couponType: type || "fixed",
+          couponValue: value || discount,
+          couponMaxDiscount: maxDiscount ?? null,
+        }),
 
-      removeCoupon: () => set({ couponCode: null, couponDiscount: 0 }),
+      removeCoupon: () => set({ couponCode: null, couponDiscount: 0, couponType: null, couponValue: 0, couponMaxDiscount: null }),
 
       getSubtotal: () =>
         get().items.reduce((sum, item) => sum + item.price * item.quantity, 0),
@@ -74,7 +87,6 @@ export const useCartStore = create<CartState>()(
       getShipping: () => {
         const subtotal = get().getSubtotal();
         if (subtotal === 0) return 0;
-        // Read delivery settings from localStorage directly to avoid circular store dependency
         try {
           const stored = typeof window !== "undefined" ? localStorage.getItem("chinexa-delivery") : null;
           if (stored) {
@@ -87,7 +99,25 @@ export const useCartStore = create<CartState>()(
         return subtotal >= 3000 ? 0 : 60;
       },
 
-      getDiscount: () => get().couponDiscount,
+      getDiscount: () => {
+        const state = get();
+        if (!state.couponCode) return 0;
+        if (state.couponType === "percentage") {
+          const subtotal = state.getSubtotal();
+          let discount = (subtotal * state.couponValue) / 100;
+          if (state.couponMaxDiscount) discount = Math.min(discount, state.couponMaxDiscount);
+          return Math.round(discount);
+        }
+        return state.couponDiscount;
+      },
+
+      getSavings: () =>
+        get().items.reduce((sum, item) => {
+          if (item.compare_at_price && item.compare_at_price > item.price) {
+            return sum + (item.compare_at_price - item.price) * item.quantity;
+          }
+          return sum;
+        }, 0),
 
       getTotal: () => {
         const subtotal = get().getSubtotal();

@@ -14,7 +14,7 @@ import { useCartStore } from "@/stores/cart.store";
 import { formatCurrency } from "@/lib/utils";
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, getSubtotal, getShipping, getDiscount, getTotal, getItemCount, couponCode, applyCoupon, removeCoupon } = useCartStore();
+  const { items, removeItem, updateQuantity, getSubtotal, getShipping, getDiscount, getSavings, getTotal, getItemCount, couponCode, applyCoupon, removeCoupon } = useCartStore();
   const [couponInput, setCouponInput] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState("");
@@ -34,7 +34,7 @@ export default function CartPage() {
       });
       const data = await res.json();
       if (data.valid) {
-        applyCoupon(code, data.discount);
+        applyCoupon(code, data.discount, data.discount_type, data.discount_value, data.max_discount_amount);
         setCouponSuccess(`Coupon applied! You save ${data.discount.toLocaleString("en-BD")}৳`);
         setCouponInput("");
       } else {
@@ -156,9 +156,15 @@ export default function CartPage() {
                     {getShipping() === 0 ? "Free" : formatCurrency(getShipping())}
                   </span>
                 </div>
+                {getSavings() > 0 && (
+                  <div className="flex justify-between text-success">
+                    <span>Offer Savings</span>
+                    <span>-{formatCurrency(getSavings())}</span>
+                  </div>
+                )}
                 {getDiscount() > 0 && (
                   <div className="flex justify-between text-success">
-                    <span>Discount</span>
+                    <span>Coupon Discount</span>
                     <span>-{formatCurrency(getDiscount())}</span>
                   </div>
                 )}

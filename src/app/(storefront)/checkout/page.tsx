@@ -55,7 +55,7 @@ function isValidEmail(email: string): boolean {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, getSubtotal, clearCart, couponCode, couponDiscount, applyCoupon, removeCoupon } = useCartStore();
+  const { items, getSubtotal, clearCart, couponCode, getDiscount, getSavings, applyCoupon, removeCoupon } = useCartStore();
   const storeSettings = useStoreSettings();
   const dbPaymentMethods = storeSettings.payment_methods.filter((m) => m.enabled);
   const activePaymentMethods = dbPaymentMethods.length > 0 ? dbPaymentMethods : PAYMENT_METHODS;
@@ -89,7 +89,7 @@ export default function CheckoutPage() {
       });
       const data = await res.json();
       if (data.valid) {
-        applyCoupon(code, data.discount);
+        applyCoupon(code, data.discount, data.discount_type, data.discount_value, data.max_discount_amount);
         setCouponInput("");
       } else {
         setCouponError(data.message || "Invalid coupon");
@@ -223,9 +223,11 @@ export default function CheckoutPage() {
 
   const shippingCost = getShippingCost();
   const subtotal = getSubtotal();
+  const discount = getDiscount();
+  const savings = getSavings();
   const isFreeShipping = freeDeliveryEnabled && subtotal >= freeDeliveryThreshold;
   const total = subtotal + shippingCost;
-  const finalTotal = Math.max(0, total - (couponDiscount || 0));
+  const finalTotal = Math.max(0, total - discount);
 
   const [stockError, setStockError] = useState<string[]>([]);
 
@@ -352,7 +354,7 @@ export default function CheckoutPage() {
           customer_phone: customerPhone,
           subtotal,
           shipping_cost: shippingCost,
-          discount: couponDiscount || 0,
+          discount: discount || 0,
           tax: 0,
           total: finalTotal,
           payment_method: paymentMethod,
@@ -717,7 +719,7 @@ export default function CheckoutPage() {
                         <div className="flex items-center gap-2">
                           <Tag className="h-3.5 w-3.5 text-success" />
                           <code className="text-sm font-bold text-success">{couponCode}</code>
-                          <span className="text-xs text-success/70">−{formatCurrency(couponDiscount)}</span>
+                          <span className="text-xs text-success/70">−{formatCurrency(discount)}</span>
                         </div>
                         <button onClick={handleRemoveCoupon} className="text-charcoal-lighter hover:text-destructive transition-colors">
                           <X className="h-4 w-4" />
@@ -788,10 +790,16 @@ export default function CheckoutPage() {
                     <span className="text-charcoal-lighter">Shipping</span>
                     <span>{isFreeShipping ? <span className="text-success font-medium">Free</span> : formatCurrency(shippingCost)}</span>
                   </div>
-                  {couponDiscount > 0 && (
+                  {savings > 0 && (
                     <div className="flex justify-between text-success">
-                      <span className="flex items-center gap-1">Discount <code className="text-[9px] bg-success/10 px-1 rounded">{couponCode}</code></span>
-                      <span>−{formatCurrency(couponDiscount)}</span>
+                      <span>Offer Savings</span>
+                      <span>−{formatCurrency(savings)}</span>
+                    </div>
+                  )}
+                  {discount > 0 && (
+                    <div className="flex justify-between text-success">
+                      <span className="flex items-center gap-1">Coupon Discount <code className="text-[9px] bg-success/10 px-1 rounded">{couponCode}</code></span>
+                      <span>−{formatCurrency(discount)}</span>
                     </div>
                   )}
                   <Separator />
@@ -863,10 +871,16 @@ export default function CheckoutPage() {
                   {isFreeShipping && activeDivision && (
                     <p className="text-[10px] text-success">Free delivery on orders above {formatCurrency(freeDeliveryThreshold)}</p>
                   )}
-                  {couponDiscount > 0 && (
+                  {savings > 0 && (
                     <div className="flex justify-between text-success">
-                      <span className="flex items-center gap-1">Discount <code className="text-[9px] bg-success/10 px-1 rounded">{couponCode}</code></span>
-                      <span>-{formatCurrency(couponDiscount)}</span>
+                      <span>Offer Savings</span>
+                      <span>-{formatCurrency(savings)}</span>
+                    </div>
+                  )}
+                  {discount > 0 && (
+                    <div className="flex justify-between text-success">
+                      <span className="flex items-center gap-1">Coupon <code className="text-[9px] bg-success/10 px-1 rounded">{couponCode}</code></span>
+                      <span>-{formatCurrency(discount)}</span>
                     </div>
                   )}
                 </div>
