@@ -32,7 +32,7 @@ export function HeroSection() {
   // Show shimmer while banners are loading — no text flash
   if (!banners) {
     return (
-      <section className="relative h-[70vh] sm:h-[80vh] bg-hero-gradient flex items-center justify-center">
+      <section className="relative h-[50vh] sm:h-[70vh] lg:h-[80vh] bg-hero-gradient flex items-center justify-center">
         <div className="absolute inset-0 bg-gradient-to-r from-pearl via-white to-pearl animate-pulse" />
       </section>
     );
@@ -40,7 +40,7 @@ export function HeroSection() {
 
   if (slides.length === 0 || !slides[current]) {
     return (
-      <section className="relative h-[70vh] sm:h-[80vh] bg-hero-gradient flex items-center justify-center">
+      <section className="relative h-[50vh] sm:h-[70vh] lg:h-[80vh] bg-hero-gradient flex items-center justify-center">
         <div className="text-center px-4">
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
@@ -84,7 +84,7 @@ export function HeroSection() {
   }
 
   return (
-    <section className="relative h-[70vh] sm:h-[80vh] overflow-hidden bg-pearl">
+    <section className="relative h-[50vh] sm:h-[70vh] lg:h-[80vh] overflow-hidden bg-pearl">
       <AnimatePresence mode="wait">
         <motion.div
           key={current}
@@ -136,7 +136,7 @@ export function HeroSection() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4 }}
-                  className="font-heading text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 leading-tight"
+                  className="font-heading text-2xl sm:text-4xl lg:text-5xl font-bold mb-4 sm:mb-6 leading-tight"
                   style={{ color: "#FFFFFF", textShadow: "0 2px 16px rgba(0,0,0,0.5)" }}
                 >
                   {slides[current].title}
