@@ -114,36 +114,36 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               </div>
             )}
 
-            {/* Wishlist button */}
-            <button
-              onClick={handleWishlist}
-              className={cn(
-                "absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full shadow-card transition-all duration-200 sm:opacity-0 sm:translate-x-2 sm:group-hover:opacity-100 sm:group-hover:translate-x-0",
-                wishlisted ? "bg-secondary text-white" : "bg-white hover:bg-secondary hover:text-white"
-              )}
-              aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
-            >
-              <Heart className={cn("h-4 w-4", wishlisted && "fill-current")} />
-            </button>
-
-            {/* Low stock badge */}
+            {/* Low stock badge — top right */}
             {product.stock_quantity > 0 && product.stock_quantity <= 5 && (
-              <div className="absolute top-12 right-3 z-10">
-                <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[9px] font-semibold">Only {product.stock_quantity} left!</span>
+              <div className="absolute top-3 right-3 z-10">
+                <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[9px] font-semibold shadow-card">Only {product.stock_quantity} left!</span>
               </div>
             )}
 
-            {/* Add to Bag / Out of Stock */}
+            {/* Add to Bag + Wishlist — slide up together on hover */}
             <div className="absolute bottom-0 left-0 right-0 sm:translate-y-full sm:group-hover:translate-y-0 transition-transform duration-300">
               <div className="bg-gradient-to-t from-black/50 to-transparent pt-8 pb-3 px-3">
                 {product.stock_quantity > 0 ? (
-                  <button
-                    onClick={openModal}
-                    className="w-full h-12 flex items-center justify-center gap-2 rounded-full bg-secondary text-[14px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 !text-white"
-                  >
-                    <ShoppingBag className="h-[18px] w-[18px]" />
-                    Add to Bag
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={openModal}
+                      className="flex-1 h-12 flex items-center justify-center gap-2 rounded-full bg-secondary text-[14px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 !text-white"
+                    >
+                      <ShoppingBag className="h-[18px] w-[18px]" />
+                      Add to Bag
+                    </button>
+                    <button
+                      onClick={handleWishlist}
+                      className={cn(
+                        "flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-[14px] font-semibold hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300",
+                        wishlisted ? "bg-secondary text-white" : "bg-white text-charcoal hover:bg-secondary hover:!text-white"
+                      )}
+                      aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                    >
+                      <Heart className={cn("h-[18px] w-[18px]", wishlisted && "fill-current")} />
+                    </button>
+                  </div>
                 ) : (
                   <div className="w-full h-12 flex items-center justify-center rounded-full bg-charcoal/80 text-white text-[14px] font-semibold cursor-not-allowed">
                     Out of Stock

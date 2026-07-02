@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await ensurePromotionColumns();
     const { id } = await params;
     const body = await req.json();
     const fields: string[] = [];
     const values: (string | number | null)[] = [];
-    for (const [k, col] of Object.entries({ title: "title", description: "description", applicability: "applicability", discount: "discount", start_date: "start_date", end_date: "end_date" })) {
+    for (const [k, col] of Object.entries({ title: "title", description: "description", applicability: "applicability", discount: "discount", discount_type: "discount_type", start_date: "start_date", end_date: "end_date" })) {
       if (body[k] !== undefined) { fields.push(`${col} = ?`); values.push(body[k]); }
+    }
+    if (body.discount_value !== undefined) { fields.push("discount_value = ?"); values.push(Number(body.discount_value) || 0); }
+    if (body.max_discount_amount !== undefined) {
+      fields.push("max_discount_amount = ?");
+      values.push(body.max_discount_amount != null && body.max_discount_amount !== "" ? Number(body.max_discount_amount) : null);
     }
     if (body.applicable_ids !== undefined) {
       fields.push("applicable_ids = ?");

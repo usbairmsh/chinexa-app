@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { useCartStore } from "@/stores/cart.store";
+import { PriceCalculator } from "@/components/storefront/cart/price-calculator";
 import { triggerDashboardRefresh } from "@/lib/dashboard-events";
 import { useDeliveryStore } from "@/stores/delivery.store";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -55,7 +56,7 @@ function isValidEmail(email: string): boolean {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, getSubtotal, clearCart, couponCode, getDiscount, getSavings, applyCoupon, removeCoupon } = useCartStore();
+  const { items, getSubtotal, clearCart, couponCode, getDiscount, getSavings, appliedOffers, applyCoupon, removeCoupon, refreshOffers } = useCartStore();
   const storeSettings = useStoreSettings();
   const dbPaymentMethods = storeSettings.payment_methods.filter((m) => m.enabled);
   const activePaymentMethods = dbPaymentMethods.length > 0 ? dbPaymentMethods : PAYMENT_METHODS;
@@ -85,7 +86,12 @@ export default function CheckoutPage() {
       const res = await fetch("/api/coupons/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, order_total: getSubtotal() }),
+        body: JSON.stringify({
+          code,
+          order_total: getSubtotal(),
+          customer_id: user?.id || null,
+          items: items.map((i) => ({ product_id: i.product_id, variant_id: i.variant_id || null, price: i.price, quantity: i.quantity })),
+        }),
       });
       const data = await res.json();
       if (data.valid) {
@@ -124,6 +130,12 @@ export default function CheckoutPage() {
 
   // Saved addresses
   const user = useAuthStore((s) => s.user);
+
+  // Re-evaluate admin offers against the cart + signed-in customer.
+  useEffect(() => {
+    refreshOffers(user?.id || null);
+  }, [refreshOffers, user?.id, items.length]);
+
   interface SavedAddress {
     id: string; label: string; name: string; phone: string;
     address_line_1: string; address_line_2?: string;
@@ -223,11 +235,10 @@ export default function CheckoutPage() {
 
   const shippingCost = getShippingCost();
   const subtotal = getSubtotal();
+  const offerSavings = getSavings();
   const discount = getDiscount();
-  const savings = getSavings();
   const isFreeShipping = freeDeliveryEnabled && subtotal >= freeDeliveryThreshold;
-  const total = subtotal + shippingCost;
-  const finalTotal = Math.max(0, total - discount);
+  const finalTotal = Math.max(0, subtotal - offerSavings - discount + shippingCost);
 
   const [stockError, setStockError] = useState<string[]>([]);
 
@@ -352,15 +363,17 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           customer_name: customerName,
           customer_phone: customerPhone,
+          customer_id: user?.id || null,
           subtotal,
           shipping_cost: shippingCost,
-          discount: discount || 0,
+          discount: offerSavings + discount,
           tax: 0,
           total: finalTotal,
           payment_method: paymentMethod,
           payment_status: "pending",
           transaction_id: paymentMethod !== "COD" ? transactionId.trim() : null,
           coupon_code: couponCode || null,
+          applied_offer_ids: appliedOffers.map((o) => o.id),
           items: orderItems,
           billing_address: billingAddr,
           shipping_address: shippingAddr,
@@ -781,32 +794,11 @@ export default function CheckoutPage() {
                 )}
 
                 {/* Price Breakdown */}
-                <div className="p-3 sm:p-4 rounded-xl border border-border/30 bg-pearl/20 space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-charcoal-lighter">Subtotal</span>
-                    <span>{formatCurrency(subtotal)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-charcoal-lighter">Shipping</span>
-                    <span>{isFreeShipping ? <span className="text-success font-medium">Free</span> : formatCurrency(shippingCost)}</span>
-                  </div>
-                  {savings > 0 && (
-                    <div className="flex justify-between text-success">
-                      <span>Offer Savings</span>
-                      <span>−{formatCurrency(savings)}</span>
-                    </div>
-                  )}
-                  {discount > 0 && (
-                    <div className="flex justify-between text-success">
-                      <span className="flex items-center gap-1">Coupon Discount <code className="text-[9px] bg-success/10 px-1 rounded">{couponCode}</code></span>
-                      <span>−{formatCurrency(discount)}</span>
-                    </div>
-                  )}
-                  <Separator />
-                  <div className="flex justify-between font-semibold text-charcoal text-base">
-                    <span>Total</span>
-                    <span>{formatCurrency(finalTotal)}</span>
-                  </div>
+                <div className="p-3 sm:p-4 rounded-xl border border-border/30 bg-pearl/20">
+                  <PriceCalculator
+                    shippingCost={shippingCost}
+                    isFreeShipping={isFreeShipping}
+                  />
                 </div>
 
                 {stockError.length > 0 && (
@@ -851,44 +843,11 @@ export default function CheckoutPage() {
                   ))}
                 </div>
                 <Separator className="my-3" />
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-charcoal-lighter">Subtotal</span>
-                    <span>{formatCurrency(subtotal)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-charcoal-lighter">Shipping</span>
-                    <span>
-                      {!activeDivision ? (
-                        <span className="text-[10px] text-charcoal-lighter">Select address</span>
-                      ) : isFreeShipping ? (
-                        <span className="text-success font-medium">Free</span>
-                      ) : (
-                        formatCurrency(shippingCost)
-                      )}
-                    </span>
-                  </div>
-                  {isFreeShipping && activeDivision && (
-                    <p className="text-[10px] text-success">Free delivery on orders above {formatCurrency(freeDeliveryThreshold)}</p>
-                  )}
-                  {savings > 0 && (
-                    <div className="flex justify-between text-success">
-                      <span>Offer Savings</span>
-                      <span>-{formatCurrency(savings)}</span>
-                    </div>
-                  )}
-                  {discount > 0 && (
-                    <div className="flex justify-between text-success">
-                      <span className="flex items-center gap-1">Coupon <code className="text-[9px] bg-success/10 px-1 rounded">{couponCode}</code></span>
-                      <span>-{formatCurrency(discount)}</span>
-                    </div>
-                  )}
-                </div>
-                <Separator className="my-3" />
-                <div className="flex justify-between font-semibold text-charcoal">
-                  <span>Total</span>
-                  <span>{formatCurrency(finalTotal)}</span>
-                </div>
+                <PriceCalculator
+                  shippingCost={activeDivision ? shippingCost : undefined}
+                  isFreeShipping={isFreeShipping}
+                  freeDeliveryThreshold={freeDeliveryThreshold}
+                />
               </div>
             </div>
           )}

@@ -14,7 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateShort, cn } from "@/lib/utils";
-import type { Offer, OfferApplicability } from "@/types/offer";
+import type { Offer, OfferApplicability, DiscountType } from "@/types/offer";
 
 const applicabilityConfig: Record<string, { label: string; icon: typeof Globe; color: string }> = {
   store: { label: "Store-wide", icon: Globe, color: "bg-blue-50 text-blue-600" },
@@ -38,7 +38,9 @@ export default function AdminOffersPage() {
   const [formDesc, setFormDesc] = useState("");
   const [formApplicability, setFormApplicability] = useState<OfferApplicability>("store");
   const [formSelectedIds, setFormSelectedIds] = useState<{ id: string; name: string }[]>([]);
-  const [formDiscount, setFormDiscount] = useState("");
+  const [formDiscountType, setFormDiscountType] = useState<DiscountType>("percentage");
+  const [formDiscountValue, setFormDiscountValue] = useState("");
+  const [formMaxDiscount, setFormMaxDiscount] = useState("");
   const [formStartDate, setFormStartDate] = useState("");
   const [formEndDate, setFormEndDate] = useState("");
   const [formActive, setFormActive] = useState(true);
@@ -72,7 +74,8 @@ export default function AdminOffersPage() {
 
   const resetForm = () => {
     setFormTitle(""); setFormDesc(""); setFormApplicability("store"); setFormSelectedIds([]);
-    setFormDiscount(""); setFormStartDate(""); setFormEndDate(""); setFormActive(true);
+    setFormDiscountType("percentage"); setFormDiscountValue(""); setFormMaxDiscount("");
+    setFormStartDate(""); setFormEndDate(""); setFormActive(true);
     setEditOffer(null); setSearchQuery(""); setSearchResults([]);
   };
 
@@ -84,23 +87,36 @@ export default function AdminOffersPage() {
     setFormDesc(offer.description || "");
     setFormApplicability(offer.applicability || "store");
     setFormSelectedIds((offer.applicable_ids || []).map((id, i) => ({ id, name: offer.applicable_names?.[i] || id })));
-    setFormDiscount(offer.discount);
+    setFormDiscountType(offer.discount_type || "percentage");
+    setFormDiscountValue(offer.discount_value ? String(offer.discount_value) : "");
+    setFormMaxDiscount(offer.max_discount_amount != null ? String(offer.max_discount_amount) : "");
     setFormStartDate(offer.start_date ? offer.start_date.slice(0, 10) : "");
     setFormEndDate(offer.end_date ? offer.end_date.slice(0, 10) : "");
     setFormActive(offer.is_active);
     setDialogOpen(true);
   };
 
+  const discountValueNum = Number(formDiscountValue);
+  const isFormValid =
+    formTitle.trim() &&
+    Number.isFinite(discountValueNum) &&
+    discountValueNum > 0 &&
+    (formDiscountType !== "percentage" || discountValueNum <= 100);
+
   const handleSave = async () => {
-    if (!formTitle.trim() || !formDiscount.trim()) return;
+    if (!isFormValid) return;
     setSaving(true);
     try {
+      const label = formDiscountType === "fixed" ? `৳${discountValueNum} OFF` : `${discountValueNum}% OFF`;
       const payload = {
         title: formTitle.trim(),
         description: formDesc.trim() || null,
         applicability: formApplicability,
         applicable_ids: formApplicability === "store" ? [] : formSelectedIds.map((s) => s.id),
-        discount: formDiscount.trim(),
+        discount: label,
+        discount_type: formDiscountType,
+        discount_value: discountValueNum,
+        max_discount_amount: formDiscountType === "percentage" && formMaxDiscount ? Number(formMaxDiscount) : null,
         start_date: formStartDate || null,
         end_date: formEndDate || null,
         is_active: formActive,
@@ -253,7 +269,39 @@ export default function AdminOffersPage() {
           <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-4 py-2 pr-1">
             <Input label="Offer Title *" placeholder="Summer Sale — 30% Off" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
             <Textarea label="Description" placeholder="Describe the offer details..." value={formDesc} onChange={(e) => setFormDesc(e.target.value)} className="min-h-[60px]" />
-            <Input label="Discount *" placeholder="e.g., 30% OFF, Buy 1 Get 1, ৳500 OFF" value={formDiscount} onChange={(e) => setFormDiscount(e.target.value)} />
+
+            {/* Structured discount */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-charcoal-light mb-1.5">Discount Type *</label>
+                <Select value={formDiscountType} onValueChange={(v) => setFormDiscountType(v as DiscountType)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="fixed">Fixed Amount (৳)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Input
+                label={formDiscountType === "percentage" ? "Discount % *" : "Discount ৳ *"}
+                type="number"
+                min="0"
+                max={formDiscountType === "percentage" ? "100" : undefined}
+                placeholder={formDiscountType === "percentage" ? "30" : "500"}
+                value={formDiscountValue}
+                onChange={(e) => setFormDiscountValue(e.target.value)}
+              />
+            </div>
+            {formDiscountType === "percentage" && (
+              <Input
+                label="Max Discount Cap (৳, optional)"
+                type="number"
+                min="0"
+                placeholder="e.g., 1000 — leave blank for no cap"
+                value={formMaxDiscount}
+                onChange={(e) => setFormMaxDiscount(e.target.value)}
+              />
+            )}
 
             {/* Applicability */}
             <div>
@@ -353,7 +401,7 @@ export default function AdminOffersPage() {
           </div>
           <DialogFooter className="shrink-0 pt-2 border-t border-border/20">
             <AdminButton variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</AdminButton>
-            <AdminButton onClick={handleSave} disabled={saving || !formTitle.trim() || !formDiscount.trim()}>
+            <AdminButton onClick={handleSave} disabled={saving || !isFormValid}>
               {saving && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
               {editOffer ? "Save Changes" : "Create Offer"}
             </AdminButton>

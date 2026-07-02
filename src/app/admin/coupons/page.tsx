@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, MoreHorizontal, Copy, Percent, BadgeDollarSign, Loader2, AlertTriangle, Check, Tag, Users, Crown } from "lucide-react";
+import { Plus, Edit, Trash2, MoreHorizontal, Copy, Percent, BadgeDollarSign, Loader2, AlertTriangle, Check, Tag, Users, Crown, Globe, FolderTree, ShoppingCart, Search, X } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
-import type { Coupon } from "@/types/coupon";
+import type { Coupon, CouponApplicability } from "@/types/coupon";
 
 export default function AdminCouponsPage() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -45,7 +45,17 @@ export default function AdminCouponsPage() {
   const [formValidFrom, setFormValidFrom] = useState("");
   const [formValidUntil, setFormValidUntil] = useState("");
   const [formUsageLimit, setFormUsageLimit] = useState("");
+  const [formPerCustomerLimit, setFormPerCustomerLimit] = useState("");
   const [formActive, setFormActive] = useState(true);
+
+  // Applicability (same model as offers)
+  const [formApplicability, setFormApplicability] = useState<CouponApplicability>("store");
+  const [formSelectedIds, setFormSelectedIds] = useState<{ id: string; name: string }[]>([]);
+  const [applSearchQuery, setApplSearchQuery] = useState("");
+  const [applSearchResults, setApplSearchResults] = useState<{ id: string; name: string; extra?: string }[]>([]);
+  const [applSearchLoading, setApplSearchLoading] = useState(false);
+  const [allCategories, setAllCategories] = useState<{ id: string; name: string; children?: { id: string; name: string }[] }[]>([]);
+  const [allTiers, setAllTiers] = useState<{ id: string; name: string }[]>([]);
 
   const fetchCoupons = async () => {
     try {
@@ -55,12 +65,50 @@ export default function AdminCouponsPage() {
     } catch {} finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchCoupons(); }, []);
+  useEffect(() => {
+    fetchCoupons();
+    fetch("/api/categories").then((r) => r.json()).then((data) => {
+      if (Array.isArray(data)) setAllCategories(data);
+    }).catch(() => {});
+    fetch("/api/membership/tiers").then((r) => r.json()).then((data) => {
+      if (Array.isArray(data)) setAllTiers(data.map((t: Record<string, unknown>) => ({ id: t.id as string, name: t.name as string })));
+    }).catch(() => {});
+  }, []);
+
+  // Applicability helpers (mirror offers page)
+  const handleApplSearch = async (q: string) => {
+    setApplSearchQuery(q);
+    if (q.length < 2) { setApplSearchResults([]); return; }
+    setApplSearchLoading(true);
+    try {
+      if (formApplicability === "customers") {
+        const res = await fetch(`/api/customers?search=${encodeURIComponent(q)}&page_size=10`);
+        const data = await res.json();
+        if (data?.data) setApplSearchResults(data.data.map((c: Record<string, unknown>) => ({ id: c.id as string, name: c.name as string, extra: c.phone as string })));
+      } else if (formApplicability === "products") {
+        const res = await fetch(`/api/products?search=${encodeURIComponent(q)}&all=1&page_size=10`);
+        const data = await res.json();
+        if (data?.data) setApplSearchResults(data.data.map((p: Record<string, unknown>) => ({ id: p.id as string, name: p.name as string, extra: p.sku as string })));
+      }
+    } catch {} finally { setApplSearchLoading(false); }
+  };
+
+  const getApplOptions = () => {
+    if (formApplicability === "categories") return allCategories.map((c) => ({ id: c.id, name: c.name }));
+    if (formApplicability === "subcategories") return allCategories.flatMap((c) => (c.children || []).map((s) => ({ id: s.id, name: `${c.name} → ${s.name}` })));
+    if (formApplicability === "tiers") return allTiers;
+    return [];
+  };
+
+  const toggleApplSelected = (item: { id: string; name: string }) => {
+    setFormSelectedIds((prev) => prev.find((s) => s.id === item.id) ? prev.filter((s) => s.id !== item.id) : [...prev, item]);
+  };
 
   const resetForm = () => {
     setFormCode(""); setFormDesc(""); setFormType("percentage"); setFormValue("");
     setFormMinOrder(""); setFormMaxDiscount(""); setFormValidFrom(""); setFormValidUntil("");
-    setFormUsageLimit(""); setFormActive(true); setEditCoupon(null);
+    setFormUsageLimit(""); setFormPerCustomerLimit(""); setFormActive(true); setEditCoupon(null);
+    setFormApplicability("store"); setFormSelectedIds([]); setApplSearchQuery(""); setApplSearchResults([]);
   };
 
   const openCreate = () => { resetForm(); setDialogOpen(true); };
@@ -76,7 +124,10 @@ export default function AdminCouponsPage() {
     setFormValidFrom(coupon.valid_from ? coupon.valid_from.slice(0, 10) : "");
     setFormValidUntil(coupon.valid_until ? coupon.valid_until.slice(0, 10) : "");
     setFormUsageLimit(coupon.usage_limit ? String(coupon.usage_limit) : "");
+    setFormPerCustomerLimit(coupon.per_customer_limit ? String(coupon.per_customer_limit) : "");
     setFormActive(coupon.is_active);
+    setFormApplicability(coupon.applicability || "store");
+    setFormSelectedIds((coupon.applicable_ids || []).map((id, i) => ({ id, name: coupon.applicable_names?.[i] || id })));
     setDialogOpen(true);
   };
 
@@ -94,6 +145,9 @@ export default function AdminCouponsPage() {
         valid_from: formValidFrom || null,
         valid_until: formValidUntil || null,
         usage_limit: formUsageLimit ? Number(formUsageLimit) : null,
+        per_customer_limit: formPerCustomerLimit ? Number(formPerCustomerLimit) : null,
+        applicability: formApplicability,
+        applicable_ids: formApplicability === "store" ? [] : formSelectedIds.map((s) => s.id),
         is_active: formActive,
       };
       if (editCoupon) {
@@ -231,6 +285,8 @@ export default function AdminCouponsPage() {
                   <div className="space-y-1 text-xs text-charcoal-lighter">
                     {coupon.min_order_amount ? <p>Min. order: {formatCurrency(coupon.min_order_amount)}</p> : null}
                     {coupon.max_discount_amount ? <p>Max discount: {formatCurrency(coupon.max_discount_amount)}</p> : null}
+                    {coupon.per_customer_limit ? <p>Limit: {coupon.per_customer_limit} per customer</p> : null}
+                    {coupon.applicability && coupon.applicability !== "store" ? <p className="capitalize">Applies to: {coupon.applicability}{coupon.applicable_ids?.length ? ` (${coupon.applicable_ids.length})` : ""}</p> : null}
                     {coupon.valid_from && coupon.valid_until && <p>Valid: {formatDateShort(coupon.valid_from)} — {formatDateShort(coupon.valid_until)}</p>}
                   </div>
 
@@ -291,13 +347,99 @@ export default function AdminCouponsPage() {
               <Input label="Valid Until" type="date" value={formValidUntil} onChange={(e) => setFormValidUntil(e.target.value)} />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Usage Limit" placeholder="1000 (leave empty for unlimited)" type="number" value={formUsageLimit} onChange={(e) => setFormUsageLimit(e.target.value)} />
-              <div className="flex items-end pb-1">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <Switch checked={formActive} onCheckedChange={setFormActive} />
-                  <span className="text-sm font-medium text-charcoal-light">{formActive ? "Active" : "Paused"}</span>
-                </label>
+              <Input label="Total Usage Limit" placeholder="1000 (empty = unlimited)" type="number" value={formUsageLimit} onChange={(e) => setFormUsageLimit(e.target.value)} />
+              <Input label="Limit Per Customer" placeholder="1 (empty = unlimited)" type="number" value={formPerCustomerLimit} onChange={(e) => setFormPerCustomerLimit(e.target.value)} />
+            </div>
+
+            {/* Applicability — who/what the coupon can be redeemed on */}
+            <div>
+              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Coupon Applicability</label>
+              <Select value={formApplicability} onValueChange={(v) => { setFormApplicability(v as CouponApplicability); setFormSelectedIds([]); setApplSearchQuery(""); setApplSearchResults([]); }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="store"><span className="flex items-center gap-2"><Globe className="h-3.5 w-3.5" /> Store-wide (All products)</span></SelectItem>
+                  <SelectItem value="categories"><span className="flex items-center gap-2"><FolderTree className="h-3.5 w-3.5" /> Specific Categories</span></SelectItem>
+                  <SelectItem value="subcategories"><span className="flex items-center gap-2"><FolderTree className="h-3.5 w-3.5" /> Specific Subcategories</span></SelectItem>
+                  <SelectItem value="products"><span className="flex items-center gap-2"><ShoppingCart className="h-3.5 w-3.5" /> Specific Products</span></SelectItem>
+                  <SelectItem value="customers"><span className="flex items-center gap-2"><Users className="h-3.5 w-3.5" /> Specific Customers</span></SelectItem>
+                  <SelectItem value="tiers"><span className="flex items-center gap-2"><Crown className="h-3.5 w-3.5" /> Membership Tiers</span></SelectItem>
+                </SelectContent>
+              </Select>
+              {(formApplicability === "customers" || formApplicability === "tiers") && (
+                <p className="text-[10px] text-charcoal-lighter mt-1">Customers must be signed in to redeem this coupon.</p>
+              )}
+            </div>
+
+            {formApplicability !== "store" && (
+              <div className="space-y-2">
+                {formSelectedIds.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {formSelectedIds.map((item) => (
+                      <span key={item.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary/10 text-secondary text-[11px] font-medium">
+                        {item.name}
+                        <button type="button" onClick={() => setFormSelectedIds((prev) => prev.filter((s) => s.id !== item.id))} className="hover:text-destructive transition-colors">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {(formApplicability === "customers" || formApplicability === "products") && (
+                  <div>
+                    <div className="flex items-center gap-2 px-3 rounded-xl border border-border bg-pearl/30">
+                      <Search className="h-3.5 w-3.5 text-charcoal-lighter shrink-0" />
+                      <input
+                        type="text"
+                        value={applSearchQuery}
+                        onChange={(e) => handleApplSearch(e.target.value)}
+                        placeholder={formApplicability === "customers" ? "Search by phone number..." : "Search by product name or SKU..."}
+                        className="w-full py-2.5 text-sm bg-transparent outline-none text-charcoal placeholder:text-charcoal-lighter/50"
+                      />
+                      {applSearchLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-charcoal-lighter shrink-0" />}
+                    </div>
+                    {applSearchResults.length > 0 && (
+                      <div className="mt-1 max-h-36 overflow-y-auto border border-border/30 rounded-xl bg-white">
+                        {applSearchResults.map((r) => {
+                          const isSelected = formSelectedIds.some((s) => s.id === r.id);
+                          return (
+                            <button key={r.id} type="button" onClick={() => toggleApplSelected({ id: r.id, name: r.name })}
+                              className={cn("w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-pearl transition-colors", isSelected && "bg-secondary/5")}>
+                              <div>
+                                <p className="text-xs font-medium text-charcoal">{r.name}</p>
+                                <p className="text-[10px] text-charcoal-lighter">{r.extra}</p>
+                              </div>
+                              {isSelected && <Check className="h-4 w-4 text-secondary shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {(formApplicability === "categories" || formApplicability === "subcategories" || formApplicability === "tiers") && (
+                  <div className="max-h-44 overflow-y-auto border border-border/30 rounded-xl bg-white">
+                    {getApplOptions().length === 0 ? (
+                      <p className="px-3 py-4 text-xs text-charcoal-lighter text-center">No {formApplicability} found</p>
+                    ) : getApplOptions().map((opt) => {
+                      const isSelected = formSelectedIds.some((s) => s.id === opt.id);
+                      return (
+                        <button key={opt.id} type="button" onClick={() => toggleApplSelected(opt)}
+                          className={cn("w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-pearl transition-colors border-b border-border/10 last:border-0", isSelected && "bg-secondary/5")}>
+                          <span className="text-xs text-charcoal">{opt.name}</span>
+                          {isSelected && <Check className="h-4 w-4 text-secondary shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
+            )}
+
+            <div className="flex items-center gap-3">
+              <Switch checked={formActive} onCheckedChange={setFormActive} />
+              <span className="text-sm font-medium text-charcoal-light">{formActive ? "Active" : "Paused"}</span>
             </div>
           </div>
           <DialogFooter className="shrink-0 pt-2 border-t border-border/20">

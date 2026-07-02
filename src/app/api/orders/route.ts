@@ -213,9 +213,25 @@ export async function POST(req: NextRequest) {
     // Timeline
     await execute("INSERT INTO order_timeline (order_id, status, note) VALUES (?, 'pending', 'Order placed — stock reserved')", [id]);
 
-    // Increment coupon usage count
+    // Increment coupon usage count + mark this customer's assignment as used
     if (body.coupon_code) {
       await execute("UPDATE coupons SET used_count = used_count + 1 WHERE code = ?", [body.coupon_code]);
+      if (customerId) {
+        await execute(
+          `UPDATE customer_coupons cc
+             JOIN coupons c ON c.id = cc.coupon_id
+             SET cc.is_used = TRUE, cc.used_at = NOW()
+           WHERE c.code = ? AND cc.customer_id = ? AND cc.is_used = FALSE`,
+          [body.coupon_code, customerId]
+        ).catch(() => {});
+      }
+    }
+
+    // Increment usage_count on any admin offers applied to this order
+    if (Array.isArray(body.applied_offer_ids) && body.applied_offer_ids.length > 0) {
+      for (const offerId of body.applied_offer_ids) {
+        await execute("UPDATE offers SET usage_count = usage_count + 1 WHERE id = ?", [offerId]).catch(() => {});
+      }
     }
 
     await logActivity("New order placed", "order", id, `${orderNumber} — ৳${body.total}`);

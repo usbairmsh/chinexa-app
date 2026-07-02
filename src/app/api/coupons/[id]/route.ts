@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await ensurePromotionColumns();
     const { id } = await params;
     const body = await req.json();
     const fields: string[] = []; const values: (string | number | null)[] = [];
-    for (const [k, col] of Object.entries({ code: "code", description: "description", discount_type: "discount_type", discount_value: "discount_value", min_order_amount: "min_order_amount", max_discount_amount: "max_discount_amount", usage_limit: "usage_limit" })) {
+    for (const [k, col] of Object.entries({ code: "code", description: "description", discount_type: "discount_type", discount_value: "discount_value", min_order_amount: "min_order_amount", max_discount_amount: "max_discount_amount", usage_limit: "usage_limit", per_customer_limit: "per_customer_limit", applicability: "applicability" })) {
       if (body[k] !== undefined) { fields.push(`${col} = ?`); values.push(body[k]); }
     }
+    if (body.applicable_ids !== undefined) { fields.push("applicable_ids = ?"); values.push(JSON.stringify(body.applicable_ids || [])); }
     if (body.is_active !== undefined) { fields.push("is_active = ?"); values.push(body.is_active ? 1 : 0); }
     if (body.valid_from !== undefined) { fields.push("valid_from = ?"); values.push(body.valid_from); }
     if (body.valid_until !== undefined) { fields.push("valid_until = ?"); values.push(body.valid_until); }

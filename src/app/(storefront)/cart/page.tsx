@@ -2,23 +2,30 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, X, Loader2, Tag } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useCartStore } from "@/stores/cart.store";
+import { useAuthStore } from "@/stores/auth.store";
+import { PriceCalculator } from "@/components/storefront/cart/price-calculator";
 import { formatCurrency } from "@/lib/utils";
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, getSubtotal, getShipping, getDiscount, getSavings, getTotal, getItemCount, couponCode, applyCoupon, removeCoupon } = useCartStore();
+  const { items, removeItem, updateQuantity, getSubtotal, getShipping, getItemCount, couponCode, applyCoupon, removeCoupon, refreshOffers } = useCartStore();
+  const user = useAuthStore((s) => s.user);
   const [couponInput, setCouponInput] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState("");
   const [couponSuccess, setCouponSuccess] = useState("");
+
+  // Re-evaluate admin offers against the current cart (and customer) on load.
+  useEffect(() => {
+    refreshOffers(user?.id || null);
+  }, [refreshOffers, user?.id, items.length]);
 
   const handleApplyCoupon = async () => {
     const code = couponInput.trim().toUpperCase();
@@ -30,7 +37,12 @@ export default function CartPage() {
       const res = await fetch("/api/coupons/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, order_total: getSubtotal() }),
+        body: JSON.stringify({
+          code,
+          order_total: getSubtotal(),
+          customer_id: user?.id || null,
+          items: items.map((i) => ({ product_id: i.product_id, variant_id: i.variant_id || null, price: i.price, quantity: i.quantity })),
+        }),
       });
       const data = await res.json();
       if (data.valid) {
@@ -67,6 +79,8 @@ export default function CartPage() {
       </div>
     );
   }
+
+  const shipping = getShipping();
 
   return (
     <div className="bg-white min-h-screen overflow-x-hidden">
@@ -143,74 +157,49 @@ export default function CartPage() {
           {/* Summary */}
           <div>
             <div className="rounded-2xl border border-border/30 bg-pearl/30 p-3 sm:p-6">
-              <h3 className="font-heading text-base sm:text-lg font-semibold text-charcoal mb-4">Order Summary</h3>
+              <h3 className="font-heading text-base sm:text-lg font-semibold text-charcoal mb-4">Price Details</h3>
 
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-charcoal-lighter">Subtotal</span>
-                  <span className="font-medium text-charcoal">{formatCurrency(getSubtotal())}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-charcoal-lighter">Shipping</span>
-                  <span className="font-medium text-charcoal">
-                    {getShipping() === 0 ? "Free" : formatCurrency(getShipping())}
-                  </span>
-                </div>
-                {getSavings() > 0 && (
-                  <div className="flex justify-between text-success">
-                    <span>Offer Savings</span>
-                    <span>-{formatCurrency(getSavings())}</span>
-                  </div>
-                )}
-                {getDiscount() > 0 && (
-                  <div className="flex justify-between text-success">
-                    <span>Coupon Discount</span>
-                    <span>-{formatCurrency(getDiscount())}</span>
-                  </div>
-                )}
-              </div>
-
-              <Separator className="my-4" />
-
-              <div className="flex justify-between text-lg font-semibold text-charcoal mb-6">
-                <span>Total</span>
-                <span>{formatCurrency(getTotal())}</span>
-              </div>
+              <PriceCalculator
+                shippingCost={shipping}
+                isFreeShipping={shipping === 0 && getSubtotal() > 0}
+              />
 
               {/* Coupon */}
-              {couponCode ? (
-                <div className="mb-6 p-3 rounded-xl bg-success/5 border border-success/20">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Tag className="h-3.5 w-3.5 text-success" />
-                      <span className="text-sm font-semibold text-success">{couponCode}</span>
-                      <span className="text-xs text-success/70">applied</span>
+              <div className="mt-5">
+                {couponCode ? (
+                  <div className="p-3 rounded-xl bg-success/5 border border-success/20">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Tag className="h-3.5 w-3.5 text-success" />
+                        <span className="text-sm font-semibold text-success">{couponCode}</span>
+                        <span className="text-xs text-success/70">applied</span>
+                      </div>
+                      <button onClick={handleRemoveCoupon} className="text-charcoal-lighter hover:text-destructive transition-colors">
+                        <X className="h-4 w-4" />
+                      </button>
                     </div>
-                    <button onClick={handleRemoveCoupon} className="text-charcoal-lighter hover:text-destructive transition-colors">
-                      <X className="h-4 w-4" />
-                    </button>
+                    {couponSuccess && <p className="text-xs text-success mt-1">{couponSuccess}</p>}
                   </div>
-                  {couponSuccess && <p className="text-xs text-success mt-1">{couponSuccess}</p>}
-                </div>
-              ) : (
-                <div className="mb-6">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Coupon code"
-                      className="flex-1 h-10"
-                      value={couponInput}
-                      onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError(""); }}
-                      onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon()}
-                    />
-                    <Button variant="outline" size="sm" onClick={handleApplyCoupon} disabled={couponLoading || !couponInput.trim()}>
-                      {couponLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Apply"}
-                    </Button>
+                ) : (
+                  <div>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Coupon code"
+                        className="flex-1 h-10"
+                        value={couponInput}
+                        onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError(""); }}
+                        onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon()}
+                      />
+                      <Button variant="outline" size="sm" onClick={handleApplyCoupon} disabled={couponLoading || !couponInput.trim()}>
+                        {couponLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Apply"}
+                      </Button>
+                    </div>
+                    {couponError && <p className="text-xs text-destructive mt-1.5">{couponError}</p>}
                   </div>
-                  {couponError && <p className="text-xs text-destructive mt-1.5">{couponError}</p>}
-                </div>
-              )}
+                )}
+              </div>
 
-              <Link href="/checkout">
+              <Link href="/checkout" className="block mt-5">
                 <Button variant="secondary" size="lg" className="w-full !text-white">
                   Checkout <ArrowRight className="h-4 w-4 ml-1" />
                 </Button>

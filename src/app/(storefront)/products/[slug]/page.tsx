@@ -184,7 +184,11 @@ export default function ProductDetailPage() {
   const finalComparePrice = product.compare_at_price ? product.compare_at_price + (activeVariant?.price_adjustment || 0) : undefined;
   const discountPercent = finalComparePrice ? Math.round((1 - finalPrice / finalComparePrice) * 100) : 0;
 
+  // A variant must be chosen before adding to cart when the product has variants.
+  const variantRequired = product.variants.length > 0 && !selectedVariant;
+
   const handleAddToCart = () => {
+    if (variantRequired) return;
     addToCart({
       id: "",
       product_id: product.id,
@@ -461,7 +465,7 @@ export default function ProductDetailPage() {
 
                     <button
                       onClick={handleAddToCart}
-                      disabled={addedToCart}
+                      disabled={addedToCart || variantRequired}
                       className={cn(
                         "flex-1 h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
                         addedToCart
@@ -473,6 +477,10 @@ export default function ProductDetailPage() {
                         {addedToCart ? (
                           <motion.span key="added" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex items-center justify-center gap-2 text-white">
                             <Check className="h-5 w-5" /> Added to Bag
+                          </motion.span>
+                        ) : variantRequired ? (
+                          <motion.span key="select" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex items-center justify-center gap-2 text-white">
+                            <ShoppingBag className="h-5 w-5" /> Select an option
                           </motion.span>
                         ) : (
                           <motion.span key="add" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex items-center justify-center gap-2 text-white">
