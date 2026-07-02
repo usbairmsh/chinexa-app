@@ -44,7 +44,8 @@ const defaultSections: SectionConfig[] = [
   { id: "s11", type: "reviews", title: "Customer Reviews", subtitle: "", description: "Scrolling customer reviews", visible: true, order: 11 },
   { id: "s12", type: "instagram", title: "Instagram Feed", subtitle: "", description: "Social media gallery", visible: true, order: 12 },
   { id: "s13", type: "brands", title: "Our Brands", subtitle: "", description: "Auto-scrolling brands carousel", visible: true, order: 13 },
-  { id: "s14", type: "popup_banner", title: "Popup Banner", subtitle: "", description: "Welcome popup overlay (set in Banners > position: popup)", visible: true, order: 14 },
+  { id: "s14", type: "faq", title: "FAQ", subtitle: "", description: "Frequently asked questions", visible: false, order: 14 },
+  { id: "s15", type: "popup_banner", title: "Popup Banner", subtitle: "", description: "Welcome popup overlay (set in Banners > position: popup)", visible: true, order: 15 },
 ];
 
 const defaultTrustBadges: TrustBadge[] = [
@@ -72,7 +73,14 @@ export default function AdminHomepageBuilder() {
       .then((data) => {
         if (data?.value) {
           const config = data.value as HomepageConfig;
-          if (config.sections?.length) setSections(config.sections);
+          if (config.sections?.length) {
+            // Merge: keep saved sections + add any new default sections not yet in saved config
+            const savedTypes = new Set(config.sections.map((s) => s.type));
+            const newSections = defaultSections.filter((s) => !savedTypes.has(s.type));
+            const maxOrder = Math.max(...config.sections.map((s) => s.order), 0);
+            const merged = [...config.sections, ...newSections.map((s, i) => ({ ...s, order: maxOrder + i + 1 }))];
+            setSections(merged);
+          }
           if (config.announcement) {
             setAnnouncementVisible(config.announcement.visible);
             setAnnouncementText(config.announcement.text);

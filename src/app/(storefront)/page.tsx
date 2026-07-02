@@ -9,6 +9,7 @@ import { TrustBadges } from "@/components/storefront/home/trust-badges";
 import { ReviewsMarquee } from "@/components/storefront/home/reviews-marquee";
 import { InstagramFeed } from "@/components/storefront/home/instagram-feed";
 import { BrandsMarquee } from "@/components/storefront/home/brands-marquee";
+import { FaqSection } from "@/components/storefront/home/faq-section";
 import { PromoBannerStrip, CategoryBanner, PopupBanner } from "@/components/storefront/home/promo-banner";
 import { useNewArrivals, useBestsellers, useTrendingProducts, usePreorderProducts } from "@/hooks/queries/use-products";
 
@@ -46,7 +47,8 @@ const defaultSections: SectionConfig[] = [
   { id: "s11", type: "reviews", title: "", subtitle: "", visible: true, order: 11 },
   { id: "s12", type: "instagram", title: "", subtitle: "", visible: true, order: 12 },
   { id: "s13", type: "brands", title: "", subtitle: "", visible: true, order: 13 },
-  { id: "s14", type: "popup_banner", title: "", subtitle: "", visible: true, order: 14 },
+  { id: "s14", type: "faq", title: "", subtitle: "", visible: false, order: 14 },
+  { id: "s15", type: "popup_banner", title: "", subtitle: "", visible: true, order: 15 },
 ];
 
 export default function HomePage() {
@@ -66,7 +68,15 @@ export default function HomePage() {
       .catch(() => {});
   }, []);
 
-  const sections = config?.sections || defaultSections;
+  // Merge saved config with defaults so new section types (e.g. brands) appear
+  const sections = (() => {
+    if (!config?.sections?.length) return defaultSections;
+    const savedTypes = new Set(config.sections.map((s) => s.type));
+    const newSections = defaultSections.filter((s) => !savedTypes.has(s.type));
+    if (newSections.length === 0) return config.sections;
+    const maxOrder = Math.max(...config.sections.map((s) => s.order), 0);
+    return [...config.sections, ...newSections.map((s, i) => ({ ...s, order: maxOrder + i + 1 }))];
+  })();
   const trustBadges = config?.trust_badges;
   const visibleSections = sections.filter((s) => s.visible).sort((a, b) => a.order - b.order);
 
@@ -140,6 +150,8 @@ export default function HomePage() {
         return <InstagramFeed key={section.id} />;
       case "brands":
         return <BrandsMarquee key={section.id} />;
+      case "faq":
+        return <FaqSection key={section.id} />;
       default:
         return null;
     }
