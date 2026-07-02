@@ -66,7 +66,7 @@ export function PromoBannerStrip() {
                   <h3 className="text-white font-heading text-lg font-semibold">{banner.title}</h3>
                   {banner.subtitle && <p className="text-white/80 text-xs mt-0.5">{banner.subtitle}</p>}
                   {banner.cta_text && (
-                    <span className="inline-block mt-2 px-4 py-1.5 rounded-full bg-white/90 text-charcoal text-xs font-semibold hover:bg-white transition-colors">
+                    <span className="inline-block mt-2 px-4 py-2 rounded-full bg-white/90 text-charcoal text-xs font-semibold hover:bg-white transition-colors">
                       {banner.cta_text}
                     </span>
                   )}

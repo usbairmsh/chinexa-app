@@ -61,7 +61,7 @@ const SheetContent = React.forwardRef<
       <div className="flex h-full flex-col overflow-y-auto">
         {children}
       </div>
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-full p-1.5 text-charcoal-lighter hover:text-charcoal hover:bg-primary-light transition-colors z-10">
+      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-full p-2.5 text-charcoal-lighter hover:text-charcoal hover:bg-primary-light transition-colors z-10">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>

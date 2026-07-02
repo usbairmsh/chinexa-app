@@ -72,7 +72,7 @@ export default function CartPage() {
     <div className="bg-white min-h-screen">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
         <Breadcrumb items={[{ label: "Shopping Bag" }]} className="mb-8" />
-        <h1 className="font-heading text-3xl font-semibold text-charcoal mb-8">
+        <h1 className="font-heading text-2xl sm:text-3xl font-semibold text-charcoal mb-8">
           Shopping Bag ({getItemCount()})
         </h1>
 

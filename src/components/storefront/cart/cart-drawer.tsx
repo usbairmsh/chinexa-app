@@ -179,12 +179,14 @@ export function CartDrawer() {
                     Shipping calculated at checkout
                   </p>
                   <Separator />
-                  <Link href="/checkout" onClick={() => setCartDrawerOpen(false)}>
-                    <Button variant="secondary" className="w-full !text-white">Checkout</Button>
-                  </Link>
-                  <Link href="/cart" onClick={() => setCartDrawerOpen(false)}>
-                    <Button variant="outline" className="w-full">View Cart</Button>
-                  </Link>
+                  <div className="grid gap-2">
+                    <Link href="/checkout" onClick={() => setCartDrawerOpen(false)}>
+                      <Button variant="secondary" className="w-full !text-white">Checkout</Button>
+                    </Link>
+                    <Link href="/cart" onClick={() => setCartDrawerOpen(false)}>
+                      <Button variant="outline" className="w-full">View Cart</Button>
+                    </Link>
+                  </div>
                 </div>
               </>
             )}

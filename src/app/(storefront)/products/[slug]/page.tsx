@@ -309,13 +309,16 @@ export default function ProductDetailPage() {
               )}
 
               {/* Image counter */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 bg-black/30 backdrop-blur-md rounded-full px-3 py-1.5">
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center bg-black/30 backdrop-blur-md rounded-full px-1 py-0.5">
                 {product.images.map((_, i) => (
                   <button
                     key={i}
                     onClick={() => setSelectedImage(i)}
-                    className={cn("rounded-full transition-all", i === selectedImage ? "w-5 h-1.5 bg-white" : "w-1.5 h-1.5 bg-white/50")}
-                  />
+                    className="flex items-center justify-center h-7 w-7"
+                    aria-label={`View image ${i + 1}`}
+                  >
+                    <span className={cn("rounded-full transition-all", i === selectedImage ? "w-5 h-1.5 bg-white" : "w-1.5 h-1.5 bg-white/50")} />
+                  </button>
                 ))}
               </div>
             </div>
@@ -559,7 +562,7 @@ export default function ProductDetailPage() {
         {/* ═══════ PRODUCT DETAILS ACCORDION ═══════ */}
         <div className="mt-16 max-w-3xl">
           <Accordion type="multiple" defaultValue={["description"]} className="space-y-3">
-            <AccordionItem value="description" className="border rounded-2xl px-6 overflow-hidden border-border/30">
+            <AccordionItem value="description" className="border rounded-2xl px-4 sm:px-6 overflow-hidden border-border/30">
               <AccordionTrigger className="text-base font-semibold py-5">Description</AccordionTrigger>
               <AccordionContent className="text-charcoal-light text-[15px] leading-relaxed pb-5">
                 {product.description}
@@ -574,7 +577,7 @@ export default function ProductDetailPage() {
               </AccordionContent>
             </AccordionItem>
 
-            <AccordionItem value="details" className="border rounded-2xl px-6 overflow-hidden border-border/30">
+            <AccordionItem value="details" className="border rounded-2xl px-4 sm:px-6 overflow-hidden border-border/30">
               <AccordionTrigger className="text-base font-semibold py-5">Product Details</AccordionTrigger>
               <AccordionContent className="pb-5">
                 <div className="grid sm:grid-cols-2 gap-x-8 gap-y-3">
@@ -601,7 +604,7 @@ export default function ProductDetailPage() {
               </AccordionContent>
             </AccordionItem>
 
-            <AccordionItem value="shipping" className="border rounded-2xl px-6 overflow-hidden border-border/30">
+            <AccordionItem value="shipping" className="border rounded-2xl px-4 sm:px-6 overflow-hidden border-border/30">
               <AccordionTrigger className="text-base font-semibold py-5">Shipping & Returns</AccordionTrigger>
               <AccordionContent className="pb-5 text-sm text-charcoal-light space-y-3">
                 <div className="flex items-start gap-3">
@@ -619,7 +622,7 @@ export default function ProductDetailPage() {
               </AccordionContent>
             </AccordionItem>
 
-            <AccordionItem id="reviews" value="reviews" className="border rounded-2xl px-6 overflow-hidden border-border/30">
+            <AccordionItem id="reviews" value="reviews" className="border rounded-2xl px-4 sm:px-6 overflow-hidden border-border/30">
               <AccordionTrigger className="text-base font-semibold py-5">
                 Reviews ({realReviewCount})
               </AccordionTrigger>
@@ -706,7 +709,7 @@ export default function ProductDetailPage() {
                     <Button variant="outline" size="sm" onClick={() => setShowReviewForm(true)}>Write a Review</Button>
                   </div>
                 ) : (
-                  <div className="mt-4 p-5 rounded-xl border border-secondary/20 bg-primary-light/30 space-y-4">
+                  <div className="mt-4 p-3 sm:p-5 rounded-xl border border-secondary/20 bg-primary-light/30 space-y-4">
                     <h4 className="text-sm font-semibold text-charcoal">Write Your Review</h4>
 
                     {/* Star selector */}
@@ -714,7 +717,7 @@ export default function ProductDetailPage() {
                       <label className="text-xs font-medium text-charcoal-light mb-1.5 block">Rating</label>
                       <div className="flex gap-1">
                         {[1, 2, 3, 4, 5].map((s) => (
-                          <button key={s} type="button" onClick={() => setReviewRating(s)} className="p-0.5">
+                          <button key={s} type="button" onClick={() => setReviewRating(s)} className="p-1.5">
                             <Star className={cn("h-6 w-6 transition-colors", s <= reviewRating ? "text-gold fill-gold" : "text-border hover:text-gold/50")} />
                           </button>
                         ))}
@@ -831,13 +834,16 @@ export default function ProductDetailPage() {
 
             {/* Dots */}
             {product.images.length > 1 && (
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1">
                 {product.images.map((_, i) => (
                   <button
                     key={i}
                     onClick={(e) => { e.stopPropagation(); setSelectedImage(i); }}
-                    className={cn("h-2 rounded-full transition-all", i === selectedImage ? "w-8 bg-white" : "w-2 bg-white/40")}
-                  />
+                    className="flex items-center justify-center h-8 w-8"
+                    aria-label={`View image ${i + 1}`}
+                  >
+                    <span className={cn("rounded-full transition-all", i === selectedImage ? "w-6 h-2 bg-white" : "w-2 h-2 bg-white/40")} />
+                  </button>
                 ))}
               </div>
             )}

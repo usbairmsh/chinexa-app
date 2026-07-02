@@ -239,7 +239,7 @@ export function SearchOverlay() {
                           <p className="text-[10px] font-semibold text-charcoal-lighter uppercase tracking-widest flex items-center gap-1.5">
                             <Clock className="h-3 w-3" /> Recent Searches
                           </p>
-                          <button onClick={clearRecent} className="text-[10px] text-charcoal-lighter hover:text-secondary transition-colors">
+                          <button onClick={clearRecent} className="text-[10px] text-charcoal-lighter hover:text-secondary transition-colors py-2 px-2 -mr-2 rounded-md">
                             Clear all
                           </button>
                         </div>

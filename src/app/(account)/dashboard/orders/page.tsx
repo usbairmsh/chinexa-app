@@ -84,7 +84,7 @@ function OrderCard({ order }: { order: Order }) {
             <span className="font-semibold text-charcoal">{formatCurrency(order.total)}</span>
           </p>
           <Link href={`/dashboard/orders/${displayId}`}>
-            <button className="text-xs text-charcoal-lighter hover:text-charcoal font-medium transition-colors">
+            <button className="text-xs text-charcoal-lighter hover:text-charcoal font-medium transition-colors py-2 px-3 -mr-3 rounded-lg">
               View Details &rarr;
             </button>
           </Link>

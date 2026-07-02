@@ -216,7 +216,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               {/* Close */}
               <button
                 onClick={() => setModalOpen(false)}
-                className="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors"
+                className="absolute top-3 right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>

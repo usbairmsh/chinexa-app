@@ -112,7 +112,7 @@ export default function BrandPage() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
             <Skeleton className="h-4 w-32 mb-4" />
             <Skeleton className="h-10 w-64 mb-3" />
-            <Skeleton className="h-5 w-96" />
+            <Skeleton className="h-5 w-full max-w-96" />
           </div>
         </div>
       </div>

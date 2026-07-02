@@ -123,7 +123,7 @@ export default function ProductsPage() {
           {/* Main Content */}
           <div className="flex-1 min-w-0">
             {/* Toolbar */}
-            <div className="flex items-center justify-between mb-6 gap-4">
+            <div className="flex flex-wrap items-center justify-between mb-6 gap-4">
               <Button
                 variant="outline"
                 size="sm"
@@ -138,7 +138,7 @@ export default function ProductsPage() {
                   value={params.sort_by}
                   onValueChange={(val) => updateParams({ sort_by: val as ProductListParams["sort_by"] })}
                 >
-                  <SelectTrigger className="w-44 h-9 text-xs">
+                  <SelectTrigger className="w-full sm:w-44 h-9 text-xs">
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
                   <SelectContent>

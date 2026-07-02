@@ -96,12 +96,12 @@ export default function BlogPostPage() {
           {/* Content */}
           {post.content ? (
             <div
-              className="prose prose-lg max-w-none text-charcoal-light leading-relaxed prose-headings:font-heading prose-headings:text-charcoal prose-a:text-secondary"
+              className="prose sm:prose-lg max-w-none text-charcoal-light leading-relaxed prose-headings:font-heading prose-headings:text-charcoal prose-a:text-secondary"
               dangerouslySetInnerHTML={{ __html: post.content }}
             />
           ) : post.excerpt ? (
-            <div className="prose prose-lg max-w-none text-charcoal-light leading-relaxed">
-              <p className="text-lg">{post.excerpt}</p>
+            <div className="prose sm:prose-lg max-w-none text-charcoal-light leading-relaxed">
+              <p className="sm:text-lg">{post.excerpt}</p>
             </div>
           ) : null}
 

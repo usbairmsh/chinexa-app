@@ -156,7 +156,7 @@ export default function OrderDetailPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-start sm:items-center gap-3 flex-wrap">
-        <Link href="/dashboard/orders" className="flex items-center justify-center h-8 w-8 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors shrink-0">
+        <Link href="/dashboard/orders" className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors shrink-0">
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div className="min-w-0 flex-1">
@@ -272,7 +272,7 @@ export default function OrderDetailPage() {
                   <span className="text-charcoal-lighter shrink-0">Transaction ID</span>
                   <div className="flex items-center gap-1 min-w-0">
                     <code className="text-xs font-mono text-charcoal truncate">{order.transaction_id}</code>
-                    <button onClick={() => handleCopy(order.transaction_id!)} className="text-charcoal-lighter hover:text-secondary shrink-0 p-1">
+                    <button onClick={() => handleCopy(order.transaction_id!)} className="text-charcoal-lighter hover:text-secondary shrink-0 p-2">
                       <Copy className="h-3.5 w-3.5" />
                     </button>
                     {copied && <span className="text-[9px] text-success">Copied</span>}
