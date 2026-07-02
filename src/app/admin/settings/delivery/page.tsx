@@ -44,14 +44,50 @@ export default function DeliverySettingsPage() {
   const [partnerName, setPartnerName] = useState("");
   const [partnerUrl, setPartnerUrl] = useState("");
 
+  const [dbSaving, setDbSaving] = useState(false);
+
+  // Load delivery settings from DB on mount
   useEffect(() => {
     setMounted(true);
     setThresholdInput(String(freeDeliveryThreshold));
-  }, [freeDeliveryThreshold]);
+    fetch("/api/settings?keys=delivery_config")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.delivery_config) {
+          const cfg = data.delivery_config;
+          if (cfg.freeDeliveryEnabled !== undefined) setFreeDelivery(cfg.freeDeliveryEnabled);
+          if (cfg.freeDeliveryThreshold) { setFreeDeliveryThreshold(cfg.freeDeliveryThreshold); setThresholdInput(String(cfg.freeDeliveryThreshold)); }
+          if (cfg.zones?.length) {
+            // Replace zones from DB
+            for (const z of cfg.zones) addZone(z);
+          }
+          if (cfg.partners?.length) {
+            for (const p of cfg.partners) addPartner(p);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Save all delivery settings to DB
+  const saveToDb = async () => {
+    setDbSaving(true);
+    try {
+      await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: "delivery_config",
+          value: { freeDeliveryEnabled, freeDeliveryThreshold, zones, partners },
+        }),
+      });
+      showSaved();
+    } catch {} finally { setDbSaving(false); }
+  };
 
   const handleSaveThreshold = () => {
     const val = Number(thresholdInput);
-    if (val > 0) { setFreeDeliveryThreshold(val); showSaved(); }
+    if (val > 0) { setFreeDeliveryThreshold(val); }
   };
 
   const showSaved = () => { setSaved(true); setTimeout(() => setSaved(false), 2000); };
@@ -100,6 +136,10 @@ export default function DeliverySettingsPage() {
             <p className="text-xs text-charcoal-lighter">Configure shipping zones, charges, and delivery partners</p>
           </div>
         </div>
+        <AdminButton onClick={saveToDb} disabled={dbSaving} className={saved ? "!bg-success hover:!bg-success" : ""}>
+          {dbSaving ? <Clock className="h-3.5 w-3.5 animate-spin" /> : saved ? <Check className="h-3.5 w-3.5" /> : <Shield className="h-3.5 w-3.5" />}
+          {saved ? "Saved!" : dbSaving ? "Saving..." : "Save All Settings"}
+        </AdminButton>
       </div>
 
       {/* Saved toast */}
