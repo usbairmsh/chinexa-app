@@ -3,8 +3,10 @@
 import { useState, useEffect } from "react";
 import {
   Settings, Store, Truck, CreditCard, Bell, Save, Loader2, Check,
-  Plus, Trash2
+  Plus, Trash2, X
 } from "lucide-react";
+import { SOCIAL_PLATFORMS, getPlatform } from "@/lib/social-platforms";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -48,10 +50,9 @@ export default function AdminSettingsPage() {
   const [storeLogo, setStoreLogo] = useState("");
   const [storeTagline, setStoreTagline] = useState("");
   const [aboutText, setAboutText] = useState("");
-  const [socialFacebook, setSocialFacebook] = useState("");
-  const [socialInstagram, setSocialInstagram] = useState("");
-  const [socialWhatsapp, setSocialWhatsapp] = useState("");
-  const [socialTiktok, setSocialTiktok] = useState("");
+  const [socialLinks, setSocialLinks] = useState<{ platform: string; url: string }[]>([]);
+  const [addSocialOpen, setAddSocialOpen] = useState(false);
+  const [newSocialPlatform, setNewSocialPlatform] = useState("");
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [announcementText, setAnnouncementText] = useState("");
   const [announcementVisible, setAnnouncementVisible] = useState(true);
@@ -104,7 +105,18 @@ export default function AdminSettingsPage() {
         if (data.store_logo) setStoreLogo(data.store_logo);
         if (data.store_tagline) setStoreTagline(data.store_tagline);
         if (data.about_text) setAboutText(data.about_text);
-        if (data.social_links) { setSocialFacebook(data.social_links.facebook || ""); setSocialInstagram(data.social_links.instagram || ""); setSocialWhatsapp(data.social_links.whatsapp || ""); setSocialTiktok(data.social_links.tiktok || ""); }
+        if (data.social_links) {
+          if (Array.isArray(data.social_links)) {
+            setSocialLinks(data.social_links);
+          } else {
+            // Convert old object format to array
+            const links: { platform: string; url: string }[] = [];
+            for (const [key, val] of Object.entries(data.social_links)) {
+              if (val) links.push({ platform: key, url: val as string });
+            }
+            setSocialLinks(links);
+          }
+        }
         if (data.maintenance_mode !== undefined) setMaintenanceMode(!!data.maintenance_mode);
         if (data.announcement) { setAnnouncementText(data.announcement.text || ""); setAnnouncementVisible(data.announcement.visible !== false); }
         if (data.delivery_config) {
@@ -131,7 +143,7 @@ export default function AdminSettingsPage() {
   };
 
   const saveGeneral = () => saveSettings({ store_name: storeName, store_email: storeEmail, store_phone: storePhone, store_address: storeAddress, features }, setGeneralSaving, setGeneralSaved);
-  const saveStoreSettings = () => saveSettings({ store_logo: storeLogo, store_tagline: storeTagline, about_text: aboutText, social_links: { facebook: socialFacebook, instagram: socialInstagram, whatsapp: socialWhatsapp, tiktok: socialTiktok }, maintenance_mode: maintenanceMode, announcement: { text: announcementText, visible: announcementVisible } }, setStoreSaving, setStoreSaved);
+  const saveStoreSettings = () => saveSettings({ store_logo: storeLogo, store_tagline: storeTagline, about_text: aboutText, social_links: socialLinks, maintenance_mode: maintenanceMode, announcement: { text: announcementText, visible: announcementVisible } }, setStoreSaving, setStoreSaved);
   const saveDelivery = () => { const val = Number(thresholdInput); if (val > 0) delivery.setFreeDeliveryThreshold(val); saveSettings({ delivery_config: { freeDeliveryEnabled: delivery.freeDeliveryEnabled, freeDeliveryThreshold: val || delivery.freeDeliveryThreshold, zones: delivery.zones, partners: delivery.partners }, free_delivery_enabled: delivery.freeDeliveryEnabled, free_delivery_threshold: val || delivery.freeDeliveryThreshold }, setDeliverySaving, setDeliverySaved); };
   const savePayment = () => saveSettings({ payment_methods: paymentMethods }, setPaymentSaving, setPaymentSaved);
   const saveNotifications = () => saveSettings({ notification_settings: notifications }, setNotifSaving, setNotifSaved);
@@ -197,14 +209,79 @@ export default function AdminSettingsPage() {
               </CardContent>
             </Card>
             <div className="space-y-5">
-              <Card><CardHeader><CardTitle className="text-base">Social Links</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  <Input label="Facebook" value={socialFacebook} onChange={(e) => setSocialFacebook(e.target.value)} />
-                  <Input label="Instagram" value={socialInstagram} onChange={(e) => setSocialInstagram(e.target.value)} />
-                  <Input label="WhatsApp" value={socialWhatsapp} onChange={(e) => setSocialWhatsapp(e.target.value)} />
-                  <Input label="TikTok" value={socialTiktok} onChange={(e) => setSocialTiktok(e.target.value)} />
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">Social Links</CardTitle>
+                    <AdminButton size="xs" onClick={() => setAddSocialOpen(true)}><Plus className="h-3 w-3" /> Add</AdminButton>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {socialLinks.length === 0 && <p className="text-xs text-charcoal-lighter text-center py-3">No social links added</p>}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {socialLinks.map((link, i) => {
+                    const platform = getPlatform(link.platform);
+                    return (
+                      <div key={i} className="relative p-3 rounded-xl border border-border/30 bg-pearl/20 space-y-2">
+                        <button onClick={() => setSocialLinks((prev) => prev.filter((_, idx) => idx !== i))} className="absolute top-2 right-2 p-0.5 text-charcoal-lighter/40 hover:text-destructive transition-colors">
+                          <X className="h-3 w-3" />
+                        </button>
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full shrink-0" style={{ backgroundColor: platform?.color || "#666" }}>
+                            <span className="text-white">{platform?.icon || <span className="text-xs">{link.platform[0]?.toUpperCase()}</span>}</span>
+                          </div>
+                          <span className="text-xs font-medium text-charcoal">{platform?.name || link.platform}</span>
+                        </div>
+                        <Input
+                          value={link.url}
+                          onChange={(e) => setSocialLinks((prev) => prev.map((l, idx) => idx === i ? { ...l, url: e.target.value } : l))}
+                          placeholder={platform?.placeholder || "URL"}
+                          className="text-xs h-9"
+                        />
+                      </div>
+                    );
+                  })}
+                  </div>
                 </CardContent>
               </Card>
+
+              {/* Add Social Link Dialog */}
+              <Dialog open={addSocialOpen} onOpenChange={setAddSocialOpen}>
+                <DialogContent className="max-w-sm">
+                  <DialogHeader><DialogTitle>Add Social Link</DialogTitle></DialogHeader>
+                  <div className="py-2">
+                    <label className="block text-sm font-medium text-charcoal-light mb-1.5">Select Platform</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {SOCIAL_PLATFORMS.filter((p) => !socialLinks.some((l) => l.platform === p.id)).map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setNewSocialPlatform(p.id)}
+                          className={cn(
+                            "flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all",
+                            newSocialPlatform === p.id ? "border-secondary bg-secondary/5 shadow-sm" : "border-border/30 hover:border-secondary/40"
+                          )}
+                        >
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: p.color }}>
+                            <span className="text-white">{p.icon}</span>
+                          </div>
+                          <span className="text-[10px] font-medium text-charcoal">{p.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {SOCIAL_PLATFORMS.filter((p) => !socialLinks.some((l) => l.platform === p.id)).length === 0 && (
+                      <p className="text-xs text-charcoal-lighter text-center py-4">All platforms added</p>
+                    )}
+                  </div>
+                  <DialogFooter>
+                    <AdminButton variant="outline" size="sm" onClick={() => { setAddSocialOpen(false); setNewSocialPlatform(""); }}>Cancel</AdminButton>
+                    <AdminButton size="sm" disabled={!newSocialPlatform} onClick={() => {
+                      setSocialLinks((prev) => [...prev, { platform: newSocialPlatform, url: "" }]);
+                      setAddSocialOpen(false); setNewSocialPlatform("");
+                    }}><Plus className="h-3 w-3" /> Add Platform</AdminButton>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
               <Card><CardHeader><CardTitle className="text-base">Announcement</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex items-center gap-3"><Switch checked={announcementVisible} onCheckedChange={setAnnouncementVisible} /><span className="text-sm text-charcoal-lighter">{announcementVisible ? "Visible" : "Hidden"}</span></div>

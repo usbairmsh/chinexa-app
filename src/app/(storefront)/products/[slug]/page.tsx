@@ -24,6 +24,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, cn } from "@/lib/utils";
 import { getCountryFlag } from "@/lib/countries";
+import { useStoreSettings } from "@/hooks/use-store-settings";
 
 interface ReviewData {
   id: string; customer_name: string; rating: number; title: string | null;
@@ -43,6 +44,7 @@ export default function ProductDetailPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const { free_delivery_threshold } = useStoreSettings();
   const [shared, setShared] = useState(false);
 
   const handleShare = () => {
@@ -518,7 +520,7 @@ export default function ProductDetailPage() {
               <div className="grid grid-cols-3 gap-3">
                 {[
                   { icon: Shield, label: "100% Authentic", sub: "Verified products" },
-                  { icon: Truck, label: "Free Delivery", sub: "Orders above ৳3,000" },
+                  { icon: Truck, label: "Free Delivery", sub: `Orders above ৳${free_delivery_threshold.toLocaleString()}` },
                   { icon: RotateCcw, label: "7-Day Returns", sub: "Hassle free" },
                 ].map((trust) => (
                   <div key={trust.label} className="flex flex-col items-center text-center p-3 rounded-xl bg-pearl/60">
@@ -586,7 +588,7 @@ export default function ProductDetailPage() {
                 </div>
                 <div className="flex items-start gap-3">
                   <Package className="h-4 w-4 text-secondary mt-0.5 shrink-0" />
-                  <div>Free shipping on orders above <span className="font-medium text-charcoal">৳3,000</span>. Standard shipping fee: ৳120.</div>
+                  <div>Free shipping on orders above <span className="font-medium text-charcoal">৳{free_delivery_threshold.toLocaleString()}</span>. Standard shipping fee: ৳120.</div>
                 </div>
                 <div className="flex items-start gap-3">
                   <RotateCcw className="h-4 w-4 text-secondary mt-0.5 shrink-0" />

@@ -21,6 +21,7 @@ import { triggerDashboardRefresh } from "@/lib/dashboard-events";
 import { useDeliveryStore } from "@/stores/delivery.store";
 import { formatCurrency, cn } from "@/lib/utils";
 import { PAYMENT_METHODS } from "@/lib/constants";
+import { useStoreSettings } from "@/hooks/use-store-settings";
 import { DIVISIONS, DISTRICTS } from "@/data/constants/bangladeshi-data";
 
 const steps = [
@@ -45,6 +46,9 @@ const divisionToZone: Record<string, string> = {
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, getSubtotal, clearCart, couponCode, couponDiscount, applyCoupon, removeCoupon } = useCartStore();
+  const storeSettings = useStoreSettings();
+  const dbPaymentMethods = storeSettings.payment_methods.filter((m) => m.enabled);
+  const activePaymentMethods = dbPaymentMethods.length > 0 ? dbPaymentMethods : PAYMENT_METHODS;
   const { freeDeliveryEnabled, freeDeliveryThreshold, zones } = useDeliveryStore();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -594,7 +598,7 @@ export default function CheckoutPage() {
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
                 <h2 className="font-heading text-xl font-semibold text-charcoal">Payment Method</h2>
                 <div className="space-y-3">
-                  {PAYMENT_METHODS.map((method) => (
+                  {activePaymentMethods.map((method) => (
                     <label key={method.id}
                       className={cn("flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors",
                         paymentMethod === method.id ? "border-secondary bg-primary-light" : "border-border hover:border-secondary")}>
@@ -609,7 +613,7 @@ export default function CheckoutPage() {
                   <div className="p-4 rounded-xl bg-pearl/50 space-y-3">
                     <Input label="Transaction ID" placeholder="Enter transaction ID" />
                     <p className="text-xs text-charcoal-lighter">
-                      Please send payment to: 01700-000000 ({paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)})
+                      {(() => { const m = activePaymentMethods.find((pm) => pm.id === paymentMethod); return m && 'account_number' in m && m.account_number ? `Please send payment to: ${m.account_number}` : `Please send payment via ${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)}`; })()}
                     </p>
                   </div>
                 )}

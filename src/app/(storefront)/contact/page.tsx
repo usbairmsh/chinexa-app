@@ -7,16 +7,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
-
-const contactInfo = [
-  { icon: Phone, label: "Phone", value: "+880 1700-000000", href: "tel:+8801700000000" },
-  { icon: MessageCircle, label: "WhatsApp", value: "+880 1700-000000", href: "https://wa.me/8801700000000" },
-  { icon: Mail, label: "Email", value: "hello@chinexa.com", href: "mailto:hello@chinexa.com" },
-  { icon: MapPin, label: "Address", value: "Gulshan-2, Dhaka 1212, Bangladesh", href: "#" },
-  { icon: Clock, label: "Hours", value: "Sat–Thu: 10AM–8PM", href: "#" },
-];
+import { useStoreSettings } from "@/hooks/use-store-settings";
 
 export default function ContactPage() {
+  const { store_phone, store_email, store_address, social_links } = useStoreSettings();
+
+  const contactInfo = [
+    { icon: Phone, label: "Phone", value: store_phone, href: `tel:${store_phone.replace(/[\s-]/g, "")}` },
+    { icon: MessageCircle, label: "WhatsApp", value: social_links.find((l) => l.platform === "whatsapp")?.url || store_phone, href: `https://wa.me/${(social_links.find((l) => l.platform === "whatsapp")?.url || store_phone).replace(/[^0-9]/g, "")}` },
+    { icon: Mail, label: "Email", value: store_email, href: `mailto:${store_email}` },
+    { icon: MapPin, label: "Address", value: store_address, href: "#" },
+    { icon: Clock, label: "Hours", value: "Sat–Thu: 10AM–8PM", href: "#" },
+  ];
   return (
     <div className="bg-white min-h-screen">
       <div className="bg-hero-gradient py-10 sm:py-14">

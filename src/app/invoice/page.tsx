@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Loader2 } from "lucide-react";
+import { useStoreSettings } from "@/hooks/use-store-settings";
 
 interface OrderData {
   id: string;
@@ -49,6 +50,7 @@ function formatAddress(addr: OrderData["billing_address"]) {
 function InvoiceContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("id") || "";
+  const { store_name, store_email, store_phone } = useStoreSettings();
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -119,11 +121,11 @@ function InvoiceContent() {
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, paddingBottom: 20, borderBottom: "2px solid #C0392B" }}>
           <div>
-            <Image src="/logo.png" alt="ChineXa" width={320} height={124} style={{ height: 90, width: "auto", marginBottom: 10 }} unoptimized />
+            <Image src="/logo.png" alt={store_name} width={320} height={124} style={{ height: 90, width: "auto", marginBottom: 10 }} unoptimized />
             <div style={{ fontSize: 9, color: "#999", lineHeight: 1.6 }}>
               Premium Beauty & Lifestyle<br />
               Dhaka, Bangladesh<br />
-              hello@chinexa.com | +880 1700-000000
+              {store_email} | {store_phone}
             </div>
           </div>
           <div style={{ textAlign: "right" }}>
@@ -245,7 +247,7 @@ function InvoiceContent() {
 
         {/* Footer */}
         <div style={{ borderTop: "1px solid #eee", paddingTop: 24, textAlign: "center" }}>
-          <div style={{ fontSize: 10, color: "#999", marginBottom: 3 }}>Thank you for shopping with ChineXa!</div>
+          <div style={{ fontSize: 10, color: "#999", marginBottom: 3 }}>Thank you for shopping with {store_name}!</div>
           <div style={{ fontSize: 8, color: "#ccc" }}>This is a computer-generated invoice and does not require a signature.</div>
         </div>
       </div>
