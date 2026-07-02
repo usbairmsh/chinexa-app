@@ -72,6 +72,7 @@ export default function OrderDetailPage() {
   const [returnDesc, setReturnDesc] = useState("");
   const [returnSubmitting, setReturnSubmitting] = useState(false);
   const [returnSubmitted, setReturnSubmitted] = useState(false);
+  const [existingReturn, setExistingReturn] = useState<{ id: string; status: string; created_at: string } | null>(null);
 
   useEffect(() => {
     fetch(`/api/orders/${encodeURIComponent(id)}`)
@@ -79,6 +80,16 @@ export default function OrderDetailPage() {
       .then(setOrder)
       .catch(() => setOrder(null))
       .finally(() => setLoading(false));
+    // Check for existing return
+    fetch(`/api/returns?order_id=${encodeURIComponent(id)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          const active = data.find((r: Record<string, unknown>) => r.status !== "rejected");
+          if (active) setExistingReturn({ id: active.id as string, status: active.status as string, created_at: active.created_at as string });
+        }
+      })
+      .catch(() => {});
   }, [id]);
 
   const handleCopy = (text: string) => {
@@ -279,17 +290,109 @@ export default function OrderDetailPage() {
           <Card>
             <CardContent className="p-4 space-y-2">
               <Button variant="outline" className="w-full text-sm" onClick={() => window.open(`/invoice?id=${encodeURIComponent(order.order_number)}`, "_blank")}>Download Invoice</Button>
-              {order.status === "received" && !returnSubmitted && (
-                <Button variant="outline" className="w-full text-sm text-secondary border-secondary/30" onClick={() => setReturnOpen(true)}>
-                  <RotateCcw className="h-3.5 w-3.5 mr-1" /> Request Return
-                </Button>
-              )}
-              {returnSubmitted && (
-                <div className="p-3 rounded-xl bg-success/10 border border-success/20 text-center">
-                  <p className="text-xs font-medium text-success">Return request submitted!</p>
-                  <p className="text-[10px] text-success/70 mt-0.5">We&apos;ll review and get back to you</p>
-                </div>
-              )}
+
+              {/* Return Section — smart eligibility */}
+              {(() => {
+                const status = order.status;
+                const deliveredEntry = order.timeline.find((t) => t.status === "received");
+                const daysSinceDelivery = deliveredEntry ? (Date.now() - new Date(deliveredEntry.created_at).getTime()) / (1000 * 60 * 60 * 24) : 999;
+                const returnWindowDays = 7;
+                const returnDeadline = deliveredEntry ? new Date(new Date(deliveredEntry.created_at).getTime() + returnWindowDays * 24 * 60 * 60 * 1000) : null;
+
+                // Already submitted return
+                if (returnSubmitted || existingReturn) {
+                  const retStatus = existingReturn?.status || "requested";
+                  return (
+                    <div className={cn("p-3 rounded-xl border text-center", retStatus === "approved" ? "bg-success/10 border-success/20" : retStatus === "rejected" ? "bg-destructive/10 border-destructive/20" : retStatus === "refunded" ? "bg-success/10 border-success/20" : "bg-amber-50 border-amber-200")}>
+                      <RotateCcw className={cn("h-5 w-5 mx-auto mb-1", retStatus === "approved" || retStatus === "refunded" ? "text-success" : retStatus === "rejected" ? "text-destructive" : "text-amber-600")} />
+                      <p className={cn("text-xs font-medium", retStatus === "approved" || retStatus === "refunded" ? "text-success" : retStatus === "rejected" ? "text-destructive" : "text-amber-700")}>
+                        {retStatus === "requested" && "Return Request Pending"}
+                        {retStatus === "approved" && "Return Approved — Awaiting Refund"}
+                        {retStatus === "refunded" && "Return Completed & Refunded"}
+                        {retStatus === "rejected" && "Return Request Rejected"}
+                      </p>
+                      <p className="text-[10px] text-charcoal-lighter mt-0.5">
+                        {retStatus === "requested" && "We're reviewing your return request. You'll be notified soon."}
+                        {retStatus === "approved" && "Your refund is being processed."}
+                        {retStatus === "refunded" && "Your refund has been issued."}
+                        {retStatus === "rejected" && "Please contact support if you have questions."}
+                      </p>
+                    </div>
+                  );
+                }
+
+                // Order delivered and within return window
+                if (status === "received" && daysSinceDelivery <= returnWindowDays) {
+                  return (
+                    <>
+                      <Button variant="outline" className="w-full text-sm text-secondary border-secondary/30" onClick={() => setReturnOpen(true)}>
+                        <RotateCcw className="h-3.5 w-3.5 mr-1" /> Request Return
+                      </Button>
+                      <p className="text-[10px] text-charcoal-lighter text-center">
+                        Return window closes {returnDeadline ? returnDeadline.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "soon"}
+                      </p>
+                    </>
+                  );
+                }
+
+                // Order delivered but return window expired
+                if (status === "received" && daysSinceDelivery > returnWindowDays) {
+                  return (
+                    <div className="p-3 rounded-xl bg-pearl/60 border border-border/20 text-center">
+                      <p className="text-xs font-medium text-charcoal-lighter">Return Window Expired</p>
+                      <p className="text-[10px] text-charcoal-lighter mt-0.5">Returns must be requested within {returnWindowDays} days of delivery. The window closed on {returnDeadline?.toLocaleDateString("en-US", { month: "short", day: "numeric" })}.</p>
+                    </div>
+                  );
+                }
+
+                // Order returned/cancelled
+                if (status === "returned") {
+                  return (
+                    <div className="p-3 rounded-xl bg-success/10 border border-success/20 text-center">
+                      <p className="text-xs font-medium text-success">Order Returned</p>
+                      <p className="text-[10px] text-success/70 mt-0.5">This order has been returned and processed.</p>
+                    </div>
+                  );
+                }
+                if (status === "cancelled") {
+                  return (
+                    <div className="p-3 rounded-xl bg-pearl/60 border border-border/20 text-center">
+                      <p className="text-xs font-medium text-charcoal-lighter">Order Cancelled</p>
+                    </div>
+                  );
+                }
+
+                // Order not yet delivered — show context message
+                if (status === "not_received") {
+                  return (
+                    <div className="p-3 rounded-xl bg-destructive/5 border border-destructive/10 text-center">
+                      <p className="text-xs font-medium text-destructive">Delivery Issue Reported</p>
+                      <p className="text-[10px] text-charcoal-lighter mt-0.5">Our team is looking into this. Please contact support for updates.</p>
+                    </div>
+                  );
+                }
+
+                // Still in transit
+                const transitMessages: Record<string, string> = {
+                  pending: "Your order hasn't been confirmed yet.",
+                  confirmed: "Your order is being prepared for shipping.",
+                  processing: "Your order is being packed.",
+                  shipped: "Your order is on the way! You can request a return after delivery.",
+                  on_delivery: "Your order is out for delivery. You can request a return after receiving it.",
+                };
+                const msg = transitMessages[status];
+                if (msg) {
+                  return (
+                    <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100 text-center">
+                      <p className="text-xs font-medium text-blue-600">Returns Not Available Yet</p>
+                      <p className="text-[10px] text-charcoal-lighter mt-0.5">{msg}</p>
+                    </div>
+                  );
+                }
+
+                return null;
+              })()}
+
               <Link href="/contact">
                 <Button variant="ghost" className="w-full text-sm text-charcoal-lighter">Need Help?</Button>
               </Link>
