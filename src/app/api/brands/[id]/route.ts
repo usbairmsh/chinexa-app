@@ -3,9 +3,11 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { deleteUploadedFile } from "@/lib/delete-upload";
+import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await ensurePromotionColumns();
     const { id } = await params;
     const rows = await query<RowDataPacket[]>(
       "SELECT * FROM brands WHERE slug = ? OR id = ? LIMIT 1",
@@ -26,6 +28,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await ensurePromotionColumns();
     const { id } = await params;
     const body = await req.json();
     const fields: string[] = [];

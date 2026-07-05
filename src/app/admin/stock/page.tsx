@@ -81,29 +81,35 @@ export default function StockManagementPage() {
 
   const handleSaveAll = async () => {
     if (!editProduct) return;
+
+    // Guard against NaN from empty inputs — fall back to current values
+    const newStock = Number.isFinite(Number(editStock)) && editStock !== "" ? Number(editStock) : editProduct.stock;
+    const newPrice = Number.isFinite(Number(editPrice)) && editPrice !== "" ? Number(editPrice) : editProduct.price;
+    const newMin = Number.isFinite(Number(editMinStock)) && editMinStock !== "" ? Number(editMinStock) : editProduct.min_stock;
+    const newMax = Number.isFinite(Number(editMaxStock)) && editMaxStock !== "" ? Number(editMaxStock) : editProduct.max_stock;
+
     setSaving(true);
-    const promises = [];
+    try {
+      const promises = [];
 
-    // Stock update
-    if (Number(editStock) !== editProduct.stock) {
-      promises.push(fetch("/api/stock", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editProduct.id, stock: Number(editStock) }) }));
-    }
-    // Price update
-    if (Number(editPrice) !== editProduct.price) {
-      promises.push(fetch("/api/stock", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editProduct.id, price: Number(editPrice) }) }));
-    }
-    // Min/Max stock update
-    if (Number(editMinStock) !== editProduct.min_stock || Number(editMaxStock) !== editProduct.max_stock) {
-      promises.push(fetch("/api/stock", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editProduct.id, min_stock: Number(editMinStock), max_stock: Number(editMaxStock) }) }));
-    }
+      // Stock update
+      if (newStock !== editProduct.stock) {
+        promises.push(fetch("/api/stock", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editProduct.id, stock: newStock }) }));
+      }
+      // Price update
+      if (newPrice !== editProduct.price) {
+        promises.push(fetch("/api/stock", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editProduct.id, price: newPrice }) }));
+      }
+      // Min/Max stock update
+      if (newMin !== editProduct.min_stock || newMax !== editProduct.max_stock) {
+        promises.push(fetch("/api/stock", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editProduct.id, min_stock: newMin, max_stock: newMax }) }));
+      }
 
-    await Promise.all(promises);
-
-    // Update local state
-    const newStock = Number(editStock);
-    const newPrice = Number(editPrice);
-    const newMin = Number(editMinStock);
-    const newMax = Number(editMaxStock);
+      await Promise.all(promises);
+    } catch {
+      setSaving(false);
+      return; // network failure — keep panel open, don't update local state optimistically
+    }
     const newStatus: StockProduct["status"] = newStock === 0 ? "out" : newStock <= newMin ? "low" : newStock > newMax ? "over" : "ok";
 
     setProducts((prev) => prev.map((p) => p.id === editProduct.id ? {
@@ -115,13 +121,16 @@ export default function StockManagementPage() {
     setSaved(true);
 
     // Refresh summary
-    const res = await fetch("/api/stock?page_size=1");
-    const data = await res.json();
-    if (data.summary) setSummary(data.summary);
+    try {
+      const res = await fetch("/api/stock?page_size=1");
+      const data = await res.json();
+      if (data.summary) setSummary(data.summary);
+    } catch {}
   };
 
   const adjustStock = (amount: number) => {
-    setEditStock(String(Math.max(0, Number(editStock) + amount)));
+    const current = Number(editStock);
+    setEditStock(String(Math.max(0, (Number.isFinite(current) ? current : 0) + amount)));
   };
 
   const stats = [

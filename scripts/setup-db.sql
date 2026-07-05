@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS products (
   subcategory VARCHAR(100),
   tags JSON,
   badges JSON,
+  trust_badges JSON,
   stock_quantity INT DEFAULT 0,
   min_stock INT DEFAULT 10,
   max_stock INT DEFAULT 100,

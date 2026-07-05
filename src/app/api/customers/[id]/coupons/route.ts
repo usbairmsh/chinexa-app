@@ -45,6 +45,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       ...r,
       is_used: !!r.is_used,
       coupon_active: !!r.coupon_active,
+      // DECIMAL comes back as a string from mysql2
+      discount_value: Number(r.discount_value) || 0,
     }));
 
     return NextResponse.json(coupons);

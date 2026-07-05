@@ -16,7 +16,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const fields: string[] = [];
     const values: (string | number | null)[] = [];
 
-    if (body.status) { fields.push("status = ?"); values.push(body.status); }
+    if (body.status) {
+      if (!["requested", "approved", "rejected", "received", "refunded"].includes(body.status)) {
+        return NextResponse.json({ error: "Invalid return status" }, { status: 400 });
+      }
+      fields.push("status = ?"); values.push(body.status);
+    }
     if (body.admin_note !== undefined) { fields.push("admin_note = ?"); values.push(body.admin_note); }
     if (body.refund_amount !== undefined) { fields.push("refund_amount = ?"); values.push(body.refund_amount); }
 

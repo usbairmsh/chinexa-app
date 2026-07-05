@@ -13,6 +13,12 @@ export async function GET() {
     const tiers = rows.map((r) => ({
       ...r,
       is_active: !!r.is_active,
+      // DECIMAL/INT columns come back as strings from mysql2 — normalize
+      min_points: Number(r.min_points) || 0,
+      max_points: Number(r.max_points) || 0,
+      points_multiplier: Number(r.points_multiplier) || 1,
+      badge_opacity: r.badge_opacity != null ? Number(r.badge_opacity) : 1,
+      sort_order: Number(r.sort_order) || 0,
       benefits: typeof r.benefits === "string" ? JSON.parse(r.benefits) : r.benefits || [],
     }));
     return NextResponse.json(tiers);

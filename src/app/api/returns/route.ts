@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
     const rows = await query<RowDataPacket[]>(sql, params);
     return NextResponse.json(rows.map((r) => ({
       ...r,
+      refund_amount: r.refund_amount != null ? Number(r.refund_amount) : null,
       items: typeof r.items === "string" ? JSON.parse(r.items) : r.items || [],
     })));
   } catch (error: unknown) {

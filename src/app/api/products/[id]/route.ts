@@ -3,6 +3,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { deleteUploadedFile } from "@/lib/delete-upload";
+import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 
 interface ProductRow extends RowDataPacket { [key: string]: unknown; }
 interface ImageRow extends RowDataPacket { id: string; product_id: string; url: string; alt: string; order: number; }
@@ -41,6 +42,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await ensurePromotionColumns();
     const { id } = await params;
     const body = await req.json();
     const fields: string[] = [];

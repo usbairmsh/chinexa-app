@@ -60,9 +60,11 @@ export async function POST(req: NextRequest) {
       [now, now]
     );
 
+    const tier = customerId ? await getCustomerTier(customerId) : null;
     const ctx: PromoContext = {
       customerId,
-      tierName: customerId ? await getCustomerTier(customerId) : null,
+      tierName: tier?.name ?? null,
+      tierId: tier?.id ?? null,
     };
 
     const parsedOffers = offers.map((o) => ({

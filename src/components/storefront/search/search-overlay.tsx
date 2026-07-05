@@ -3,11 +3,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Search, X, ArrowRight, Clock, TrendingUp } from "lucide-react";
+import { Search, X, ArrowRight, Clock, TrendingUp, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUIStore } from "@/stores/ui.store";
-import { products } from "@/data/seed/products";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import type { Product } from "@/types/product";
 
 const trendingSearches = ["Serum", "Leather Bag", "Perfume", "Korean Skincare", "Necklace", "Heels"];
@@ -16,8 +15,11 @@ export function SearchOverlay() {
   const { searchOverlayOpen, setSearchOverlayOpen } = useUIStore();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Product[]>([]);
+  const [searching, setSearching] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   // Focus input on open
   useEffect(() => {
@@ -44,25 +46,34 @@ export function SearchOverlay() {
     return () => { document.body.style.overflow = ""; };
   }, [searchOverlayOpen]);
 
-  // Live search
+  // Live search against the real catalog API (debounced, cancels stale requests)
   const handleSearch = useCallback((q: string) => {
     setQuery(q);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     if (q.length < 2) {
       setResults([]);
+      setSearching(false);
       return;
     }
-    const lower = q.toLowerCase();
-    const matched = products
-      .filter(
-        (p) =>
-          p.is_active &&
-          (p.name.toLowerCase().includes(lower) ||
-            p.category_name.toLowerCase().includes(lower) ||
-            p.tags.some((t) => t.includes(lower)) ||
-            p.subcategory?.toLowerCase().includes(lower))
-      )
-      .slice(0, 8);
-    setResults(matched);
+    setSearching(true);
+    debounceRef.current = setTimeout(async () => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      try {
+        const res = await fetch(`/api/products?search=${encodeURIComponent(q)}&page_size=8`, { signal: controller.signal });
+        const data = await res.json();
+        if (res.ok && Array.isArray(data?.data)) {
+          setResults(data.data);
+        } else {
+          setResults([]);
+        }
+      } catch (err) {
+        if ((err as Error)?.name !== "AbortError") setResults([]);
+      } finally {
+        if (abortRef.current === controller) setSearching(false);
+      }
+    }, 250);
   }, []);
 
   // Save to recent searches and navigate
@@ -218,8 +229,15 @@ export function SearchOverlay() {
                   </div>
                 )}
 
+                {/* Searching */}
+                {query.length >= 2 && searching && results.length === 0 && (
+                  <div className="text-center py-12">
+                    <Loader2 className="h-8 w-8 text-charcoal-lighter/40 mx-auto animate-spin" />
+                  </div>
+                )}
+
                 {/* No Results */}
-                {query.length >= 2 && results.length === 0 && (
+                {query.length >= 2 && !searching && results.length === 0 && (
                   <div className="text-center py-12">
                     <Search className="h-10 w-10 text-charcoal-lighter/30 mx-auto mb-3" />
                     <p className="text-sm text-charcoal-lighter">

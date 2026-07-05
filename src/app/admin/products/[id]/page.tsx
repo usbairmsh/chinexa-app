@@ -48,6 +48,7 @@ export default function EditProductPage() {
 
   // Form state
   const [productName, setProductName] = useState("");
+  const [productSlug, setProductSlug] = useState("");
   const [sku, setSku] = useState("");
   const [shortDesc, setShortDesc] = useState("");
   const [fullDesc, setFullDesc] = useState("");
@@ -148,6 +149,7 @@ export default function EditProductPage() {
     fetch(`/api/products/${id}`).then((r) => r.json()).then((p) => {
       if (p.error) { setLoading(false); return; }
       setProductName(p.name || "");
+      setProductSlug(p.slug || "");
       setSku(p.sku || "");
       setShortDesc(p.short_description || "");
       setFullDesc(p.description || "");
@@ -265,7 +267,7 @@ export default function EditProductPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <AdminButton variant="outline" size="sm" onClick={() => window.open(`/products/${sku}`, "_blank")}><Eye className="h-3.5 w-3.5" /> Preview</AdminButton>
+          <AdminButton variant="outline" size="sm" disabled={!productSlug} onClick={() => productSlug && window.open(`/products/${productSlug}`, "_blank")}><Eye className="h-3.5 w-3.5" /> Preview</AdminButton>
           {editMode ? (
             <>
               <AdminButton variant="outline" size="sm" onClick={() => setEditMode(false)}>Cancel</AdminButton>

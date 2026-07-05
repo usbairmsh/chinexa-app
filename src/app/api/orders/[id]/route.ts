@@ -54,7 +54,19 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const items = await query<RowDataPacket[]>("SELECT * FROM order_items WHERE order_id = ?", [order.id]);
     const addresses = await query<RowDataPacket[]>("SELECT * FROM order_addresses WHERE order_id = ?", [order.id]);
     const timeline = await query<RowDataPacket[]>("SELECT * FROM order_timeline WHERE order_id = ? ORDER BY created_at", [order.id]);
-    return NextResponse.json({ ...order, items, billing_address: addresses.find((a) => a.type === "billing"), shipping_address: addresses.find((a) => a.type === "shipping"), timeline });
+    return NextResponse.json({
+      ...order,
+      // mysql2 returns DECIMAL as string — normalize money fields for the frontend
+      subtotal: Number(order.subtotal) || 0,
+      shipping_cost: Number(order.shipping_cost) || 0,
+      discount: Number(order.discount) || 0,
+      tax: Number(order.tax) || 0,
+      total: Number(order.total) || 0,
+      items: items.map((i) => ({ ...i, unit_price: Number(i.unit_price) || 0, total_price: Number(i.total_price) || 0 })),
+      billing_address: addresses.find((a) => a.type === "billing"),
+      shipping_address: addresses.find((a) => a.type === "shipping"),
+      timeline,
+    });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
   }

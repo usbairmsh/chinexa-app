@@ -114,7 +114,7 @@ export function CartDrawer() {
                       >
                         <div className="relative h-24 w-20 flex-shrink-0 rounded-lg overflow-hidden bg-pearl">
                           <Image
-                            src={item.product_image}
+                            src={item.product_image || `https://picsum.photos/seed/${item.product_slug}/160/192`}
                             alt={item.product_name}
                             fill
                             className="object-cover"

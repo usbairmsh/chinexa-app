@@ -94,6 +94,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!points || !type) {
       return NextResponse.json({ error: "points and type are required" }, { status: 400 });
     }
+    if (!Number.isFinite(Number(points)) || Number(points) === 0) {
+      return NextResponse.json({ error: "points must be a non-zero number" }, { status: 400 });
+    }
+    if (!["purchase", "bonus", "redemption", "admin_adjustment", "coupon_reward", "refund"].includes(type)) {
+      return NextResponse.json({ error: "Invalid points type" }, { status: 400 });
+    }
 
     const entryId = `pts-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     await execute(

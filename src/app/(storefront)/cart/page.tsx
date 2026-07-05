@@ -44,13 +44,13 @@ export default function CartPage() {
           items: items.map((i) => ({ product_id: i.product_id, variant_id: i.variant_id || null, price: i.price, quantity: i.quantity })),
         }),
       });
-      const data = await res.json();
-      if (data.valid) {
-        applyCoupon(code, data.discount, data.discount_type, data.discount_value, data.max_discount_amount);
-        setCouponSuccess(`Coupon applied! You save ${data.discount.toLocaleString("en-BD")}৳`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.valid && Number.isFinite(Number(data.discount))) {
+        applyCoupon(code, Number(data.discount), data.discount_type, Number(data.discount_value) || 0, data.max_discount_amount != null ? Number(data.max_discount_amount) : null);
+        setCouponSuccess(`Coupon applied! You save ${Number(data.discount).toLocaleString("en-BD")}৳`);
         setCouponInput("");
       } else {
-        setCouponError(data.message || "Invalid coupon");
+        setCouponError(data.message || data.error || "Invalid coupon");
       }
     } catch {
       setCouponError("Failed to validate coupon");
@@ -105,7 +105,7 @@ export default function CartPage() {
                 >
                   <div className="relative h-24 w-[68px] sm:h-40 sm:w-32 flex-shrink-0 rounded-xl overflow-hidden bg-pearl">
                     <Image
-                      src={item.product_image}
+                      src={item.product_image || `https://picsum.photos/seed/${item.product_slug}/300/375`}
                       alt={item.product_name}
                       fill
                       className="object-cover"

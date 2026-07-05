@@ -60,12 +60,19 @@ export default function AdminFraudPage() {
     try {
       const res = await fetch("/api/fraud");
       const data = await res.json();
-      const rows = (data.data || []).map((r: Record<string, unknown>) => ({
-        ...r,
-        amount: Number(r.amount),
-        risk_score: Number(r.risk_score),
-        risk_factors: typeof r.risk_factors === "string" ? JSON.parse(r.risk_factors as string) : (r.risk_factors || []),
-      }));
+      const rows = (Array.isArray(data.data) ? data.data : []).map((r: Record<string, unknown>) => {
+        // Per-row parse guard: one malformed row must not wipe the whole list
+        let riskFactors: unknown = r.risk_factors || [];
+        if (typeof r.risk_factors === "string") {
+          try { riskFactors = JSON.parse(r.risk_factors); } catch { riskFactors = []; }
+        }
+        return {
+          ...r,
+          amount: Number(r.amount) || 0,
+          risk_score: Number(r.risk_score) || 0,
+          risk_factors: Array.isArray(riskFactors) ? riskFactors : [],
+        };
+      });
       setAlerts(rows);
       setStats(data.stats || { flagged: 0, reviewed: 0, cleared: 0, blocked: 0, total: 0 });
     } catch {

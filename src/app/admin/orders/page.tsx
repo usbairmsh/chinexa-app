@@ -61,16 +61,17 @@ export default function OrderManagementPage() {
     try {
       const res = await fetch("/api/orders?page_size=200");
       const data = await res.json();
-      setOrders((data?.data || []).map((o: Record<string, unknown>) => ({
+      if (!res.ok) { setOrders([]); return; }
+      setOrders((Array.isArray(data?.data) ? data.data : []).map((o: Record<string, unknown>) => ({
         id: (o.order_number as string) || (o.id as string),
         dbId: o.id as string,
         customer: (o.customer_name as string) || "",
         phone: (o.customer_phone as string) || "",
-        total: Number(o.total),
+        total: Number(o.total) || 0,
         status: (o.status as OrderStatus) || "pending",
         payment: ((o.payment_method as string) || "COD").toUpperCase(),
         payment_status: (o.payment_status as PaymentStatus) || "pending",
-        items: 0,
+        items: Number(o.item_count) || 0,
         date: (o.created_at as string) || new Date().toISOString(),
       })));
     } catch {} finally { setLoading(false); }

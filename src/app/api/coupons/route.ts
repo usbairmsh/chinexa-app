@@ -4,19 +4,34 @@ import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { validate, validationError } from "@/lib/validate";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
+import { resolveApplicableNames } from "@/lib/promotions";
+import type { OfferApplicability } from "@/types/offer";
 
 export async function GET() {
   try {
     await ensurePromotionColumns();
     const rows = await query<RowDataPacket[]>("SELECT * FROM coupons ORDER BY created_at DESC");
-    return NextResponse.json(rows.map((r) => ({
-      ...r,
-      is_active: !!r.is_active,
-      applicability: r.applicability || "store",
-      applicable_ids: typeof r.applicable_ids === "string" ? JSON.parse(r.applicable_ids) : r.applicable_ids || [],
-      applicable_categories: typeof r.applicable_categories === "string" ? JSON.parse(r.applicable_categories) : r.applicable_categories || null,
-      applicable_products: typeof r.applicable_products === "string" ? JSON.parse(r.applicable_products) : r.applicable_products || null,
-    })));
+    const coupons = await Promise.all(rows.map(async (r) => {
+      const applicability = (r.applicability || "store") as OfferApplicability;
+      const applicable_ids: string[] = typeof r.applicable_ids === "string" ? JSON.parse(r.applicable_ids) : (r.applicable_ids as string[]) || [];
+      return {
+        ...r,
+        is_active: !!r.is_active,
+        // mysql2 returns DECIMAL columns as strings — normalize to numbers
+        discount_value: Number(r.discount_value) || 0,
+        min_order_amount: r.min_order_amount != null ? Number(r.min_order_amount) : null,
+        max_discount_amount: r.max_discount_amount != null ? Number(r.max_discount_amount) : null,
+        usage_limit: r.usage_limit != null ? Number(r.usage_limit) : null,
+        per_customer_limit: r.per_customer_limit != null ? Number(r.per_customer_limit) : null,
+        used_count: Number(r.used_count) || 0,
+        applicability,
+        applicable_ids,
+        applicable_names: await resolveApplicableNames(applicability, applicable_ids),
+        applicable_categories: typeof r.applicable_categories === "string" ? JSON.parse(r.applicable_categories) : r.applicable_categories || null,
+        applicable_products: typeof r.applicable_products === "string" ? JSON.parse(r.applicable_products) : r.applicable_products || null,
+      };
+    }));
+    return NextResponse.json(coupons);
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
   }

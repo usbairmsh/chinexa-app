@@ -275,9 +275,12 @@ export default function AdminCustomersPage() {
     const tierColor = membershipData?.tier?.color || tierColors[c.tier] || "";
     const totalPoints = membershipData?.total_points || 0;
     const nextTier = membershipData?.next_tier;
-    const progressPercent = membershipData?.tier
-      ? ((totalPoints - membershipData.tier.min_points) / (membershipData.tier.max_points - membershipData.tier.min_points)) * 100
+    // Guard divide-by-zero when a tier has min_points === max_points
+    const tierRange = membershipData?.tier ? membershipData.tier.max_points - membershipData.tier.min_points : 0;
+    const rawProgress = membershipData?.tier && tierRange > 0
+      ? ((totalPoints - membershipData.tier.min_points) / tierRange) * 100
       : 0;
+    const progressPercent = Number.isFinite(rawProgress) ? Math.max(0, Math.min(100, rawProgress)) : 0;
 
     return (
       <div className="space-y-5">

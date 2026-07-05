@@ -29,7 +29,8 @@ export default function CollectionPage() {
   const { data: bestsellers, isLoading: loadingBest } = useBestsellers(24);
   const { data: trending, isLoading: loadingTrending } = useTrendingProducts(24);
 
-  const meta = collectionMeta[slug] || { title: slug, description: "" };
+  const isKnownCollection = slug in collectionMeta;
+  const meta = collectionMeta[slug] || { title: "Collection Not Found", description: "The collection you are looking for does not exist. Browse all products instead." };
 
   let products: typeof newArrivals = [];
   let isLoading = false;
@@ -82,7 +83,12 @@ export default function CollectionPage() {
         )}
 
         {products?.length === 0 && !isLoading && (
-          <p className="text-center text-charcoal-lighter py-20">No products in this collection yet.</p>
+          <div className="text-center py-20">
+            <p className="text-charcoal-lighter mb-4">
+              {isKnownCollection ? "No products in this collection yet." : "This collection does not exist."}
+            </p>
+            <a href="/products" className="text-sm font-medium text-secondary hover:underline">Browse all products →</a>
+          </div>
         )}
       </div>
     </div>

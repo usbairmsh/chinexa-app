@@ -37,7 +37,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       })),
     }));
 
-    return NextResponse.json({ ...customers[0], is_active: !!customers[0].is_active, addresses, orders: ordersWithItems });
+    return NextResponse.json({
+      ...customers[0],
+      is_active: !!customers[0].is_active,
+      total_spent: Number(customers[0].total_spent) || 0,
+      total_orders: Number(customers[0].total_orders) || 0,
+      addresses,
+      orders: ordersWithItems.map((o) => {
+        const row = o as Record<string, unknown>;
+        return { ...o, total: Number(row.total) || 0, subtotal: Number(row.subtotal) || 0 };
+      }),
+    });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
   }

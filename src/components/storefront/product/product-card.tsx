@@ -58,9 +58,11 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
       variant_id: activeVariant?.id,
       variant_name: activeVariant?.name,
       price: product.price + (activeVariant?.price_adjustment || 0),
-      compare_at_price: product.compare_at_price,
+      // Keep compare price consistent with the product detail page (variant-adjusted)
+      compare_at_price: product.compare_at_price ? product.compare_at_price + (activeVariant?.price_adjustment || 0) : undefined,
       quantity,
-      stock: activeVariant?.stock || product.stock_quantity,
+      // Ternary, not "||": a variant with 0 stock must NOT fall back to product-level stock
+      stock: activeVariant ? activeVariant.stock : product.stock_quantity,
     });
     setAdded(true);
     setTimeout(() => {

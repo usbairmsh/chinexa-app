@@ -4,6 +4,8 @@ import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { validate, validationError } from "@/lib/validate";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
+import { resolveApplicableNames } from "@/lib/promotions";
+import type { OfferApplicability } from "@/types/offer";
 
 interface OfferRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -18,13 +20,19 @@ export async function GET() {
   try {
     await ensurePromotionColumns();
     const rows = await query<OfferRow[]>("SELECT * FROM offers ORDER BY created_at DESC");
-    return NextResponse.json(rows.map((r) => ({
-      ...r,
-      is_active: !!r.is_active,
-      discount_value: r.discount_value != null ? Number(r.discount_value) : 0,
-      max_discount_amount: r.max_discount_amount != null ? Number(r.max_discount_amount) : null,
-      applicable_ids: typeof r.applicable_ids === "string" ? JSON.parse(r.applicable_ids) : r.applicable_ids || [],
-    })));
+    const offers = await Promise.all(rows.map(async (r) => {
+      const applicable_ids: string[] = typeof r.applicable_ids === "string" ? JSON.parse(r.applicable_ids) : (r.applicable_ids as string[]) || [];
+      return {
+        ...r,
+        is_active: !!r.is_active,
+        discount_value: r.discount_value != null ? Number(r.discount_value) : 0,
+        max_discount_amount: r.max_discount_amount != null ? Number(r.max_discount_amount) : null,
+        usage_count: Number(r.usage_count) || 0,
+        applicable_ids,
+        applicable_names: await resolveApplicableNames(r.applicability as OfferApplicability, applicable_ids),
+      };
+    }));
+    return NextResponse.json(offers);
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
   }

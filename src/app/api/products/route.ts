@@ -3,6 +3,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, escapeLike } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { validate, validationError, dependencyError } from "@/lib/validate";
+import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 
 interface ProductRow extends RowDataPacket {
   id: string; name: string; slug: string; description: string; short_description: string;
@@ -177,6 +178,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    await ensurePromotionColumns();
     const body = await req.json();
 
     // Validate required fields

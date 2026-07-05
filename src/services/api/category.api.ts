@@ -19,8 +19,9 @@ export class ApiCategoryService implements ICategoryService {
 
   async getBySlug(slug: string): Promise<Category | null> {
     const cats = await this.getAll();
+    // Resolve by slug OR id — some links (e.g. product breadcrumbs) pass the id.
     const find = (list: Category[]): Category | null => {
-      for (const c of list) { if (c.slug === slug) return c; if (c.children) { const f = find(c.children); if (f) return f; } }
+      for (const c of list) { if (c.slug === slug || c.id === slug) return c; if (c.children) { const f = find(c.children); if (f) return f; } }
       return null;
     };
     return find(cats);

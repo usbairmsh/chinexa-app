@@ -11,17 +11,25 @@ interface OrderRow extends RowDataPacket { [key: string]: unknown; }
 let migrated = false;
 async function ensureColumns() {
   if (migrated) return;
-  migrated = true;
   try {
-    await execute("ALTER TABLE orders ADD COLUMN stock_deducted BOOLEAN DEFAULT FALSE").catch(() => {});
-    await execute("ALTER TABLE orders ADD COLUMN revenue_counted BOOLEAN DEFAULT FALSE").catch(() => {});
-    await execute("ALTER TABLE order_items ADD COLUMN variant_id VARCHAR(50) AFTER product_id").catch(() => {});
+    // Add columns only if absent (idempotent), so a transient failure retries next request.
+    const cols = await query<RowDataPacket[]>(
+      `SELECT table_name AS t, column_name AS c FROM information_schema.columns
+       WHERE table_schema = DATABASE()
+         AND ((table_name = 'orders' AND column_name IN ('stock_deducted','revenue_counted'))
+           OR (table_name = 'order_items' AND column_name = 'variant_id'))`
+    );
+    const has = new Set(cols.map((r) => `${r.t}.${r.c}`));
+    if (!has.has("orders.stock_deducted")) await execute("ALTER TABLE orders ADD COLUMN stock_deducted BOOLEAN DEFAULT FALSE");
+    if (!has.has("orders.revenue_counted")) await execute("ALTER TABLE orders ADD COLUMN revenue_counted BOOLEAN DEFAULT FALSE");
+    if (!has.has("order_items.variant_id")) await execute("ALTER TABLE order_items ADD COLUMN variant_id VARCHAR(50) AFTER product_id");
     // Backfill: existing confirmed+ orders already had stock deducted
-    await execute("UPDATE orders SET stock_deducted = TRUE WHERE status IN ('confirmed','processing','shipped','on_delivery','received') AND stock_deducted = FALSE").catch(() => {});
+    await execute("UPDATE orders SET stock_deducted = TRUE WHERE status IN ('confirmed','processing','shipped','on_delivery','received') AND stock_deducted = FALSE");
     // Backfill: existing received orders already had revenue counted
-    await execute("UPDATE orders SET revenue_counted = TRUE WHERE status = 'received' AND payment_status = 'paid' AND revenue_counted = FALSE").catch(() => {});
-  } catch {
-    // Columns likely already exist
+    await execute("UPDATE orders SET revenue_counted = TRUE WHERE status = 'received' AND payment_status = 'paid' AND revenue_counted = FALSE");
+    migrated = true; // latch only after everything succeeded
+  } catch (err) {
+    console.error("[orders ensureColumns] migration failed:", err);
   }
 }
 
@@ -50,11 +58,28 @@ export async function GET(req: NextRequest) {
     const countRows = await query<RowDataPacket[]>(`SELECT COUNT(*) as total FROM orders ${where}`, params);
     const total = (countRows[0] as { total: number })?.total || 0;
 
-    const safeLimit = Math.max(1, Math.min(Math.floor(pageSize), 100));
+    const safeLimit = Math.max(1, Math.min(Math.floor(pageSize), 500));
     const safeOffset = Math.max(0, Math.floor((page - 1) * safeLimit));
-    const orders = await query<OrderRow[]>(`SELECT * FROM orders ${where} ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`, params);
+    const orders = await query<OrderRow[]>(
+      `SELECT o.*, (SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi WHERE oi.order_id = o.id) AS item_count
+       FROM orders o ${where} ORDER BY o.created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+      params
+    );
 
-    return NextResponse.json({ data: orders.map((o) => ({ ...o, is_active: undefined })), total, page, page_size: pageSize, total_pages: Math.ceil(total / pageSize) });
+    return NextResponse.json({
+      data: orders.map((o) => ({
+        ...o,
+        is_active: undefined,
+        // mysql2 returns DECIMAL as string — normalize money fields
+        subtotal: Number(o.subtotal) || 0,
+        shipping_cost: Number(o.shipping_cost) || 0,
+        discount: Number(o.discount) || 0,
+        tax: Number(o.tax) || 0,
+        total: Number(o.total) || 0,
+        item_count: Number(o.item_count) || 0,
+      })),
+      total, page, page_size: safeLimit, total_pages: Math.max(1, Math.ceil(total / safeLimit)),
+    });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
   }
@@ -76,6 +101,10 @@ export async function POST(req: NextRequest) {
     for (const item of body.items) {
       if (!item.product_name || !item.quantity || item.quantity < 1) {
         return validationError("Each order item must have a product name and quantity of at least 1");
+      }
+      // Guard against NaN money values reaching the DECIMAL NOT NULL columns
+      if (!Number.isFinite(Number(item.unit_price)) || Number(item.unit_price) < 0) {
+        return validationError(`Invalid unit price for "${item.product_name}"`);
       }
     }
 

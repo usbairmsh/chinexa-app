@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft, Save, Eye, Upload, X, Plus, Trash2, GripVertical,
+  ArrowLeft, Save, Upload, X, Plus, Trash2, GripVertical,
   ImagePlus, Tag, Globe, Sparkles, Package, BarChart3, Copy, Check, Shield
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -308,7 +308,6 @@ export default function AddProductPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <AdminButton variant="outline" size="sm"><Eye className="h-3.5 w-3.5" /> Preview</AdminButton>
           <AdminButton size="sm" onClick={handleSave} disabled={saving} className={saved ? "!bg-success hover:!bg-success" : ""}>
             <Save className="h-3.5 w-3.5" /> {saving ? "Saving..." : saved ? "Saved!" : "Save Product"}
           </AdminButton>

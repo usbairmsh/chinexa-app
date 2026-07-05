@@ -21,7 +21,10 @@ export async function GET() {
       total: rows.length,
     };
 
-    return NextResponse.json({ data: rows, stats });
+    return NextResponse.json({
+      data: rows.map((r) => ({ ...r, amount: r.amount != null ? Number(r.amount) : null })),
+      stats,
+    });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
   }
@@ -34,6 +37,9 @@ export async function PUT(req: NextRequest) {
 
     if (!id || !status) {
       return NextResponse.json({ error: "id and status are required" }, { status: 400 });
+    }
+    if (!["flagged", "reviewed", "cleared", "blocked"].includes(status)) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
     await execute(

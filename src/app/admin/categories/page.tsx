@@ -89,25 +89,33 @@ export default function AdminCategoriesPage() {
     if (!formName.trim()) return;
     const slug = formSlug.trim() || slugify(formName);
     try {
+      let res: Response;
       if (editCategory) {
         // Update existing
-        await fetch(`/api/categories/${editCategory.id}`, {
+        res = await fetch(`/api/categories/${editCategory.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: formName.trim(), slug, description: formDesc.trim(), image: formImage || null, is_active: showInTopbar, brand_ids: formBrandIds }),
         });
       } else {
         // Create new
-        await fetch("/api/categories", {
+        res = await fetch("/api/categories", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: formName.trim(), slug, description: formDesc.trim(), image: formImage, parent_id: formParentId || null, is_active: showInTopbar, brand_ids: formBrandIds }),
         });
       }
-    } catch {}
-    setDialogOpen(false); resetForm(); setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
-    window.location.reload();
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Failed to save category");
+        return; // do NOT reload — keep the form so the edit isn't silently lost
+      }
+      setDialogOpen(false); resetForm(); setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+      window.location.reload();
+    } catch {
+      alert("Network error — category not saved");
+    }
   };
 
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -360,7 +368,7 @@ export default function AdminCategoriesPage() {
                                     <span className="font-medium">{brand.name}</span>
                                     <span className="text-charcoal-lighter">({brand.product_count})</span>
                                     <button
-                                      onClick={(e) => { e.stopPropagation(); const next = catBrandIds.filter((id) => id !== brand.id); fetch(`/api/categories/${cat.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ brand_ids: next }) }).then(() => window.location.reload()); }}
+                                      onClick={(e) => { e.stopPropagation(); const next = catBrandIds.filter((id) => id !== brand.id); fetch(`/api/categories/${cat.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ brand_ids: next }) }).then((r) => { if (r.ok) window.location.reload(); else alert("Failed to remove brand"); }).catch(() => alert("Network error")); }}
                                       className="text-charcoal-lighter/50 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
                                     >
                                       <Trash2 className="h-2.5 w-2.5" />

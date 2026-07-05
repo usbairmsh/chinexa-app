@@ -173,7 +173,7 @@ export default function ProductsPage() {
                 animate={{ opacity: 1 }}
                 className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:gap-6"
               >
-                {data?.data.map((product, index) => (
+                {(Array.isArray(data?.data) ? data.data : []).map((product, index) => (
                   <ProductCard key={product.id} product={product} index={index} />
                 ))}
               </motion.div>

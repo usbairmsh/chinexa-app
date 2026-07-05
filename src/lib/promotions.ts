@@ -14,20 +14,51 @@ export interface PromoCartItem {
 export interface PromoContext {
   customerId?: string | null;
   tierName?: string | null;
+  tierId?: string | null;
 }
 
 /** Look up a customer's current membership tier from their points balance. */
-export async function getCustomerTier(customerId: string): Promise<string | null> {
+export async function getCustomerTier(customerId: string): Promise<{ id: string; name: string } | null> {
   const balanceRows = await query<RowDataPacket[]>(
     "SELECT COALESCE(SUM(points), 0) as total_points FROM customer_points WHERE customer_id = ?",
     [customerId]
   );
   const totalPoints = Number(balanceRows[0]?.total_points) || 0;
   const tiers = await query<RowDataPacket[]>(
-    "SELECT name FROM membership_tiers WHERE is_active = 1 AND min_points <= ? AND max_points >= ? LIMIT 1",
+    "SELECT id, name FROM membership_tiers WHERE is_active = 1 AND min_points <= ? AND max_points >= ? LIMIT 1",
     [totalPoints, totalPoints]
   );
-  return tiers.length > 0 ? (tiers[0].name as string) : null;
+  return tiers.length > 0 ? { id: tiers[0].id as string, name: tiers[0].name as string } : null;
+}
+
+/**
+ * Resolve human-readable names for a promotion's applicable_ids so admin UIs
+ * can label chips instead of showing raw IDs.
+ */
+export async function resolveApplicableNames(
+  applicability: OfferApplicability,
+  ids: string[]
+): Promise<string[]> {
+  if (!Array.isArray(ids) || ids.length === 0 || applicability === "store") return [];
+  const placeholders = ids.map(() => "?").join(",");
+  try {
+    let rows: RowDataPacket[] = [];
+    if (applicability === "categories" || applicability === "subcategories") {
+      rows = await query<RowDataPacket[]>(`SELECT id, name FROM categories WHERE id IN (${placeholders})`, ids);
+    } else if (applicability === "products") {
+      rows = await query<RowDataPacket[]>(`SELECT id, name FROM products WHERE id IN (${placeholders})`, ids);
+    } else if (applicability === "customers") {
+      rows = await query<RowDataPacket[]>(`SELECT id, name FROM customers WHERE id IN (${placeholders})`, ids);
+    } else if (applicability === "tiers") {
+      // Tiers may be stored by id or by name — resolve both
+      rows = await query<RowDataPacket[]>(`SELECT id, name FROM membership_tiers WHERE id IN (${placeholders}) OR name IN (${placeholders})`, [...ids, ...ids]);
+    }
+    const byId = new Map(rows.map((r) => [r.id as string, r.name as string]));
+    const byName = new Set(rows.map((r) => r.name as string));
+    return ids.map((id) => byId.get(id) || (byName.has(id) ? id : id));
+  } catch {
+    return ids; // fall back to raw ids on any lookup failure
+  }
 }
 
 /**
@@ -104,7 +135,11 @@ export function itemMatchesApplicability(
       // Customer-scoped promos apply to the whole cart, but only for the named customers.
       return !!ctx.customerId && applicableIds.includes(ctx.customerId);
     case "tiers":
-      return !!ctx.tierName && applicableIds.includes(ctx.tierName);
+      // Admin UIs may store tier ids or tier names — accept either.
+      return (
+        (!!ctx.tierId && applicableIds.includes(ctx.tierId)) ||
+        (!!ctx.tierName && applicableIds.includes(ctx.tierName))
+      );
     default:
       return false;
   }

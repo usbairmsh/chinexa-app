@@ -109,9 +109,9 @@ export default function AdminDashboard() {
   const recentDbOrders = (dbOrders?.data || []).slice(0, 5).map((o) => ({
     id: o.order_number as string || o.id as string,
     customer: o.customer_name as string,
-    total: Number(o.total),
+    total: Number(o.total) || 0,
     status: o.status as string,
-    items: 0,
+    items: Number(o.item_count) || 0,
     time: formatDateShort(o.created_at as string),
   }));
 

@@ -32,7 +32,16 @@ export async function GET(req: NextRequest) {
       itemCounts = new Map(itemRows.map((r) => [r.customer_id as string, Number(r.total_items)]));
     }
 
-    return NextResponse.json({ data: rows.map((r) => ({ ...r, is_active: !!r.is_active, total_items: itemCounts.get(r.id as string) || 0 })), total, page, page_size: pageSize, total_pages: Math.ceil(total / pageSize) });
+    return NextResponse.json({
+      data: rows.map((r) => ({
+        ...r,
+        is_active: !!r.is_active,
+        total_spent: Number(r.total_spent) || 0,
+        total_orders: Number(r.total_orders) || 0,
+        total_items: itemCounts.get(r.id as string) || 0,
+      })),
+      total, page, page_size: safeLimit, total_pages: Math.max(1, Math.ceil(total / safeLimit)),
+    });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
   }
@@ -41,10 +50,16 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    if (!body.name || typeof body.name !== "string" || !body.name.trim()) {
+      return NextResponse.json({ error: "Customer name is required" }, { status: 400 });
+    }
+    if (!body.phone || typeof body.phone !== "string" || !body.phone.trim()) {
+      return NextResponse.json({ error: "Customer phone is required" }, { status: 400 });
+    }
     const id = `cust-${Date.now()}`;
     await execute(
       "INSERT INTO customers (id, name, email, phone, is_active) VALUES (?, ?, ?, ?, TRUE)",
-      [id, body.name, body.email || null, body.phone]
+      [id, body.name.trim(), body.email || null, body.phone.trim()]
     );
     if (body.address) {
       await execute(
@@ -55,6 +70,10 @@ export async function POST(req: NextRequest) {
     await logActivity("Created customer", "customer", id, body.name);
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Error";
+    if (message.includes("Duplicate entry")) {
+      return NextResponse.json({ error: "A customer with this phone or email already exists" }, { status: 409 });
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

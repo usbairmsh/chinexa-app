@@ -32,6 +32,12 @@ export async function ensurePromotionColumns() {
     await ensureColumn("coupons", "applicable_ids", "JSON");
     await ensureColumn("coupons", "per_customer_limit", "INT");
 
+    // Products: trust badges shown on the product page (referenced by create/update)
+    await ensureColumn("products", "trust_badges", "JSON");
+
+    // Brands: homepage visibility flag (referenced by brands/[id] before list route)
+    await ensureColumn("brands", "show_on_homepage", "BOOLEAN DEFAULT FALSE");
+
     done = true; // only latch once every column is confirmed/created
   } catch (err) {
     // Leave `done` false so the next request retries the migration.

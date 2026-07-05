@@ -67,6 +67,7 @@ export default function CheckoutPage() {
   const [step, setStep] = useState(1);
   const [highestStep, setHighestStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState("COD");
+  const [shippingMethod, setShippingMethod] = useState<"standard" | "express">("standard");
   const [transactionId, setTransactionId] = useState("");
   const [orderNumber, setOrderNumber] = useState("");
   const [placing, setPlacing] = useState(false);
@@ -93,12 +94,12 @@ export default function CheckoutPage() {
           items: items.map((i) => ({ product_id: i.product_id, variant_id: i.variant_id || null, price: i.price, quantity: i.quantity })),
         }),
       });
-      const data = await res.json();
-      if (data.valid) {
-        applyCoupon(code, data.discount, data.discount_type, data.discount_value, data.max_discount_amount);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.valid && Number.isFinite(Number(data.discount))) {
+        applyCoupon(code, Number(data.discount), data.discount_type, Number(data.discount_value) || 0, data.max_discount_amount != null ? Number(data.max_discount_amount) : null);
         setCouponInput("");
       } else {
-        setCouponError(data.message || "Invalid coupon");
+        setCouponError(data.message || data.error || "Invalid coupon");
       }
     } catch {
       setCouponError("Failed to validate coupon");
@@ -238,7 +239,11 @@ export default function CheckoutPage() {
   const offerSavings = getSavings();
   const discount = getDiscount();
   const isFreeShipping = freeDeliveryEnabled && subtotal >= freeDeliveryThreshold;
-  const finalTotal = Math.max(0, subtotal - offerSavings - discount + shippingCost);
+  // Express delivery: flat ৳200, Dhaka City only (not covered by free-delivery threshold)
+  const isExpress = shippingMethod === "express" && activeDivision === "Dhaka";
+  const effectiveShipping = isExpress ? 200 : shippingCost;
+  const showFreeShipping = !isExpress && isFreeShipping;
+  const finalTotal = Math.max(0, subtotal - offerSavings - discount + effectiveShipping);
 
   const [stockError, setStockError] = useState<string[]>([]);
 
@@ -318,6 +323,11 @@ export default function CheckoutPage() {
           items: items.map((item) => ({ product_id: item.product_id, variant_id: item.variant_id, quantity: item.quantity })),
         }),
       });
+      if (!validateRes.ok) {
+        setValidationError("Could not verify stock right now. Please try again.");
+        setPlacing(false);
+        return;
+      }
       const validateData = await validateRes.json();
 
       if (!validateData.valid) {
@@ -365,7 +375,7 @@ export default function CheckoutPage() {
           customer_phone: customerPhone,
           customer_id: user?.id || null,
           subtotal,
-          shipping_cost: shippingCost,
+          shipping_cost: effectiveShipping,
           discount: offerSavings + discount,
           tax: 0,
           total: finalTotal,
@@ -380,10 +390,14 @@ export default function CheckoutPage() {
         }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
-      if (!res.ok && data.out_of_stock) {
-        setStockError(data.out_of_stock);
+      if (!res.ok) {
+        if (data.out_of_stock) {
+          setStockError(data.out_of_stock);
+        } else {
+          setValidationError(data.error || "Failed to place order. Please try again.");
+        }
         setPlacing(false);
         return;
       }
@@ -406,11 +420,12 @@ export default function CheckoutPage() {
         }).catch(() => {});
       }
 
+      setValidationError("");
       advanceStep(4);
       setTimeout(() => clearCart(), 2000);
     } catch {
-      advanceStep(4);
-      setTimeout(() => clearCart(), 2000);
+      // A network failure must NOT be treated as a successful order.
+      setValidationError("Network error — your order was not placed. Please check your connection and try again.");
     } finally {
       setPlacing(false);
     }
@@ -697,9 +712,12 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <label className="flex items-center justify-between p-3 sm:p-4 rounded-xl border border-secondary bg-primary-light cursor-pointer">
+                  <label className={cn(
+                    "flex items-center justify-between p-3 sm:p-4 rounded-xl border cursor-pointer transition-colors",
+                    shippingMethod === "standard" ? "border-secondary bg-primary-light" : "border-border hover:border-secondary"
+                  )}>
                     <div className="flex items-center gap-2 sm:gap-3">
-                      <input type="radio" name="shipping" defaultChecked className="accent-secondary shrink-0" />
+                      <input type="radio" name="shipping" checked={shippingMethod === "standard"} onChange={() => setShippingMethod("standard")} className="accent-secondary shrink-0" />
                       <div>
                         <p className="text-sm font-medium text-charcoal">Standard Delivery</p>
                         <p className="text-xs text-charcoal-lighter">{getDeliveryTime()} business days</p>
@@ -708,9 +726,12 @@ export default function CheckoutPage() {
                     <span className="text-sm font-semibold shrink-0 ml-2">{isFreeShipping ? <span className="text-success">Free</span> : formatCurrency(shippingCost)}</span>
                   </label>
                   {activeDivision === "Dhaka" && (
-                    <label className="flex items-center justify-between p-3 sm:p-4 rounded-xl border border-border cursor-pointer hover:border-secondary transition-colors">
+                    <label className={cn(
+                      "flex items-center justify-between p-3 sm:p-4 rounded-xl border cursor-pointer transition-colors",
+                      shippingMethod === "express" ? "border-secondary bg-primary-light" : "border-border hover:border-secondary"
+                    )}>
                       <div className="flex items-center gap-2 sm:gap-3">
-                        <input type="radio" name="shipping" className="accent-secondary shrink-0" />
+                        <input type="radio" name="shipping" checked={shippingMethod === "express"} onChange={() => setShippingMethod("express")} className="accent-secondary shrink-0" />
                         <div>
                           <p className="text-sm font-medium text-charcoal">Express Delivery</p>
                           <p className="text-xs text-charcoal-lighter">Next day delivery (Dhaka only)</p>
@@ -796,8 +817,8 @@ export default function CheckoutPage() {
                 {/* Price Breakdown */}
                 <div className="p-3 sm:p-4 rounded-xl border border-border/30 bg-pearl/20">
                   <PriceCalculator
-                    shippingCost={shippingCost}
-                    isFreeShipping={isFreeShipping}
+                    shippingCost={effectiveShipping}
+                    isFreeShipping={showFreeShipping}
                   />
                 </div>
 
@@ -809,6 +830,10 @@ export default function CheckoutPage() {
                     ))}
                     <p className="text-xs text-charcoal-lighter mt-2">Please update your cart and try again.</p>
                   </div>
+                )}
+
+                {validationError && (
+                  <p className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-3 sm:px-4 py-2">{validationError}</p>
                 )}
 
                 <div className="flex flex-col-reverse sm:flex-row gap-3">
@@ -832,7 +857,7 @@ export default function CheckoutPage() {
                   {items.map((item) => (
                     <div key={item.id} className="flex gap-3">
                       <div className="relative h-14 w-12 rounded-lg overflow-hidden bg-white shrink-0">
-                        <Image src={item.product_image} alt={item.product_name} fill className="object-cover" sizes="48px" />
+                        <Image src={item.product_image || `https://picsum.photos/seed/${item.product_slug}/96/112`} alt={item.product_name} fill className="object-cover" sizes="48px" />
                         <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-charcoal text-[10px] text-white font-bold">{item.quantity}</span>
                       </div>
                       <div className="flex-1 min-w-0">
@@ -844,8 +869,8 @@ export default function CheckoutPage() {
                 </div>
                 <Separator className="my-3" />
                 <PriceCalculator
-                  shippingCost={activeDivision ? shippingCost : undefined}
-                  isFreeShipping={isFreeShipping}
+                  shippingCost={activeDivision ? effectiveShipping : undefined}
+                  isFreeShipping={showFreeShipping}
                   freeDeliveryThreshold={freeDeliveryThreshold}
                 />
               </div>

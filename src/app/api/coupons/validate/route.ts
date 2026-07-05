@@ -87,15 +87,22 @@ export async function POST(req: NextRequest) {
       return fail("Please sign in to use this coupon");
     }
 
+    const tier = customerId ? await getCustomerTier(customerId) : null;
     const ctx: PromoContext = {
       customerId,
-      tierName: customerId ? await getCustomerTier(customerId) : null,
+      tierName: tier?.name ?? null,
+      tierId: tier?.id ?? null,
     };
 
     if (applicability === "customers" && !applicableIds.includes(customerId || "")) {
       return fail("This coupon is not available for your account");
     }
-    if (applicability === "tiers" && (!ctx.tierName || !applicableIds.includes(ctx.tierName))) {
+    // Tiers may be stored by id or name — accept either.
+    if (
+      applicability === "tiers" &&
+      !(ctx.tierId && applicableIds.includes(ctx.tierId)) &&
+      !(ctx.tierName && applicableIds.includes(ctx.tierName))
+    ) {
       return fail("This coupon is only for specific membership tiers");
     }
 

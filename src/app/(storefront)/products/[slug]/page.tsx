@@ -83,9 +83,15 @@ export default function ProductDetailPage() {
 
   const handleShare = () => {
     const url = `${window.location.origin}/products/${product?.slug || ""}`;
-    navigator.clipboard.writeText(url);
-    setShared(true);
-    setTimeout(() => setShared(false), 5000);
+    try {
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(url).catch(() => {});
+      }
+      setShared(true);
+      setTimeout(() => setShared(false), 5000);
+    } catch {
+      // Clipboard unavailable (non-secure context) — ignore
+    }
   };
 
   // Reviews
@@ -182,7 +188,8 @@ export default function ProductDetailPage() {
   const activeVariant = product.variants.find((v) => v.id === selectedVariant);
   const finalPrice = product.price + (activeVariant?.price_adjustment || 0);
   const finalComparePrice = product.compare_at_price ? product.compare_at_price + (activeVariant?.price_adjustment || 0) : undefined;
-  const discountPercent = finalComparePrice ? Math.round((1 - finalPrice / finalComparePrice) * 100) : 0;
+  // Clamp so a variant adjustment can never yield a negative "Save %" label
+  const discountPercent = finalComparePrice && finalComparePrice > finalPrice ? Math.max(0, Math.round((1 - finalPrice / finalComparePrice) * 100)) : 0;
 
   // A variant must be chosen before adding to cart when the product has variants.
   const variantRequired = product.variants.length > 0 && !selectedVariant;
@@ -200,7 +207,8 @@ export default function ProductDetailPage() {
       price: finalPrice,
       compare_at_price: finalComparePrice,
       quantity,
-      stock: activeVariant?.stock || product.stock_quantity,
+      // "??" not "||": a variant with 0 stock must NOT fall back to product-level stock
+      stock: activeVariant ? activeVariant.stock : product.stock_quantity,
     });
     setAddedToCart(true);
     setTimeout(() => {
@@ -831,7 +839,7 @@ export default function ProductDetailPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <Image
-                src={product.images[selectedImage]?.url || ""}
+                src={product.images[selectedImage]?.url || `https://picsum.photos/seed/${product.slug}/600/750`}
                 alt={product.images[selectedImage]?.alt || product.name}
                 width={1200}
                 height={1500}

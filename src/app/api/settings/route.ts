@@ -56,7 +56,7 @@ export async function PUT(req: NextRequest) {
 
     // Single key update
     if (body.key) {
-      const val = JSON.stringify(body.value);
+      const val = JSON.stringify(body.value ?? null); // JSON.stringify(undefined) would break the INSERT
       await execute("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?, updated_at = NOW()", [body.key, val, val]);
       await logActivity("Updated settings", "settings", body.key);
       return NextResponse.json({ success: true });
@@ -65,7 +65,7 @@ export async function PUT(req: NextRequest) {
     // Bulk update
     if (body.settings && typeof body.settings === "object") {
       for (const [k, v] of Object.entries(body.settings)) {
-        const val = JSON.stringify(v);
+        const val = JSON.stringify(v ?? null);
         await execute("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?, updated_at = NOW()", [k, val, val]);
       }
       await logActivity("Updated settings", "settings", undefined, `Bulk update: ${Object.keys(body.settings).join(", ")}`);
