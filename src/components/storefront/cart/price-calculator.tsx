@@ -26,6 +26,8 @@ export function PriceCalculator({
   const savings = getSavings();
   const itemSavings = getItemSavings();
   const discount = getDiscount();
+  // Shipping is "known" only when a numeric cost is provided (address selected).
+  const shippingKnown = !showShipping || shippingCost != null;
   const shipping = showShipping ? (shippingCost ?? 0) : 0;
 
   const total = Math.max(0, subtotal - savings - discount + shipping);
@@ -117,7 +119,7 @@ export function PriceCalculator({
 
       {/* Total */}
       <div className="flex justify-between text-base font-semibold text-charcoal">
-        <span>Total</span>
+        <span>Total{!shippingKnown && <span className="font-normal text-[10px] text-charcoal-lighter"> (excl. shipping)</span>}</span>
         <span>{formatCurrency(total)}</span>
       </div>
 

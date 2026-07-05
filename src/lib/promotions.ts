@@ -33,24 +33,50 @@ export async function getCustomerTier(customerId: string): Promise<string | null
 /**
  * Enrich cart items with category_id/subcategory from the DB so applicability
  * can be evaluated authoritatively (the client cannot be trusted for this).
+ *
+ * The per-unit price is recomputed server-side as
+ * `product.price + variant.price_adjustment` for the selected variant, so
+ * discounts are calculated on the exact line price the customer pays — variant
+ * price adjustments included — rather than the raw base product price.
  */
 export async function enrichCartItems(
   items: { product_id: string; variant_id?: string | null; price: number; quantity: number }[]
 ): Promise<PromoCartItem[]> {
-  const ids = [...new Set(items.map((i) => i.product_id))];
-  if (ids.length === 0) return [];
-  const placeholders = ids.map(() => "?").join(",");
-  const rows = await query<RowDataPacket[]>(
-    `SELECT id, category_id, subcategory, price FROM products WHERE id IN (${placeholders})`,
-    ids
+  const productIds = [...new Set(items.map((i) => i.product_id))];
+  if (productIds.length === 0) return [];
+
+  const productPlaceholders = productIds.map(() => "?").join(",");
+  const productRows = await query<RowDataPacket[]>(
+    `SELECT id, category_id, subcategory, price FROM products WHERE id IN (${productPlaceholders})`,
+    productIds
   );
-  const byId = new Map(rows.map((r) => [r.id as string, r]));
+  const productById = new Map(productRows.map((r) => [r.id as string, r]));
+
+  // Look up any selected variants so we can apply their price adjustment.
+  const variantIds = [...new Set(items.map((i) => i.variant_id).filter((v): v is string => !!v))];
+  const adjustmentByVariant = new Map<string, number>();
+  if (variantIds.length > 0) {
+    const variantPlaceholders = variantIds.map(() => "?").join(",");
+    const variantRows = await query<RowDataPacket[]>(
+      `SELECT id, price_adjustment FROM product_variants WHERE id IN (${variantPlaceholders})`,
+      variantIds
+    );
+    for (const v of variantRows) {
+      adjustmentByVariant.set(v.id as string, Number(v.price_adjustment) || 0);
+    }
+  }
+
   return items.map((i) => {
-    const p = byId.get(i.product_id);
+    const p = productById.get(i.product_id);
+    // Authoritative unit price = base price + selected variant's adjustment.
+    // Fall back to the client-supplied price only if the product row is missing.
+    const authoritativePrice = p
+      ? Number(p.price) + (i.variant_id ? (adjustmentByVariant.get(i.variant_id) ?? 0) : 0)
+      : i.price;
     return {
       product_id: i.product_id,
       variant_id: i.variant_id ?? null,
-      price: p ? Number(p.price) : i.price, // trust DB price, not client
+      price: authoritativePrice,
       quantity: i.quantity,
       category_id: p ? (p.category_id as string | null) : null,
       subcategory: p ? (p.subcategory as string | null) : null,
