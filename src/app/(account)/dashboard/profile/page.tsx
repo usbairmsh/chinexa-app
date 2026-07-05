@@ -15,6 +15,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import { DEFAULT_OTP } from "@/lib/constants";
 import { getInitials, cn } from "@/lib/utils";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
+import { useCustomerBadge } from "@/hooks/use-customer-badge";
 
 const deactivationReasons = [
   "I no longer need this account",
@@ -53,6 +54,10 @@ export default function ProfilePage() {
   // Tier data
   const [tierName, setTierName] = useState("Bronze");
   const [tierColor, setTierColor] = useState("bg-orange-100 text-orange-700");
+  // Same source as the "My Account" dashboard badge — using badge_color/name
+  // directly instead of guessing a hex from the Tailwind `tier.color` class
+  // keeps this badge in sync with what the dashboard page shows.
+  const badgeData = useCustomerBadge();
 
   // Deactivation flow — 3 steps
   const [deactivateOpen, setDeactivateOpen] = useState(false);
@@ -170,7 +175,7 @@ export default function ProfilePage() {
               <div className="text-center sm:text-left">
                 <h3 className="font-heading text-lg font-semibold text-charcoal flex items-center gap-1.5">
                   {user?.name || "Guest User"}
-                  {tierName !== "General" && <VerifiedBadge color={tierColor.includes("orange") ? "#F97316" : tierColor.includes("gray") ? "#6B7280" : tierColor.includes("amber") ? "#F59E0B" : tierColor.includes("violet") ? "#8B5CF6" : "#3B82F6"} size={22} tooltip={tierName} />}
+                  {badgeData && <VerifiedBadge color={badgeData.badge_color} opacity={badgeData.badge_opacity} size={22} tooltip={badgeData.badge_name} />}
                 </h3>
                 <p className="text-sm text-charcoal-lighter">{user?.phone || "Not signed in"}</p>
                 <div className="flex items-center gap-2 mt-2 justify-center sm:justify-start">

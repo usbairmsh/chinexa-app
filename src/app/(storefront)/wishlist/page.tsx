@@ -18,8 +18,16 @@ export default function WishlistPage() {
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    if (!mounted || items.length === 0) { setLoading(false); return; }
-    // Fetch each wishlisted product from API
+    if (!mounted) return;
+    if (items.length === 0) { setProducts([]); setLoading(false); return; }
+
+    // Guard against overlapping runs (React Strict Mode double-invoke, or
+    // `items` changing again before the previous fetch resolves) — without
+    // this, a stale/earlier request can resolve last and overwrite the
+    // correct product list with empty results.
+    let cancelled = false;
+    setLoading(true);
+
     Promise.all(
       items.map((id) =>
         fetch(`/api/products/${id}`)
@@ -27,9 +35,12 @@ export default function WishlistPage() {
           .catch(() => null)
       )
     ).then((results) => {
+      if (cancelled) return;
       setProducts(results.filter(Boolean) as Product[]);
       setLoading(false);
     });
+
+    return () => { cancelled = true; };
   }, [mounted, items]);
 
   const count = mounted ? items.length : 0;

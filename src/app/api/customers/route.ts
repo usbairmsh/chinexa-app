@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
     // Get total items bought per customer
     const customerIds = rows.map((r) => r.id as string);
     let itemCounts = new Map<string, number>();
+    let pointsByCustomer = new Map<string, number>();
     if (customerIds.length > 0) {
       const placeholders = customerIds.map(() => "?").join(",");
       const itemRows = await query<RowDataPacket[]>(
@@ -30,7 +31,25 @@ export async function GET(req: NextRequest) {
         customerIds
       );
       itemCounts = new Map(itemRows.map((r) => [r.customer_id as string, Number(r.total_items)]));
+
+      // Real points balance per customer, used to resolve their actual
+      // membership tier below — replaces the old total_spent-threshold guess.
+      const pointsRows = await query<RowDataPacket[]>(
+        `SELECT customer_id, COALESCE(SUM(points), 0) as total_points FROM customer_points WHERE customer_id IN (${placeholders}) GROUP BY customer_id`,
+        customerIds
+      );
+      pointsByCustomer = new Map(pointsRows.map((r) => [r.customer_id as string, Number(r.total_points)]));
     }
+
+    // Real membership tiers (same source of truth as /api/customers/[id]/points)
+    const tierRows = await query<RowDataPacket[]>(
+      "SELECT name, min_points, max_points FROM membership_tiers WHERE is_active = 1 ORDER BY sort_order ASC"
+    );
+    const tiers = tierRows.map((t) => ({ name: t.name as string, min: Number(t.min_points), max: Number(t.max_points) }));
+    const resolveTier = (points: number): string => {
+      const match = tiers.find((t) => points >= t.min && points <= t.max);
+      return match?.name || tiers[0]?.name || "Bronze";
+    };
 
     return NextResponse.json({
       data: rows.map((r) => ({
@@ -39,6 +58,8 @@ export async function GET(req: NextRequest) {
         total_spent: Number(r.total_spent) || 0,
         total_orders: Number(r.total_orders) || 0,
         total_items: itemCounts.get(r.id as string) || 0,
+        total_points: pointsByCustomer.get(r.id as string) || 0,
+        tier: resolveTier(pointsByCustomer.get(r.id as string) || 0),
       })),
       total, page, page_size: safeLimit, total_pages: Math.max(1, Math.ceil(total / safeLimit)),
     });

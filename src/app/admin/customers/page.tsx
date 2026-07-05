@@ -36,7 +36,7 @@ interface Customer {
   division: string; district: string; address: string;
   totalOrders: number; totalSpent: number; totalItems: number;
   avgOrderValue: number; lastOrderDate: string; joinedDate: string;
-  isActive: boolean; tier: "Bronze" | "Silver" | "Gold" | "Platinum";
+  isActive: boolean; tier: string;
   orders: CustomerOrder[];
 }
 
@@ -50,7 +50,9 @@ const statusConfig: Record<string, { label: string; color: string; bg: string; i
   returned: { label: "Returned", color: "text-orange-500", bg: "bg-orange-50", icon: Package },
 };
 
-const tierColors: Record<string, string> = {
+// Fallback colors for tier names that don't (yet) carry their own `color`
+// from /api/membership/tiers — keeps the badge from rendering unstyled.
+const fallbackTierColors: Record<string, string> = {
   Bronze: "bg-orange-100 text-orange-700",
   Silver: "bg-gray-100 text-gray-600",
   Gold: "bg-amber-50 text-amber-700",
@@ -102,6 +104,21 @@ export default function AdminCustomersPage() {
   const [couponDialogOpen, setCouponDialogOpen] = useState(false);
   const [availableCoupons, setAvailableCoupons] = useState<{ id: string; code: string; description: string; discount_type: string; discount_value: number }[]>([]);
   const [selectedCouponId, setSelectedCouponId] = useState("");
+  const [tierNames, setTierNames] = useState<string[]>([]);
+  const [tierColorMap, setTierColorMap] = useState<Record<string, string>>({});
+
+  // Real configured membership tiers, used to drive the filter dropdown and
+  // badge colors instead of the old hardcoded Bronze/Silver/Gold/Platinum list.
+  const fetchTierOptions = async () => {
+    try {
+      const res = await fetch("/api/membership/tiers");
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setTierNames(data.map((t: { name: string }) => t.name));
+        setTierColorMap(Object.fromEntries(data.map((t: { name: string; color?: string }) => [t.name, t.color || ""])));
+      }
+    } catch {}
+  };
 
   // Fetch customers from DB
   const fetchCustomers = async () => {
@@ -115,13 +132,13 @@ export default function AdminCustomersPage() {
           totalOrders: Number(c.total_orders) || 0, totalSpent: Number(c.total_spent) || 0,
           totalItems: Number(c.total_items) || 0, avgOrderValue: Number(c.total_orders) > 0 ? Math.round(Number(c.total_spent) / Number(c.total_orders)) : 0,
           lastOrderDate: (c.last_order_at as string) || (c.created_at as string) || "", joinedDate: (c.created_at as string) || "",
-          isActive: c.is_active !== false, tier: Number(c.total_spent) >= 100000 ? "Platinum" as const : Number(c.total_spent) >= 50000 ? "Gold" as const : Number(c.total_spent) >= 20000 ? "Silver" as const : "Bronze" as const,
+          isActive: c.is_active !== false, tier: (c.tier as string) || "Bronze",
           orders: [],
         })));
       }
     } catch {}
   };
-  useEffect(() => { fetchCustomers(); }, []);
+  useEffect(() => { fetchCustomers(); fetchTierOptions(); }, []);
 
   // Fetch membership data for selected customer
   const fetchMembershipData = async (customerId: string) => {
@@ -272,7 +289,7 @@ export default function AdminCustomersPage() {
   if (selectedCustomer) {
     const c = selectedCustomer;
     const tierName = membershipData?.tier?.name || c.tier;
-    const tierColor = membershipData?.tier?.color || tierColors[c.tier] || "";
+    const tierColor = membershipData?.tier?.color || tierColorMap[c.tier] || fallbackTierColors[c.tier] || "";
     const totalPoints = membershipData?.total_points || 0;
     const nextTier = membershipData?.next_tier;
     // Guard divide-by-zero when a tier has min_points === max_points
@@ -604,10 +621,9 @@ export default function AdminCustomersPage() {
                 <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Tiers</SelectItem>
-                  <SelectItem value="Platinum">Platinum</SelectItem>
-                  <SelectItem value="Gold">Gold</SelectItem>
-                  <SelectItem value="Silver">Silver</SelectItem>
-                  <SelectItem value="Bronze">Bronze</SelectItem>
+                  {tierNames.map((name) => (
+                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -667,7 +683,7 @@ export default function AdminCustomersPage() {
                       <p className="text-[9px] text-charcoal-lighter">Avg {formatCurrency(c.avgOrderValue)}</p>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
-                      <Badge className={cn("text-[9px]", tierColors[c.tier])}>{c.tier}</Badge>
+                      <Badge className={cn("text-[9px]", tierColorMap[c.tier] || fallbackTierColors[c.tier])}>{c.tier}</Badge>
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell text-xs text-charcoal-lighter">
                       {formatDateShort(c.lastOrderDate)}

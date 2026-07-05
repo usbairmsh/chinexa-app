@@ -12,10 +12,23 @@ export default function AccountWishlistPage() {
   const { items } = useWishlistStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+
+  // The wishlist store is persisted to localStorage — `items` starts empty
+  // and only reflects the real saved list after client-side rehydration.
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    if (items.length === 0) { setLoading(false); return; }
-    // Fetch each wishlist product from the API
+    if (!mounted) return;
+    if (items.length === 0) { setProducts([]); setLoading(false); return; }
+
+    // Guard against overlapping runs (React Strict Mode double-invoke, or
+    // `items` changing again before the previous fetch resolves) — without
+    // this, a stale/earlier request can resolve last and overwrite the
+    // correct product list with empty results.
+    let cancelled = false;
+    setLoading(true);
+
     Promise.all(
       items.map((id) =>
         fetch(`/api/products/${id}`)
@@ -24,9 +37,13 @@ export default function AccountWishlistPage() {
           .catch(() => null)
       )
     ).then((results) => {
+      if (cancelled) return;
       setProducts(results.filter(Boolean) as Product[]);
-    }).finally(() => setLoading(false));
-  }, [items]);
+      setLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [mounted, items]);
 
   return (
     <div className="space-y-5">
