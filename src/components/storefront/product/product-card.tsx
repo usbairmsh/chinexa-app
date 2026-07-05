@@ -84,8 +84,8 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           href={`/products/${product.slug}`}
           className="group block"
         >
-          {/* Image */}
-          <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-pearl mb-3">
+          {/* Image — kept clean on phone/tablet; hover actions only on desktop */}
+          <div className="relative aspect-[3/4] overflow-hidden rounded-xl sm:rounded-2xl bg-pearl mb-2 sm:mb-3">
             <Image
               src={product.images[0]?.url || `https://picsum.photos/seed/${product.slug}/600/750`}
               alt={product.name}
@@ -107,9 +107,9 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
 
             {/* Badges */}
             {product.badges.length > 0 && (
-              <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+              <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex flex-col gap-1 sm:gap-1.5">
                 {product.badges.map((badge) => (
-                  <Badge key={badge} variant={badge} className="text-[10px] uppercase tracking-wider">
+                  <Badge key={badge} variant={badge} className="text-[8px] sm:text-[10px] px-1.5 sm:px-2.5 uppercase tracking-wider">
                     {badge === "preorder" ? "Pre-order" : badge}
                   </Badge>
                 ))}
@@ -118,13 +118,15 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
 
             {/* Low stock badge — top right */}
             {product.stock_quantity > 0 && product.stock_quantity <= 5 && (
-              <div className="absolute top-3 right-3 z-10">
-                <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[9px] font-semibold shadow-card">Only {product.stock_quantity} left!</span>
+              <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-10">
+                <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-amber-500 text-white text-[8px] sm:text-[9px] font-semibold shadow-card whitespace-nowrap">Only {product.stock_quantity} left!</span>
               </div>
             )}
 
-            {/* Add to Bag + Wishlist — slide up together on hover */}
-            <div className="absolute bottom-0 left-0 right-0 sm:translate-y-full sm:group-hover:translate-y-0 transition-transform duration-300">
+            {/* Desktop only: Add to Bag + Wishlist slide up on hover.
+                Hidden below lg — touch devices have no hover, so they get the
+                static action row under the card instead. */}
+            <div className="hidden lg:block absolute bottom-0 left-0 right-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
               <div className="bg-gradient-to-t from-black/50 to-transparent pt-8 pb-3 px-3">
                 {product.stock_quantity > 0 ? (
                   <div className="flex items-center gap-2">
@@ -156,19 +158,19 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           </div>
 
           {/* Info */}
-          <div className="space-y-1">
-            <p className="text-xs text-charcoal-lighter uppercase tracking-wider">
+          <div className="space-y-0.5 sm:space-y-1 px-0.5">
+            <p className="text-[10px] sm:text-xs text-charcoal-lighter uppercase tracking-wider truncate">
               {product.category_name}
             </p>
-            <h3 className="text-sm font-medium text-charcoal group-hover:text-secondary transition-colors line-clamp-1">
+            <h3 className="text-[13px] sm:text-sm font-medium text-charcoal group-hover:text-secondary transition-colors line-clamp-1">
               {product.name}
             </h3>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-charcoal">
+            <div className="flex items-baseline gap-1.5 sm:gap-2 flex-wrap">
+              <span className="text-[13px] sm:text-sm font-semibold text-charcoal">
                 {formatCurrency(product.price)}
               </span>
               {product.compare_at_price && (
-                <span className="text-xs text-charcoal-lighter line-through">
+                <span className="text-[10px] sm:text-xs text-charcoal-lighter line-through">
                   {formatCurrency(product.compare_at_price)}
                 </span>
               )}
@@ -179,7 +181,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                   {Array.from({ length: 5 }).map((_, i) => (
                     <svg
                       key={i}
-                      className={cn("h-3 w-3", i < Math.round(product.average_rating) ? "text-gold fill-gold" : "text-border")}
+                      className={cn("h-2.5 w-2.5 sm:h-3 sm:w-3", i < Math.round(product.average_rating) ? "text-gold fill-gold" : "text-border")}
                       viewBox="0 0 20 20"
                       fill="currentColor"
                     >
@@ -187,7 +189,39 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                     </svg>
                   ))}
                 </div>
-                <span className="text-[10px] text-charcoal-lighter">({product.review_count})</span>
+                <span className="text-[9px] sm:text-[10px] text-charcoal-lighter">({product.review_count})</span>
+              </div>
+            )}
+          </div>
+
+          {/* Phone & tablet actions — always visible, below the card so the
+              photo stays clean. Desktop uses the hover overlay instead. */}
+          <div className="mt-2 flex items-center gap-1.5 lg:hidden">
+            {product.stock_quantity > 0 ? (
+              <>
+                <button
+                  onClick={openModal}
+                  className="flex-1 h-9 sm:h-10 flex items-center justify-center gap-1.5 rounded-full bg-secondary !text-white text-[11px] sm:text-xs font-semibold tracking-wide active:scale-[0.96] transition-transform"
+                >
+                  <ShoppingBag className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  Add to Bag
+                </button>
+                <button
+                  onClick={handleWishlist}
+                  className={cn(
+                    "flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full border transition-colors active:scale-[0.96]",
+                    wishlisted
+                      ? "border-secondary bg-secondary text-white"
+                      : "border-border text-charcoal-lighter"
+                  )}
+                  aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                >
+                  <Heart className={cn("h-3.5 w-3.5 sm:h-4 sm:w-4", wishlisted && "fill-current")} />
+                </button>
+              </>
+            ) : (
+              <div className="flex-1 h-9 sm:h-10 flex items-center justify-center rounded-full bg-pearl text-charcoal-lighter text-[11px] sm:text-xs font-semibold">
+                Out of Stock
               </div>
             )}
           </div>
