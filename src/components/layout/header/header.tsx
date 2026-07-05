@@ -24,7 +24,10 @@ export function Header() {
   const cartCount = useCartStore((s) => s.getItemCount());
   const wishlistCount = useWishlistStore((s) => s.items.length);
   const { mobileMenuOpen, setMobileMenuOpen, setSearchOverlayOpen, setCartDrawerOpen } = useUIStore();
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const storeAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  // Persisted store differs from server HTML on hard refresh — rendering it
+  // before mount causes a hydration mismatch that wedges the splash loader.
+  const isAuthenticated = mounted && storeAuthenticated;
   const hiddenSeedIds = useCategoriesStore((s) => s.hiddenSeedIds);
   const [navItems, setNavItems] = useState<NavItem[]>(MAIN_NAV);
   const [announcement, setAnnouncement] = useState<{ visible: boolean; text: string; phone: string }>({ visible: true, text: "", phone: "+880 1700-000000" });

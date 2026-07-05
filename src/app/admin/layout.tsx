@@ -18,6 +18,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { AdminButton } from "@/components/admin/shared/admin-button";
+import { AdminNotificationBell } from "@/components/admin/notification-bell";
 import { PageLoader } from "@/components/shared/page-loader";
 import { Badge } from "@/components/ui/badge";
 
@@ -299,13 +300,7 @@ export default function AdminLayout({
             </button>
           </div>
           <div className="flex items-center gap-3">
-            <Link
-              href="/admin/notifications"
-              className="relative p-2 text-charcoal-lighter hover:text-charcoal transition-colors"
-              aria-label="Push Notifications"
-            >
-              <Bell className="h-5 w-5" />
-            </Link>
+            <AdminNotificationBell />
             <Separator orientation="vertical" className="h-8" />
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-2 hover:bg-pearl rounded-lg px-2 py-1.5 transition-colors">

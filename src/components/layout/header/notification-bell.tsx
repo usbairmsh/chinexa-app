@@ -1,25 +1,63 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Bell } from "lucide-react";
-import { motion } from "framer-motion";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { Bell, Package, Tag, Gift, CheckCheck, ArrowRight, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/stores/auth.store";
+import { formatDateShort, cn } from "@/lib/utils";
+
+interface Notification {
+  id: string;
+  type: "order" | "promo" | "loyalty" | "system";
+  title: string;
+  message: string;
+  link?: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
+const typeConfig: Record<string, { icon: typeof Bell; color: string }> = {
+  order: { icon: Package, color: "bg-secondary/10 text-secondary" },
+  promo: { icon: Tag, color: "bg-coral-light text-coral" },
+  loyalty: { icon: Gift, color: "bg-gold/10 text-gold" },
+  system: { icon: Bell, color: "bg-pearl text-charcoal-lighter" },
+};
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  if (!Number.isFinite(diff) || diff < 0) return formatDateShort(dateStr);
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return formatDateShort(dateStr);
+}
 
 /**
- * Header notification bell. Shows the unread count for the signed-in customer
- * (polled every 60s and on route change); guests are sent to the login page.
+ * Header notification bell with a popup inbox. Rendered as a plain button so
+ * the server and first client render are identical (no hydration mismatch).
+ * Guests are sent to login; signed-in customers get the dropdown.
  */
 export function NotificationBell() {
-  const user = useAuthStore((s) => s.user);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const router = useRouter();
   const pathname = usePathname();
-  const [unread, setUnread] = useState(0);
+  const user = useAuthStore((s) => s.user);
+  const storeAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [mounted, setMounted] = useState(false);
+  const isAuthenticated = mounted && storeAuthenticated;
+
+  const [open, setOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
+  const [items, setItems] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setMounted(true), []);
 
+  // Unread badge — poll every 60s and on route change
   const fetchCount = useCallback(async () => {
     if (!user?.id) { setUnread(0); return; }
     try {
@@ -35,22 +73,159 @@ export function NotificationBell() {
     return () => clearInterval(interval);
   }, [fetchCount, pathname]);
 
+  // Close popup on route change / outside click / Escape
+  useEffect(() => { setOpen(false); }, [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onClick); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+
+  const fetchList = useCallback(async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/notifications?customer_id=${user.id}`);
+      const data = await res.json();
+      if (res.ok && Array.isArray(data)) setItems(data.slice(0, 8));
+    } catch {} finally { setLoading(false); }
+  }, [user?.id]);
+
+  const handleBellClick = () => {
+    if (!isAuthenticated) { router.push("/login"); return; }
+    const next = !open;
+    setOpen(next);
+    if (next) fetchList();
+  };
+
+  const handleItemClick = async (notif: Notification) => {
+    if (!notif.is_read) {
+      setItems((prev) => prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n)));
+      setUnread((u) => Math.max(0, u - 1));
+      fetch("/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "mark_read", id: notif.id }),
+      }).catch(() => {});
+    }
+    setOpen(false);
+    if (notif.link) router.push(notif.link);
+  };
+
+  const handleMarkAllRead = async () => {
+    if (!user?.id) return;
+    setItems((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    setUnread(0);
+    fetch("/api/notifications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "mark_all_read", customer_id: user.id }),
+    }).catch(() => {});
+  };
+
   return (
-    <Link
-      href={isAuthenticated ? "/dashboard/notifications" : "/login"}
-      className="relative flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all"
-      aria-label={unread > 0 ? `Notifications (${unread} unread)` : "Notifications"}
-    >
-      <Bell className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
-      {mounted && isAuthenticated && unread > 0 && (
-        <motion.span
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          className="absolute top-0 right-0 sm:top-0.5 sm:right-0.5 flex h-[14px] min-w-[14px] px-0.5 items-center justify-center rounded-full bg-secondary text-[8px] font-bold text-white ring-2 ring-white"
-        >
-          {unread > 99 ? "99+" : unread}
-        </motion.span>
-      )}
-    </Link>
+    <div className="relative" ref={panelRef}>
+      <button
+        onClick={handleBellClick}
+        className="relative flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all"
+        aria-label={unread > 0 ? `Notifications (${unread} unread)` : "Notifications"}
+      >
+        <Bell className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+        {isAuthenticated && unread > 0 && (
+          <motion.span
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="absolute top-0 right-0 sm:top-0.5 sm:right-0.5 flex h-[14px] min-w-[14px] px-0.5 items-center justify-center rounded-full bg-secondary text-[8px] font-bold text-white ring-2 ring-white"
+          >
+            {unread > 99 ? "99+" : unread}
+          </motion.span>
+        )}
+      </button>
+
+      {/* Popup */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: 8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 6, scale: 0.98 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-sm sm:w-96 rounded-2xl bg-white shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-border/20 overflow-hidden z-50"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border/20">
+              <p className="text-sm font-semibold text-charcoal flex items-center gap-2">
+                Notifications
+                {unread > 0 && (
+                  <span className="text-[10px] font-bold bg-secondary text-white px-1.5 py-0.5 rounded-full">{unread}</span>
+                )}
+              </p>
+              {unread > 0 && (
+                <button
+                  onClick={handleMarkAllRead}
+                  className="flex items-center gap-1 text-[11px] text-charcoal-lighter hover:text-secondary transition-colors"
+                >
+                  <CheckCheck className="h-3 w-3" /> Mark all read
+                </button>
+              )}
+            </div>
+
+            {/* List */}
+            <div className="max-h-[360px] overflow-y-auto">
+              {loading ? (
+                <div className="flex items-center justify-center py-10 text-charcoal-lighter">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                </div>
+              ) : items.length === 0 ? (
+                <div className="text-center py-10 px-4">
+                  <Bell className="h-8 w-8 text-charcoal-lighter/30 mx-auto mb-2" />
+                  <p className="text-xs text-charcoal-lighter">You&apos;re all caught up!</p>
+                </div>
+              ) : (
+                items.map((notif) => {
+                  const config = typeConfig[notif.type] || typeConfig.system;
+                  const Icon = config.icon;
+                  return (
+                    <button
+                      key={notif.id}
+                      onClick={() => handleItemClick(notif)}
+                      className={cn(
+                        "w-full flex gap-3 px-4 py-3 text-left hover:bg-pearl/60 transition-colors border-b border-border/10 last:border-0",
+                        !notif.is_read && "bg-primary-light/40"
+                      )}
+                    >
+                      <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg shrink-0 mt-0.5", config.color)}>
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className={cn("text-xs text-charcoal truncate", !notif.is_read && "font-semibold")}>{notif.title}</p>
+                          {!notif.is_read && <span className="h-1.5 w-1.5 rounded-full bg-secondary shrink-0 mt-1" />}
+                        </div>
+                        <p className="text-[11px] text-charcoal-lighter line-clamp-2 mt-0.5">{notif.message}</p>
+                        <p className="text-[9px] text-charcoal-lighter mt-1">{timeAgo(notif.created_at)}</p>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Footer */}
+            <button
+              onClick={() => { setOpen(false); router.push("/dashboard/notifications"); }}
+              className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-secondary hover:bg-primary-light transition-colors border-t border-border/20"
+            >
+              View all notifications <ArrowRight className="h-3 w-3" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

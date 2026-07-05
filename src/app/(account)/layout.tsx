@@ -6,7 +6,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, ShoppingBag, Heart, MapPin, UserCircle,
-  LogOut, ChevronRight, Settings, Bell, HelpCircle
+  LogOut, ChevronRight, HelpCircle
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Header } from "@/components/layout/header/header";
@@ -21,13 +21,13 @@ import { Separator } from "@/components/ui/separator";
 import { useAuthStore } from "@/stores/auth.store";
 import { cn, getInitials } from "@/lib/utils";
 
+// Notifications intentionally omitted — they live in the header bell popup now
 const accountNav = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: ShoppingBag, label: "My Orders", href: "/dashboard/orders" },
   { icon: Heart, label: "Wishlist", href: "/dashboard/wishlist" },
   { icon: MapPin, label: "Addresses", href: "/dashboard/addresses" },
   { icon: UserCircle, label: "Profile", href: "/dashboard/profile" },
-  { icon: Bell, label: "Notifications", href: "/dashboard/notifications" },
   { icon: HelpCircle, label: "Help & Support", href: "/faq" },
 ];
 
