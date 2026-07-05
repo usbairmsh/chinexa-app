@@ -53,9 +53,26 @@ export async function sendSms(phone: string, message: string): Promise<{ success
     const res = await fetch(`${SMS_API_URL}?${params.toString()}`, { method: "GET" });
     const text = (await res.text()).trim();
 
-    // Gateway replies with a bare numeric code, e.g. "202" or "1007".
-    if (text === "202") return { success: true };
-    return { success: false, error: SMS_ERROR_MESSAGES[text] || `SMS gateway error (code ${text})` };
+    // Gateway sometimes replies with a bare numeric code ("202", "1007", ...)
+    // and sometimes with a JSON object ({"response_code":1031,"error_message":"..."})
+    // depending on the error — handle both shapes.
+    let responseCode = text;
+    let gatewayMessage: string | undefined;
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed && typeof parsed === "object" && "response_code" in parsed) {
+        responseCode = String(parsed.response_code);
+        gatewayMessage = parsed.error_message || parsed.success_message || undefined;
+      }
+    } catch {
+      // not JSON — text is already the bare code
+    }
+
+    if (responseCode === "202") return { success: true };
+    return {
+      success: false,
+      error: gatewayMessage || SMS_ERROR_MESSAGES[responseCode] || `SMS gateway error (code ${responseCode})`,
+    };
   } catch {
     return { success: false, error: "Could not reach SMS gateway" };
   }
