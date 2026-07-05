@@ -329,19 +329,19 @@ export default function AddProductPage() {
       )}
 
       {/* Tab Navigation */}
-      <div className="flex gap-1 bg-pearl/60 p-1 rounded-xl">
+      <div className="flex gap-1 bg-pearl/60 p-1 rounded-xl overflow-x-auto scrollbar-hide">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+              "flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 transition-all duration-200",
               activeTab === tab.id
                 ? "bg-white text-charcoal shadow-card"
                 : "text-charcoal-lighter hover:text-charcoal"
             )}
           >
-            <tab.icon className="h-4 w-4" /> {tab.label}
+            <tab.icon className="h-4 w-4 shrink-0" /> {tab.label}
           </button>
         ))}
       </div>

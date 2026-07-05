@@ -13,7 +13,10 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-11 items-center gap-1 rounded-luxury bg-pearl p-1",
+      // max-w-full + overflow-x-auto: a list with more tabs than fit on a
+      // narrow screen scrolls horizontally inside its own box instead of
+      // pushing the page body wider. No-op for lists that already fit.
+      "inline-flex h-11 max-w-full items-center gap-1 overflow-x-auto scrollbar-hide rounded-luxury bg-pearl p-1",
       className
     )}
     {...props}
@@ -28,7 +31,7 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex items-center justify-center whitespace-nowrap rounded-luxury px-4 py-2 text-sm font-medium text-charcoal-lighter transition-all",
+      "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-luxury px-4 py-2 text-sm font-medium text-charcoal-lighter transition-all",
       "hover:text-charcoal",
       "data-[state=active]:bg-white data-[state=active]:text-charcoal data-[state=active]:shadow-card",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",

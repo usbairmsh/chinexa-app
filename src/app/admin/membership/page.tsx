@@ -315,12 +315,12 @@ export default function AdminMembershipPage() {
           <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
             <Input label="Tier Name *" placeholder="e.g. Diamond" value={formName} onChange={(e) => setFormName(e.target.value)} />
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <Input label="Min Points *" type="number" value={formMinPoints} onChange={(e) => setFormMinPoints(Number(e.target.value))} min={0} />
               <Input label="Max Points *" type="number" value={formMaxPoints} onChange={(e) => setFormMaxPoints(Number(e.target.value))} min={0} />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <Input label="Points Multiplier" type="number" value={formMultiplier} onChange={(e) => setFormMultiplier(Number(e.target.value))} min={0.5} step={0.25} />
               <Input label="Sort Order" type="number" value={formSortOrder} onChange={(e) => setFormSortOrder(Number(e.target.value))} min={0} />
             </div>
@@ -328,18 +328,18 @@ export default function AdminMembershipPage() {
             {/* Tier Name Badge Color */}
             <div>
               <label className="block text-sm font-medium text-charcoal-lighter mb-1.5">Tier Name Badge Color</label>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <button
                   type="button"
                   onClick={() => setShowNameColorPicker(!showNameColorPicker)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:border-secondary transition-colors"
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:border-secondary transition-colors shrink-0"
                 >
-                  <span className="h-5 w-5 rounded-full border border-border/30" style={{ backgroundColor: formColor.startsWith("#") ? formColor : "#6B7280" }} />
+                  <span className="h-5 w-5 rounded-full border border-border/30 shrink-0" style={{ backgroundColor: formColor.startsWith("#") ? formColor : "#6B7280" }} />
                   <span className="text-xs font-mono text-charcoal">{formColor.startsWith("#") ? formColor : "#6B7280"}</span>
                 </button>
                 {/* Preview */}
                 <span
-                  className="px-3 py-1 rounded-full text-[10px] font-semibold"
+                  className="px-3 py-1 rounded-full text-[10px] font-semibold truncate max-w-[140px]"
                   style={{
                     backgroundColor: (formColor.startsWith("#") ? formColor : "#6B7280") + "18",
                     color: formColor.startsWith("#") ? formColor : "#6B7280",
@@ -369,16 +369,16 @@ export default function AdminMembershipPage() {
               </label>
               {formBadgeEnabled && (
                 <>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <button
                       type="button"
                       onClick={() => setShowBadgeColorPicker(!showBadgeColorPicker)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:border-secondary transition-colors"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:border-secondary transition-colors shrink-0"
                     >
-                      <span className="h-5 w-5 rounded-full border border-border/30" style={{ backgroundColor: formBadgeColor }} />
+                      <span className="h-5 w-5 rounded-full border border-border/30 shrink-0" style={{ backgroundColor: formBadgeColor }} />
                       <span className="text-xs font-mono text-charcoal">{formBadgeColor}</span>
                     </button>
-                    <div>
+                    <div className="shrink-0">
                       <label className="block text-[10px] text-charcoal-lighter">Opacity {Math.round(formBadgeOpacity * 100)}%</label>
                       <input type="range" min="0.3" max="1" step="0.05" value={formBadgeOpacity} onChange={(e) => setFormBadgeOpacity(Number(e.target.value))} className="w-24 accent-secondary" />
                     </div>

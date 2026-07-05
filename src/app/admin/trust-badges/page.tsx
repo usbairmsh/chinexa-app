@@ -86,7 +86,7 @@ export default function TrustBadgesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Trust Badges</h1>
           <p className="text-sm text-charcoal-lighter">Configure trust badges available for products</p>
@@ -139,7 +139,7 @@ export default function TrustBadgesPage() {
             {/* Icon Picker */}
             <div>
               <label className="block text-sm font-medium text-charcoal-light mb-2">Select Icon</label>
-              <div className="grid grid-cols-8 gap-1.5 max-h-40 overflow-y-auto p-1">
+              <div className="grid grid-cols-6 sm:grid-cols-8 gap-1.5 max-h-40 overflow-y-auto p-1">
                 {TRUST_ICON_PACK.map((item) => (
                   <button
                     key={item.id}
@@ -147,11 +147,11 @@ export default function TrustBadgesPage() {
                     onClick={() => setFormIcon(item.id)}
                     title={item.name}
                     className={cn(
-                      "flex items-center justify-center h-10 w-10 rounded-lg border transition-all",
+                      "flex items-center justify-center h-9 w-9 sm:h-10 sm:w-10 rounded-lg border transition-all",
                       formIcon === item.id ? "border-secondary bg-secondary/10 text-secondary scale-110" : "border-border/30 text-charcoal-lighter hover:border-secondary/40 hover:text-secondary"
                     )}
                   >
-                    <item.icon className="h-5 w-5" />
+                    <item.icon className="h-4 w-4 sm:h-5 sm:w-5" />
                   </button>
                 ))}
               </div>

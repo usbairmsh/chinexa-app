@@ -307,9 +307,9 @@ export default function AdminCategoriesPage() {
 
                       {cat.children && cat.children.length > 0 && (
                         <div className="border-t border-border/15 bg-pearl/20 px-3 py-2.5">
-                          <div className="flex flex-col gap-1 ml-14">
+                          <div className="flex flex-col gap-1 ml-8 sm:ml-14">
                             {cat.children.map((sub, subIdx) => (
-                              <div key={sub.id} className="flex items-center gap-1.5 group">
+                              <div key={sub.id} className="flex items-center gap-1.5 group flex-wrap">
                                 {/* Subcategory sort buttons */}
                                 <div className="flex gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <button
@@ -359,8 +359,8 @@ export default function AdminCategoriesPage() {
                         const catBrandIds: string[] = catBrands.map((b) => b.id);
                         return (
                           <div className="border-t border-border/15 bg-blue-50/30 px-3 py-2.5">
-                            <p className="text-[9px] font-semibold text-charcoal-lighter uppercase tracking-wider ml-14 mb-1.5">Brands</p>
-                            <div className="flex flex-col gap-1 ml-14">
+                            <p className="text-[9px] font-semibold text-charcoal-lighter uppercase tracking-wider ml-8 sm:ml-14 mb-1.5">Brands</p>
+                            <div className="flex flex-col gap-1 ml-8 sm:ml-14">
                               {catBrands.map((brand) => (
                                 <div key={brand.id} className="flex items-center gap-1.5 group">
                                   <span className="flex items-center gap-1 rounded-full bg-white border border-blue-200/50 px-2.5 py-1 text-[10px] cursor-pointer hover:border-secondary/30 transition-colors">

@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { playfairDisplay, inter } from "@/lib/fonts";
 import { Providers } from "@/providers";
+import { InstallPrompt } from "@/components/shared/install-prompt";
+import { ServiceWorkerRegister } from "@/components/shared/sw-register";
 import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
@@ -105,7 +107,14 @@ export async function generateMetadata(): Promise<Metadata> {
       apple: "/favicon/apple-touch-icon.png",
       shortcut: "/favicon.ico",
     },
-    manifest: "/favicon/site.webmanifest",
+    // Served by src/app/manifest.ts at /manifest.webmanifest — has the fields
+    // (id, scope, maskable icons) Chrome/Android require to offer installation.
+    manifest: "/manifest.webmanifest",
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "default",
+      title: "ChineXa",
+    },
   };
 }
 
@@ -147,6 +156,8 @@ export default function RootLayout({
           })();
         `}} />
         <Providers>{children}</Providers>
+        <ServiceWorkerRegister />
+        <InstallPrompt />
       </body>
     </html>
   );

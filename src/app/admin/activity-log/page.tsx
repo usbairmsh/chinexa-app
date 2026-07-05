@@ -85,13 +85,13 @@ export default function AdminActivityLogPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Activity Log</h1>
           <p className="text-sm text-charcoal-lighter">{logs.length} recent activities</p>
         </div>
         <Select value={filter} onValueChange={handleFilterChange}>
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Activities</SelectItem>
             <SelectItem value="product">Products</SelectItem>

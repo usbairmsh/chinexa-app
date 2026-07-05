@@ -252,15 +252,15 @@ export default function AdminCouponsPage() {
               <Card key={coupon.id} className={cn("relative overflow-hidden", (!coupon.is_active || isExpired) && "opacity-60")}>
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-secondary to-primary" />
                 <CardContent className="p-5 pt-6">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-light">
+                  <div className="flex items-start justify-between mb-3 gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-light shrink-0">
                         {coupon.discount_type === "percentage" ? <Percent className="h-5 w-5 text-secondary" /> : <BadgeDollarSign className="h-5 w-5 text-secondary" />}
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <code className="font-mono font-bold text-charcoal text-sm">{coupon.code}</code>
-                          <button onClick={() => handleCopy(coupon.code)} className="text-charcoal-lighter hover:text-secondary transition-colors">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <code className="font-mono font-bold text-charcoal text-sm truncate">{coupon.code}</code>
+                          <button onClick={() => handleCopy(coupon.code)} className="text-charcoal-lighter hover:text-secondary transition-colors shrink-0">
                             {copied === coupon.code ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
                           </button>
                         </div>
@@ -321,11 +321,11 @@ export default function AdminCouponsPage() {
             <DialogDescription>{editCoupon ? "Update coupon details" : "Add a new discount coupon"}</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-4 py-2 pr-1">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="Coupon Code *" placeholder="e.g., SUMMER25" value={formCode} onChange={(e) => setFormCode(e.target.value.toUpperCase())} />
               <Input label="Description" placeholder="25% off summer collection" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-charcoal-light mb-1.5">Discount Type</label>
                 <Select value={formType} onValueChange={(v) => setFormType(v as "percentage" | "fixed")}>
@@ -338,15 +338,15 @@ export default function AdminCouponsPage() {
               </div>
               <Input label={formType === "percentage" ? "Discount %" : "Discount Amount (৳)"} placeholder={formType === "percentage" ? "25" : "500"} type="number" value={formValue} onChange={(e) => setFormValue(e.target.value)} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="Min. Order (৳)" placeholder="1500" type="number" value={formMinOrder} onChange={(e) => setFormMinOrder(e.target.value)} />
               <Input label="Max Discount (৳)" placeholder="500" type="number" value={formMaxDiscount} onChange={(e) => setFormMaxDiscount(e.target.value)} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="Valid From" type="date" value={formValidFrom} onChange={(e) => setFormValidFrom(e.target.value)} />
               <Input label="Valid Until" type="date" value={formValidUntil} onChange={(e) => setFormValidUntil(e.target.value)} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="Total Usage Limit" placeholder="1000 (empty = unlimited)" type="number" value={formUsageLimit} onChange={(e) => setFormUsageLimit(e.target.value)} />
               <Input label="Limit Per Customer" placeholder="1 (empty = unlimited)" type="number" value={formPerCustomerLimit} onChange={(e) => setFormPerCustomerLimit(e.target.value)} />
             </div>
@@ -404,10 +404,10 @@ export default function AdminCouponsPage() {
                           const isSelected = formSelectedIds.some((s) => s.id === r.id);
                           return (
                             <button key={r.id} type="button" onClick={() => toggleApplSelected({ id: r.id, name: r.name })}
-                              className={cn("w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-pearl transition-colors", isSelected && "bg-secondary/5")}>
-                              <div>
-                                <p className="text-xs font-medium text-charcoal">{r.name}</p>
-                                <p className="text-[10px] text-charcoal-lighter">{r.extra}</p>
+                              className={cn("w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-pearl transition-colors", isSelected && "bg-secondary/5")}>
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium text-charcoal truncate">{r.name}</p>
+                                <p className="text-[10px] text-charcoal-lighter truncate">{r.extra}</p>
                               </div>
                               {isSelected && <Check className="h-4 w-4 text-secondary shrink-0" />}
                             </button>
@@ -530,15 +530,15 @@ export default function AdminCouponsPage() {
                       type="button"
                       onClick={() => toggleCustomerSelect(cust.id)}
                       className={cn(
-                        "w-full flex items-center justify-between p-2.5 rounded-lg border transition-all text-left",
+                        "w-full flex items-center justify-between gap-2 p-2.5 rounded-lg border transition-all text-left",
                         selectedCustomerIds.includes(cust.id) ? "border-secondary bg-secondary/5" : "border-border/20 hover:bg-pearl/50"
                       )}
                     >
-                      <div>
-                        <p className="text-xs font-medium text-charcoal">{cust.name}</p>
-                        <p className="text-[10px] text-charcoal-lighter">{cust.phone}</p>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-charcoal truncate">{cust.name}</p>
+                        <p className="text-[10px] text-charcoal-lighter truncate">{cust.phone}</p>
                       </div>
-                      {selectedCustomerIds.includes(cust.id) && <Check className="h-4 w-4 text-secondary" />}
+                      {selectedCustomerIds.includes(cust.id) && <Check className="h-4 w-4 text-secondary shrink-0" />}
                     </button>
                   ))}
                 </div>

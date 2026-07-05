@@ -156,12 +156,12 @@ export default function AdminDashboard() {
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Dashboard</h1>
           <p className="text-sm text-charcoal-lighter">Welcome back! Here&apos;s your store analytics.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={handleRefresh}
             disabled={refreshing}
             className={cn(
-              "inline-flex items-center gap-1.5 h-9 px-4 rounded-full border text-[12px] font-body font-medium tracking-wide transition-all duration-200 cursor-pointer",
+              "inline-flex items-center gap-1.5 h-9 px-3 sm:px-4 rounded-full border text-[12px] font-body font-medium tracking-wide transition-all duration-200 cursor-pointer",
               refreshing ? "border-secondary text-secondary bg-secondary/5" : "border-border text-charcoal-lighter hover:text-charcoal hover:border-charcoal"
             )}
           >
@@ -169,12 +169,12 @@ export default function AdminDashboard() {
             {refreshing ? "Refreshing..." : "Refresh"}
           </button>
           <Link href="/admin/analytics">
-            <span className="inline-flex items-center gap-1.5 h-9 px-5 rounded-full border border-border text-charcoal text-[12px] font-body font-medium tracking-wide hover:bg-charcoal hover:text-white hover:border-charcoal transition-all duration-200 cursor-pointer">
+            <span className="inline-flex items-center gap-1.5 h-9 px-3 sm:px-5 rounded-full border border-border text-charcoal text-[12px] font-body font-medium tracking-wide hover:bg-charcoal hover:text-white hover:border-charcoal transition-all duration-200 cursor-pointer">
               <BarChart3 className="h-3.5 w-3.5" /> Analytics
             </span>
           </Link>
           <Link href="/admin/products/new">
-            <span className="inline-flex items-center gap-1.5 h-9 px-5 rounded-full bg-secondary text-white text-[12px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 cursor-pointer">
+            <span className="inline-flex items-center gap-1.5 h-9 px-3 sm:px-5 rounded-full bg-secondary text-white text-[12px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 cursor-pointer">
               <Package className="h-3.5 w-3.5" /> Add Product
             </span>
           </Link>
@@ -200,7 +200,7 @@ export default function AdminDashboard() {
       )}
 
       {/* ═══════ STATS ═══════ */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {loadingStats
           ? Array.from({ length: 4 }).map((_, i) => <Card key={i}><CardContent className="p-4"><Skeleton className="h-4 w-20 mb-2" /><Skeleton className="h-7 w-28 mb-1" /><Skeleton className="h-3 w-16" /></CardContent></Card>)
           : statCards.map((stat, i) => (
@@ -240,7 +240,7 @@ export default function AdminDashboard() {
             </Tabs>
           </CardHeader>
           <CardContent className="pt-0 pb-3 px-3">
-            <div className="w-full" style={{ height: 260 }}>
+            <div className="w-full h-[200px] sm:h-[260px]">
               <ResponsiveContainer width="100%" height="100%" debounce={300}>
                 {revenuePeriod === "weekly" ? (
                   <BarChart data={revenueBarData} barGap={6} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
@@ -276,7 +276,7 @@ export default function AdminDashboard() {
             <CardTitle className="text-sm font-semibold">Revenue by Category</CardTitle>
           </CardHeader>
           <CardContent className="px-3 pb-3">
-            <div className="w-full" style={{ height: 170 }}>
+            <div className="w-full h-[170px]">
               <ResponsiveContainer width="100%" height="100%" debounce={300}>
                 <PieChart>
                   <Pie data={categoryRevenueChartData} cx="50%" cy="50%" innerRadius={45} outerRadius={72} paddingAngle={3} dataKey="value" stroke="none">
@@ -402,7 +402,7 @@ export default function AdminDashboard() {
                   return (
                     <tr key={order.id} className="border-b border-border/10 hover:bg-pearl/50 transition-colors">
                       <td className="px-5 py-3"><p className="font-medium text-charcoal">{order.id}</p><p className="text-[10px] text-charcoal-lighter">{order.time}</p></td>
-                      <td className="px-5 py-3"><div className="flex items-center gap-2"><Avatar className="h-7 w-7"><AvatarFallback className="text-[9px]">{getInitials(order.customer)}</AvatarFallback></Avatar><span className="text-charcoal">{order.customer}</span></div></td>
+                      <td className="px-5 py-3 max-w-[140px] sm:max-w-none"><div className="flex items-center gap-2 min-w-0"><Avatar className="h-7 w-7 shrink-0"><AvatarFallback className="text-[9px]">{getInitials(order.customer)}</AvatarFallback></Avatar><span className="text-charcoal truncate">{order.customer}</span></div></td>
                       <td className="px-5 py-3 text-charcoal-lighter hidden sm:table-cell">{order.items} items</td>
                       <td className="px-5 py-3 font-medium text-charcoal">{formatCurrency(order.total)}</td>
                       <td className="px-5 py-3"><span className={cn("inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-full capitalize", config.color)}><StatusIcon className="h-3 w-3" /> {order.status}</span></td>

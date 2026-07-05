@@ -160,7 +160,7 @@ export default function OrderManagementPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
         {[
           { label: "Pending", value: orders.filter((o) => o.status === "pending").length, icon: Clock, color: "text-warning", bg: "bg-warning/10" },
           { label: "In Progress", value: orders.filter((o) => ["confirmed", "processing"].includes(o.status)).length, icon: Package, color: "text-secondary", bg: "bg-secondary/10" },
@@ -377,15 +377,15 @@ export default function OrderManagementPage() {
                   <p className="text-sm font-medium text-charcoal">{advanceDialog.id}</p>
                   <p className="text-xs text-charcoal-lighter">{advanceDialog.customer} · {formatCurrency(advanceDialog.total)}</p>
                 </div>
-                <div className="flex items-center justify-center gap-3 py-2">
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 py-2">
                   <div className="text-center">
-                    <span className={cn("inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full", currentConfig.color, currentConfig.bg)}>
+                    <span className={cn("inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full whitespace-nowrap", currentConfig.color, currentConfig.bg)}>
                       <CurrentIcon className="h-3.5 w-3.5" /> {currentConfig.label}
                     </span>
                   </div>
-                  <ArrowUpRight className="h-5 w-5 text-charcoal-lighter" />
+                  <ArrowUpRight className="h-5 w-5 text-charcoal-lighter shrink-0" />
                   <div className="text-center">
-                    <span className={cn("inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full ring-2 ring-secondary/30", nextConfig.color, nextConfig.bg)}>
+                    <span className={cn("inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full ring-2 ring-secondary/30 whitespace-nowrap", nextConfig.color, nextConfig.bg)}>
                       <NextIcon className="h-3.5 w-3.5" /> {nextConfig.label}
                     </span>
                   </div>

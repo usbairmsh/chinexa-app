@@ -126,17 +126,17 @@ export default function DeliverySettingsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Link href="/admin/settings" className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors">
+          <Link href="/admin/settings" className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors shrink-0">
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <div>
+          <div className="min-w-0">
             <h1 className="font-heading text-2xl font-semibold text-charcoal">Delivery Management</h1>
             <p className="text-xs text-charcoal-lighter">Configure shipping zones, charges, and delivery partners</p>
           </div>
         </div>
-        <AdminButton onClick={saveToDb} disabled={dbSaving} className={saved ? "!bg-success hover:!bg-success" : ""}>
+        <AdminButton onClick={saveToDb} disabled={dbSaving} className={cn("shrink-0", saved && "!bg-success hover:!bg-success")}>
           {dbSaving ? <Clock className="h-3.5 w-3.5 animate-spin" /> : saved ? <Check className="h-3.5 w-3.5" /> : <Shield className="h-3.5 w-3.5" />}
           {saved ? "Saved!" : dbSaving ? "Saving..." : "Save All Settings"}
         </AdminButton>

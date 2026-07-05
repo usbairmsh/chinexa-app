@@ -165,8 +165,8 @@ export default function OrderDetailPage() {
                     <Image src={(item.product_image as string) || "https://placehold.co/56x56"} alt={(item.product_name as string) || ""} fill className="object-cover" sizes="56px" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-charcoal">{String(item.product_name)}</p>
-                    {item.variant ? <p className="text-[10px] text-charcoal-lighter">{String(item.variant)}</p> : null}
+                    <p className="text-sm font-medium text-charcoal truncate">{String(item.product_name)}</p>
+                    {item.variant ? <p className="text-[10px] text-charcoal-lighter truncate">{String(item.variant)}</p> : null}
                     <p className="text-xs text-charcoal-lighter">Qty: {item.quantity as number}</p>
                   </div>
                   <p className="text-sm font-semibold text-charcoal shrink-0">{formatCurrency(Number(item.total_price) || Number(item.unit_price))}</p>
@@ -254,9 +254,9 @@ export default function OrderDetailPage() {
             <CardContent className="text-sm space-y-2">
               <div className="flex justify-between"><span className="text-charcoal-lighter">Method</span><span className="font-medium text-charcoal">{String(order.payment_method)}</span></div>
               {order.transaction_id ? (
-                <div className="flex justify-between items-center">
-                  <span className="text-charcoal-lighter">TXN ID</span>
-                  <div className="flex items-center gap-1"><code className="text-xs font-mono text-charcoal">{String(order.transaction_id)}</code><button className="text-charcoal-lighter hover:text-secondary"><Copy className="h-3 w-3" /></button></div>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-charcoal-lighter shrink-0">TXN ID</span>
+                  <div className="flex items-center gap-1 min-w-0"><code className="text-xs font-mono text-charcoal truncate">{String(order.transaction_id)}</code><button className="text-charcoal-lighter hover:text-secondary shrink-0"><Copy className="h-3 w-3" /></button></div>
                 </div>
               ) : null}
               <div className="flex justify-between"><span className="text-charcoal-lighter">Status</span><Badge variant={String(order.payment_status) === "paid" ? "success" : "warning"} className="text-[9px]">{String(order.payment_status)}</Badge></div>

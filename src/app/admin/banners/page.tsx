@@ -136,7 +136,7 @@ function ImagePositionEditor({ imageUrl, crop, onChange }: { imageUrl: string; c
       </div>
 
       {/* Controls */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
         {/* Zoom controls */}
         <div className="flex items-center gap-1 bg-pearl/60 rounded-lg p-0.5">
           <button type="button" onClick={() => adjustZoom(-0.1)} disabled={crop.zoom <= 1}
@@ -167,7 +167,7 @@ function ImagePositionEditor({ imageUrl, crop, onChange }: { imageUrl: string; c
         </div>
 
         {/* Position readout */}
-        <span className="text-[10px] font-mono text-charcoal-lighter ml-auto">
+        <span className="text-[10px] font-mono text-charcoal-lighter sm:ml-auto">
           pos: {crop.x}%, {crop.y}%
         </span>
       </div>

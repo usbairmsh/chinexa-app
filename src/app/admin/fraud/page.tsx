@@ -212,7 +212,7 @@ export default function AdminFraudPage() {
 
                     {/* Actions */}
                     {alert.status === "flagged" && (
-                      <div className="flex sm:flex-col gap-2 flex-shrink-0">
+                      <div className="flex flex-wrap sm:flex-col gap-2 flex-shrink-0">
                         <AdminButton size="sm" onClick={() => handleStatusUpdate(alert.id, "cleared")}>
                           <CheckCircle2 className="h-3 w-3 mr-1" /> Clear
                         </AdminButton>
@@ -225,7 +225,7 @@ export default function AdminFraudPage() {
                       </div>
                     )}
                     {alert.status === "reviewed" && (
-                      <div className="flex sm:flex-col gap-2 flex-shrink-0">
+                      <div className="flex flex-wrap sm:flex-col gap-2 flex-shrink-0">
                         <AdminButton size="sm" onClick={() => handleStatusUpdate(alert.id, "cleared")}>
                           <CheckCircle2 className="h-3 w-3 mr-1" /> Clear
                         </AdminButton>

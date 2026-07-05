@@ -133,7 +133,7 @@ export default function AdminUsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Users, Roles & Access</h1>
           <p className="text-sm text-charcoal-lighter">{admins.length} admin{admins.length !== 1 ? "s" : ""}</p>
@@ -149,8 +149,8 @@ export default function AdminUsersPage() {
         <EmptyState icon={Shield} title="No admins" description="Add your first admin user." />
       ) : (
         <Card>
-          <CardContent className="p-0">
-            <table className="w-full text-sm">
+          <CardContent className="p-0 overflow-x-auto">
+            <table className="w-full text-sm min-w-[520px]">
               <thead>
                 <tr className="border-b border-border/30 text-left">
                   <th className="px-4 py-3 font-medium text-charcoal-lighter">User</th>
@@ -165,10 +165,10 @@ export default function AdminUsersPage() {
                 {admins.map((admin) => (
                   <tr key={admin.id} className={cn("border-b border-border/20 hover:bg-pearl/50 transition-colors", admin.id === currentAdminId && "bg-primary-light/30")}>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9"><AvatarFallback className="text-xs">{getInitials(admin.name)}</AvatarFallback></Avatar>
-                        <div>
-                          <p className="font-medium text-charcoal">{admin.name} {admin.id === currentAdminId && <span className="text-[9px] text-secondary">(you)</span>}</p>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar className="h-9 w-9 shrink-0"><AvatarFallback className="text-xs">{getInitials(admin.name)}</AvatarFallback></Avatar>
+                        <div className="min-w-0">
+                          <p className="font-medium text-charcoal truncate">{admin.name} {admin.id === currentAdminId && <span className="text-[9px] text-secondary">(you)</span>}</p>
                           <code className="text-[10px] text-charcoal-lighter">@{admin.username}</code>
                         </div>
                       </div>
@@ -237,11 +237,11 @@ export default function AdminUsersPage() {
           </DialogHeader>
           <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-3 py-2 pr-1">
             <Input label="Full Name *" placeholder="Fahim Ahmed" value={formName} onChange={(e) => setFormName(e.target.value)} />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="Username *" placeholder="fahim" value={formUsername} onChange={(e) => setFormUsername(e.target.value.toLowerCase().replace(/\s/g, ""))} />
               <Input label="Password *" placeholder="Min 6 characters" type="password" value={formPassword} onChange={(e) => setFormPassword(e.target.value)} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="Email" placeholder="fahim@chinexa.com" type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
               <Input label="Phone" placeholder="+880170000000" value={formPhone} onChange={(e) => setFormPhone(e.target.value)} />
             </div>
@@ -262,7 +262,7 @@ export default function AdminUsersPage() {
                   {Object.entries(permsBySection).map(([section, perms]) => (
                     <div key={section}>
                       <p className="text-[10px] font-bold uppercase tracking-wider text-charcoal-lighter mb-1.5">{section}</p>
-                      <div className="grid grid-cols-2 gap-1.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                         {perms.filter((p) => p.key !== "dashboard").map((p) => (
                           <label key={p.key} className="flex items-center gap-2 cursor-pointer text-sm text-charcoal">
                             <Checkbox checked={formPerms.includes(p.key)} onCheckedChange={(v) => toggleFormPerm(p.key, !!v)} />
@@ -315,7 +315,7 @@ export default function AdminUsersPage() {
                       Toggle all
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-1.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                     {perms.filter((p) => p.key !== "dashboard").map((p) => (
                       <label key={p.key} className="flex items-center gap-2 cursor-pointer text-sm text-charcoal">
                         <Checkbox checked={editPerms.includes(p.key)} onCheckedChange={(v) => togglePerm(p.key, !!v)} />

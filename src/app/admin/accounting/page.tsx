@@ -78,14 +78,14 @@ export default function AdminAccountingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Accounting</h1>
           <p className="text-sm text-charcoal-lighter">Financial overview and transaction history</p>
         </div>
         <div className="flex gap-2">
           <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-            <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-24 sm:w-28"><SelectValue /></SelectTrigger>
             <SelectContent>
               {(data?.years || [year]).map((y) => (
                 <SelectItem key={y} value={String(y)}>{y}</SelectItem>
@@ -173,9 +173,9 @@ export default function AdminAccountingPage() {
                       <div className="space-y-3">
                         {data?.monthly.map((m) => (
                           <div key={m.month}>
-                            <div className="flex items-center justify-between text-sm mb-1.5">
-                              <span className="text-charcoal font-medium w-20">{m.month.slice(0, 3)}</span>
-                              <div className="flex-1 mx-4">
+                            <div className="flex items-center justify-between text-sm mb-1.5 gap-2 sm:gap-0">
+                              <span className="text-charcoal font-medium w-8 sm:w-20 shrink-0">{m.month.slice(0, 3)}</span>
+                              <div className="flex-1 mx-2 sm:mx-4">
                                 <div className="flex gap-1 h-5">
                                   <div
                                     className="bg-gradient-to-r from-secondary to-primary rounded-full"
@@ -189,10 +189,10 @@ export default function AdminAccountingPage() {
                                   )}
                                 </div>
                               </div>
-                              <div className="text-right w-44">
-                                <span className="text-charcoal font-medium">{formatCurrency(m.revenue)}</span>
+                              <div className="text-right w-24 sm:w-44 shrink-0">
+                                <span className="text-charcoal font-medium text-xs sm:text-sm">{formatCurrency(m.revenue)}</span>
                                 {m.refunds > 0 && (
-                                  <span className="text-charcoal-lighter text-xs ml-2">- {formatCurrency(m.refunds)}</span>
+                                  <span className="text-charcoal-lighter text-[10px] sm:text-xs block sm:inline sm:ml-2">- {formatCurrency(m.refunds)}</span>
                                 )}
                               </div>
                             </div>

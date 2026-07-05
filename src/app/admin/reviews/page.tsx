@@ -79,18 +79,18 @@ export default function AdminReviewsPage() {
   const ReviewCard = ({ review }: { review: ReviewData }) => (
     <Card>
       <CardContent className="p-5">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-9 w-9"><AvatarFallback className="text-xs">{getInitials(review.customer_name)}</AvatarFallback></Avatar>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-charcoal">{review.customer_name}</span>
-                {review.is_verified_purchase && <Badge variant="success" className="text-[9px]">Verified</Badge>}
+        <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <Avatar className="h-9 w-9 shrink-0"><AvatarFallback className="text-xs">{getInitials(review.customer_name)}</AvatarFallback></Avatar>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium text-charcoal truncate">{review.customer_name}</span>
+                {review.is_verified_purchase && <Badge variant="success" className="text-[9px] shrink-0">Verified</Badge>}
               </div>
               <p className="text-[10px] text-charcoal-lighter">{formatDateShort(review.created_at)}</p>
             </div>
           </div>
-          <Badge variant={review.is_approved ? "success" : "warning"}>{review.is_approved ? "Approved" : "Pending"}</Badge>
+          <Badge variant={review.is_approved ? "success" : "warning"} className="shrink-0">{review.is_approved ? "Approved" : "Pending"}</Badge>
         </div>
 
         <div className="flex items-center gap-1 mb-2">
@@ -110,7 +110,7 @@ export default function AdminReviewsPage() {
           </div>
         )}
 
-        <div className="flex items-center gap-2 pt-3 border-t border-border/30">
+        <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border/30">
           {!review.is_approved && (
             <AdminButton size="sm" onClick={() => handleApprove(review.id)}><Check className="h-3 w-3 mr-1" /> Approve</AdminButton>
           )}
@@ -120,7 +120,7 @@ export default function AdminReviewsPage() {
           <AdminButton variant="ghost" size="sm" onClick={() => openReply(review)}>
             <MessageSquare className="h-3 w-3 mr-1" /> {review.admin_reply ? "Edit Reply" : "Reply"}
           </AdminButton>
-          <AdminButton variant="ghost" size="sm" className="text-destructive ml-auto" onClick={() => setDeleteDialog(review)}>
+          <AdminButton variant="ghost" size="sm" className="text-destructive sm:ml-auto" onClick={() => setDeleteDialog(review)}>
             <Trash2 className="h-3 w-3" />
           </AdminButton>
         </div>

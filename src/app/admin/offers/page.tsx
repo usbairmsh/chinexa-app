@@ -250,7 +250,7 @@ export default function AdminOffersPage() {
                     </DropdownMenu>
                   </div>
 
-                  <h3 className="font-medium text-charcoal mb-1">{offer.title}</h3>
+                  <h3 className="font-medium text-charcoal mb-1 line-clamp-1">{offer.title}</h3>
                   {offer.description && <p className="text-xs text-charcoal-lighter mb-3 line-clamp-2">{offer.description}</p>}
 
                   <div className="flex items-center gap-2 flex-wrap mb-3">
@@ -294,7 +294,7 @@ export default function AdminOffersPage() {
             <Textarea label="Description" placeholder="Describe the offer details..." value={formDesc} onChange={(e) => setFormDesc(e.target.value)} className="min-h-[60px]" />
 
             {/* Structured discount */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-charcoal-light mb-1.5">Discount Type *</label>
                 <Select value={formDiscountType} onValueChange={(v) => setFormDiscountType(v as DiscountType)}>
@@ -349,9 +349,9 @@ export default function AdminOffersPage() {
                 {formSelectedIds.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {formSelectedIds.map((item) => (
-                      <span key={item.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary/10 text-secondary text-[11px] font-medium">
-                        {item.name}
-                        <button type="button" onClick={() => removeSelected(item.id)} className="hover:text-destructive transition-colors">
+                      <span key={item.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary/10 text-secondary text-[11px] font-medium max-w-full">
+                        <span className="truncate">{item.name}</span>
+                        <button type="button" onClick={() => removeSelected(item.id)} className="hover:text-destructive transition-colors shrink-0">
                           <X className="h-3 w-3" />
                         </button>
                       </span>
@@ -379,10 +379,10 @@ export default function AdminOffersPage() {
                           const isSelected = formSelectedIds.some((s) => s.id === r.id);
                           return (
                             <button key={r.id} type="button" onClick={() => toggleSelected({ id: r.id, name: r.name })}
-                              className={cn("w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-pearl transition-colors", isSelected && "bg-secondary/5")}>
-                              <div>
-                                <p className="text-xs font-medium text-charcoal">{r.name}</p>
-                                <p className="text-[10px] text-charcoal-lighter">{r.extra}</p>
+                              className={cn("w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-pearl transition-colors", isSelected && "bg-secondary/5")}>
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium text-charcoal truncate">{r.name}</p>
+                                <p className="text-[10px] text-charcoal-lighter truncate">{r.extra}</p>
                               </div>
                               {isSelected && <Check className="h-4 w-4 text-secondary shrink-0" />}
                             </button>
@@ -413,7 +413,7 @@ export default function AdminOffersPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="Start Date" type="date" value={formStartDate} onChange={(e) => setFormStartDate(e.target.value)} />
               <Input label="End Date" type="date" value={formEndDate} onChange={(e) => setFormEndDate(e.target.value)} />
             </div>

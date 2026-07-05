@@ -173,7 +173,7 @@ export default function AdminNotificationsPage() {
             {/* Audience */}
             <div>
               <label className="block text-sm font-medium text-charcoal-light mb-1.5">Send To</label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 {([
                   { key: "all", label: "All Customers", icon: Globe },
                   { key: "tiers", label: "By Tier", icon: Crown },
@@ -184,7 +184,7 @@ export default function AdminNotificationsPage() {
                     type="button"
                     onClick={() => setAudience(opt.key)}
                     className={cn(
-                      "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-medium border transition-all",
+                      "sm:flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-medium border transition-all",
                       audience === opt.key ? "border-secondary bg-secondary/10 text-secondary" : "border-border/30 text-charcoal-lighter hover:bg-pearl"
                     )}
                   >

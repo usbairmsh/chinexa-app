@@ -170,7 +170,7 @@ export default function AdminHomepageBuilder() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Homepage Builder</h1>
           <p className="text-sm text-charcoal-lighter">Arrange, show/hide, and configure homepage sections</p>
@@ -271,9 +271,9 @@ export default function AdminHomepageBuilder() {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-medium text-charcoal">{section.type === "trust_badges" ? "Trust Badges" : (section.title || section.description)}</h3>
-                      <Badge variant="outline" className="text-[9px] hidden sm:inline-flex">{section.type}</Badge>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <h3 className="text-sm font-medium text-charcoal truncate">{section.type === "trust_badges" ? "Trust Badges" : (section.title || section.description)}</h3>
+                      <Badge variant="outline" className="text-[9px] hidden sm:inline-flex shrink-0">{section.type}</Badge>
                     </div>
                     <p className="text-xs text-charcoal-lighter truncate">{section.description}</p>
                   </div>

@@ -122,8 +122,8 @@ export default function AdminBrandsPage() {
           {brands.map((brand) => (
             <Card key={brand.id} className={cn("transition-opacity", !brand.is_active && "opacity-60")}>
               <CardContent className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-start justify-between mb-3 gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
                     {brand.logo ? (
                       <div className="relative h-12 w-12 rounded-xl overflow-hidden bg-pearl border border-border/20 shrink-0">
                         <Image src={brand.logo} alt={brand.name} fill className="object-contain p-1" sizes="48px" unoptimized={brand.logo.includes("/uploads/")} />
@@ -133,13 +133,13 @@ export default function AdminBrandsPage() {
                         <Award className="h-5 w-5 text-charcoal-lighter" />
                       </div>
                     )}
-                    <div>
-                      <h3 className="font-medium text-charcoal">{brand.name}</h3>
-                      {brand.country && <p className="text-[10px] text-charcoal-lighter">{brand.country}</p>}
+                    <div className="min-w-0">
+                      <h3 className="font-medium text-charcoal truncate">{brand.name}</h3>
+                      {brand.country && <p className="text-[10px] text-charcoal-lighter truncate">{brand.country}</p>}
                     </div>
                   </div>
                   <DropdownMenu>
-                    <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
+                    <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md shrink-0"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => openEdit(brand)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
                       <DropdownMenuSeparator />
@@ -194,7 +194,7 @@ export default function AdminBrandsPage() {
                 ))}
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <div className="flex items-center gap-2">
                 <Switch checked={fActive} onCheckedChange={setFActive} />
                 <label className="text-sm text-charcoal-lighter">Active</label>

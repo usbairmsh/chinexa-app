@@ -166,7 +166,7 @@ export default function StockManagementPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
         {stats.map((s) => (
           <Card key={s.label}><CardContent className="p-3 flex items-center gap-2.5">
             <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg shrink-0", s.bg)}><s.icon className={cn("h-3.5 w-3.5", s.color)} /></div>
@@ -194,7 +194,7 @@ export default function StockManagementPage() {
             <Input placeholder="Search by name or SKU..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} icon={<Search className="h-4 w-4" />} className="flex-1" />
             <div className="flex gap-2">
               <Select value={category} onValueChange={(v) => { setCategory(v); setPage(1); }}>
-                <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-1/2 sm:w-36"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
                   <SelectItem value="skincare">Skincare</SelectItem>
@@ -207,7 +207,7 @@ export default function StockManagementPage() {
                 </SelectContent>
               </Select>
               <Select value={sortBy} onValueChange={(v) => { setSortBy(v); setPage(1); }}>
-                <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-1/2 sm:w-36"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="stock_asc">Stock: Low → High</SelectItem>
                   <SelectItem value="stock_desc">Stock: High → Low</SelectItem>
@@ -323,31 +323,31 @@ export default function StockManagementPage() {
                 {/* Stock Quantity */}
                 <div>
                   <label className="text-xs font-semibold text-charcoal uppercase tracking-wider mb-3 block">Stock Quantity</label>
-                  <div className="flex items-center justify-center gap-3 mb-3">
-                    <button onClick={() => adjustStock(-10)} className="h-10 w-10 flex items-center justify-center rounded-xl border border-border hover:bg-pearl text-sm font-medium text-charcoal-lighter hover:text-charcoal transition-colors">-10</button>
-                    <button onClick={() => adjustStock(-1)} className="h-12 w-12 flex items-center justify-center rounded-xl border border-border hover:bg-pearl transition-colors">
-                      <Minus className="h-5 w-5 text-charcoal-lighter" />
+                  <div className="flex items-center justify-center gap-1.5 sm:gap-3 mb-3">
+                    <button onClick={() => adjustStock(-10)} className="h-8 w-8 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center rounded-xl border border-border hover:bg-pearl text-xs sm:text-sm font-medium text-charcoal-lighter hover:text-charcoal transition-colors">-10</button>
+                    <button onClick={() => adjustStock(-1)} className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 flex items-center justify-center rounded-xl border border-border hover:bg-pearl transition-colors">
+                      <Minus className="h-4 w-4 sm:h-5 sm:w-5 text-charcoal-lighter" />
                     </button>
                     <input
                       type="number"
                       value={editStock}
                       onChange={(e) => setEditStock(e.target.value)}
-                      className={cn("w-24 h-16 text-center text-3xl font-bold rounded-2xl border-2 focus:outline-none focus:ring-4 transition-all",
+                      className={cn("w-16 sm:w-24 h-12 sm:h-16 text-center text-xl sm:text-3xl font-bold rounded-2xl border-2 focus:outline-none focus:ring-4 transition-all min-w-0",
                         Number(editStock) === 0 ? "border-destructive text-destructive focus:ring-destructive/20" :
                         Number(editStock) <= Number(editMinStock) ? "border-warning text-warning focus:ring-warning/20" :
                         "border-border text-charcoal focus:border-secondary focus:ring-secondary/20"
                       )}
                     />
-                    <button onClick={() => adjustStock(1)} className="h-12 w-12 flex items-center justify-center rounded-xl border border-border hover:bg-pearl transition-colors">
-                      <Plus className="h-5 w-5 text-charcoal-lighter" />
+                    <button onClick={() => adjustStock(1)} className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 flex items-center justify-center rounded-xl border border-border hover:bg-pearl transition-colors">
+                      <Plus className="h-4 w-4 sm:h-5 sm:w-5 text-charcoal-lighter" />
                     </button>
-                    <button onClick={() => adjustStock(10)} className="h-10 w-10 flex items-center justify-center rounded-xl border border-border hover:bg-pearl text-sm font-medium text-charcoal-lighter hover:text-charcoal transition-colors">+10</button>
+                    <button onClick={() => adjustStock(10)} className="h-8 w-8 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center rounded-xl border border-border hover:bg-pearl text-xs sm:text-sm font-medium text-charcoal-lighter hover:text-charcoal transition-colors">+10</button>
                   </div>
                   {/* Quick set buttons */}
-                  <div className="flex justify-center gap-2">
+                  <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2">
                     {[0, 5, 10, 25, 50, 100].map((v) => (
                       <button key={v} onClick={() => setEditStock(String(v))}
-                        className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                        className={cn("px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
                           Number(editStock) === v ? "bg-charcoal text-white" : "bg-pearl text-charcoal-lighter hover:bg-charcoal/5 hover:text-charcoal"
                         )}>
                         {v}

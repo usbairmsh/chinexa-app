@@ -389,7 +389,7 @@ export default function AdminCustomersPage() {
               ].map((s) => (
                 <Card key={s.label}><CardContent className="p-3 text-center">
                   <div className={cn("inline-flex h-8 w-8 items-center justify-center rounded-lg mb-1.5", s.color)}><s.icon className="h-3.5 w-3.5" /></div>
-                  <p className="text-base font-bold text-charcoal">{s.value}</p>
+                  <p className="text-base font-bold text-charcoal truncate">{s.value}</p>
                   <p className="text-[9px] text-charcoal-lighter">{s.label}</p>
                 </CardContent></Card>
               ))}
@@ -437,13 +437,13 @@ export default function AdminCustomersPage() {
                   const Icon = sc.icon;
                   return (
                     <div key={order.id} className="rounded-xl border border-border/20 overflow-hidden">
-                      <div className="flex items-center justify-between px-4 py-2.5 bg-pearl/40">
-                        <div className="flex items-center gap-4 text-xs">
-                          <div><p className="text-[9px] text-charcoal-lighter uppercase">Order</p><p className="font-semibold text-charcoal">{order.id}</p></div>
-                          <div className="hidden sm:block"><p className="text-[9px] text-charcoal-lighter uppercase">Date</p><p className="text-charcoal">{formatDateShort(order.date)}</p></div>
-                          <div><p className="text-[9px] text-charcoal-lighter uppercase">Total</p><p className="font-semibold text-charcoal">{formatCurrency(order.total)}</p></div>
+                      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 bg-pearl/40">
+                        <div className="flex items-center gap-4 text-xs min-w-0">
+                          <div className="min-w-0"><p className="text-[9px] text-charcoal-lighter uppercase">Order</p><p className="font-semibold text-charcoal truncate">{order.id}</p></div>
+                          <div className="hidden sm:block shrink-0"><p className="text-[9px] text-charcoal-lighter uppercase">Date</p><p className="text-charcoal">{formatDateShort(order.date)}</p></div>
+                          <div className="shrink-0"><p className="text-[9px] text-charcoal-lighter uppercase">Total</p><p className="font-semibold text-charcoal">{formatCurrency(order.total)}</p></div>
                         </div>
-                        <span className={cn("inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full", sc.color, sc.bg)}>
+                        <span className={cn("inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full shrink-0", sc.color, sc.bg)}>
                           <Icon className="h-3 w-3" /> {sc.label}
                         </span>
                       </div>

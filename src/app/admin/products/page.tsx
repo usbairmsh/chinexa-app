@@ -291,12 +291,12 @@ export default function AdminProductsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Products</h1>
           <p className="text-sm text-charcoal-lighter">{data?.total || 0} total products</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link href="/admin/brands"><AdminButton variant="outline"><Award className="h-4 w-4" /> Brands</AdminButton></Link>
           <Link href="/admin/products/new"><AdminButton><Plus className="h-4 w-4" /> Add Product</AdminButton></Link>
         </div>
@@ -414,12 +414,12 @@ export default function AdminProductsPage() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><p className="text-[10px] text-charcoal-lighter uppercase">Product</p><p className="font-medium text-charcoal">{viewVariant.product.name}</p></div>
-                <div><p className="text-[10px] text-charcoal-lighter uppercase">Value</p><p className="text-charcoal">{viewVariant.variant.value}</p></div>
-                <div><p className="text-[10px] text-charcoal-lighter uppercase">Price</p><p className="font-medium text-charcoal">{formatCurrency(viewVariant.product.price + viewVariant.variant.price_adjustment)}</p></div>
-                <div><p className="text-[10px] text-charcoal-lighter uppercase">Adjustment</p><p className="text-charcoal">{viewVariant.variant.price_adjustment > 0 ? "+" : ""}{formatCurrency(viewVariant.variant.price_adjustment)}</p></div>
-                <div><p className="text-[10px] text-charcoal-lighter uppercase">Stock</p><p className={cn("font-medium", viewVariant.variant.stock <= 5 ? "text-destructive" : "text-charcoal")}>{viewVariant.variant.stock}</p></div>
-                <div><p className="text-[10px] text-charcoal-lighter uppercase">SKU</p><p className="text-charcoal font-mono text-xs">{viewVariant.variant.sku}</p></div>
+                <div className="min-w-0"><p className="text-[10px] text-charcoal-lighter uppercase">Product</p><p className="font-medium text-charcoal truncate">{viewVariant.product.name}</p></div>
+                <div className="min-w-0"><p className="text-[10px] text-charcoal-lighter uppercase">Value</p><p className="text-charcoal truncate">{viewVariant.variant.value}</p></div>
+                <div className="min-w-0"><p className="text-[10px] text-charcoal-lighter uppercase">Price</p><p className="font-medium text-charcoal truncate">{formatCurrency(viewVariant.product.price + viewVariant.variant.price_adjustment)}</p></div>
+                <div className="min-w-0"><p className="text-[10px] text-charcoal-lighter uppercase">Adjustment</p><p className="text-charcoal truncate">{viewVariant.variant.price_adjustment > 0 ? "+" : ""}{formatCurrency(viewVariant.variant.price_adjustment)}</p></div>
+                <div className="min-w-0"><p className="text-[10px] text-charcoal-lighter uppercase">Stock</p><p className={cn("font-medium", viewVariant.variant.stock <= 5 ? "text-destructive" : "text-charcoal")}>{viewVariant.variant.stock}</p></div>
+                <div className="min-w-0"><p className="text-[10px] text-charcoal-lighter uppercase">SKU</p><p className="text-charcoal font-mono text-xs truncate">{viewVariant.variant.sku}</p></div>
               </div>
             </div>
           )}
@@ -442,7 +442,7 @@ export default function AdminProductsPage() {
           <div className="space-y-3 py-2">
             <Input label="Variant Name" value={editVName} onChange={(e) => setEditVName(e.target.value)} placeholder="e.g., 50ml" />
             <Input label="Value" value={editVValue} onChange={(e) => setEditVValue(e.target.value)} placeholder="e.g., 50ml" />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="Price Adjustment (৳)" type="number" value={editVPrice} onChange={(e) => setEditVPrice(e.target.value)} />
               <Input label="Stock" type="number" value={editVStock} onChange={(e) => setEditVStock(e.target.value)} />
             </div>
