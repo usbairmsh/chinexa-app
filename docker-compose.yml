@@ -2,6 +2,8 @@ services:
   db:
     image: mysql:8.0
     restart: unless-stopped
+    env_file:
+      - .env.production
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME}
@@ -19,10 +21,14 @@ services:
     build:
       context: .
       args:
-        NEXT_PUBLIC_API_MODE: ${NEXT_PUBLIC_API_MODE}
+        # ":-api" default guarantees a real-DB build even if the var is unset,
+        # so the app can never silently fall back to mock mode in production.
+        NEXT_PUBLIC_API_MODE: ${NEXT_PUBLIC_API_MODE:-api}
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     restart: unless-stopped
+    env_file:
+      - .env.production
     ports:
       - "3000:3000"
     environment:

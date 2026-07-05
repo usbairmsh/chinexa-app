@@ -26,7 +26,10 @@ export interface Services {
   analytics: IAnalyticsService;
 }
 
-const API_MODE = process.env.NEXT_PUBLIC_API_MODE || "mock";
+// Default to "api" (real DB) so a missing/empty env var can never silently
+// drop production into mock mode. Set NEXT_PUBLIC_API_MODE=mock explicitly for
+// local mock development.
+const API_MODE = process.env.NEXT_PUBLIC_API_MODE || "api";
 
 function createServices(): Services {
   if (API_MODE === "api") {
