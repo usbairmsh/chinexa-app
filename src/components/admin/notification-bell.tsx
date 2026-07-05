@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, usePathname } from "next/navigation";
 import { Bell, Send, Package, RotateCcw, Star, AlertTriangle, UserPlus, Warehouse, Loader2, CheckCheck, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -39,6 +40,12 @@ function timeAgo(dateStr: string): string {
   return formatDateShort(dateStr);
 }
 
+/** Renders children into document.body when active (mobile bottom sheet). */
+function MaybePortal({ active, children }: { active: boolean; children: React.ReactNode }) {
+  if (!active || typeof document === "undefined") return <>{children}</>;
+  return createPortal(children, document.body);
+}
+
 /**
  * Admin header bell — popup inbox of incoming store events:
  * new orders, return requests, pending reviews, low stock, fraud alerts,
@@ -48,10 +55,12 @@ export function AdminNotificationBell() {
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [useSheet, setUseSheet] = useState(false);
   const [items, setItems] = useState<AdminNotification[]>([]);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
 
   // Unread badge — poll every 45s and on route change
   const fetchCount = useCallback(async () => {
@@ -70,10 +79,21 @@ export function AdminNotificationBell() {
 
   useEffect(() => { setOpen(false); }, [pathname]);
 
+  // On phones the panel is a bottom sheet — lock page scroll while it's open
+  useEffect(() => {
+    if (open && typeof window !== "undefined" && window.innerWidth < 640) {
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = ""; };
+    }
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const onClick = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      // The sheet may live in a portal outside panelRef — check both containers
+      if (panelRef.current?.contains(target) || sheetRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     document.addEventListener("mousedown", onClick);
@@ -83,6 +103,7 @@ export function AdminNotificationBell() {
 
   const handleToggle = () => {
     const next = !open;
+    if (next) setUseSheet(window.innerWidth < 640);
     setOpen(next);
     if (next) {
       setLoading(true);
@@ -137,17 +158,32 @@ export function AdminNotificationBell() {
         )}
       </button>
 
+      <MaybePortal active={useSheet}>
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ opacity: 0, y: 8, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.98 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-            className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-sm sm:w-96 rounded-2xl bg-white shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-border/20 overflow-hidden z-50"
-          >
+          <>
+            {/* Mobile backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="fixed inset-0 z-40 bg-charcoal/40 backdrop-blur-[2px] sm:hidden"
+              onClick={() => setOpen(false)}
+            />
+            <motion.div
+              ref={sheetRef}
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 24 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="fixed inset-x-0 bottom-0 z-50 flex max-h-[80vh] flex-col rounded-t-3xl border-t border-border/20 bg-white shadow-[0_-8px_40px_rgba(0,0,0,0.18)] sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 sm:max-h-[520px] sm:rounded-2xl sm:border sm:shadow-[0_12px_40px_rgba(0,0,0,0.12)] sm:overflow-hidden"
+            >
+            {/* Drag handle — mobile sheet only */}
+            <div className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-border sm:hidden" />
+
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border/20">
+            <div className="flex shrink-0 items-center justify-between px-4 py-3 border-b border-border/20">
               <p className="text-sm font-semibold text-charcoal flex items-center gap-2">
                 Notifications
                 {unread > 0 && (
@@ -174,7 +210,7 @@ export function AdminNotificationBell() {
             </div>
 
             {/* List */}
-            <div className="max-h-[400px] overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain sm:max-h-[400px]">
               {loading ? (
                 <div className="flex items-center justify-center py-10 text-charcoal-lighter">
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -215,16 +251,18 @@ export function AdminNotificationBell() {
               )}
             </div>
 
-            {/* Footer */}
+            {/* Footer — extra bottom padding on phones for the home-indicator area */}
             <button
               onClick={() => { setOpen(false); router.push("/admin/notifications"); }}
-              className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-secondary hover:bg-primary-light transition-colors border-t border-border/20"
+              className="w-full shrink-0 flex items-center justify-center gap-1.5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:py-2.5 text-xs font-medium text-secondary hover:bg-primary-light transition-colors border-t border-border/20"
             >
               Open notification center <ArrowRight className="h-3 w-3" />
             </button>
-          </motion.div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
+      </MaybePortal>
     </div>
   );
 }

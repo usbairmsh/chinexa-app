@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, usePathname } from "next/navigation";
 import { Bell, Package, Tag, Gift, CheckCheck, ArrowRight, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -37,6 +38,16 @@ function timeAgo(dateStr: string): string {
 }
 
 /**
+ * Renders children into document.body when active — used for the mobile
+ * bottom sheet, because the header's backdrop-blur creates a containing
+ * block that would trap `position: fixed` descendants.
+ */
+function MaybePortal({ active, children }: { active: boolean; children: React.ReactNode }) {
+  if (!active || typeof document === "undefined") return <>{children}</>;
+  return createPortal(children, document.body);
+}
+
+/**
  * Header notification bell with a popup inbox. Rendered as a plain button so
  * the server and first client render are identical (no hydration mismatch).
  * Guests are sent to login; signed-in customers get the dropdown.
@@ -50,10 +61,14 @@ export function NotificationBell() {
   const isAuthenticated = mounted && storeAuthenticated;
 
   const [open, setOpen] = useState(false);
+  // On phones the panel renders as a bottom sheet via a portal — the header's
+  // backdrop-blur would otherwise become the containing block for `fixed`.
+  const [useSheet, setUseSheet] = useState(false);
   const [unread, setUnread] = useState(0);
   const [items, setItems] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -75,10 +90,21 @@ export function NotificationBell() {
 
   // Close popup on route change / outside click / Escape
   useEffect(() => { setOpen(false); }, [pathname]);
+
+  // On phones the panel is a bottom sheet — lock page scroll while it's open
+  useEffect(() => {
+    if (open && typeof window !== "undefined" && window.innerWidth < 640) {
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = ""; };
+    }
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const onClick = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      // The sheet may live in a portal outside panelRef — check both containers
+      if (panelRef.current?.contains(target) || sheetRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     document.addEventListener("mousedown", onClick);
@@ -99,6 +125,7 @@ export function NotificationBell() {
   const handleBellClick = () => {
     if (!isAuthenticated) { router.push("/login"); return; }
     const next = !open;
+    if (next) setUseSheet(window.innerWidth < 640);
     setOpen(next);
     if (next) fetchList();
   };
@@ -147,18 +174,33 @@ export function NotificationBell() {
         )}
       </button>
 
-      {/* Popup */}
+      {/* Popup — bottom sheet on phones (portaled to body), anchored dropdown on ≥sm */}
+      <MaybePortal active={useSheet}>
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ opacity: 0, y: 8, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.98 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-            className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-sm sm:w-96 rounded-2xl bg-white shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-border/20 overflow-hidden z-50"
-          >
+          <>
+            {/* Mobile backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="fixed inset-0 z-40 bg-charcoal/40 backdrop-blur-[2px] sm:hidden"
+              onClick={() => setOpen(false)}
+            />
+            <motion.div
+              ref={sheetRef}
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 24 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="fixed inset-x-0 bottom-0 z-50 flex max-h-[80vh] flex-col rounded-t-3xl border-t border-border/20 bg-white shadow-[0_-8px_40px_rgba(0,0,0,0.18)] sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 sm:max-h-[480px] sm:rounded-2xl sm:border sm:shadow-[0_12px_40px_rgba(0,0,0,0.12)] sm:overflow-hidden"
+            >
+            {/* Drag handle — mobile sheet only */}
+            <div className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-border sm:hidden" />
+
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border/20">
+            <div className="flex shrink-0 items-center justify-between px-4 py-3 border-b border-border/20">
               <p className="text-sm font-semibold text-charcoal flex items-center gap-2">
                 Notifications
                 {unread > 0 && (
@@ -176,7 +218,7 @@ export function NotificationBell() {
             </div>
 
             {/* List */}
-            <div className="max-h-[360px] overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain sm:max-h-[360px]">
               {loading ? (
                 <div className="flex items-center justify-center py-10 text-charcoal-lighter">
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -216,16 +258,18 @@ export function NotificationBell() {
               )}
             </div>
 
-            {/* Footer */}
+            {/* Footer — extra bottom padding on phones for the home-indicator area */}
             <button
               onClick={() => { setOpen(false); router.push("/dashboard/notifications"); }}
-              className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-secondary hover:bg-primary-light transition-colors border-t border-border/20"
+              className="w-full shrink-0 flex items-center justify-center gap-1.5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:py-2.5 text-xs font-medium text-secondary hover:bg-primary-light transition-colors border-t border-border/20"
             >
               View all notifications <ArrowRight className="h-3 w-3" />
             </button>
-          </motion.div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
+      </MaybePortal>
     </div>
   );
 }
