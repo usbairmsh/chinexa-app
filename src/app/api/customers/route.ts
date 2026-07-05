@@ -18,7 +18,10 @@ export async function GET(req: NextRequest) {
     const total = (countRows[0] as { total: number })?.total || 0;
     const safeLimit = Math.max(1, Math.min(Math.floor(pageSize), 100));
     const safeOffset = Math.max(0, Math.floor((page - 1) * safeLimit));
-    const rows = await query<RowDataPacket[]>(`SELECT * FROM customers ${where} ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`, params);
+    const rows = await query<RowDataPacket[]>(
+      `SELECT id, name, email, phone, birthdate, avatar, total_orders, total_spent, is_active, deactivated_at, deactivation_reason, created_at, updated_at, last_order_at FROM customers ${where} ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+      params
+    );
 
     // Get total items bought per customer
     const customerIds = rows.map((r) => r.id as string);

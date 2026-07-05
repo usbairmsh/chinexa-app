@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Check, Shield, Loader2, AlertTriangle, Crown } from "lucide-react";
+import { Check, Shield, Loader2, AlertTriangle, Crown, Lock, Cake } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,7 @@ export default function ProfilePage() {
   // hard refresh, which wedges the initial page loader.
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [birthdate, setBirthdate] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -49,6 +50,26 @@ export default function ProfilePage() {
       setEmail((prev) => prev || user.email || "");
     }
   }, [user]);
+
+  // Birthdate is set once at registration and never editable — fetch it
+  // read-only from the customer record (not carried in the auth store).
+  useEffect(() => {
+    if (!user?.id) return;
+    fetch(`/api/customers/${user.id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.birthdate) setBirthdate(data.birthdate);
+      })
+      .catch(() => {});
+  }, [user?.id]);
+
+  // Change password
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordSaved, setPasswordSaved] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
 
   // Tier data
   const [tierName, setTierName] = useState("Bronze");
@@ -102,6 +123,48 @@ export default function ProfilePage() {
         setTimeout(() => setSaved(false), 2000);
       }
     } catch {} finally { setSaving(false); }
+  };
+
+  const handleChangePassword = async () => {
+    setPasswordError("");
+    if (!currentPassword || !newPassword) {
+      setPasswordError("Please fill in all password fields");
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError("New password must be at least 6 characters");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError("New passwords do not match");
+      return;
+    }
+
+    setPasswordSaving(true);
+    try {
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "change_password",
+          customer_id: user?.id,
+          current_password: currentPassword,
+          new_password: newPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to change password");
+
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setPasswordSaved(true);
+      setTimeout(() => setPasswordSaved(false), 2000);
+    } catch (err: unknown) {
+      setPasswordError(err instanceof Error ? err.message : "Failed to change password");
+    } finally {
+      setPasswordSaving(false);
+    }
   };
 
   const openDeactivateFlow = () => {
@@ -226,10 +289,57 @@ export default function ProfilePage() {
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
             <Input label="Email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com" type="email" />
+            <Input
+              label="Birthdate"
+              value={birthdate ? new Date(birthdate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
+              icon={<Cake className="h-4 w-4" />}
+              disabled
+            />
           </div>
           <Button variant="secondary" onClick={handleSave} disabled={saving || saved || !name.trim()}>
             {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : saved ? <Check className="h-4 w-4 mr-1" /> : null}
             {saved ? "Saved!" : saving ? "Saving..." : "Save Changes"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Change Password */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Change Password</CardTitle>
+          <CardDescription>Update the password used to sign in</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Input
+            label="Current Password"
+            type="password"
+            value={currentPassword}
+            onChange={(e) => { setCurrentPassword(e.target.value); setPasswordError(""); }}
+            placeholder="Enter current password"
+            icon={<Lock className="h-4 w-4" />}
+          />
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Input
+              label="New Password"
+              type="password"
+              value={newPassword}
+              onChange={(e) => { setNewPassword(e.target.value); setPasswordError(""); }}
+              placeholder="At least 6 characters"
+              icon={<Lock className="h-4 w-4" />}
+            />
+            <Input
+              label="Confirm New Password"
+              type="password"
+              value={confirmNewPassword}
+              onChange={(e) => { setConfirmNewPassword(e.target.value); setPasswordError(""); }}
+              placeholder="Re-enter new password"
+              icon={<Lock className="h-4 w-4" />}
+            />
+          </div>
+          {passwordError && <p className="text-sm text-destructive">{passwordError}</p>}
+          <Button variant="secondary" onClick={handleChangePassword} disabled={passwordSaving || passwordSaved}>
+            {passwordSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : passwordSaved ? <Check className="h-4 w-4 mr-1" /> : null}
+            {passwordSaved ? "Password Updated!" : passwordSaving ? "Updating..." : "Update Password"}
           </Button>
         </CardContent>
       </Card>

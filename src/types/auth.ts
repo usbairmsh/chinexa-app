@@ -17,7 +17,7 @@ export interface Session {
 
 export interface OtpPayload {
   phone: string;
-  method: "sms" | "whatsapp";
+  method: "sms";
 }
 
 export interface OtpVerifyPayload {

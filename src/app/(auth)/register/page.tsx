@@ -4,45 +4,42 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { User, Phone, Mail, CheckCircle2 } from "lucide-react";
+import { User, Phone, Mail, Cake, Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useAuthStore } from "@/stores/auth.store";
 
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const phoneParam = searchParams.get("phone") || "";
-  const login = useAuthStore((s) => s.login);
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState(phoneParam);
   const [email, setEmail] = useState("");
+  const [birthdate, setBirthdate] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      setError("Please enter your name");
-      return;
-    }
-    if (!phone) {
-      setError("Phone number is missing. Please go back and enter your phone number.");
-      return;
-    }
+    if (!name.trim()) { setError("Please enter your name"); return; }
+    if (!phone) { setError("Phone number is missing. Please go back and enter your phone number."); return; }
+    if (!birthdate) { setError("Please enter your birthdate"); return; }
+    if (!password || password.length < 6) { setError("Password must be at least 6 characters"); return; }
+    if (password !== confirmPassword) { setError("Passwords do not match"); return; }
 
     setLoading(true);
     setError("");
 
     try {
-      // First check if phone is already registered
+      // Make sure this phone isn't already registered before sending an OTP
       const checkRes = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "login", phone }),
+        body: JSON.stringify({ action: "check_phone", phone }),
       });
       const checkData = await checkRes.json();
 
@@ -50,21 +47,12 @@ function RegisterForm() {
         setError(checkData.error || "This phone number belongs to a deactivated account.");
         return;
       }
-
-      if (checkData.found && checkData.user) {
-        // Already registered — log them in directly
-        document.cookie = `chinexa-role=customer; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
-        login({
-          user: checkData.user,
-          token: `token-${Date.now()}`,
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        });
-        setSuccess(true);
-        setTimeout(() => router.push("/"), 1500);
+      if (checkData.found) {
+        setError("This phone number is already registered. Please log in instead.");
         return;
       }
 
-      // Not registered — send a real OTP, then go to verification with registration data
+      // Send OTP, then hand off to /verify to confirm the phone before creating the account
       const otpRes = await fetch("/api/otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -72,35 +60,22 @@ function RegisterForm() {
       });
       const otpData = await otpRes.json();
       if (!otpRes.ok) throw new Error(otpData.error || "Failed to send OTP");
-      sessionStorage.setItem(`otp-token:${phone}:register`, otpData.token);
 
-      router.push(
-        `/verify?phone=${encodeURIComponent(phone)}&mode=register&name=${encodeURIComponent(name.trim())}&email=${encodeURIComponent(email.trim())}`
-      );
+      sessionStorage.setItem(`otp-token:${phone}:register`, otpData.token);
+      sessionStorage.setItem(`register-data:${phone}`, JSON.stringify({
+        name: name.trim(),
+        email: email.trim(),
+        birthdate,
+        password,
+      }));
+
+      router.push(`/verify?phone=${encodeURIComponent(phone)}&mode=register`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
       setLoading(false);
     }
   };
-
-  if (success) {
-    return (
-      <Card className="border-0 shadow-luxury-hover">
-        <CardContent className="py-16 text-center">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", damping: 15 }}
-          >
-            <CheckCircle2 className="h-16 w-16 text-success mx-auto mb-4" />
-          </motion.div>
-          <h2 className="font-heading text-xl font-semibold text-charcoal mb-1">Welcome Back!</h2>
-          <p className="text-sm text-charcoal-lighter">You already have an account. Logging you in...</p>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <Card className="border-0 shadow-luxury-hover">
@@ -129,12 +104,38 @@ function RegisterForm() {
           />
 
           <Input
+            label="Birthdate *"
+            type="date"
+            value={birthdate}
+            onChange={(e) => setBirthdate(e.target.value)}
+            icon={<Cake className="h-4 w-4" />}
+          />
+
+          <Input
             label="Email (optional)"
             type="email"
             placeholder="your@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             icon={<Mail className="h-4 w-4" />}
+          />
+
+          <Input
+            label="Password *"
+            type="password"
+            placeholder="At least 6 characters"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            icon={<Lock className="h-4 w-4" />}
+          />
+
+          <Input
+            label="Confirm Password *"
+            type="password"
+            placeholder="Re-enter your password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            icon={<Lock className="h-4 w-4" />}
           />
 
           {error && (
@@ -148,7 +149,7 @@ function RegisterForm() {
             className="w-full"
             isLoading={loading}
           >
-            Verify & Create Account
+            Continue
           </Button>
 
           <p className="text-xs text-center text-charcoal-lighter">

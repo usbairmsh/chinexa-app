@@ -4,14 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Phone, Lock, Loader2 } from "lucide-react";
+import { Phone, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useAuthStore } from "@/stores/auth.store";
 
-// Validate Bangladeshi phone: must be 11 digits starting with 01
 function validateBDPhone(digits: string): string | null {
   const cleaned = digits.replace(/[\s-]/g, "");
   if (cleaned.length !== 11 || !cleaned.startsWith("01") || !/^\d{11}$/.test(cleaned)) {
@@ -20,17 +16,13 @@ function validateBDPhone(digits: string): string | null {
   return null;
 }
 
-export default function LoginPage() {
+export default function ForgotPasswordPage() {
   const router = useRouter();
-  const login = useAuthStore((s) => s.login);
   const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Only allow digits, max 11
     const val = e.target.value.replace(/\D/g, "").slice(0, 11);
     setPhone(val);
     setError("");
@@ -38,47 +30,45 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const validationError = validateBDPhone(phone);
     if (validationError) {
       setError(validationError);
       return;
     }
-    if (!password) {
-      setError("Please enter your password");
-      return;
-    }
 
     setLoading(true);
     setError("");
-
     const fullPhone = `+88${phone}`;
 
     try {
-      const res = await fetch("/api/auth", {
+      const checkRes = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "login", phone: fullPhone, password }),
+        body: JSON.stringify({ action: "check_phone", phone: fullPhone }),
       });
-      const data = await res.json();
+      const checkData = await checkRes.json();
 
-      if (!res.ok || data.error) {
-        setError(data.error || "Invalid phone number or password");
+      if (checkData.blocked) {
+        setError(checkData.error || "This account has been deactivated.");
+        return;
+      }
+      if (!checkData.found) {
+        setError("No account found with this phone number.");
         return;
       }
 
-      const cookieOpts = rememberMe
-        ? `path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
-        : `path=/; SameSite=Lax`;
-      document.cookie = `chinexa-role=customer; ${cookieOpts}`;
-      login({
-        user: data.user,
-        token: `token-${Date.now()}`,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      const otpRes = await fetch("/api/otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send", phone: fullPhone, purpose: "reset" }),
       });
-      router.push("/");
-    } catch {
-      setError("Something went wrong. Please try again.");
+      const otpData = await otpRes.json();
+      if (!otpRes.ok) throw new Error(otpData.error || "Failed to send OTP");
+
+      sessionStorage.setItem(`otp-token:${fullPhone}:reset`, otpData.token);
+      router.push(`/verify?phone=${encodeURIComponent(fullPhone)}&mode=reset`);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -92,12 +82,11 @@ export default function LoginPage() {
     >
       <Card className="border-0 shadow-luxury-hover">
         <CardHeader className="text-center pb-2">
-          <CardTitle className="font-heading text-2xl">Welcome to ChineXa</CardTitle>
-          <CardDescription>Sign in with your phone number and password</CardDescription>
+          <CardTitle className="font-heading text-2xl">Forgot Password</CardTitle>
+          <CardDescription>Enter your phone number to receive a reset code</CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Phone input with +880 prefix */}
             <div>
               <label className="block text-sm font-medium text-charcoal-light mb-1.5">Phone Number</label>
               <div className="flex">
@@ -120,27 +109,7 @@ export default function LoginPage() {
                   autoFocus
                 />
               </div>
-            </div>
-
-            <Input
-              label="Password"
-              type="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); setError(""); }}
-              icon={<Lock className="h-4 w-4" />}
-            />
-
-            {error && <p className="text-xs text-destructive -mt-2">{error}</p>}
-
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2.5 cursor-pointer">
-                <Checkbox checked={rememberMe} onCheckedChange={(v) => setRememberMe(!!v)} />
-                <span className="text-sm text-charcoal-lighter">Remember Me</span>
-              </label>
-              <Link href="/forgot-password" className="text-sm text-secondary hover:text-secondary-dark font-medium">
-                Forgot password?
-              </Link>
+              {error && <p className="text-xs text-destructive mt-1.5">{error}</p>}
             </div>
 
             <Button
@@ -148,17 +117,17 @@ export default function LoginPage() {
               variant="secondary"
               size="lg"
               className="w-full !text-white"
-              disabled={loading || phone.length < 11 || !password}
+              disabled={loading || phone.length < 11}
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? "Sending..." : "Send Reset Code"}
             </Button>
 
             <div className="text-center pt-2 border-t border-border/30">
               <p className="text-sm text-charcoal-lighter">
-                Don&apos;t have an account?{" "}
-                <Link href="/register" className="text-secondary hover:text-secondary-dark font-medium">
-                  Register
+                Remembered your password?{" "}
+                <Link href="/login" className="text-secondary hover:text-secondary-dark font-medium">
+                  Sign In
                 </Link>
               </p>
             </div>

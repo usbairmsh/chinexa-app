@@ -6,7 +6,10 @@ import { logActivity } from "@/lib/log-activity";
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const customers = await query<RowDataPacket[]>("SELECT * FROM customers WHERE id = ? LIMIT 1", [id]);
+    const customers = await query<RowDataPacket[]>(
+      "SELECT id, name, email, phone, birthdate, avatar, total_orders, total_spent, is_active, deactivated_at, deactivation_reason, created_at, updated_at, last_order_at FROM customers WHERE id = ? LIMIT 1",
+      [id]
+    );
     if (customers.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const addresses = await query<RowDataPacket[]>("SELECT * FROM customer_addresses WHERE customer_id = ?", [id]);
     const orders = await query<RowDataPacket[]>("SELECT * FROM orders WHERE customer_id = ? ORDER BY created_at DESC", [id]);

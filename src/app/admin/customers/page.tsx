@@ -6,7 +6,7 @@ import {
   Search, Users, DollarSign, ShoppingCart, TrendingUp, ArrowUpDown,
   ChevronRight, Mail, Phone, Edit,
   MapPin, Package, Clock, CheckCircle2, Truck, XCircle, Calendar,
-  ArrowLeft, Loader2, Crown, Gift, Plus, Tag, Save
+  ArrowLeft, Loader2, Crown, Gift, Plus, Tag, Save, Cake
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +35,7 @@ interface Customer {
   id: string; name: string; email: string; phone: string; avatar?: string;
   division: string; district: string; address: string;
   totalOrders: number; totalSpent: number; totalItems: number;
-  avgOrderValue: number; lastOrderDate: string; joinedDate: string;
+  avgOrderValue: number; lastOrderDate: string; joinedDate: string; birthdate: string;
   isActive: boolean; tier: string;
   orders: CustomerOrder[];
 }
@@ -132,6 +132,7 @@ export default function AdminCustomersPage() {
           totalOrders: Number(c.total_orders) || 0, totalSpent: Number(c.total_spent) || 0,
           totalItems: Number(c.total_items) || 0, avgOrderValue: Number(c.total_orders) > 0 ? Math.round(Number(c.total_spent) / Number(c.total_orders)) : 0,
           lastOrderDate: (c.last_order_at as string) || (c.created_at as string) || "", joinedDate: (c.created_at as string) || "",
+          birthdate: (c.birthdate as string) || "",
           isActive: c.is_active !== false, tier: (c.tier as string) || "Bronze",
           orders: [],
         })));
@@ -243,6 +244,7 @@ export default function AdminCustomersPage() {
           address: addr ? [addr.address_line_1, addr.district, addr.division].filter(Boolean).join(", ") : customer.address,
           division: addr?.division || "",
           district: addr?.district || "",
+          birthdate: (data.birthdate as string) || customer.birthdate,
           orders,
         });
       }
@@ -334,6 +336,7 @@ export default function AdminCustomersPage() {
                   {c.email && <div className="flex items-center gap-2 text-charcoal-lighter"><Mail className="h-3.5 w-3.5 text-secondary" /> {c.email}</div>}
                   {c.address && <div className="flex items-start gap-2 text-charcoal-lighter"><MapPin className="h-3.5 w-3.5 text-secondary mt-0.5" /> {c.address}</div>}
                   <div className="flex items-center gap-2 text-charcoal-lighter"><Calendar className="h-3.5 w-3.5 text-secondary" /> Joined {formatDateShort(c.joinedDate)}</div>
+                  {c.birthdate && <div className="flex items-center gap-2 text-charcoal-lighter"><Cake className="h-3.5 w-3.5 text-secondary" /> Born {formatDateShort(c.birthdate)}</div>}
                 </div>
               </CardContent>
             </Card>

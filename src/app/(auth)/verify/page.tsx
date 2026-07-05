@@ -3,8 +3,9 @@
 import { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -14,8 +15,8 @@ function VerifyForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const phone = searchParams.get("phone") || "";
-  const mode = searchParams.get("mode"); // "register" or null (login)
-  const otpPurpose = mode === "register" ? "register" : "login";
+  const mode = searchParams.get("mode"); // "register" | "reset" | null (unused now — login no longer goes through OTP)
+  const otpPurpose = mode === "register" ? "register" : mode === "reset" ? "reset" : "login";
   const login = useAuthStore((s) => s.login);
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -25,6 +26,12 @@ function VerifyForm() {
   const [resendTimer, setResendTimer] = useState(RESEND_COOLDOWN_SECONDS);
   const [resending, setResending] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // "reset" mode: once OTP is verified, show a new-password form before finishing
+  const [otpVerifiedForReset, setOtpVerifiedForReset] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [resetSaving, setResetSaving] = useState(false);
 
   useEffect(() => {
     inputRefs.current[0]?.focus();
@@ -98,24 +105,27 @@ function VerifyForm() {
       if (!verifyRes.ok) throw new Error(verifyData.error || "Invalid OTP");
       sessionStorage.removeItem(`otp-token:${phone}:${otpPurpose}`);
 
-      const name = searchParams.get("name");
-      const email = searchParams.get("email");
-      const remember = searchParams.get("remember") !== "0"; // default true
-      const cookieOpts = remember
-        ? `path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
-        : `path=/; SameSite=Lax`;
+      if (mode === "reset") {
+        // Don't finish yet — show the new-password form
+        setOtpVerifiedForReset(true);
+        return;
+      }
 
-      if (mode === "register" && name) {
-        // Register the customer after OTP verification
+      if (mode === "register") {
+        const stored = sessionStorage.getItem(`register-data:${phone}`);
+        if (!stored) throw new Error("Registration details expired. Please start over.");
+        const { name, email, birthdate, password } = JSON.parse(stored);
+
         const res = await fetch("/api/auth", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "register", phone, name, email: email || undefined }),
+          body: JSON.stringify({ action: "register", phone, name, email: email || undefined, birthdate, password }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Registration failed");
+        sessionStorage.removeItem(`register-data:${phone}`);
 
-        document.cookie = `chinexa-role=customer; ${cookieOpts}`;
+        document.cookie = `chinexa-role=customer; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
         login({
           user: { id: data.user.id, name: data.user.name, email: data.user.email, phone: data.user.phone, role: "customer" },
           token: `token-${Date.now()}`,
@@ -123,29 +133,6 @@ function VerifyForm() {
         });
         setSuccess(true);
         setTimeout(() => router.push("/"), 1500);
-      } else {
-        // Login flow
-        const res = await fetch("/api/auth", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "login", phone }),
-        });
-        const data = await res.json();
-
-        if (data.blocked) {
-          throw new Error(data.error || "This account has been deactivated.");
-        } else if (data.found) {
-          document.cookie = `chinexa-role=customer; ${cookieOpts}`;
-          login({
-            user: data.user,
-            token: `token-${Date.now()}`,
-            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          });
-          setSuccess(true);
-          setTimeout(() => router.push("/"), 1500);
-        } else {
-          router.push(`/register?phone=${encodeURIComponent(phone)}`);
-        }
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Invalid OTP. Please try again.");
@@ -164,6 +151,36 @@ function VerifyForm() {
       return;
     }
     autoSubmit(code);
+  };
+
+  const handleSetNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (!newPassword || newPassword.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    setResetSaving(true);
+    try {
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reset_password", phone, password: newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to reset password");
+      setSuccess(true);
+      setTimeout(() => router.push("/login"), 1500);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to reset password");
+    } finally {
+      setResetSaving(false);
+    }
   };
 
   const handleResend = async () => {
@@ -201,11 +218,50 @@ function VerifyForm() {
             <CheckCircle2 className="h-16 w-16 text-success mx-auto mb-4" />
           </motion.div>
           <h2 className="font-heading text-xl font-semibold text-charcoal mb-1">
-            {searchParams.get("mode") === "register" ? "Welcome to ChineXa!" : "Welcome Back!"}
+            {mode === "register" ? "Welcome to ChineXa!" : mode === "reset" ? "Password Reset!" : "Welcome Back!"}
           </h2>
           <p className="text-sm text-charcoal-lighter">
-            {searchParams.get("mode") === "register" ? "Your account has been created successfully." : "You have been successfully logged in."}
+            {mode === "register"
+              ? "Your account has been created successfully."
+              : mode === "reset"
+                ? "Your password has been changed. Redirecting to sign in..."
+                : "You have been successfully logged in."}
           </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (otpVerifiedForReset) {
+    return (
+      <Card className="border-0 shadow-luxury-hover">
+        <CardHeader className="text-center pb-2">
+          <CardTitle className="font-heading text-2xl">Set New Password</CardTitle>
+          <CardDescription>Choose a new password for your account</CardDescription>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <form onSubmit={handleSetNewPassword} className="space-y-4">
+            <Input
+              label="New Password *"
+              type="password"
+              placeholder="At least 6 characters"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              icon={<Lock className="h-4 w-4" />}
+            />
+            <Input
+              label="Confirm New Password *"
+              type="password"
+              placeholder="Re-enter your new password"
+              value={confirmNewPassword}
+              onChange={(e) => setConfirmNewPassword(e.target.value)}
+              icon={<Lock className="h-4 w-4" />}
+            />
+            {error && <p className="text-sm text-destructive text-center">{error}</p>}
+            <Button type="submit" variant="secondary" size="lg" className="w-full" isLoading={resetSaving}>
+              Save New Password
+            </Button>
+          </form>
         </CardContent>
       </Card>
     );

@@ -106,6 +106,8 @@ CREATE TABLE IF NOT EXISTS customers (
   name VARCHAR(255) NOT NULL,
   email VARCHAR(255),
   phone VARCHAR(20) NOT NULL UNIQUE,
+  password VARCHAR(255),
+  birthdate DATE,
   avatar VARCHAR(500),
   total_orders INT DEFAULT 0,
   total_spent DECIMAL(12,2) DEFAULT 0,
