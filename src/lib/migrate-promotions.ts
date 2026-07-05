@@ -1,23 +1,40 @@
-import { execute } from "@/lib/db";
+import { execute, query } from "@/lib/db";
+import { type RowDataPacket } from "mysql2/promise";
 
-// ─── One-time auto-migration for offer/coupon promotion columns ───
-// Runs idempotently; each ALTER is wrapped in catch so re-runs are no-ops.
-let migrated = false;
+// ─── Auto-migration for offer/coupon promotion columns ───
+// Ensures the structured-discount + applicability columns exist on existing
+// databases. Only latches as "done" once the columns are confirmed present, so
+// a transient failure (e.g. table missing on first boot) is retried later
+// instead of being permanently skipped.
+let done = false;
+
+/** Add a column only if it isn't already present (idempotent, no error on re-run). */
+async function ensureColumn(table: string, column: string, definition: string) {
+  const rows = await query<RowDataPacket[]>(
+    `SELECT COUNT(*) AS c FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?`,
+    [table, column]
+  );
+  if (Number(rows[0]?.c) > 0) return;
+  await execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
 
 export async function ensurePromotionColumns() {
-  if (migrated) return;
-  migrated = true;
+  if (done) return;
   try {
     // Offers: structured discount so offers actually reduce cart prices
-    await execute("ALTER TABLE offers ADD COLUMN discount_type ENUM('percentage', 'fixed') NOT NULL DEFAULT 'percentage'").catch(() => {});
-    await execute("ALTER TABLE offers ADD COLUMN discount_value DECIMAL(10,2) NOT NULL DEFAULT 0").catch(() => {});
-    await execute("ALTER TABLE offers ADD COLUMN max_discount_amount DECIMAL(10,2)").catch(() => {});
+    await ensureColumn("offers", "discount_type", "ENUM('percentage', 'fixed') NOT NULL DEFAULT 'percentage'");
+    await ensureColumn("offers", "discount_value", "DECIMAL(10,2) NOT NULL DEFAULT 0");
+    await ensureColumn("offers", "max_discount_amount", "DECIMAL(10,2)");
 
     // Coupons: applicability targeting + per-customer redemption limit
-    await execute("ALTER TABLE coupons ADD COLUMN applicability ENUM('store', 'categories', 'subcategories', 'products', 'customers', 'tiers') DEFAULT 'store'").catch(() => {});
-    await execute("ALTER TABLE coupons ADD COLUMN applicable_ids JSON").catch(() => {});
-    await execute("ALTER TABLE coupons ADD COLUMN per_customer_limit INT").catch(() => {});
-  } catch {
-    // Columns likely already exist
+    await ensureColumn("coupons", "applicability", "ENUM('store', 'categories', 'subcategories', 'products', 'customers', 'tiers') DEFAULT 'store'");
+    await ensureColumn("coupons", "applicable_ids", "JSON");
+    await ensureColumn("coupons", "per_customer_limit", "INT");
+
+    done = true; // only latch once every column is confirmed/created
+  } catch (err) {
+    // Leave `done` false so the next request retries the migration.
+    console.error("[ensurePromotionColumns] migration failed:", err);
   }
 }

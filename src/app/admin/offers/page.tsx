@@ -32,6 +32,7 @@ export default function AdminOffersPage() {
   const [editOffer, setEditOffer] = useState<Offer | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<Offer | null>(null);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
 
   // Form
   const [formTitle, setFormTitle] = useState("");
@@ -54,12 +55,22 @@ export default function AdminOffersPage() {
   const [allCategories, setAllCategories] = useState<{ id: string; name: string; children?: { id: string; name: string }[] }[]>([]);
   const [allTiers, setAllTiers] = useState<{ id: string; name: string }[]>([]);
 
+  const [listError, setListError] = useState("");
+
   const fetchOffers = async () => {
     try {
       const res = await fetch("/api/offers");
       const data = await res.json();
+      if (!res.ok) {
+        setListError(data?.error || `Failed to load offers (${res.status})`);
+        setOffers([]);
+        return;
+      }
+      setListError("");
       setOffers(Array.isArray(data) ? data : []);
-    } catch {} finally { setLoading(false); }
+    } catch {
+      setListError("Network error — could not load offers");
+    } finally { setLoading(false); }
   };
 
   useEffect(() => {
@@ -79,7 +90,7 @@ export default function AdminOffersPage() {
     setEditOffer(null); setSearchQuery(""); setSearchResults([]);
   };
 
-  const openCreate = () => { resetForm(); setDialogOpen(true); };
+  const openCreate = () => { resetForm(); setFormError(""); setDialogOpen(true); };
 
   const openEdit = (offer: Offer) => {
     setEditOffer(offer);
@@ -106,6 +117,7 @@ export default function AdminOffersPage() {
   const handleSave = async () => {
     if (!isFormValid) return;
     setSaving(true);
+    setFormError("");
     try {
       const label = formDiscountType === "fixed" ? `৳${discountValueNum} OFF` : `${discountValueNum}% OFF`;
       const payload = {
@@ -121,13 +133,18 @@ export default function AdminOffersPage() {
         end_date: formEndDate || null,
         is_active: formActive,
       };
-      if (editOffer) {
-        await fetch(`/api/offers/${editOffer.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      } else {
-        await fetch("/api/offers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const url = editOffer ? `/api/offers/${editOffer.id}` : "/api/offers";
+      const method = editOffer ? "PUT" : "POST";
+      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setFormError(data.error || `Failed to save offer (${res.status})`);
+        return;
       }
       setDialogOpen(false); resetForm(); fetchOffers();
-    } catch {} finally { setSaving(false); }
+    } catch {
+      setFormError("Network error — could not save offer");
+    } finally { setSaving(false); }
   };
 
   const handleDelete = async () => {
@@ -196,6 +213,12 @@ export default function AdminOffersPage() {
         </div>
         <AdminButton onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Create Offer</AdminButton>
       </div>
+
+      {listError && (
+        <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-3">
+          <AlertTriangle className="h-4 w-4 shrink-0" /> {listError}
+        </div>
+      )}
 
       {loading ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -399,6 +422,9 @@ export default function AdminOffersPage() {
               <span className="text-sm font-medium text-charcoal-light">{formActive ? "Active" : "Paused"}</span>
             </div>
           </div>
+          {formError && (
+            <p className="shrink-0 text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">{formError}</p>
+          )}
           <DialogFooter className="shrink-0 pt-2 border-t border-border/20">
             <AdminButton variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</AdminButton>
             <AdminButton onClick={handleSave} disabled={saving || !isFormValid}>
