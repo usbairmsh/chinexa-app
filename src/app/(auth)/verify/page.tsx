@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/auth.store";
 
+const RESEND_COOLDOWN_SECONDS = 90;
+
 function VerifyForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -20,7 +22,7 @@ function VerifyForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [resendTimer, setResendTimer] = useState(30);
+  const [resendTimer, setResendTimer] = useState(RESEND_COOLDOWN_SECONDS);
   const [resending, setResending] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -84,13 +86,17 @@ function VerifyForm() {
     setLoading(true);
     setError("");
     try {
+      const otpToken = sessionStorage.getItem(`otp-token:${phone}:${otpPurpose}`);
+      if (!otpToken) throw new Error("Verification session expired. Please request a new code.");
+
       const verifyRes = await fetch("/api/otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "verify", phone, purpose: otpPurpose, code }),
+        body: JSON.stringify({ action: "verify", phone, purpose: otpPurpose, code, token: otpToken }),
       });
       const verifyData = await verifyRes.json();
       if (!verifyRes.ok) throw new Error(verifyData.error || "Invalid OTP");
+      sessionStorage.removeItem(`otp-token:${phone}:${otpPurpose}`);
 
       const name = searchParams.get("name");
       const email = searchParams.get("email");
@@ -172,7 +178,8 @@ function VerifyForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to resend OTP");
-      setResendTimer(30);
+      sessionStorage.setItem(`otp-token:${phone}:${otpPurpose}`, data.token);
+      setResendTimer(RESEND_COOLDOWN_SECONDS);
       setOtp(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
     } catch (err: unknown) {

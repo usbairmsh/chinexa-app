@@ -72,6 +72,7 @@ function RegisterForm() {
       });
       const otpData = await otpRes.json();
       if (!otpRes.ok) throw new Error(otpData.error || "Failed to send OTP");
+      sessionStorage.setItem(`otp-token:${phone}:register`, otpData.token);
 
       router.push(
         `/verify?phone=${encodeURIComponent(phone)}&mode=register&name=${encodeURIComponent(name.trim())}&email=${encodeURIComponent(email.trim())}`

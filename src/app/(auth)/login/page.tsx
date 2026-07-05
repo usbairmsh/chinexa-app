@@ -69,6 +69,7 @@ export default function LoginPage() {
         });
         const otpData = await otpRes.json();
         if (!otpRes.ok) throw new Error(otpData.error || "Failed to send OTP");
+        sessionStorage.setItem(`otp-token:${fullPhone}:login`, otpData.token);
         router.push(`/verify?phone=${encodeURIComponent(fullPhone)}&method=${method}&remember=${rememberMe ? "1" : "0"}`);
       } else {
         // Not registered — go to registration page with phone pre-filled

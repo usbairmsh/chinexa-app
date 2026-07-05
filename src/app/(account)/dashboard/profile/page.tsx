@@ -65,6 +65,7 @@ export default function ProfilePage() {
   const [deactivateOtp, setDeactivateOtp] = useState("");
   const [deactivateLoading, setDeactivateLoading] = useState(false);
   const [deactivateError, setDeactivateError] = useState("");
+  const [deactivateOtpToken, setDeactivateOtpToken] = useState("");
 
   useEffect(() => {
     if (!user?.id) return;
@@ -107,6 +108,7 @@ export default function ProfilePage() {
     setDeactivateStep(1);
     setDeactivateReason("");
     setDeactivateOtp("");
+    setDeactivateOtpToken("");
     setDeactivateError("");
     setDeactivateOpen(true);
   };
@@ -125,6 +127,7 @@ export default function ProfilePage() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to send verification code");
+        setDeactivateOtpToken(data.token);
         setDeactivateStep(2);
       } catch (err: unknown) {
         setDeactivateError(err instanceof Error ? err.message : "Failed to send verification code");
@@ -146,7 +149,7 @@ export default function ProfilePage() {
       const otpRes = await fetch("/api/otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "verify", phone: user?.phone, purpose: "deactivate", code: deactivateOtp }),
+        body: JSON.stringify({ action: "verify", phone: user?.phone, purpose: "deactivate", code: deactivateOtp, token: deactivateOtpToken }),
       });
       const otpData = await otpRes.json();
       if (!otpRes.ok) throw new Error(otpData.error || "Invalid verification code");
