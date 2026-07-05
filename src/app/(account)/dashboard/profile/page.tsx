@@ -25,14 +25,30 @@ const deactivationReasons = [
 ];
 
 export default function ProfilePage() {
-  const user = useAuthStore((s) => s.user);
+  const storeUser = useAuthStore((s) => s.user);
   const updateUser = useAuthStore((s) => s.updateUser);
   const logout = useAuthStore((s) => s.logout);
 
-  const [name, setName] = useState(user?.name || "");
-  const [email, setEmail] = useState(user?.email || "");
+  // Gate persisted-store reads behind mount so server and first client render
+  // match (prevents the hydration mismatch that wedges the splash loader).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const user = mounted ? storeUser : null;
+
+  // Start empty (matches server HTML) and sync from the persisted store after
+  // mount — initializing from `user` directly causes a hydration mismatch on
+  // hard refresh, which wedges the initial page loader.
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setName((prev) => prev || user.name || "");
+      setEmail((prev) => prev || user.email || "");
+    }
+  }, [user]);
 
   // Tier data
   const [tierName, setTierName] = useState("Bronze");

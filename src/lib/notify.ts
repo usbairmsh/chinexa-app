@@ -16,8 +16,33 @@ function notifId(): string {
   return `notif-${Date.now()}-${(rid = (rid + 1) % 10000)}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
+// ─── Self-healing: create the notifications table on DBs that predate it ───
+let tablesEnsured = false;
+export async function ensureNotificationTables() {
+  if (tablesEnsured) return;
+  try {
+    await execute(
+      `CREATE TABLE IF NOT EXISTS customer_notifications (
+        id VARCHAR(50) PRIMARY KEY,
+        customer_id VARCHAR(50) NOT NULL,
+        type ENUM('order', 'promo', 'loyalty', 'system') DEFAULT 'system',
+        title VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        link VARCHAR(500),
+        is_read BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_customer_read (customer_id, is_read)
+      ) ENGINE=InnoDB`
+    );
+    tablesEnsured = true;
+  } catch (err) {
+    console.error("[ensureNotificationTables] failed:", err);
+  }
+}
+
 /** Insert the same notification for many customers (chunked multi-row INSERT). */
 export async function bulkNotify(customerIds: string[], payload: NotificationPayload): Promise<number> {
+  await ensureNotificationTables();
   const ids = [...new Set(customerIds)].filter(Boolean);
   if (ids.length === 0) return 0;
   const CHUNK = 200;

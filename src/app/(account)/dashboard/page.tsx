@@ -94,7 +94,8 @@ export default function AccountDashboard() {
 
   const stats = [
     { label: "Total Orders", value: String(totalOrders), icon: ShoppingBag, color: "text-secondary bg-secondary/10", href: "/dashboard/orders" },
-    { label: "Wishlist", value: String(wishlistCount || 0), icon: Heart, color: "text-coral bg-coral-light", href: "/dashboard/wishlist" },
+    // wishlist store is persisted — render 0 until mounted to match server HTML
+    { label: "Wishlist", value: String(mounted ? wishlistCount || 0 : 0), icon: Heart, color: "text-coral bg-coral-light", href: "/dashboard/wishlist" },
     { label: "Addresses", value: String(totalAddresses), icon: MapPin, color: "text-blue-500 bg-blue-50", href: "/dashboard/addresses" },
     { label: "Points", value: loyaltyPoints.toLocaleString(), icon: Star, color: "text-gold bg-gold/10", href: "/dashboard/orders" },
   ];
@@ -110,7 +111,8 @@ export default function AccountDashboard() {
                 <Badge className={cn("text-[10px]", tierColor)}>{loyaltyTier} Member</Badge>
               </p>
               <h2 className="font-heading text-xl sm:text-2xl font-semibold text-charcoal mb-2 flex items-center gap-1.5 flex-wrap">
-                Welcome back, {user?.name || "Beautiful"}!
+                {/* Gate on `mounted` — the persisted store differs from server HTML on refresh */}
+                Welcome back, {mounted && user?.name ? user.name : "Beautiful"}!
                 {badgeData && <VerifiedBadge color={badgeData.badge_color} opacity={badgeData.badge_opacity} size={26} tooltip={badgeData.badge_name} />}
                 &#10024;
               </h2>

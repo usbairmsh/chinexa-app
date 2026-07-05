@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -38,8 +38,18 @@ export default function AccountLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user: storeUser, isAuthenticated: storeAuthenticated, logout } = useAuthStore();
   const badge = useCustomerBadge();
+
+  // The auth store rehydrates from localStorage on the client, so its values
+  // differ from the server-rendered HTML on hard refresh. Rendering them before
+  // mount causes a hydration mismatch → React re-renders the whole tree → the
+  // initial splash loader gets stuck. Gate on `mounted` so the first client
+  // render matches the server exactly.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const user = mounted ? storeUser : null;
+  const isAuthenticated = mounted ? storeAuthenticated : false;
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";

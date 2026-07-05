@@ -299,10 +299,13 @@ export default function AdminLayout({
             </button>
           </div>
           <div className="flex items-center gap-3">
-            <button className="relative p-2 text-charcoal-lighter hover:text-charcoal transition-colors">
+            <Link
+              href="/admin/notifications"
+              className="relative p-2 text-charcoal-lighter hover:text-charcoal transition-colors"
+              aria-label="Push Notifications"
+            >
               <Bell className="h-5 w-5" />
-              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-secondary" />
-            </button>
+            </Link>
             <Separator orientation="vertical" className="h-8" />
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-2 hover:bg-pearl rounded-lg px-2 py-1.5 transition-colors">

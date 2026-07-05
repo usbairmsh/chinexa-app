@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
+import { ensureNotificationTables } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/notifications?customer_id=xxx — list (or ?count_only=1 for the unread badge)
 export async function GET(req: NextRequest) {
   try {
+    await ensureNotificationTables();
     const customerId = req.nextUrl.searchParams.get("customer_id");
     if (!customerId) return NextResponse.json({ error: "customer_id required" }, { status: 400 });
 
@@ -31,6 +33,7 @@ export async function GET(req: NextRequest) {
 // POST /api/notifications — create notification + mark read
 export async function POST(req: NextRequest) {
   try {
+    await ensureNotificationTables();
     const body = await req.json();
 
     // Mark all as read

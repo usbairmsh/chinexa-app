@@ -129,7 +129,10 @@ export default function RootLayout({
         }}>
           <img src="/favicon/android-chrome-192x192.png" alt="" width="64" height="64" style={{ borderRadius: "16px" }} />
           <div style={{ width: 40, height: 40, border: "3px solid #f0e6e3", borderTop: "3px solid #C0392B", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-          <style dangerouslySetInnerHTML={{ __html: `@keyframes spin{to{transform:rotate(360deg)}} #initial-loader.fade-out{opacity:0;pointer-events:none;transition:opacity 0.4s ease}` }} />
+          {/* CSS-only failsafe: if React discards the server DOM after a hydration
+              mismatch, the re-created loader div's inline script never re-executes.
+              This animation ALWAYS hides the loader — it survives re-renders. */}
+          <style dangerouslySetInnerHTML={{ __html: `@keyframes spin{to{transform:rotate(360deg)}} #initial-loader.fade-out{opacity:0;pointer-events:none;transition:opacity 0.4s ease} @keyframes loaderKill{to{opacity:0;visibility:hidden;pointer-events:none}} #initial-loader{animation:loaderKill .4s ease 3.5s forwards}` }} />
         </div>
         <script dangerouslySetInnerHTML={{ __html: `
           (function(){
