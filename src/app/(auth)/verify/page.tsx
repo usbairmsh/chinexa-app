@@ -7,12 +7,13 @@ import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/auth.store";
-import { DEFAULT_OTP } from "@/lib/constants";
 
 function VerifyForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const phone = searchParams.get("phone") || "";
+  const mode = searchParams.get("mode"); // "register" or null (login)
+  const otpPurpose = mode === "register" ? "register" : "login";
   const login = useAuthStore((s) => s.login);
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -20,6 +21,7 @@ function VerifyForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [resendTimer, setResendTimer] = useState(30);
+  const [resending, setResending] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
@@ -82,11 +84,14 @@ function VerifyForm() {
     setLoading(true);
     setError("");
     try {
-      if (code !== DEFAULT_OTP) {
-        throw new Error("Invalid OTP");
-      }
+      const verifyRes = await fetch("/api/otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verify", phone, purpose: otpPurpose, code }),
+      });
+      const verifyData = await verifyRes.json();
+      if (!verifyRes.ok) throw new Error(verifyData.error || "Invalid OTP");
 
-      const mode = searchParams.get("mode"); // "register" or null (login)
       const name = searchParams.get("name");
       const email = searchParams.get("email");
       const remember = searchParams.get("remember") !== "0"; // default true
@@ -136,8 +141,8 @@ function VerifyForm() {
           router.push(`/register?phone=${encodeURIComponent(phone)}`);
         }
       }
-    } catch {
-      setError("Invalid OTP. Please try again.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Invalid OTP. Please try again.");
       setOtp(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
     } finally {
@@ -153,6 +158,28 @@ function VerifyForm() {
       return;
     }
     autoSubmit(code);
+  };
+
+  const handleResend = async () => {
+    if (resending) return;
+    setResending(true);
+    setError("");
+    try {
+      const res = await fetch("/api/otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send", phone, purpose: otpPurpose }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to resend OTP");
+      setResendTimer(30);
+      setOtp(["", "", "", "", "", ""]);
+      inputRefs.current[0]?.focus();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to resend OTP");
+    } finally {
+      setResending(false);
+    }
   };
 
   if (success) {
@@ -233,10 +260,11 @@ function VerifyForm() {
             ) : (
               <button
                 type="button"
-                onClick={() => setResendTimer(30)}
-                className="text-sm text-secondary hover:text-secondary-dark font-medium py-2 px-3 rounded-lg"
+                onClick={handleResend}
+                disabled={resending}
+                className="text-sm text-secondary hover:text-secondary-dark font-medium py-2 px-3 rounded-lg disabled:opacity-50"
               >
-                Resend Code
+                {resending ? "Sending..." : "Resend Code"}
               </button>
             )}
           </div>

@@ -64,7 +64,15 @@ function RegisterForm() {
         return;
       }
 
-      // Not registered — redirect to OTP verification with registration data
+      // Not registered — send a real OTP, then go to verification with registration data
+      const otpRes = await fetch("/api/otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send", phone, purpose: "register" }),
+      });
+      const otpData = await otpRes.json();
+      if (!otpRes.ok) throw new Error(otpData.error || "Failed to send OTP");
+
       router.push(
         `/verify?phone=${encodeURIComponent(phone)}&mode=register&name=${encodeURIComponent(name.trim())}&email=${encodeURIComponent(email.trim())}`
       );

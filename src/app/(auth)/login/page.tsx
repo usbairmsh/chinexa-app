@@ -61,14 +61,21 @@ export default function LoginPage() {
         // Account is deactivated
         setError(data.error || "This account has been deactivated. Contact support to reactivate.");
       } else if (data.found) {
-        // Registered — go to OTP verification
+        // Registered — send a real OTP before going to verification
+        const otpRes = await fetch("/api/otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "send", phone: fullPhone, purpose: "login" }),
+        });
+        const otpData = await otpRes.json();
+        if (!otpRes.ok) throw new Error(otpData.error || "Failed to send OTP");
         router.push(`/verify?phone=${encodeURIComponent(fullPhone)}&method=${method}&remember=${rememberMe ? "1" : "0"}`);
       } else {
         // Not registered — go to registration page with phone pre-filled
         router.push(`/register?phone=${encodeURIComponent(fullPhone)}`);
       }
-    } catch {
-      setError("Something went wrong. Please try again.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -158,10 +165,6 @@ export default function LoginPage() {
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {loading ? "Checking..." : "Continue"}
             </Button>
-
-            <p className="text-xs text-center text-charcoal-lighter">
-              Use <span className="font-mono font-semibold">123456</span> as OTP for testing
-            </p>
 
             <div className="text-center pt-2 border-t border-border/30">
               <p className="text-sm text-charcoal-lighter">

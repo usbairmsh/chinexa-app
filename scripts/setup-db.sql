@@ -288,6 +288,19 @@ CREATE TABLE IF NOT EXISTS blog_posts (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
+-- OTP codes for phone verification (login, register, account deactivation)
+CREATE TABLE IF NOT EXISTS otp_codes (
+  id VARCHAR(50) PRIMARY KEY,
+  phone VARCHAR(20) NOT NULL,
+  code VARCHAR(10) NOT NULL,
+  purpose VARCHAR(30) NOT NULL,
+  attempts INT DEFAULT 0,
+  consumed BOOLEAN DEFAULT FALSE,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_phone_purpose (phone, purpose)
+) ENGINE=InnoDB;
+
 -- Admin Users
 CREATE TABLE IF NOT EXISTS admin_users (
   id VARCHAR(50) PRIMARY KEY,

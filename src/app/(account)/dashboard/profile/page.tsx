@@ -12,7 +12,6 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useAuthStore } from "@/stores/auth.store";
-import { DEFAULT_OTP } from "@/lib/constants";
 import { getInitials, cn } from "@/lib/utils";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { useCustomerBadge } from "@/hooks/use-customer-badge";
@@ -112,11 +111,26 @@ export default function ProfilePage() {
     setDeactivateOpen(true);
   };
 
-  const handleDeactivateNext = () => {
+  const handleDeactivateNext = async () => {
     if (deactivateStep === 1) {
       if (!deactivateReason) { setDeactivateError("Please select a reason"); return; }
+      if (!user?.phone) { setDeactivateError("Missing phone number on account"); return; }
       setDeactivateError("");
-      setDeactivateStep(2);
+      setDeactivateLoading(true);
+      try {
+        const res = await fetch("/api/otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "send", phone: user.phone, purpose: "deactivate" }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to send verification code");
+        setDeactivateStep(2);
+      } catch (err: unknown) {
+        setDeactivateError(err instanceof Error ? err.message : "Failed to send verification code");
+      } finally {
+        setDeactivateLoading(false);
+      }
     }
   };
 
@@ -125,14 +139,18 @@ export default function ProfilePage() {
       setDeactivateError("Please enter the 6-digit verification code");
       return;
     }
-    if (deactivateOtp !== DEFAULT_OTP) {
-      setDeactivateError("Invalid verification code. Please try again.");
-      return;
-    }
 
     setDeactivateLoading(true);
     setDeactivateError("");
     try {
+      const otpRes = await fetch("/api/otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verify", phone: user?.phone, purpose: "deactivate", code: deactivateOtp }),
+      });
+      const otpData = await otpRes.json();
+      if (!otpRes.ok) throw new Error(otpData.error || "Invalid verification code");
+
       const res = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -282,7 +300,10 @@ export default function ProfilePage() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setDeactivateOpen(false)}>Cancel</Button>
-                <Button variant="destructive" onClick={handleDeactivateNext}>Continue</Button>
+                <Button variant="destructive" onClick={handleDeactivateNext} disabled={deactivateLoading}>
+                  {deactivateLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                  Continue
+                </Button>
               </DialogFooter>
             </>
           )}
@@ -310,9 +331,6 @@ export default function ProfilePage() {
                   maxLength={6}
                   className="text-center text-lg font-mono tracking-widest"
                 />
-                <p className="text-[10px] text-charcoal-lighter text-center">
-                  Use <span className="font-mono font-semibold">123456</span> as code for testing
-                </p>
                 {deactivateError && <p className="text-xs text-destructive text-center">{deactivateError}</p>}
               </div>
               <DialogFooter>
