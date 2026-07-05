@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import pool, { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
-import { notifyTierUpgrade } from "@/lib/notify";
+import { notifyTierUpgrade, notifyAdmin } from "@/lib/notify";
 
 // ─── Helper: restore stock for an order's items ───
 async function restoreStock(conn: import("mysql2/promise").PoolConnection, orderId: string) {
@@ -263,6 +263,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           [fraudId, id, order.order_number, order.customer_id || null, order.customer_name, order.customer_phone, order.total, 85, riskFactors]
         );
         await logActivity(`Fraud alert created — order not received`, "fraud", fraudId, `Order ${order.order_number}`);
+        await notifyAdmin(
+          "fraud",
+          `Fraud alert: ${order.order_number}`,
+          `${order.customer_name} (${order.customer_phone}) claims order not received — ৳${Number(order.total).toLocaleString("en-BD")} flagged for review.`,
+          "/admin/fraud"
+        );
       }
 
       await logActivity(`Updated order status to ${newStatus}`, "order", id, `Order ${order.order_number}`);

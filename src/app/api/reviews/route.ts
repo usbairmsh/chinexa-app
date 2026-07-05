@@ -3,6 +3,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { validate, validationError, dependencyError } from "@/lib/validate";
+import { notifyAdmin } from "@/lib/notify";
 
 export async function GET(req: NextRequest) {
   try {
@@ -43,6 +44,17 @@ export async function POST(req: NextRequest) {
       [id, body.product_id, body.product_name || null, body.customer_id || null, body.customer_name, body.rating, body.title || null, body.comment, body.is_verified_purchase ? 1 : 0, body.is_approved ? 1 : 0]
     );
     await logActivity("Created review", "review", id, body.product_name);
+
+    // Alert admin only for customer-submitted reviews awaiting approval
+    if (!body.is_approved) {
+      await notifyAdmin(
+        "review",
+        `New review pending approval`,
+        `${body.customer_name} rated ${body.product_name || "a product"} ${Number(body.rating)}★ — "${String(body.comment).slice(0, 80)}"`,
+        "/admin/reviews"
+      );
+    }
+
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

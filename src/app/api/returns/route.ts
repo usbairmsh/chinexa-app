@@ -3,6 +3,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { validate, validationError } from "@/lib/validate";
+import { notifyAdmin } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 
@@ -94,6 +95,15 @@ export async function POST(req: NextRequest) {
     }
 
     await logActivity("Return requested", "order", id, `Order ${order.order_number}`);
+
+    // Notify admin about the incoming return request
+    await notifyAdmin(
+      "return",
+      `Return requested — ${order.order_number}`,
+      `${order.customer_name} requested a return (${String(body.reason).replace(/_/g, " ")})${body.description ? `: ${String(body.description).slice(0, 100)}` : ""}`,
+      `/admin/orders/${order.id}`
+    );
+
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

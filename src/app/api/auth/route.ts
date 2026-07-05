@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { notifyAdmin } from "@/lib/notify";
 
 // Normalize Bangladesh phone: "01712345678" → "+8801712345678"
 function normalizePhone(phone: string): string {
@@ -101,6 +102,9 @@ export async function POST(req: NextRequest) {
         "INSERT INTO customers (id, name, email, phone, is_active) VALUES (?, ?, ?, ?, TRUE)",
         [id, name, body.email || null, phone]
       );
+
+      // Alert admin about the new registration
+      await notifyAdmin("customer", `New customer: ${name}`, `${phone} just created an account.`, "/admin/customers");
 
       // Optional address
       if (body.address_line_1) {

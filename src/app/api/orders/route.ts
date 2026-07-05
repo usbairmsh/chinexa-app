@@ -4,6 +4,7 @@ import pool, { query, execute, escapeLike } from "@/lib/db";
 import { type RowDataPacket as StockRow } from "mysql2/promise";
 import { validate, validationError } from "@/lib/validate";
 import { logActivity } from "@/lib/log-activity";
+import { notifyAdmin } from "@/lib/notify";
 
 interface OrderRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -264,6 +265,33 @@ export async function POST(req: NextRequest) {
     }
 
     await logActivity("New order placed", "order", id, `${orderNumber} — ৳${body.total}`);
+
+    // ─── Admin notifications: new order + any items that fell to low stock ───
+    await notifyAdmin(
+      "order",
+      `New order ${orderNumber}`,
+      `${body.customer_name} — ৳${Number(body.total).toLocaleString("en-BD")} via ${body.payment_method || "COD"} (${body.items.length} item${body.items.length > 1 ? "s" : ""})`,
+      `/admin/orders/${id}`
+    );
+    try {
+      const productIds = [...new Set((body.items as { product_id?: string }[]).map((i) => i.product_id).filter(Boolean))] as string[];
+      if (productIds.length > 0) {
+        const placeholders = productIds.map(() => "?").join(",");
+        const lowStock = await query<RowDataPacket[]>(
+          `SELECT name, stock_quantity, min_stock FROM products WHERE id IN (${placeholders}) AND stock_quantity <= min_stock`,
+          productIds
+        );
+        for (const p of lowStock) {
+          await notifyAdmin(
+            "stock",
+            Number(p.stock_quantity) === 0 ? `Out of stock: ${p.name}` : `Low stock: ${p.name}`,
+            `${p.stock_quantity} left (minimum ${p.min_stock}). Restock soon.`,
+            "/admin/stock"
+          );
+        }
+      }
+    } catch {}
+
     return NextResponse.json({ success: true, id, order_number: orderNumber }, { status: 201 });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

@@ -40,6 +40,49 @@ export async function ensureNotificationTables() {
   }
 }
 
+// ─── Admin incoming notifications (new orders, returns, reviews, stock, fraud) ───
+export type AdminNotificationType = "order" | "return" | "review" | "stock" | "fraud" | "customer" | "system";
+
+let adminTableEnsured = false;
+export async function ensureAdminNotificationTable() {
+  if (adminTableEnsured) return;
+  try {
+    await execute(
+      `CREATE TABLE IF NOT EXISTS admin_notifications (
+        id VARCHAR(50) PRIMARY KEY,
+        type VARCHAR(20) DEFAULT 'system',
+        title VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        link VARCHAR(500),
+        is_read BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_read_created (is_read, created_at)
+      ) ENGINE=InnoDB`
+    );
+    adminTableEnsured = true;
+  } catch (err) {
+    console.error("[ensureAdminNotificationTable] failed:", err);
+  }
+}
+
+/** Notify the admin panel about a store event. Never throws — safe to call inline. */
+export async function notifyAdmin(
+  type: AdminNotificationType,
+  title: string,
+  message: string,
+  link?: string | null
+): Promise<void> {
+  try {
+    await ensureAdminNotificationTable();
+    await execute(
+      "INSERT INTO admin_notifications (id, type, title, message, link) VALUES (?, ?, ?, ?, ?)",
+      [notifId().replace("notif-", "anotif-"), type, title, message, link || null]
+    );
+  } catch (err) {
+    console.error("[notifyAdmin] failed:", err);
+  }
+}
+
 /** Insert the same notification for many customers (chunked multi-row INSERT). */
 export async function bulkNotify(customerIds: string[], payload: NotificationPayload): Promise<number> {
   await ensureNotificationTables();

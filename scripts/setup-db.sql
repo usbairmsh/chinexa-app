@@ -487,6 +487,18 @@ CREATE TABLE IF NOT EXISTS customer_notifications (
   FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- Admin Incoming Notifications (new orders, returns, reviews, stock, fraud)
+CREATE TABLE IF NOT EXISTS admin_notifications (
+  id VARCHAR(50) PRIMARY KEY,
+  type VARCHAR(20) DEFAULT 'system',
+  title VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  link VARCHAR(500),
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_read_created (is_read, created_at)
+) ENGINE=InnoDB;
+
 -- Notification Broadcasts (admin push-notification history)
 CREATE TABLE IF NOT EXISTS notification_broadcasts (
   id VARCHAR(50) PRIMARY KEY,
