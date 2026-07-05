@@ -10,7 +10,10 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/admin/", "/api/", "/dashboard/", "/checkout", "/verify", "/register"],
+        // Private/transactional areas. NOTE: /cart, /search, /wishlist, /login are
+        // intentionally NOT disallowed — they carry a noindex meta tag instead,
+        // which Google can only see if it is allowed to crawl them.
+        disallow: ["/admin/", "/admin", "/api/", "/dashboard/", "/dashboard", "/checkout", "/verify", "/register", "/invoice"],
       },
     ],
     sitemap: `${siteUrl}/sitemap.xml`,

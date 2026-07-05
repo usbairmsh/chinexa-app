@@ -142,8 +142,12 @@ const POLICIES: Record<string, Policy> = {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const policy = POLICIES[slug];
-  if (!policy) return { title: "Policy" };
-  return { title: `${policy.title} — ChineXa`, description: policy.intro };
+  if (!policy) return { title: "Policy", robots: { index: false, follow: true } };
+  return {
+    title: `${policy.title} — ChineXa`,
+    description: policy.intro,
+    alternates: { canonical: `/policies/${slug}` },
+  };
 }
 
 export default async function PolicyPage({ params }: { params: Promise<{ slug: string }> }) {

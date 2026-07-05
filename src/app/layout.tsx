@@ -13,80 +13,101 @@ export const viewport: Viewport = {
   themeColor: "#C0392B",
 };
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: {
-    default: "ChineXa — Premium Beauty, Skincare & Lifestyle Store in Bangladesh",
-    template: "%s | ChineXa",
-  },
-  description:
-    "Shop authentic Korean skincare, luxury bags, exquisite jewelry, fine perfumes & imported beauty products in Bangladesh. Free delivery on orders over ৳3,000. Genuine products with cash on delivery.",
-  keywords: [
-    "ChineXa", "chinexabd", "premium beauty Bangladesh", "Korean skincare Bangladesh",
-    "luxury bags", "jewelry", "perfumes", "beauty products Bangladesh",
-    "imported skincare", "K-beauty Bangladesh", "online beauty store Bangladesh",
-    "cosmetics BD", "original skincare products", "cash on delivery beauty",
-  ],
-  authors: [{ name: "ChineXa", url: siteUrl }],
-  creator: "ChineXa",
-  publisher: "ChineXa",
-  formatDetection: { telephone: true, email: true },
-  alternates: {
-    canonical: siteUrl,
-  },
-  openGraph: {
-    type: "website",
-    locale: "en_US",
-    url: siteUrl,
-    siteName: "ChineXa",
-    title: "ChineXa — Premium Beauty & Lifestyle Store in Bangladesh",
-    description:
-      "Shop authentic Korean skincare, luxury bags, jewelry, perfumes & imported beauty products. Free delivery on ৳3,000+.",
-    images: [
-      {
-        url: `${siteUrl}/logo.png`,
-        width: 1200,
-        height: 630,
-        alt: "ChineXa — Premium Beauty & Lifestyle",
-      },
+const DEFAULT_TITLE = "ChineXa — Premium Beauty, Skincare & Lifestyle Store in Bangladesh";
+const DEFAULT_DESCRIPTION =
+  "Shop authentic Korean skincare, luxury bags, exquisite jewelry, fine perfumes & imported beauty products in Bangladesh. Free delivery on orders over ৳3,000. Genuine products with cash on delivery.";
+
+export async function generateMetadata(): Promise<Metadata> {
+  // Pull admin-managed SEO overrides + verification codes (best-effort; fall back to defaults)
+  let title = DEFAULT_TITLE;
+  let description = DEFAULT_DESCRIPTION;
+  let googleVerification: string | undefined;
+  try {
+    const { query } = await import("@/lib/db");
+    const rows = await query(
+      "SELECT title, meta_description FROM seo_metadata WHERE page_path = '_global' LIMIT 1"
+    );
+    if (rows.length > 0) {
+      if (rows[0].title) title = rows[0].title as string;
+      if (rows[0].meta_description) description = rows[0].meta_description as string;
+    }
+    const settingRows = await query("SELECT value FROM settings WHERE `key` = 'tracking_config' LIMIT 1");
+    if (settingRows.length > 0) {
+      const cfg = typeof settingRows[0].value === "string" ? JSON.parse(settingRows[0].value) : settingRows[0].value;
+      if (cfg?.search_console) googleVerification = cfg.search_console as string;
+    }
+  } catch {}
+
+  return {
+    metadataBase: new URL(siteUrl),
+    title: {
+      default: title,
+      template: "%s | ChineXa",
+    },
+    description,
+    keywords: [
+      "ChineXa", "chinexabd", "premium beauty Bangladesh", "Korean skincare Bangladesh",
+      "luxury bags", "jewelry", "perfumes", "beauty products Bangladesh",
+      "imported skincare", "K-beauty Bangladesh", "online beauty store Bangladesh",
+      "cosmetics BD", "original skincare products", "cash on delivery beauty",
     ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "ChineXa — Premium Beauty & Lifestyle",
-    description:
-      "Shop authentic Korean skincare, luxury bags, jewelry & imported beauty products in Bangladesh.",
-    images: [`${siteUrl}/logo.png`],
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+    authors: [{ name: "ChineXa", url: siteUrl }],
+    creator: "ChineXa",
+    publisher: "ChineXa",
+    formatDetection: { telephone: true, email: true },
+    // NOTE: no site-wide `alternates.canonical` here. A global canonical made every
+    // page declare the HOMEPAGE as its canonical, so Google refused to index them
+    // ("Alternate page with proper canonical tag"). Each page sets its own canonical.
+    openGraph: {
+      type: "website",
+      locale: "en_US",
+      url: siteUrl,
+      siteName: "ChineXa",
+      title: "ChineXa — Premium Beauty & Lifestyle Store in Bangladesh",
+      description:
+        "Shop authentic Korean skincare, luxury bags, jewelry, perfumes & imported beauty products. Free delivery on ৳3,000+.",
+      images: [
+        {
+          url: `${siteUrl}/logo.png`,
+          width: 1200,
+          height: 630,
+          alt: "ChineXa — Premium Beauty & Lifestyle",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "ChineXa — Premium Beauty & Lifestyle",
+      description:
+        "Shop authentic Korean skincare, luxury bags, jewelry & imported beauty products in Bangladesh.",
+      images: [`${siteUrl}/logo.png`],
+    },
+    robots: {
       index: true,
       follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
     },
-  },
-  verification: {
-    // Add your verification codes here after setting up Search Console
-    // google: "your-google-verification-code",
-    // yandex: "your-yandex-code",
-  },
-  icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "48x48" },
-      { url: "/favicon/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-      { url: "/favicon/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      { url: "/favicon/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
-      { url: "/favicon/android-chrome-512x512.png", sizes: "512x512", type: "image/png" },
-    ],
-    apple: "/favicon/apple-touch-icon.png",
-    shortcut: "/favicon.ico",
-  },
-  manifest: "/favicon/site.webmanifest",
-};
+    verification: googleVerification ? { google: googleVerification } : undefined,
+    icons: {
+      icon: [
+        { url: "/favicon.ico", sizes: "48x48" },
+        { url: "/favicon/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+        { url: "/favicon/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+        { url: "/favicon/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
+        { url: "/favicon/android-chrome-512x512.png", sizes: "512x512", type: "image/png" },
+      ],
+      apple: "/favicon/apple-touch-icon.png",
+      shortcut: "/favicon.ico",
+    },
+    manifest: "/favicon/site.webmanifest",
+  };
+}
 
 export default function RootLayout({
   children,
