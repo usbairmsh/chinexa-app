@@ -4,11 +4,19 @@ import { query, execute } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/notifications?customer_id=xxx
+// GET /api/notifications?customer_id=xxx — list (or ?count_only=1 for the unread badge)
 export async function GET(req: NextRequest) {
   try {
     const customerId = req.nextUrl.searchParams.get("customer_id");
     if (!customerId) return NextResponse.json({ error: "customer_id required" }, { status: 400 });
+
+    if (req.nextUrl.searchParams.get("count_only")) {
+      const rows = await query<RowDataPacket[]>(
+        "SELECT COUNT(*) AS unread FROM customer_notifications WHERE customer_id = ? AND is_read = FALSE",
+        [customerId]
+      );
+      return NextResponse.json({ unread: Number(rows[0]?.unread) || 0 });
+    }
 
     const rows = await query<RowDataPacket[]>(
       "SELECT * FROM customer_notifications WHERE customer_id = ? ORDER BY created_at DESC LIMIT 50",

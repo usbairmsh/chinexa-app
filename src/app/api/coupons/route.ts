@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/log-activity";
 import { validate, validationError } from "@/lib/validate";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { resolveApplicableNames } from "@/lib/promotions";
+import { bulkNotify, resolvePromoRecipients } from "@/lib/notify";
 import type { OfferApplicability } from "@/types/offer";
 
 export async function GET() {
@@ -71,6 +72,24 @@ export async function POST(req: NextRequest) {
       ]
     );
     await logActivity("Created coupon", "coupon", id, body.code);
+
+    // Auto-notify applicable customers about the new coupon (non-blocking)
+    if (body.is_active !== false) {
+      try {
+        const discountLabel = body.discount_type === "fixed" ? `৳${body.discount_value} off` : `${body.discount_value}% off`;
+        const minOrder = body.min_order_amount ? ` on orders above ৳${body.min_order_amount}` : "";
+        const recipients = await resolvePromoRecipients(body.applicability || "store", body.applicable_ids || []);
+        await bulkNotify(recipients, {
+          type: "promo",
+          title: `New Coupon: ${body.code}`,
+          message: `Use code ${body.code} for ${discountLabel}${minOrder}. ${body.description || "Apply it at checkout!"}`,
+          link: "/cart",
+        });
+      } catch (err) {
+        console.error("[coupons] notify failed:", err);
+      }
+    }
+
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Error";

@@ -14,6 +14,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import { useCategoriesStore } from "@/stores/categories.store";
 import { MAIN_NAV, type NavItem } from "@/data/constants/navigation";
 import { Button } from "@/components/ui/button";
+import { NotificationBell } from "./notification-bell";
 
 export function Header() {
   const pathname = usePathname();
@@ -130,6 +131,15 @@ export function Header() {
                   priority
                 />
               </Link>
+
+              {/* Search — lives beside the logo (bell took its old spot on the right) */}
+              <button
+                onClick={() => setSearchOverlayOpen(true)}
+                className="flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all ml-1 lg:ml-3"
+                aria-label="Search"
+              >
+                <Search className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+              </button>
             </div>
 
             {/* ── CENTER: Navigation ── */}
@@ -208,14 +218,8 @@ export function Header() {
 
             {/* ── RIGHT: Action Icons (visible on all screens) ── */}
             <div className="flex items-center gap-1 shrink-0 ml-auto lg:ml-0">
-              {/* Search */}
-              <button
-                onClick={() => setSearchOverlayOpen(true)}
-                className="flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all"
-                aria-label="Search"
-              >
-                <Search className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
-              </button>
+              {/* Notifications — in the slot where search used to be */}
+              <NotificationBell />
 
               {/* Wishlist */}
               <Link

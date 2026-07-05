@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { notifyTierUpgrade } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 
@@ -101,6 +102,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "Invalid points type" }, { status: 400 });
     }
 
+    // Snapshot the balance before the change for tier-upgrade detection
+    const prevRows = await query<RowDataPacket[]>(
+      "SELECT COALESCE(SUM(points), 0) as total FROM customer_points WHERE customer_id = ?", [id]
+    );
+    const prevPoints = Number(prevRows[0]?.total) || 0;
+
     const entryId = `pts-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     await execute(
       "INSERT INTO customer_points (id, customer_id, points, type, reference_id, description) VALUES (?, ?, ?, ?, ?, ?)",
@@ -108,6 +115,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     );
 
     await logActivity(`${Number(points) > 0 ? "Added" : "Deducted"} ${Math.abs(Number(points))} points`, "customer", id, description || type);
+
+    // Congratulate the customer if this adjustment pushed them into a higher tier
+    await notifyTierUpgrade(id, prevPoints, prevPoints + Number(points)).catch(() => {});
+
     return NextResponse.json({ success: true, id: entryId }, { status: 201 });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

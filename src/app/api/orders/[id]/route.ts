@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import pool, { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { notifyTierUpgrade } from "@/lib/notify";
 
 // ─── Helper: restore stock for an order's items ───
 async function restoreStock(conn: import("mysql2/promise").PoolConnection, orderId: string) {
@@ -245,6 +246,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
               "INSERT INTO customer_notifications (id, customer_id, type, title, message) VALUES (?, ?, 'loyalty', ?, ?)",
               [pNotifId, order.customer_id, `You earned ${earnedPoints} points!`, `Your purchase from order ${order.order_number} earned you ${earnedPoints} loyalty points.`]
             ).catch(() => {});
+            // Congratulate the customer if these points pushed them into a higher tier
+            await notifyTierUpgrade(order.customer_id as string, currentPoints, currentPoints + earnedPoints).catch(() => {});
           }
         } catch {
           // Don't fail the status update if points fail

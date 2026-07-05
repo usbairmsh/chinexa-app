@@ -487,6 +487,19 @@ CREATE TABLE IF NOT EXISTS customer_notifications (
   FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- Notification Broadcasts (admin push-notification history)
+CREATE TABLE IF NOT EXISTS notification_broadcasts (
+  id VARCHAR(50) PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  type VARCHAR(20) DEFAULT 'system',
+  link VARCHAR(500),
+  audience VARCHAR(20) NOT NULL,
+  audience_detail TEXT,
+  recipient_count INT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
 -- Insert default settings
 INSERT IGNORE INTO settings (`key`, value) VALUES
   ('store_name', '"ChineXa"'),

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Bell, Package, Tag, Star, Gift } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,6 +29,7 @@ const typeConfig: Record<string, { icon: typeof Bell; color: string }> = {
 };
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,7 +127,10 @@ export default function NotificationsPage() {
               >
                 <Card
                   className={cn("cursor-pointer", !notif.is_read && "bg-primary-50/50 border-secondary/10")}
-                  onClick={() => !notif.is_read && handleMarkRead(notif.id)}
+                  onClick={() => {
+                    if (!notif.is_read) handleMarkRead(notif.id);
+                    if (notif.link) router.push(notif.link);
+                  }}
                 >
                   <CardContent className="p-4 flex gap-3">
                     <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl shrink-0", config.color)}>

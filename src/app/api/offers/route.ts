@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/log-activity";
 import { validate, validationError } from "@/lib/validate";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { resolveApplicableNames } from "@/lib/promotions";
+import { bulkNotify, resolvePromoRecipients } from "@/lib/notify";
 import type { OfferApplicability } from "@/types/offer";
 
 interface OfferRow extends RowDataPacket { [key: string]: unknown; }
@@ -74,6 +75,22 @@ export async function POST(req: NextRequest) {
       ]
     );
     await logActivity("Created offer", "offer", id, body.title);
+
+    // Auto-notify applicable customers about the new offer (non-blocking)
+    if (body.is_active !== false) {
+      try {
+        const recipients = await resolvePromoRecipients(body.applicability || "store", body.applicable_ids || []);
+        await bulkNotify(recipients, {
+          type: "promo",
+          title: `New Offer: ${body.title}`,
+          message: `${label}${body.description ? ` — ${body.description}` : ""}. Shop now and save!`,
+          link: "/products",
+        });
+      } catch (err) {
+        console.error("[offers] notify failed:", err);
+      }
+    }
+
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

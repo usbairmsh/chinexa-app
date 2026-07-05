@@ -47,6 +47,7 @@ const navSections = [
       { icon: ImageIcon, label: "Banners", href: "/admin/banners", perm: "banners" },
       { icon: Tag, label: "Coupons", href: "/admin/coupons", perm: "coupons" },
       { icon: Gift, label: "Offers", href: "/admin/offers", perm: "offers" },
+      { icon: Bell, label: "Notifications", href: "/admin/notifications", perm: "customers" },
       { icon: Star, label: "Reviews", href: "/admin/reviews", perm: "reviews" },
       { icon: FileText, label: "Blog", href: "/admin/blog", perm: "blog" },
       { icon: LayoutDashboard, label: "Homepage", href: "/admin/homepage-builder", perm: "homepage" },

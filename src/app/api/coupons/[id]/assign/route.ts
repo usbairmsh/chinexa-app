@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { bulkNotify, getTierCustomerIds } from "@/lib/notify";
 
 // POST /api/coupons/[id]/assign — assign coupon to customer(s) or tier
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -39,6 +40,30 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     await logActivity("Assigned coupon", "coupon", couponId, tier_name ? `Tier: ${tier_name}` : `${inserted.length} customer(s)`);
+
+    // Notify recipients that a coupon was added to their account (non-blocking)
+    try {
+      const couponRows = await query<RowDataPacket[]>(
+        "SELECT code, discount_type, discount_value FROM coupons WHERE id = ? LIMIT 1",
+        [couponId]
+      );
+      if (couponRows.length > 0) {
+        const c = couponRows[0];
+        const discountLabel = c.discount_type === "fixed" ? `৳${Number(c.discount_value)} off` : `${Number(c.discount_value)}% off`;
+        const recipients: string[] = [];
+        if (customer_ids && Array.isArray(customer_ids)) recipients.push(...customer_ids);
+        if (tier_name) recipients.push(...(await getTierCustomerIds([tier_name])));
+        await bulkNotify(recipients, {
+          type: "promo",
+          title: "A coupon was added to your account 🎁",
+          message: `Coupon ${c.code} (${discountLabel}) is now available on your account. Use it at checkout!`,
+          link: "/cart",
+        });
+      }
+    } catch (err) {
+      console.error("[coupon assign] notify failed:", err);
+    }
+
     return NextResponse.json({ success: true, assigned: inserted.length }, { status: 201 });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
