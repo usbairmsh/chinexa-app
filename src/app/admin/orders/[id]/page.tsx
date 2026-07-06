@@ -6,18 +6,25 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowLeft, Package, Truck, CheckCircle2, Clock, MapPin, CreditCard,
-  Copy, Phone, Mail, User, Printer, Download, XCircle, ArrowUpRight, MessageSquare, ShoppingCart, Edit, Save, Loader2, RotateCcw
+  Copy, Phone, Mail, User, Printer, Download, XCircle, ArrowUpRight, MessageSquare, ShoppingCart, Edit, Save, Loader2, RotateCcw, Trash2, Plus
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
+
+interface EditableItem {
+  product_id: string | null; variant_id: string | null;
+  product_name: string; product_image: string | null; product_slug: string | null; variant: string | null;
+  quantity: number; unit_price: number;
+}
 
 const statusIcons: Record<string, typeof Clock> = {
   pending: Clock, confirmed: CheckCircle2, processing: Package,
@@ -43,6 +50,19 @@ export default function OrderDetailPage() {
   const [editPaymentStatus, setEditPaymentStatus] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [editSaving, setEditSaving] = useState(false);
+
+  // Edit order — items, pricing, shipping address
+  const [editItems, setEditItems] = useState<EditableItem[]>([]);
+  const [editShippingCost, setEditShippingCost] = useState(0);
+  const [editDiscount, setEditDiscount] = useState(0);
+  const [editTax, setEditTax] = useState(0);
+  const [editShipName, setEditShipName] = useState("");
+  const [editShipPhone, setEditShipPhone] = useState("");
+  const [editShipAddress, setEditShipAddress] = useState("");
+  const [editShipCity, setEditShipCity] = useState("");
+  const [editShipDistrict, setEditShipDistrict] = useState("");
+  const [editShipDivision, setEditShipDivision] = useState("");
+  const [editShipPostal, setEditShipPostal] = useState("");
   const [loading, setLoading] = useState(true);
   const [note, setNote] = useState("");
   const [returns, setReturns] = useState<Record<string, unknown>[]>([]);
@@ -86,7 +106,42 @@ export default function OrderDetailPage() {
     setEditStatus(String(order.status || "pending"));
     setEditPaymentStatus(String(order.payment_status || "pending"));
     setEditNotes(String(order.notes || ""));
+
+    const items = (order.items as Record<string, unknown>[]) || [];
+    setEditItems(items.map((i) => ({
+      product_id: (i.product_id as string) || null,
+      variant_id: (i.variant_id as string) || null,
+      product_name: (i.product_name as string) || "",
+      product_image: (i.product_image as string) || null,
+      product_slug: (i.product_slug as string) || null,
+      variant: (i.variant as string) || null,
+      quantity: Number(i.quantity) || 1,
+      unit_price: Number(i.unit_price) || 0,
+    })));
+    setEditShippingCost(Number(order.shipping_cost) || 0);
+    setEditDiscount(Number(order.discount) || 0);
+    setEditTax(Number(order.tax) || 0);
+
+    const ship = (order.shipping_address as Record<string, unknown>) || (order.billing_address as Record<string, unknown>) || {};
+    setEditShipName((ship.name as string) || "");
+    setEditShipPhone((ship.phone as string) || "");
+    setEditShipAddress((ship.address_line_1 as string) || "");
+    setEditShipCity((ship.city as string) || "");
+    setEditShipDistrict((ship.district as string) || "");
+    setEditShipDivision((ship.division as string) || "");
+    setEditShipPostal((ship.postal_code as string) || "");
+
     setEditOrderOpen(true);
+  };
+
+  const editSubtotal = editItems.reduce((s, i) => s + i.quantity * i.unit_price, 0);
+  const editTotal = Math.max(0, editSubtotal - editDiscount + editShippingCost + editTax);
+
+  const updateEditItem = (index: number, patch: Partial<EditableItem>) => {
+    setEditItems((prev) => prev.map((it, i) => i === index ? { ...it, ...patch } : it));
+  };
+  const removeEditItem = (index: number) => {
+    setEditItems((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSaveOrder = async () => {
@@ -95,9 +150,19 @@ export default function OrderDetailPage() {
       await fetch(`/api/orders/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: editStatus, payment_status: editPaymentStatus, notes: editNotes }),
+        body: JSON.stringify({
+          status: editStatus, payment_status: editPaymentStatus, notes: editNotes,
+          items: editItems,
+          shipping_cost: editShippingCost, discount: editDiscount, tax: editTax,
+          shipping_address: {
+            name: editShipName, phone: editShipPhone, address_line_1: editShipAddress,
+            city: editShipCity, district: editShipDistrict, division: editShipDivision, postal_code: editShipPostal,
+          },
+        }),
       });
-      setOrder((prev) => prev ? { ...prev, status: editStatus, payment_status: editPaymentStatus, notes: editNotes } : prev);
+      // Refetch — items/totals/address changes are non-trivial to merge locally
+      const fresh = await fetch(`/api/orders/${id}`).then((r) => r.json());
+      setOrder(fresh);
       setEditOrderOpen(false);
     } catch {} finally { setEditSaving(false); }
   };
@@ -313,34 +378,116 @@ export default function OrderDetailPage() {
 
       {/* Edit Order Dialog */}
       <Dialog open={editOrderOpen} onOpenChange={setEditOrderOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Edit className="h-5 w-5 text-secondary" /> Edit Order</DialogTitle>
             <DialogDescription>{(order.order_number as string) || id}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div>
-              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Order Status</label>
-              <Select value={editStatus} onValueChange={setEditStatus}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {["pending", "confirmed", "processing", "shipped", "on_delivery", "received", "not_received"].map((s) => (
-                    <SelectItem key={s} value={s} className="capitalize">{s.replace("_", " ")}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="space-y-5 py-2">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-charcoal-light mb-1.5">Order Status</label>
+                <Select value={editStatus} onValueChange={setEditStatus}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["pending", "confirmed", "processing", "shipped", "on_delivery", "received", "not_received"].map((s) => (
+                      <SelectItem key={s} value={s} className="capitalize">{s.replace("_", " ")}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-charcoal-light mb-1.5">Payment Status</label>
+                <Select value={editPaymentStatus} onValueChange={setEditPaymentStatus}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["pending", "paid", "failed", "refunded"].map((s) => (
+                      <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+
+            {/* Items */}
             <div>
-              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Payment Status</label>
-              <Select value={editPaymentStatus} onValueChange={setEditPaymentStatus}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {["pending", "paid", "failed", "refunded"].map((s) => (
-                    <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-charcoal-light">Order Items</label>
+                <button
+                  type="button"
+                  onClick={() => setEditItems((prev) => [...prev, { product_id: null, variant_id: null, product_name: "New Item", product_image: null, product_slug: null, variant: null, quantity: 1, unit_price: 0 }])}
+                  className="flex items-center gap-1 text-xs text-secondary hover:text-secondary-dark font-medium"
+                >
+                  <Plus className="h-3 w-3" /> Add Item
+                </button>
+              </div>
+              <div className="space-y-2">
+                {editItems.map((item, i) => (
+                  <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-pearl/40">
+                    <input
+                      value={item.product_name}
+                      onChange={(e) => updateEditItem(i, { product_name: e.target.value })}
+                      className="flex-1 min-w-0 h-9 rounded-lg border border-border px-2 text-xs text-charcoal outline-none focus:border-secondary"
+                      placeholder="Product name"
+                    />
+                    <input
+                      type="number"
+                      min={1}
+                      value={item.quantity}
+                      onChange={(e) => updateEditItem(i, { quantity: Math.max(1, Math.floor(Number(e.target.value) || 1)) })}
+                      className="w-16 h-9 rounded-lg border border-border px-2 text-xs text-charcoal outline-none focus:border-secondary"
+                      placeholder="Qty"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={item.unit_price}
+                      onChange={(e) => updateEditItem(i, { unit_price: Math.max(0, Number(e.target.value) || 0) })}
+                      className="w-24 h-9 rounded-lg border border-border px-2 text-xs text-charcoal outline-none focus:border-secondary"
+                      placeholder="Unit price"
+                    />
+                    <span className="w-20 shrink-0 text-xs text-charcoal-lighter text-right">{formatCurrency(item.quantity * item.unit_price)}</span>
+                    <button type="button" onClick={() => removeEditItem(i)} className="shrink-0 text-charcoal-lighter hover:text-destructive">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+                {editItems.length === 0 && <p className="text-xs text-charcoal-lighter text-center py-3">No items</p>}
+              </div>
             </div>
+
+            {/* Pricing */}
+            <div className="grid grid-cols-3 gap-3">
+              <Input label="Shipping" type="number" min={0} step="0.01" value={editShippingCost} onChange={(e) => setEditShippingCost(Math.max(0, Number(e.target.value) || 0))} />
+              <Input label="Discount" type="number" min={0} step="0.01" value={editDiscount} onChange={(e) => setEditDiscount(Math.max(0, Number(e.target.value) || 0))} />
+              <Input label="Tax" type="number" min={0} step="0.01" value={editTax} onChange={(e) => setEditTax(Math.max(0, Number(e.target.value) || 0))} />
+            </div>
+            <div className="flex justify-between text-sm p-3 rounded-lg bg-pearl/50">
+              <span className="text-charcoal-lighter">Subtotal {formatCurrency(editSubtotal)} — New Total</span>
+              <span className="font-semibold text-charcoal">{formatCurrency(editTotal)}</span>
+            </div>
+
+            {/* Shipping Address */}
+            <div>
+              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Shipping Address</label>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <Input label="Name" value={editShipName} onChange={(e) => setEditShipName(e.target.value)} />
+                <Input label="Phone" value={editShipPhone} onChange={(e) => setEditShipPhone(e.target.value)} />
+              </div>
+              <div className="mt-3">
+                <Input label="Address" value={editShipAddress} onChange={(e) => setEditShipAddress(e.target.value)} />
+              </div>
+              <div className="grid sm:grid-cols-3 gap-3 mt-3">
+                <Input label="City" value={editShipCity} onChange={(e) => setEditShipCity(e.target.value)} />
+                <Input label="District" value={editShipDistrict} onChange={(e) => setEditShipDistrict(e.target.value)} />
+                <Input label="Division" value={editShipDivision} onChange={(e) => setEditShipDivision(e.target.value)} />
+              </div>
+              <div className="mt-3">
+                <Input label="Postal Code" value={editShipPostal} onChange={(e) => setEditShipPostal(e.target.value)} />
+              </div>
+            </div>
+
             <Textarea label="Order Notes" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Internal notes..." className="min-h-[60px]" />
           </div>
           <DialogFooter>

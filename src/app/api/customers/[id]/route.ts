@@ -61,7 +61,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const body = await req.json();
     const fields: string[] = []; const values: (string | number | null)[] = [];
-    for (const [k, col] of Object.entries({ name: "name", email: "email", phone: "phone" })) {
+    for (const [k, col] of Object.entries({ name: "name", email: "email", phone: "phone", birthdate: "birthdate" })) {
       if (body[k] !== undefined) { fields.push(`${col} = ?`); values.push(body[k]); }
     }
     if (body.is_active !== undefined) { fields.push("is_active = ?"); values.push(body.is_active ? 1 : 0); }

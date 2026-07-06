@@ -1,5 +1,6 @@
 // BulkSMSBD gateway integration — http://bulksmsbd.net/api/smsapi
 const SMS_API_URL = "http://bulksmsbd.net/api/smsapi";
+const SMS_BALANCE_API_URL = "http://bulksmsbd.net/api/getBalanceApi";
 
 // Codes the gateway returns that mean the SMS was NOT sent successfully.
 // (202 is the only success code — everything else is an error per their docs.)
@@ -80,4 +81,41 @@ export async function sendSms(phone: string, message: string): Promise<{ success
 
 export function generateOtpCode(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+export async function getSmsBalance(): Promise<{ success: boolean; balance?: number; error?: string }> {
+  const apiKey = process.env.SMS_API_KEY;
+  if (!apiKey) {
+    return { success: false, error: "SMS gateway is not configured (missing SMS_API_KEY)" };
+  }
+
+  try {
+    const res = await fetch(SMS_BALANCE_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ api_key: apiKey }).toString(),
+    });
+    const text = (await res.text()).trim();
+
+    // Successful response is typically a bare number (remaining SMS credits).
+    // Errors come back the same way sendSms's do — either a numeric code or
+    // a JSON object with response_code/error_message.
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed && typeof parsed === "object" && "response_code" in parsed) {
+        const code = String(parsed.response_code);
+        return { success: false, error: parsed.error_message || SMS_ERROR_MESSAGES[code] || `SMS gateway error (code ${code})` };
+      }
+      if (typeof parsed === "number") return { success: true, balance: parsed };
+    } catch {
+      // not JSON — fall through to bare-number handling below
+    }
+
+    const numeric = Number(text);
+    if (!Number.isNaN(numeric) && text !== "") return { success: true, balance: numeric };
+
+    return { success: false, error: SMS_ERROR_MESSAGES[text] || `Unexpected balance response: ${text}` };
+  } catch {
+    return { success: false, error: "Could not reach SMS gateway" };
+  }
 }

@@ -91,6 +91,26 @@ export default function AdminSettingsPage() {
   const [notifSaving, setNotifSaving] = useState(false);
   const [notifSaved, setNotifSaved] = useState(false);
 
+  // ═══ SMS GATEWAY ═══
+  const [smsBalance, setSmsBalance] = useState<number | null>(null);
+  const [smsBalanceError, setSmsBalanceError] = useState("");
+  const [smsBalanceLoading, setSmsBalanceLoading] = useState(false);
+
+  const fetchSmsBalance = async () => {
+    setSmsBalanceLoading(true);
+    setSmsBalanceError("");
+    try {
+      const res = await fetch("/api/sms/balance");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch SMS balance");
+      setSmsBalance(data.balance);
+    } catch (err: unknown) {
+      setSmsBalanceError(err instanceof Error ? err.message : "Failed to fetch SMS balance");
+    } finally {
+      setSmsBalanceLoading(false);
+    }
+  };
+
   // ═══ LOAD ALL ═══
   useEffect(() => {
     setMounted(true);
@@ -361,6 +381,30 @@ export default function AdminSettingsPage() {
       {activeTab === "notifications" && (
         <div className="space-y-5">
           <div className="flex justify-end"><SaveBtn saving={notifSaving} saved={notifSaved} onSave={saveNotifications} /></div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2"><Bell className="h-4 w-4 text-secondary" /> SMS Gateway</CardTitle>
+              <CardDescription>BulkSMSBD account balance</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div>
+                  {smsBalance !== null && !smsBalanceError ? (
+                    <p className="text-2xl font-semibold text-charcoal">{smsBalance.toLocaleString()} <span className="text-sm font-normal text-charcoal-lighter">SMS credits</span></p>
+                  ) : smsBalanceError ? (
+                    <p className="text-sm text-destructive">{smsBalanceError}</p>
+                  ) : (
+                    <p className="text-sm text-charcoal-lighter">{smsBalanceLoading ? "Checking balance..." : "Balance not checked yet"}</p>
+                  )}
+                </div>
+                <AdminButton variant="outline" size="sm" onClick={fetchSmsBalance} disabled={smsBalanceLoading}>
+                  {smsBalanceLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} {smsBalanceLoading ? "Checking..." : "Check Balance"}
+                </AdminButton>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid lg:grid-cols-2 gap-5">
             {[
               { title: "Order Notifications", items: [{ key: "order_placed", label: "Order Placed", desc: "New order" }, { key: "order_confirmed", label: "Confirmed", desc: "Admin confirms" }, { key: "order_shipped", label: "Shipped", desc: "Shipping update" }, { key: "order_delivered", label: "Delivered", desc: "Delivery done" }, { key: "order_cancelled", label: "Cancelled", desc: "Cancellation" }] },

@@ -278,6 +278,121 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (body.payment_status) await execute("UPDATE orders SET payment_status = ? WHERE id = ?", [body.payment_status, id]);
     if (body.notes !== undefined) await execute("UPDATE orders SET notes = ? WHERE id = ?", [body.notes, id]);
 
+    // ─── Full order edit: items/quantities/prices/discount/shipping/address (super-admin only, enforced client-side) ───
+    if (Array.isArray(body.items)) {
+      const conn = await pool.getConnection();
+      try {
+        await conn.beginTransaction();
+
+        // Re-read inside the transaction in case status changed above
+        const [freshRows] = await conn.execute<RowDataPacket[]>("SELECT * FROM orders WHERE id = ?", [id]);
+        const freshOrder = freshRows[0];
+        const stockDeducted = Boolean(freshOrder.stock_deducted);
+
+        const [oldItemRows] = await conn.execute<RowDataPacket[]>(
+          "SELECT product_id, variant_id, quantity FROM order_items WHERE order_id = ?", [id]
+        );
+
+        // Adjust stock by the delta between old and new quantities, keyed by
+        // product+variant — only if this order has actually deducted stock
+        // (unconfirmed/pending orders never held stock in the first place).
+        if (stockDeducted) {
+          const key = (productId: unknown, variantId: unknown) => `${productId || ""}:${variantId || ""}`;
+          const oldQty = new Map<string, number>();
+          for (const item of oldItemRows) {
+            const k = key(item.product_id, item.variant_id);
+            oldQty.set(k, (oldQty.get(k) || 0) + Number(item.quantity));
+          }
+          const newQty = new Map<string, number>();
+          for (const item of body.items as Record<string, unknown>[]) {
+            const k = key(item.product_id, item.variant_id);
+            newQty.set(k, (newQty.get(k) || 0) + Number(item.quantity));
+          }
+          const allKeys = new Set([...oldQty.keys(), ...newQty.keys()]);
+          for (const k of allKeys) {
+            const [productId, variantId] = k.split(":");
+            const delta = (newQty.get(k) || 0) - (oldQty.get(k) || 0);
+            if (delta === 0 || !productId) continue;
+            // delta > 0 means more was ordered -> deduct extra stock; delta < 0 -> restore
+            if (variantId) {
+              await conn.execute("UPDATE product_variants SET stock = GREATEST(stock - ?, 0) WHERE id = ?", [delta, variantId]);
+            }
+            await conn.execute("UPDATE products SET stock_quantity = GREATEST(stock_quantity - ?, 0) WHERE id = ?", [delta, productId]);
+          }
+        }
+
+        // Replace line items
+        await conn.execute("DELETE FROM order_items WHERE order_id = ?", [id]);
+        let subtotal = 0;
+        for (const item of body.items as Record<string, unknown>[]) {
+          const quantity = Math.max(1, Math.floor(Number(item.quantity) || 1));
+          const unitPrice = Math.max(0, Number(item.unit_price) || 0);
+          const totalPrice = quantity * unitPrice;
+          subtotal += totalPrice;
+          await conn.execute(
+            "INSERT INTO order_items (id, order_id, product_id, variant_id, product_name, product_image, product_slug, variant, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+              `oi-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, id,
+              (item.product_id as string) || null, (item.variant_id as string) || null,
+              (item.product_name as string) || "Item", (item.product_image as string) || null,
+              (item.product_slug as string) || null, (item.variant as string) || null,
+              quantity, unitPrice, totalPrice,
+            ] as (string | number | null)[]
+          );
+        }
+
+        // Recalculate totals server-side — never trust a client-sent total
+        const shippingCost = Math.max(0, Number(body.shipping_cost) || 0);
+        const discount = Math.max(0, Number(body.discount) || 0);
+        const tax = Math.max(0, Number(body.tax) || 0);
+        const total = Math.max(0, subtotal - discount + shippingCost + tax);
+
+        await conn.execute(
+          "UPDATE orders SET subtotal = ?, shipping_cost = ?, discount = ?, tax = ?, total = ?, updated_at = NOW() WHERE id = ?",
+          [subtotal, shippingCost, discount, tax, total, id]
+        );
+
+        // Optional shipping address update
+        if (body.shipping_address) {
+          const a = body.shipping_address as Record<string, unknown>;
+          const [existingShip] = await conn.execute<RowDataPacket[]>(
+            "SELECT id FROM order_addresses WHERE order_id = ? AND type = 'shipping' LIMIT 1", [id]
+          );
+          if (existingShip.length > 0) {
+            await conn.execute(
+              "UPDATE order_addresses SET name = ?, phone = ?, address_line_1 = ?, address_line_2 = ?, city = ?, district = ?, division = ?, postal_code = ? WHERE id = ?",
+              [
+                (a.name as string) || "", (a.phone as string) || "", (a.address_line_1 as string) || "",
+                (a.address_line_2 as string) || null, (a.city as string) || null, (a.district as string) || null,
+                (a.division as string) || null, (a.postal_code as string) || null, existingShip[0].id,
+              ] as (string | number | null)[]
+            );
+          } else {
+            await conn.execute(
+              "INSERT INTO order_addresses (id, order_id, type, name, phone, address_line_1, address_line_2, city, district, division, postal_code) VALUES (?, ?, 'shipping', ?, ?, ?, ?, ?, ?, ?, ?)",
+              [
+                `oaddr-${Date.now()}`, id,
+                (a.name as string) || "", (a.phone as string) || "", (a.address_line_1 as string) || "",
+                (a.address_line_2 as string) || null, (a.city as string) || null, (a.district as string) || null,
+                (a.division as string) || null, (a.postal_code as string) || null,
+              ] as (string | number | null)[]
+            );
+          }
+        }
+
+        await conn.commit();
+        conn.release();
+      } catch (txError) {
+        await conn.rollback().catch(() => {});
+        conn.release();
+        throw txError;
+      }
+
+      await execute("INSERT INTO order_timeline (order_id, status, note) VALUES (?, ?, ?)",
+        [id, order.status as string, "Order details edited by admin"]);
+      await logActivity("Edited order items/pricing", "order", id, `Order ${order.order_number}`);
+    }
+
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

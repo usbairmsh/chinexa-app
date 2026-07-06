@@ -76,6 +76,7 @@ export default function AdminCustomersPage() {
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [editBirthdate, setEditBirthdate] = useState("");
   const [editActive, setEditActive] = useState(true);
   const [editSaving, setEditSaving] = useState(false);
 
@@ -198,6 +199,7 @@ export default function AdminCustomersPage() {
     setEditName(selectedCustomer.name);
     setEditEmail(selectedCustomer.email);
     setEditPhone(selectedCustomer.phone);
+    setEditBirthdate(selectedCustomer.birthdate ? selectedCustomer.birthdate.slice(0, 10) : "");
     setEditActive(selectedCustomer.isActive);
     setEditCustomerOpen(true);
   };
@@ -209,11 +211,14 @@ export default function AdminCustomersPage() {
       await fetch(`/api/customers/${selectedCustomer.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editName.trim(), email: editEmail.trim() || null, phone: editPhone.trim(), is_active: editActive }),
+        body: JSON.stringify({
+          name: editName.trim(), email: editEmail.trim() || null, phone: editPhone.trim(),
+          birthdate: editBirthdate || null, is_active: editActive,
+        }),
       });
       setEditCustomerOpen(false);
       // Update local state
-      setSelectedCustomer({ ...selectedCustomer, name: editName.trim(), email: editEmail.trim(), phone: editPhone.trim(), isActive: editActive });
+      setSelectedCustomer({ ...selectedCustomer, name: editName.trim(), email: editEmail.trim(), phone: editPhone.trim(), birthdate: editBirthdate, isActive: editActive });
       fetchCustomers();
     } catch {} finally { setEditSaving(false); }
   };
@@ -563,6 +568,7 @@ export default function AdminCustomersPage() {
               <Input label="Full Name" value={editName} onChange={(e) => setEditName(e.target.value)} />
               <Input label="Email" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
               <Input label="Phone" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
+              <Input label="Birthdate" type="date" value={editBirthdate} onChange={(e) => setEditBirthdate(e.target.value)} />
               <div className="flex items-center gap-3">
                 <Switch checked={editActive} onCheckedChange={setEditActive} />
                 <span className="text-sm text-charcoal-lighter">{editActive ? "Active" : "Inactive"}</span>
