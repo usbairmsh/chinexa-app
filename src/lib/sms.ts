@@ -97,13 +97,17 @@ export async function getSmsBalance(): Promise<{ success: boolean; balance?: num
     });
     const text = (await res.text()).trim();
 
-    // Successful response is typically a bare number (remaining SMS credits).
-    // Errors come back the same way sendSms's do — either a numeric code or
-    // a JSON object with response_code/error_message.
+    // Real response shape: {"response_code":202,"balance":100} on success,
+    // or {"response_code":<error code>,"error_message":"..."} on failure.
+    // (202 is BulkSMSBD's universal "success" code across all their APIs —
+    // same as sendSms's success check — it's not specific to the SMS-send endpoint.)
     try {
       const parsed = JSON.parse(text);
       if (parsed && typeof parsed === "object" && "response_code" in parsed) {
         const code = String(parsed.response_code);
+        if (code === "202" && typeof parsed.balance === "number") {
+          return { success: true, balance: parsed.balance };
+        }
         return { success: false, error: parsed.error_message || SMS_ERROR_MESSAGES[code] || `SMS gateway error (code ${code})` };
       }
       if (typeof parsed === "number") return { success: true, balance: parsed };
