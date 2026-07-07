@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Bell, Package, Tag, Star, Gift } from "lucide-react";
+import { Bell, Package, Tag, Star, Gift, ArrowRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useAuthStore } from "@/stores/auth.store";
 import { formatDateShort, cn } from "@/lib/utils";
 
@@ -33,6 +34,7 @@ export default function NotificationsPage() {
   const user = useAuthStore((s) => s.user);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Notification | null>(null);
 
   const fetchNotifications = async () => {
     if (!user?.id) { setLoading(false); return; }
@@ -129,7 +131,9 @@ export default function NotificationsPage() {
                   className={cn("cursor-pointer", !notif.is_read && "bg-primary-50/50 border-secondary/10")}
                   onClick={() => {
                     if (!notif.is_read) handleMarkRead(notif.id);
-                    if (notif.link) router.push(notif.link);
+                    // Show in a modal instead of navigating straight to `link` —
+                    // stale/invalid stored links would otherwise 404.
+                    setSelected(notif);
                   }}
                 >
                   <CardContent className="p-4 flex gap-3">
@@ -155,6 +159,39 @@ export default function NotificationsPage() {
           })}
         </div>
       )}
+
+      {/* Notification detail modal — replaces the old direct router.push(link),
+          which 404'd whenever a stored link was stale/invalid. */}
+      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent className="max-w-sm">
+          {selected && (() => {
+            const config = typeConfig[selected.type] || typeConfig.system;
+            const Icon = config.icon;
+            return (
+              <>
+                <DialogHeader>
+                  <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl mb-2", config.color)}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <DialogTitle>{selected.title}</DialogTitle>
+                  <DialogDescription>{timeAgo(selected.created_at)}</DialogDescription>
+                </DialogHeader>
+                <p className="text-sm text-charcoal-light whitespace-pre-wrap">{selected.message}</p>
+                {selected.link && (
+                  <DialogFooter>
+                    <Button
+                      variant="secondary"
+                      onClick={() => { const link = selected.link!; setSelected(null); router.push(link); }}
+                    >
+                      View <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                    </Button>
+                  </DialogFooter>
+                )}
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

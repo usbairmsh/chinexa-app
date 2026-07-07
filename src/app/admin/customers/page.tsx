@@ -99,7 +99,11 @@ export default function AdminCustomersPage() {
   const [smsSelected, setSmsSelected] = useState<{ id: string; name: string; phone: string }[]>([]);
   const [smsMessage, setSmsMessage] = useState("");
   const [smsSending, setSmsSending] = useState(false);
-  const [smsResult, setSmsResult] = useState("");
+  // Result dialog — shown after a send attempt finishes, separate from the
+  // compose dialog so success/failure is unmistakable instead of small inline text.
+  const [smsResultDialog, setSmsResultDialog] = useState<{
+    ok: boolean; title: string; message: string; failedRecipients?: { phone: string; error?: string }[];
+  } | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -277,7 +281,7 @@ export default function AdminCustomersPage() {
   };
 
   const openSmsDialog = () => {
-    setSmsSearch(""); setSmsSearchResults([]); setSmsSelected([]); setSmsMessage(""); setSmsResult("");
+    setSmsSearch(""); setSmsSearchResults([]); setSmsSelected([]); setSmsMessage("");
     setSmsOpen(true);
   };
 
@@ -298,7 +302,6 @@ export default function AdminCustomersPage() {
   const handleSendSms = async () => {
     if (smsSelected.length === 0 || !smsMessage.trim()) return;
     setSmsSending(true);
-    setSmsResult("");
     try {
       const res = await fetch("/api/customers/send-sms", {
         method: "POST",
@@ -307,11 +310,41 @@ export default function AdminCustomersPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to send SMS");
-      setSmsResult(`Sent to ${data.sent} of ${data.total} recipient${data.total !== 1 ? "s" : ""}${data.failed > 0 ? ` (${data.failed} failed)` : ""}`);
+
+      const failedResults: { phone: string; error?: string }[] = Array.isArray(data.results)
+        ? data.results.filter((r: { success: boolean }) => !r.success)
+        : [];
+
+      if (data.sent === 0) {
+        // Request completed, but the gateway rejected every recipient — this
+        // is the case the old code mistook for success (it cleared the form
+        // and only showed a small easy-to-miss line of text).
+        setSmsOpen(false);
+        setSmsResultDialog({
+          ok: false,
+          title: "Message Not Sent",
+          message: failedResults[0]?.error || "The SMS gateway rejected all recipients.",
+          failedRecipients: failedResults,
+        });
+        return;
+      }
+
+      setSmsOpen(false);
+      setSmsResultDialog({
+        ok: true,
+        title: "Message Sent",
+        message: `Delivered to ${data.sent} of ${data.total} recipient${data.total !== 1 ? "s" : ""}${data.failed > 0 ? `. ${data.failed} failed.` : "."}`,
+        failedRecipients: data.failed > 0 ? failedResults : undefined,
+      });
       setSmsSelected([]);
       setSmsMessage("");
     } catch (err: unknown) {
-      setSmsResult(err instanceof Error ? err.message : "Failed to send SMS");
+      setSmsOpen(false);
+      setSmsResultDialog({
+        ok: false,
+        title: "Message Not Sent",
+        message: err instanceof Error ? err.message : "Failed to send SMS",
+      });
     } finally { setSmsSending(false); }
   };
 
@@ -376,6 +409,41 @@ export default function AdminCustomersPage() {
     });
     return list;
   }, [activeCustomers, searchQuery, statusFilter, tierFilter, accountTypeFilter, sortBy, sortDir]);
+
+  // CSV export (opens correctly in Excel/Google Sheets/Numbers) — respects
+  // whatever search/filters are currently applied, matching what's on screen.
+  const handleExport = () => {
+    const headers = [
+      "Name", "Phone", "Email", "Account Type", "Tier", "Status",
+      "Total Orders", "Total Items", "Total Spent", "Avg Order Value",
+      "Last Order Date", "Joined Date", "Birthdate", "Division", "District", "Address",
+    ];
+    const escapeCsv = (val: string | number) => {
+      const s = String(val ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows = filtered.map((c) => [
+      c.name, c.phone, c.email,
+      c.accountType === "registered" ? "Registered" : "Temporary",
+      c.tier, c.isActive ? "Active" : "Inactive",
+      c.totalOrders, c.totalItems, c.totalSpent, c.avgOrderValue,
+      c.lastOrderDate ? formatDateShort(c.lastOrderDate) : "",
+      c.joinedDate ? formatDateShort(c.joinedDate) : "",
+      c.birthdate ? formatDateShort(c.birthdate) : "",
+      c.division, c.district, c.address,
+    ]);
+    const csv = [headers, ...rows].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
+    // BOM so Excel opens UTF-8 (৳, names with non-Latin characters) correctly
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `customers-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const toggleSort = (key: SortKey) => {
     if (sortBy === key) setSortDir((d) => d === "asc" ? "desc" : "asc");
@@ -695,7 +763,7 @@ export default function AdminCustomersPage() {
         <div className="flex gap-2">
           <AdminButton variant="outline" size="sm" onClick={openSmsDialog}><MessageSquare className="h-3.5 w-3.5" /> Send SMS</AdminButton>
           <AdminButton size="sm" onClick={openAddCustomer}><UserPlus className="h-3.5 w-3.5" /> Add Customer</AdminButton>
-          <AdminButton variant="outline" size="sm"><Users className="h-3.5 w-3.5" /> Export</AdminButton>
+          <AdminButton variant="outline" size="sm" onClick={handleExport}><Users className="h-3.5 w-3.5" /> Export</AdminButton>
         </div>
       </div>
 
@@ -924,7 +992,6 @@ export default function AdminCustomersPage() {
               placeholder="Type your message..."
               className="min-h-[90px]"
             />
-            {smsResult && <p className="text-xs text-charcoal-lighter">{smsResult}</p>}
           </div>
           <DialogFooter className="shrink-0 pt-2 border-t border-border/20">
             <button onClick={() => setSmsOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Close</button>
@@ -936,6 +1003,47 @@ export default function AdminCustomersPage() {
               {smsSending ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageSquare className="h-3 w-3" />} Send
             </button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send SMS Result Dialog — success or error, always shown after a send attempt */}
+      <Dialog open={!!smsResultDialog} onOpenChange={(open) => !open && setSmsResultDialog(null)}>
+        <DialogContent className="max-w-sm">
+          {smsResultDialog && (
+            <>
+              <DialogHeader>
+                <div className={cn(
+                  "flex h-11 w-11 items-center justify-center rounded-full mb-2",
+                  smsResultDialog.ok ? "bg-success/10" : "bg-destructive/10"
+                )}>
+                  {smsResultDialog.ok
+                    ? <Check className="h-5 w-5 text-success" />
+                    : <X className="h-5 w-5 text-destructive" />}
+                </div>
+                <DialogTitle className={smsResultDialog.ok ? "text-success" : "text-destructive"}>
+                  {smsResultDialog.title}
+                </DialogTitle>
+                <DialogDescription>{smsResultDialog.message}</DialogDescription>
+              </DialogHeader>
+              {smsResultDialog.failedRecipients && smsResultDialog.failedRecipients.length > 0 && (
+                <div className="max-h-40 overflow-y-auto rounded-xl bg-pearl/50 p-2 space-y-1">
+                  {smsResultDialog.failedRecipients.map((r, i) => (
+                    <p key={i} className="text-[11px] text-charcoal-lighter">
+                      <span className="font-medium text-charcoal">{r.phone}</span> — {r.error || "Failed"}
+                    </p>
+                  ))}
+                </div>
+              )}
+              <DialogFooter>
+                <button
+                  onClick={() => setSmsResultDialog(null)}
+                  className="px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark transition-all"
+                >
+                  OK
+                </button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

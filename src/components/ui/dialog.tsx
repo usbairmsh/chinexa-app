@@ -25,14 +25,35 @@ const DialogOverlay = React.forwardRef<
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
+// Radix portals its Select/DropdownMenu/Popover content straight to
+// document.body, outside the Dialog's own DOM subtree. Dialog's outside-click
+// detection only recognizes nodes physically inside DialogContent, so picking
+// a Select option (or any other nested-portal interaction) registers as an
+// "outside" click and closes the dialog out from under the user.
+// @radix-ui/react-popper (which Select/DropdownMenu/Popover are all built on)
+// wraps its portaled content in an element carrying this exact attribute —
+// verified against the installed package, not guessed.
+function isInsideRadixPortal(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return !!target.closest("[data-radix-popper-content-wrapper]");
+}
+
 const DialogContent = React.forwardRef<
   React.ComponentRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, onPointerDownOutside, onInteractOutside, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
+      onPointerDownOutside={(e) => {
+        if (isInsideRadixPortal(e.target)) { e.preventDefault(); return; }
+        onPointerDownOutside?.(e);
+      }}
+      onInteractOutside={(e) => {
+        if (isInsideRadixPortal(e.target)) { e.preventDefault(); return; }
+        onInteractOutside?.(e);
+      }}
       className={cn(
         "fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-border/50 bg-background p-4 sm:p-6 shadow-luxury-hover rounded-2xl animate-scale-in",
         className

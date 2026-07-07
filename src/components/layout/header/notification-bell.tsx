@@ -7,6 +7,8 @@ import { Bell, Package, Tag, Gift, CheckCheck, ArrowRight, Loader2 } from "lucid
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/stores/auth.store";
 import { formatDateShort, cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface Notification {
   id: string;
@@ -67,6 +69,7 @@ export function NotificationBell() {
   const [unread, setUnread] = useState(0);
   const [items, setItems] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<Notification | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
 
@@ -141,7 +144,11 @@ export function NotificationBell() {
       }).catch(() => {});
     }
     setOpen(false);
-    if (notif.link) router.push(notif.link);
+    // Show the message in a modal instead of navigating straight to `link` —
+    // some stored links are stale/invalid (admin-typed or from removed
+    // routes) and would 404. The link, when present, becomes an optional
+    // "View" action inside the modal instead of an automatic redirect.
+    setSelected(notif);
   };
 
   const handleMarkAllRead = async () => {
@@ -270,6 +277,39 @@ export function NotificationBell() {
         )}
       </AnimatePresence>
       </MaybePortal>
+
+      {/* Notification detail modal — replaces the old direct router.push(link),
+          which 404'd whenever a stored link was stale/invalid. */}
+      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent className="max-w-sm">
+          {selected && (() => {
+            const config = typeConfig[selected.type] || typeConfig.system;
+            const Icon = config.icon;
+            return (
+              <>
+                <DialogHeader>
+                  <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl mb-2", config.color)}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <DialogTitle>{selected.title}</DialogTitle>
+                  <DialogDescription>{timeAgo(selected.created_at)}</DialogDescription>
+                </DialogHeader>
+                <p className="text-sm text-charcoal-light whitespace-pre-wrap">{selected.message}</p>
+                {selected.link && (
+                  <DialogFooter>
+                    <Button
+                      variant="secondary"
+                      onClick={() => { const link = selected.link!; setSelected(null); router.push(link); }}
+                    >
+                      View <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                    </Button>
+                  </DialogFooter>
+                )}
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
