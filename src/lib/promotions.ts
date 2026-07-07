@@ -9,6 +9,7 @@ export interface PromoCartItem {
   quantity: number;
   category_id?: string | null;
   subcategory?: string | null;
+  brand_id?: string | null;
 }
 
 export interface PromoContext {
@@ -47,6 +48,8 @@ export async function resolveApplicableNames(
       rows = await query<RowDataPacket[]>(`SELECT id, name FROM categories WHERE id IN (${placeholders})`, ids);
     } else if (applicability === "products") {
       rows = await query<RowDataPacket[]>(`SELECT id, name FROM products WHERE id IN (${placeholders})`, ids);
+    } else if (applicability === "brands") {
+      rows = await query<RowDataPacket[]>(`SELECT id, name FROM brands WHERE id IN (${placeholders})`, ids);
     } else if (applicability === "customers") {
       rows = await query<RowDataPacket[]>(`SELECT id, name FROM customers WHERE id IN (${placeholders})`, ids);
     } else if (applicability === "tiers") {
@@ -78,7 +81,7 @@ export async function enrichCartItems(
 
   const productPlaceholders = productIds.map(() => "?").join(",");
   const productRows = await query<RowDataPacket[]>(
-    `SELECT id, category_id, subcategory, price FROM products WHERE id IN (${productPlaceholders})`,
+    `SELECT id, category_id, subcategory, brand_id, price FROM products WHERE id IN (${productPlaceholders})`,
     productIds
   );
   const productById = new Map(productRows.map((r) => [r.id as string, r]));
@@ -111,6 +114,7 @@ export async function enrichCartItems(
       quantity: i.quantity,
       category_id: p ? (p.category_id as string | null) : null,
       subcategory: p ? (p.subcategory as string | null) : null,
+      brand_id: p ? (p.brand_id as string | null) : null,
     };
   });
 }
@@ -131,6 +135,8 @@ export function itemMatchesApplicability(
       return !!item.subcategory && applicableIds.includes(item.subcategory);
     case "products":
       return applicableIds.includes(item.product_id);
+    case "brands":
+      return !!item.brand_id && applicableIds.includes(item.brand_id);
     case "customers":
       // Customer-scoped promos apply to the whole cart, but only for the named customers.
       return !!ctx.customerId && applicableIds.includes(ctx.customerId);

@@ -43,7 +43,8 @@ export async function POST(req: NextRequest) {
     const rawItems: ApplyItem[] = Array.isArray(body.items) ? body.items : [];
     const customerId: string | null = body.customer_id || null;
 
-    if (rawItems.length === 0) {
+    // Offers are a signed-in perk — guests get no auto-discount at all.
+    if (rawItems.length === 0 || !customerId) {
       return NextResponse.json({ total_discount: 0, lines: [], offers: [] });
     }
 

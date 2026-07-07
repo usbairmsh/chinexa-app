@@ -5,6 +5,7 @@ import { type RowDataPacket as StockRow } from "mysql2/promise";
 import { validate, validationError } from "@/lib/validate";
 import { logActivity } from "@/lib/log-activity";
 import { notifyAdmin } from "@/lib/notify";
+import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 
 interface OrderRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -89,6 +90,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await ensureColumns();
+    await ensurePromotionColumns();
     const body = await req.json();
     const err = validate([
       { field: "customer_name", value: body.customer_name, rules: ["required", "string"], label: "Customer name" },
@@ -124,8 +126,10 @@ export async function POST(req: NextRequest) {
         customerId = existing[0].id;
       } else if (name) {
         customerId = `cust-${Date.now()}`;
+        // Guest checkout, never went through /api/auth register — tracked as
+        // "temporary" so admins can distinguish real accounts from one-off buyers.
         await execute(
-          "INSERT INTO customers (id, name, email, phone, is_active) VALUES (?, ?, ?, ?, TRUE)",
+          "INSERT INTO customers (id, name, email, phone, is_active, account_type) VALUES (?, ?, ?, ?, TRUE, 'temporary')",
           [customerId, name, body.billing_address?.email || null, normalizedPhone]
         );
         if (body.billing_address?.address_line_1) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, MoreHorizontal, Loader2, AlertTriangle, Tag, Search, X, Users, FolderTree, ShoppingCart, Globe, Check } from "lucide-react";
+import { Plus, Edit, Trash2, MoreHorizontal, Loader2, AlertTriangle, Tag, Search, X, Users, FolderTree, ShoppingCart, Globe, Check, Award } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,12 +16,25 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateShort, cn } from "@/lib/utils";
 import type { Offer, OfferApplicability, DiscountType } from "@/types/offer";
 
+/** Pluralized noun for the "N {noun}" count line under an applicability-scoped offer/coupon card. */
+function applicableItemNoun(applicability: string, count: number): string {
+  const plural = count > 1;
+  switch (applicability) {
+    case "customers": return plural ? "customers" : "customer";
+    case "brands": return plural ? "brands" : "brand";
+    case "products": return plural ? "products" : "product";
+    case "tiers": return plural ? "tiers" : "tier";
+    default: return plural ? "categories" : "category";
+  }
+}
+
 const applicabilityConfig: Record<string, { label: string; icon: typeof Globe; color: string }> = {
   store: { label: "Store-wide", icon: Globe, color: "bg-blue-50 text-blue-600" },
   products: { label: "Products", icon: ShoppingCart, color: "bg-pink-50 text-pink-600" },
   categories: { label: "Categories", icon: FolderTree, color: "bg-emerald-50 text-emerald-600" },
   tiers: { label: "Membership Tiers", icon: Users, color: "bg-rose-50 text-rose-600" },
   subcategories: { label: "Subcategories", icon: FolderTree, color: "bg-violet-50 text-violet-600" },
+  brands: { label: "Brands", icon: Award, color: "bg-cyan-50 text-cyan-600" },
   customers: { label: "Customers", icon: Users, color: "bg-amber-50 text-amber-600" },
 };
 
@@ -51,9 +64,10 @@ export default function AdminOffersPage() {
   const [searchResults, setSearchResults] = useState<{ id: string; name: string; extra?: string }[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
 
-  // Categories/subcategories/tiers cache
+  // Categories/subcategories/tiers/brands cache
   const [allCategories, setAllCategories] = useState<{ id: string; name: string; children?: { id: string; name: string }[] }[]>([]);
   const [allTiers, setAllTiers] = useState<{ id: string; name: string }[]>([]);
+  const [allBrands, setAllBrands] = useState<{ id: string; name: string }[]>([]);
 
   const [listError, setListError] = useState("");
 
@@ -80,6 +94,9 @@ export default function AdminOffersPage() {
     }).catch(() => {});
     fetch("/api/membership/tiers").then((r) => r.json()).then((data) => {
       if (Array.isArray(data)) setAllTiers(data.map((t: Record<string, unknown>) => ({ id: t.id as string, name: t.name as string })));
+    }).catch(() => {});
+    fetch("/api/brands").then((r) => r.json()).then((data) => {
+      if (Array.isArray(data)) setAllBrands(data.map((b: Record<string, unknown>) => ({ id: b.id as string, name: b.name as string })));
     }).catch(() => {});
   }, []);
 
@@ -189,6 +206,9 @@ export default function AdminOffersPage() {
     if (formApplicability === "tiers") {
       return allTiers;
     }
+    if (formApplicability === "brands") {
+      return allBrands;
+    }
     return [];
   };
 
@@ -259,7 +279,7 @@ export default function AdminOffersPage() {
                   </div>
 
                   {offer.applicable_ids && offer.applicable_ids.length > 0 && (
-                    <p className="text-[10px] text-charcoal-lighter mb-2">{offer.applicable_ids.length} {offer.applicability === "customers" ? "customer" : "categor"}{offer.applicable_ids.length > 1 ? (offer.applicability === "customers" ? "s" : "ies") : (offer.applicability === "customers" ? "" : "y")}</p>
+                    <p className="text-[10px] text-charcoal-lighter mb-2">{offer.applicable_ids.length} {applicableItemNoun(offer.applicability, offer.applicable_ids.length)}</p>
                   )}
 
                   <div className="flex items-center gap-2 text-[10px] text-charcoal-lighter mb-3">
@@ -336,6 +356,7 @@ export default function AdminOffersPage() {
                   <SelectItem value="categories"><span className="flex items-center gap-2"><FolderTree className="h-3.5 w-3.5" /> Specific Categories</span></SelectItem>
                   <SelectItem value="subcategories"><span className="flex items-center gap-2"><FolderTree className="h-3.5 w-3.5" /> Specific Subcategories</span></SelectItem>
                   <SelectItem value="products"><span className="flex items-center gap-2"><ShoppingCart className="h-3.5 w-3.5" /> Specific Products</span></SelectItem>
+                  <SelectItem value="brands"><span className="flex items-center gap-2"><Award className="h-3.5 w-3.5" /> Specific Brands</span></SelectItem>
                   <SelectItem value="customers"><span className="flex items-center gap-2"><Users className="h-3.5 w-3.5" /> Specific Customers</span></SelectItem>
                   <SelectItem value="tiers"><span className="flex items-center gap-2"><Users className="h-3.5 w-3.5" /> Membership Tiers</span></SelectItem>
                 </SelectContent>
@@ -393,8 +414,8 @@ export default function AdminOffersPage() {
                   </div>
                 )}
 
-                {/* Category/Subcategory/Tier selection */}
-                {(formApplicability === "categories" || formApplicability === "subcategories" || formApplicability === "tiers") && (
+                {/* Category/Subcategory/Tier/Brand selection */}
+                {(formApplicability === "categories" || formApplicability === "subcategories" || formApplicability === "tiers" || formApplicability === "brands") && (
                   <div className="max-h-44 overflow-y-auto border border-border/30 rounded-xl bg-white">
                     {getListOptions().length === 0 ? (
                       <p className="px-3 py-4 text-xs text-charcoal-lighter text-center">No {formApplicability} found</p>

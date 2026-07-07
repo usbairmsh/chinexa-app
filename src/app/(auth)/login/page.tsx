@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Phone, Lock, Loader2 } from "lucide-react";
@@ -20,8 +20,9 @@ function validateBDPhone(digits: string): string | null {
   return null;
 }
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const login = useAuthStore((s) => s.login);
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -76,7 +77,8 @@ export default function LoginPage() {
         token: `token-${Date.now()}`,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       });
-      router.push("/");
+      const redirect = searchParams.get("redirect");
+      router.push(redirect && redirect.startsWith("/") ? redirect : "/");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -166,5 +168,13 @@ export default function LoginPage() {
         </CardContent>
       </Card>
     </motion.div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<Card className="border-0 shadow-luxury-hover"><CardContent className="py-16 text-center"><p>Loading...</p></CardContent></Card>}>
+      <LoginForm />
+    </Suspense>
   );
 }

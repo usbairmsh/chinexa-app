@@ -75,17 +75,14 @@ export async function POST(req: NextRequest) {
       return fail("Coupon usage limit reached");
     }
 
+    // ─── Coupons are a signed-in perk — guests can't redeem any coupon ───
+    if (!customerId) {
+      return fail("Please sign in to use a coupon");
+    }
+
     const applicability = (coupon.applicability || "store") as OfferApplicability;
     const applicableIds: string[] =
       typeof coupon.applicable_ids === "string" ? JSON.parse(coupon.applicable_ids) : coupon.applicable_ids || [];
-
-    // ─── Customer / tier applicability + per-customer limit ───
-    const isCustomerScoped = applicability === "customers" || applicability === "tiers";
-    const hasPerCustomerLimit = coupon.per_customer_limit != null && Number(coupon.per_customer_limit) > 0;
-
-    if ((isCustomerScoped || hasPerCustomerLimit) && !customerId) {
-      return fail("Please sign in to use this coupon");
-    }
 
     const tier = customerId ? await getCustomerTier(customerId) : null;
     const ctx: PromoContext = {
@@ -107,7 +104,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Per-customer redemption limit: count this customer's prior non-cancelled orders with this code.
-    if (hasPerCustomerLimit && customerId) {
+    const hasPerCustomerLimit = coupon.per_customer_limit != null && Number(coupon.per_customer_limit) > 0;
+    if (hasPerCustomerLimit) {
       const usedRows = await query<RowDataPacket[]>(
         "SELECT COUNT(*) as cnt FROM orders WHERE customer_id = ? AND coupon_code = ? AND status <> 'cancelled'",
         [customerId, coupon.code]
@@ -119,11 +117,11 @@ export async function POST(req: NextRequest) {
     }
 
     // ─── Determine the eligible base the coupon discounts ───
-    // For product/category/subcategory-scoped coupons, only the matching cart
-    // lines count toward the discount base. For store/customer/tier coupons the
-    // whole order_total counts.
+    // For product/category/subcategory/brand-scoped coupons, only the matching
+    // cart lines count toward the discount base. For store/customer/tier
+    // coupons the whole order_total counts.
     let eligibleBase: number;
-    if (rawItems.length > 0 && (applicability === "categories" || applicability === "subcategories" || applicability === "products")) {
+    if (rawItems.length > 0 && (applicability === "categories" || applicability === "subcategories" || applicability === "products" || applicability === "brands")) {
       const items = await enrichCartItems(rawItems);
       eligibleBase = items
         .filter((i) => itemMatchesApplicability(i, applicability, applicableIds, ctx))

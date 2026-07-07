@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
       const hashed = await bcrypt.hash(password, 10);
       const id = `cust-${Date.now()}`;
       await execute(
-        "INSERT INTO customers (id, name, email, phone, password, birthdate, is_active) VALUES (?, ?, ?, ?, ?, ?, TRUE)",
+        "INSERT INTO customers (id, name, email, phone, password, birthdate, is_active, account_type) VALUES (?, ?, ?, ?, ?, ?, TRUE, 'registered')",
         [id, name, body.email || null, phone, hashed, birthdate]
       );
 
@@ -184,7 +184,10 @@ export async function POST(req: NextRequest) {
       }
 
       const hashed = await bcrypt.hash(password, 10);
-      await execute("UPDATE customers SET password = ? WHERE id = ?", [hashed, rows[0].id as string]);
+      // Setting a real password is what makes an account "registered" — this
+      // also upgrades a guest/temporary customer (auto-created at checkout)
+      // the first time they claim their account via forgot-password.
+      await execute("UPDATE customers SET password = ?, account_type = 'registered' WHERE id = ?", [hashed, rows[0].id as string]);
       await logActivity("Customer reset password", "customer", rows[0].id as string);
 
       return NextResponse.json({ success: true });

@@ -16,16 +16,24 @@ import { formatCurrency } from "@/lib/utils";
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, getSubtotal, getShipping, getItemCount, couponCode, applyCoupon, removeCoupon, refreshOffers } = useCartStore();
-  const user = useAuthStore((s) => s.user);
+  const storeUser = useAuthStore((s) => s.user);
+  const storeAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  // Persisted auth store differs from server HTML on hard refresh — gate on
+  // `mounted` so the first client render matches the server exactly.
+  const user = mounted ? storeUser : null;
+  const isAuthenticated = mounted && storeAuthenticated;
   const [couponInput, setCouponInput] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState("");
   const [couponSuccess, setCouponSuccess] = useState("");
 
   // Re-evaluate admin offers against the current cart (and customer) on load.
+  // Offers are a signed-in perk — skip entirely for guests.
   useEffect(() => {
-    refreshOffers(user?.id || null);
-  }, [refreshOffers, user?.id, items.length]);
+    if (isAuthenticated) refreshOffers(user?.id || null);
+  }, [refreshOffers, isAuthenticated, user?.id, items.length]);
 
   const handleApplyCoupon = async () => {
     const code = couponInput.trim().toUpperCase();
@@ -164,7 +172,8 @@ export default function CartPage() {
                 isFreeShipping={shipping === 0 && getSubtotal() > 0}
               />
 
-              {/* Coupon */}
+              {/* Coupon — signed-in customers only */}
+              {isAuthenticated && (
               <div className="mt-5">
                 {couponCode ? (
                   <div className="p-3 rounded-xl bg-success/5 border border-success/20">
@@ -198,6 +207,7 @@ export default function CartPage() {
                   </div>
                 )}
               </div>
+              )}
 
               <Link href="/checkout" className="block mt-5">
                 <Button variant="secondary" size="lg" className="w-full !text-white">

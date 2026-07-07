@@ -6,7 +6,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, ShoppingBag, Heart, MapPin, UserCircle,
-  LogOut, ChevronRight, HelpCircle
+  LogOut, ChevronRight, HelpCircle, Tag
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Header } from "@/components/layout/header/header";
@@ -27,6 +27,7 @@ const accountNav = [
   { icon: ShoppingBag, label: "My Orders", href: "/dashboard/orders" },
   { icon: Heart, label: "Wishlist", href: "/dashboard/wishlist" },
   { icon: MapPin, label: "Addresses", href: "/dashboard/addresses" },
+  { icon: Tag, label: "Offers & Coupons", href: "/dashboard/coupons" },
   { icon: UserCircle, label: "Profile", href: "/dashboard/profile" },
   { icon: HelpCircle, label: "Help & Support", href: "/faq" },
 ];
@@ -51,6 +52,14 @@ export default function AccountLayout({
   const user = mounted ? storeUser : null;
   const isAuthenticated = mounted ? storeAuthenticated : false;
 
+  // The whole account section is members-only — once the persisted store has
+  // rehydrated, bounce anyone who isn't actually signed in to /login.
+  useEffect(() => {
+    if (mounted && !storeAuthenticated) {
+      router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
+    }
+  }, [mounted, storeAuthenticated, pathname, router]);
+
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
     return pathname.startsWith(href);
@@ -60,6 +69,20 @@ export default function AccountLayout({
     logout();
     router.push("/");
   };
+
+  // Avoid flashing real account content before the redirect-to-login effect
+  // above fires (mounted-but-not-yet-redirected is a brief real state, not a
+  // hydration mismatch, since both server and client render nothing here).
+  if (mounted && !storeAuthenticated) {
+    return (
+      <>
+        <Suspense><PageLoader /></Suspense>
+        <Header />
+        <CartDrawer />
+        <SearchOverlay />
+      </>
+    );
+  }
 
   return (
     <>

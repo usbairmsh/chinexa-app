@@ -33,7 +33,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     const rows = await query<RowDataPacket[]>(
-      `SELECT cc.*, c.code as coupon_code, c.description as coupon_description, c.discount_type, c.discount_value, c.valid_until, c.is_active as coupon_active
+      `SELECT cc.*, c.code as coupon_code, c.description as coupon_description, c.discount_type, c.discount_value,
+              c.min_order_amount, c.max_discount_amount, c.usage_limit, c.per_customer_limit, c.used_count,
+              c.valid_from, c.valid_until, c.is_active as coupon_active,
+              c.applicability, c.applicable_ids, c.applicable_categories, c.applicable_products
        FROM customer_coupons cc
        JOIN coupons c ON c.id = cc.coupon_id
        WHERE (${whereClauses}) AND c.is_active = 1
@@ -41,12 +44,23 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       queryParams
     );
 
+    const parseJsonArray = (v: unknown): string[] => {
+      if (Array.isArray(v)) return v;
+      if (typeof v === "string") { try { const p = JSON.parse(v); return Array.isArray(p) ? p : []; } catch { return []; } }
+      return [];
+    };
+
     const coupons = rows.map((r) => ({
       ...r,
       is_used: !!r.is_used,
       coupon_active: !!r.coupon_active,
       // DECIMAL comes back as a string from mysql2
       discount_value: Number(r.discount_value) || 0,
+      min_order_amount: r.min_order_amount != null ? Number(r.min_order_amount) : null,
+      max_discount_amount: r.max_discount_amount != null ? Number(r.max_discount_amount) : null,
+      applicable_ids: parseJsonArray(r.applicable_ids),
+      applicable_categories: parseJsonArray(r.applicable_categories),
+      applicable_products: parseJsonArray(r.applicable_products),
     }));
 
     return NextResponse.json(coupons);

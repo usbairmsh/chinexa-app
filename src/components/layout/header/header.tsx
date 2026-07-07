@@ -221,8 +221,8 @@ export function Header() {
 
             {/* ── RIGHT: Action Icons (visible on all screens) ── */}
             <div className="flex items-center gap-1 shrink-0 ml-auto lg:ml-0">
-              {/* Notifications — in the slot where search used to be */}
-              <NotificationBell />
+              {/* Notifications — signed-in customers only */}
+              {isAuthenticated && <NotificationBell />}
 
               {/* Wishlist */}
               <Link

@@ -2,24 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute, escapeLike } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 
 export async function GET(req: NextRequest) {
   try {
+    await ensurePromotionColumns();
     const { searchParams } = new URL(req.url);
     const page = Number(searchParams.get("page")) || 1;
     const pageSize = Number(searchParams.get("page_size")) || 20;
     const search = searchParams.get("search");
+    const accountType = searchParams.get("account_type"); // "registered" | "temporary"
 
     let where = "WHERE 1=1";
     const params: (string | number)[] = [];
     if (search) { where += " AND (name LIKE ? OR phone LIKE ? OR email LIKE ?)"; const q = `%${escapeLike(search)}%`; params.push(q, q, q); }
+    if (accountType === "registered" || accountType === "temporary") { where += " AND account_type = ?"; params.push(accountType); }
 
     const countRows = await query<RowDataPacket[]>(`SELECT COUNT(*) as total FROM customers ${where}`, params);
     const total = (countRows[0] as { total: number })?.total || 0;
     const safeLimit = Math.max(1, Math.min(Math.floor(pageSize), 100));
     const safeOffset = Math.max(0, Math.floor((page - 1) * safeLimit));
     const rows = await query<RowDataPacket[]>(
-      `SELECT id, name, email, phone, birthdate, avatar, total_orders, total_spent, is_active, deactivated_at, deactivation_reason, created_at, updated_at, last_order_at FROM customers ${where} ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+      `SELECT id, name, email, phone, birthdate, account_type, avatar, total_orders, total_spent, is_active, deactivated_at, deactivation_reason, created_at, updated_at, last_order_at FROM customers ${where} ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
       params
     );
 

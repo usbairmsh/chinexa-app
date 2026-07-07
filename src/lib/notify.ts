@@ -155,7 +155,7 @@ export async function resolvePromoRecipients(
     case "tiers":
       return getTierCustomerIds(applicableIds);
     default:
-      // store, categories, subcategories, products — everyone can use it
+      // store, categories, subcategories, products, brands — everyone can use it
       return getAllCustomerIds();
   }
 }

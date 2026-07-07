@@ -1,4 +1,4 @@
-export type OfferApplicability = "store" | "categories" | "subcategories" | "products" | "customers" | "tiers";
+export type OfferApplicability = "store" | "categories" | "subcategories" | "products" | "brands" | "customers" | "tiers";
 
 export type DiscountType = "percentage" | "fixed";
 

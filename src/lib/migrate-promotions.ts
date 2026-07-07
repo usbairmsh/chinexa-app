@@ -19,6 +19,27 @@ async function ensureColumn(table: string, column: string, definition: string) {
   await execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
 }
 
+/**
+ * Widen an existing ENUM column to a new set of values (idempotent — checks
+ * the column's current definition first via information_schema, since MySQL
+ * has no "ADD ENUM VALUE IF NOT EXISTS"). Needed when a column was created by
+ * an older schema and already exists, so ensureColumn's "already present" skip
+ * would otherwise leave the old, narrower enum in place forever.
+ */
+async function ensureEnumValues(table: string, column: string, values: string[]) {
+  const rows = await query<RowDataPacket[]>(
+    `SELECT COLUMN_TYPE AS type FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?`,
+    [table, column]
+  );
+  if (rows.length === 0) return; // column doesn't exist yet — ensureColumn will create it with the full enum
+  const currentType = String(rows[0].type); // e.g. "enum('store','categories',...)"
+  const missing = values.filter((v) => !currentType.includes(`'${v}'`));
+  if (missing.length === 0) return;
+  const enumList = values.map((v) => `'${v}'`).join(",");
+  await execute(`ALTER TABLE ${table} MODIFY COLUMN ${column} ENUM(${enumList}) DEFAULT 'store'`);
+}
+
 export async function ensurePromotionColumns() {
   if (done) return;
   try {
@@ -28,15 +49,22 @@ export async function ensurePromotionColumns() {
     await ensureColumn("offers", "max_discount_amount", "DECIMAL(10,2)");
 
     // Coupons: applicability targeting + per-customer redemption limit
-    await ensureColumn("coupons", "applicability", "ENUM('store', 'categories', 'subcategories', 'products', 'customers', 'tiers') DEFAULT 'store'");
+    const applicabilityValues = ["store", "categories", "subcategories", "products", "brands", "customers", "tiers"];
+    await ensureColumn("coupons", "applicability", `ENUM(${applicabilityValues.map((v) => `'${v}'`).join(",")}) DEFAULT 'store'`);
     await ensureColumn("coupons", "applicable_ids", "JSON");
     await ensureColumn("coupons", "per_customer_limit", "INT");
+    await ensureEnumValues("coupons", "applicability", applicabilityValues);
+    await ensureEnumValues("offers", "applicability", applicabilityValues);
 
     // Products: trust badges shown on the product page (referenced by create/update)
     await ensureColumn("products", "trust_badges", "JSON");
 
     // Brands: homepage visibility flag (referenced by brands/[id] before list route)
     await ensureColumn("brands", "show_on_homepage", "BOOLEAN DEFAULT FALSE");
+
+    // Customers: registered (went through /api/auth register or reset_password,
+    // i.e. has a real password) vs temporary (auto-created from a guest checkout)
+    await ensureColumn("customers", "account_type", "ENUM('registered', 'temporary') NOT NULL DEFAULT 'temporary'");
 
     done = true; // only latch once every column is confirmed/created
   } catch (err) {

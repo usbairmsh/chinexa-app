@@ -6,7 +6,7 @@ import {
   Search, Users, DollarSign, ShoppingCart, TrendingUp, ArrowUpDown,
   ChevronRight, Mail, Phone, Edit,
   MapPin, Package, Clock, CheckCircle2, Truck, XCircle, Calendar,
-  ArrowLeft, Loader2, Crown, Gift, Plus, Tag, Save, Cake
+  ArrowLeft, Loader2, Crown, Gift, Plus, Tag, Save, Cake, UserCheck, UserRound
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +36,7 @@ interface Customer {
   division: string; district: string; address: string;
   totalOrders: number; totalSpent: number; totalItems: number;
   avgOrderValue: number; lastOrderDate: string; joinedDate: string; birthdate: string;
-  isActive: boolean; tier: string;
+  isActive: boolean; tier: string; accountType: "registered" | "temporary";
   orders: CustomerOrder[];
 }
 
@@ -83,6 +83,7 @@ export default function AdminCustomersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [tierFilter, setTierFilter] = useState("all");
+  const [accountTypeFilter, setAccountTypeFilter] = useState("all");
   const [sortBy, setSortBy] = useState<SortKey>("spent");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -135,6 +136,7 @@ export default function AdminCustomersPage() {
           lastOrderDate: (c.last_order_at as string) || (c.created_at as string) || "", joinedDate: (c.created_at as string) || "",
           birthdate: (c.birthdate as string) || "",
           isActive: c.is_active !== false, tier: (c.tier as string) || "Bronze",
+          accountType: (c.account_type as "registered" | "temporary") || "temporary",
           orders: [],
         })));
       }
@@ -250,6 +252,7 @@ export default function AdminCustomersPage() {
           division: addr?.division || "",
           district: addr?.district || "",
           birthdate: (data.birthdate as string) || customer.birthdate,
+          accountType: (data.account_type as "registered" | "temporary") || customer.accountType,
           orders,
         });
       }
@@ -270,6 +273,7 @@ export default function AdminCustomersPage() {
     if (statusFilter === "active") list = list.filter((c) => c.isActive);
     if (statusFilter === "inactive") list = list.filter((c) => !c.isActive);
     if (tierFilter !== "all") list = list.filter((c) => c.tier === tierFilter);
+    if (accountTypeFilter !== "all") list = list.filter((c) => c.accountType === accountTypeFilter);
 
     list.sort((a, b) => {
       let cmp = 0;
@@ -281,7 +285,7 @@ export default function AdminCustomersPage() {
       return sortDir === "desc" ? -cmp : cmp;
     });
     return list;
-  }, [activeCustomers, searchQuery, statusFilter, tierFilter, sortBy, sortDir]);
+  }, [activeCustomers, searchQuery, statusFilter, tierFilter, accountTypeFilter, sortBy, sortDir]);
 
   const toggleSort = (key: SortKey) => {
     if (sortBy === key) setSortDir((d) => d === "asc" ? "desc" : "asc");
@@ -316,6 +320,10 @@ export default function AdminCustomersPage() {
             <h1 className="font-heading text-xl font-semibold text-charcoal">{c.name}</h1>
             <p className="text-xs text-charcoal-lighter">Customer since {formatDateShort(c.joinedDate)}</p>
           </div>
+          <Badge variant={c.accountType === "registered" ? "success" : "outline"} className="text-[10px]">
+            {c.accountType === "registered" ? <UserCheck className="h-3 w-3 mr-1" /> : <UserRound className="h-3 w-3 mr-1" />}
+            {c.accountType === "registered" ? "Registered" : "Temporary"}
+          </Badge>
           <Badge className={cn("text-[10px]", tierColor)}><Crown className="h-3 w-3 mr-1" />{tierName}</Badge>
           <Badge variant={c.isActive ? "success" : "destructive"} className="text-[10px]">{c.isActive ? "Active" : "Inactive"}</Badge>
           {canEditCustomer && (
@@ -635,6 +643,14 @@ export default function AdminCustomersPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <Select value={accountTypeFilter} onValueChange={setAccountTypeFilter}>
+                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Accounts</SelectItem>
+                  <SelectItem value="registered">Registered</SelectItem>
+                  <SelectItem value="temporary">Temporary</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
@@ -643,6 +659,7 @@ export default function AdminCustomersPage() {
             <thead>
               <tr className="border-b border-border/20 text-left">
                 <th className="px-4 py-2.5 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider">Customer</th>
+                <th className="px-4 py-2.5 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden sm:table-cell">Account</th>
                 <th className="px-4 py-2.5 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden sm:table-cell">
                   <button onClick={() => toggleSort("orders")} className="flex items-center gap-1 hover:text-charcoal transition-colors">
                     Orders <ArrowUpDown className={cn("h-3 w-3", sortBy === "orders" && "text-secondary")} />
@@ -670,7 +687,7 @@ export default function AdminCustomersPage() {
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-16 text-center text-charcoal-lighter">{activeCustomers.length === 0 ? "No customers yet. Customers will appear here when they register or place an order." : "No customers match your search"}</td></tr>
+                <tr><td colSpan={9} className="px-4 py-16 text-center text-charcoal-lighter">{activeCustomers.length === 0 ? "No customers yet. Customers will appear here when they register or place an order." : "No customers match your search"}</td></tr>
               ) : (
                 filtered.map((c) => (
                   <tr key={c.id} onClick={() => handleSelectCustomer(c)} className="border-b border-border/10 hover:bg-pearl/50 transition-colors cursor-pointer">
@@ -682,6 +699,11 @@ export default function AdminCustomersPage() {
                           <p className="text-[10px] text-charcoal-lighter">{c.phone}</p>
                         </div>
                       </div>
+                    </td>
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      <Badge variant={c.accountType === "registered" ? "success" : "outline"} className="text-[9px]">
+                        {c.accountType === "registered" ? "Registered" : "Temporary"}
+                      </Badge>
                     </td>
                     <td className="px-4 py-3 hidden sm:table-cell">
                       <p className="font-semibold text-charcoal">{c.totalOrders}</p>

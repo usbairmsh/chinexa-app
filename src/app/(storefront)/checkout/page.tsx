@@ -130,12 +130,16 @@ export default function CheckoutPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Saved addresses
-  const user = useAuthStore((s) => s.user);
+  const storeUser = useAuthStore((s) => s.user);
+  const storeAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const user = mounted ? storeUser : null;
+  const isAuthenticated = mounted && storeAuthenticated;
 
   // Re-evaluate admin offers against the cart + signed-in customer.
+  // Offers are a signed-in perk — skip entirely for guests.
   useEffect(() => {
-    refreshOffers(user?.id || null);
-  }, [refreshOffers, user?.id, items.length]);
+    if (isAuthenticated) refreshOffers(user?.id || null);
+  }, [refreshOffers, isAuthenticated, user?.id, items.length]);
 
   interface SavedAddress {
     id: string; label: string; name: string; phone: string;
@@ -744,7 +748,8 @@ export default function CheckoutPage() {
 
                 <Textarea label="Order Notes (Optional)" placeholder="Any special delivery instructions..." />
 
-                {/* Coupon Code — moved here from Step 3 */}
+                {/* Coupon Code — moved here from Step 3; signed-in customers only */}
+                {isAuthenticated && (
                 <div>
                   <h3 className="text-sm font-medium text-charcoal mb-2">Have a coupon?</h3>
                   {couponCode ? (
@@ -778,6 +783,7 @@ export default function CheckoutPage() {
                     </div>
                   )}
                 </div>
+                )}
 
                 <div className="flex flex-col-reverse sm:flex-row gap-3">
                   <Button variant="outline" onClick={() => setStep(1)}>Back</Button>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, MoreHorizontal, Copy, Percent, BadgeDollarSign, Loader2, AlertTriangle, Check, Tag, Users, Crown, Globe, FolderTree, ShoppingCart, Search, X } from "lucide-react";
+import { Plus, Edit, Trash2, MoreHorizontal, Copy, Percent, BadgeDollarSign, Loader2, AlertTriangle, Check, Tag, Users, Crown, Globe, FolderTree, ShoppingCart, Search, X, Award } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +56,7 @@ export default function AdminCouponsPage() {
   const [applSearchLoading, setApplSearchLoading] = useState(false);
   const [allCategories, setAllCategories] = useState<{ id: string; name: string; children?: { id: string; name: string }[] }[]>([]);
   const [allTiers, setAllTiers] = useState<{ id: string; name: string }[]>([]);
+  const [allBrands, setAllBrands] = useState<{ id: string; name: string }[]>([]);
 
   const fetchCoupons = async () => {
     try {
@@ -72,6 +73,9 @@ export default function AdminCouponsPage() {
     }).catch(() => {});
     fetch("/api/membership/tiers").then((r) => r.json()).then((data) => {
       if (Array.isArray(data)) setAllTiers(data.map((t: Record<string, unknown>) => ({ id: t.id as string, name: t.name as string })));
+    }).catch(() => {});
+    fetch("/api/brands").then((r) => r.json()).then((data) => {
+      if (Array.isArray(data)) setAllBrands(data.map((b: Record<string, unknown>) => ({ id: b.id as string, name: b.name as string })));
     }).catch(() => {});
   }, []);
 
@@ -97,6 +101,7 @@ export default function AdminCouponsPage() {
     if (formApplicability === "categories") return allCategories.map((c) => ({ id: c.id, name: c.name }));
     if (formApplicability === "subcategories") return allCategories.flatMap((c) => (c.children || []).map((s) => ({ id: s.id, name: `${c.name} → ${s.name}` })));
     if (formApplicability === "tiers") return allTiers;
+    if (formApplicability === "brands") return allBrands;
     return [];
   };
 
@@ -361,6 +366,7 @@ export default function AdminCouponsPage() {
                   <SelectItem value="categories"><span className="flex items-center gap-2"><FolderTree className="h-3.5 w-3.5" /> Specific Categories</span></SelectItem>
                   <SelectItem value="subcategories"><span className="flex items-center gap-2"><FolderTree className="h-3.5 w-3.5" /> Specific Subcategories</span></SelectItem>
                   <SelectItem value="products"><span className="flex items-center gap-2"><ShoppingCart className="h-3.5 w-3.5" /> Specific Products</span></SelectItem>
+                  <SelectItem value="brands"><span className="flex items-center gap-2"><Award className="h-3.5 w-3.5" /> Specific Brands</span></SelectItem>
                   <SelectItem value="customers"><span className="flex items-center gap-2"><Users className="h-3.5 w-3.5" /> Specific Customers</span></SelectItem>
                   <SelectItem value="tiers"><span className="flex items-center gap-2"><Crown className="h-3.5 w-3.5" /> Membership Tiers</span></SelectItem>
                 </SelectContent>
@@ -418,7 +424,7 @@ export default function AdminCouponsPage() {
                   </div>
                 )}
 
-                {(formApplicability === "categories" || formApplicability === "subcategories" || formApplicability === "tiers") && (
+                {(formApplicability === "categories" || formApplicability === "subcategories" || formApplicability === "tiers" || formApplicability === "brands") && (
                   <div className="max-h-44 overflow-y-auto border border-border/30 rounded-xl bg-white">
                     {getApplOptions().length === 0 ? (
                       <p className="px-3 py-4 text-xs text-charcoal-lighter text-center">No {formApplicability} found</p>

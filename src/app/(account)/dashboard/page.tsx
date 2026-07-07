@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   ShoppingBag, Heart, MapPin, Star, Package, Truck,
-  CheckCircle2, Clock, ArrowRight, Gift, TrendingUp, Loader2
+  CheckCircle2, Clock, ArrowRight, Gift, TrendingUp, Loader2, Tag
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -205,7 +205,7 @@ export default function AccountDashboard() {
       </Card>
 
       {/* Quick Actions */}
-      <div className="grid sm:grid-cols-3 gap-3">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <Link href="/dashboard/orders">
           <Card className="hover:shadow-card-hover transition-all cursor-pointer group h-full">
             <CardContent className="p-5 flex items-center gap-4">
@@ -241,6 +241,19 @@ export default function AccountDashboard() {
               <div>
                 <p className="text-sm font-medium text-charcoal group-hover:text-secondary transition-colors">Edit Profile</p>
                 <p className="text-[10px] text-charcoal-lighter">Update your details</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/dashboard/coupons">
+          <Card className="hover:shadow-card-hover transition-all cursor-pointer group h-full">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-coral-light shrink-0">
+                <Tag className="h-5 w-5 text-coral" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-charcoal group-hover:text-secondary transition-colors">Offers & Coupons</p>
+                <p className="text-[10px] text-charcoal-lighter">Your discounts & deals</p>
               </div>
             </CardContent>
           </Card>
