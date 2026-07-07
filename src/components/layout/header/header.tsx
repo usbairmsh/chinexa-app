@@ -16,7 +16,6 @@ import { MAIN_NAV, type NavItem } from "@/data/constants/navigation";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "./notification-bell";
 import { useCustomerBadge } from "@/hooks/use-customer-badge";
-import { VerifiedBadge } from "@/components/shared/verified-badge";
 
 export function Header() {
   const pathname = usePathname();
@@ -266,9 +265,25 @@ export function Header() {
                 </button>
               )}
 
-              {/* Account */}
+              {/* Account — profile icon + tier name in one rounded-border pill, tinted in the tier's own color */}
               {isAuthenticated ? (
-                <div className="relative">
+                badgeData?.tier_name ? (
+                  <Link
+                    href="/dashboard"
+                    className={cn(
+                      "flex items-center gap-1.5 h-9 pl-1.5 pr-3 rounded-full border transition-all",
+                      badgeData.tier_color || "border-border text-charcoal/60 hover:bg-primary-light"
+                    )}
+                    style={{ borderColor: "currentColor" }}
+                    aria-label="Account"
+                    title={`${badgeData.tier_name} Member`}
+                  >
+                    <span className="flex items-center justify-center h-6 w-6 rounded-full bg-white/60">
+                      <User className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="text-[11px] font-semibold tracking-wide whitespace-nowrap">{badgeData.tier_name}</span>
+                  </Link>
+                ) : (
                   <Link
                     href="/dashboard"
                     className="flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all"
@@ -276,21 +291,7 @@ export function Header() {
                   >
                     <User className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
                   </Link>
-                  {/* Tier badge — premium pill anchored under the account icon */}
-                  {badgeData?.tier_name && (
-                    <Link
-                      href="/dashboard"
-                      className="hidden sm:flex absolute top-full right-0 mt-1.5 items-center gap-1 pl-1.5 pr-2.5 py-1 rounded-full whitespace-nowrap shadow-[0_2px_10px_rgba(0,0,0,0.12)] ring-1 ring-white/40 hover:-translate-y-px transition-transform duration-200"
-                      style={{
-                        background: `linear-gradient(135deg, ${badgeData.badge_color}, ${badgeData.badge_color}cc)`,
-                      }}
-                      title={`${badgeData.tier_name} Member`}
-                    >
-                      <VerifiedBadge color="#ffffff" opacity={0.95} size={12} />
-                      <span className="text-[10px] font-semibold text-white tracking-wide">{badgeData.tier_name}</span>
-                    </Link>
-                  )}
-                </div>
+                )
               ) : (
                 <>
                   {/* Mobile — icon */}
@@ -349,16 +350,21 @@ export function Header() {
                   </button>
                 </div>
 
-                {/* Tier badge — premium pill under the mobile menu header */}
+                {/* Tier badge — same rounded-border pill as the header, sized up for mobile */}
                 {isAuthenticated && badgeData?.tier_name && (
                   <Link
                     href="/dashboard"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-1.5 w-fit pl-2 pr-3 py-1.5 rounded-full mb-4 shadow-[0_2px_10px_rgba(0,0,0,0.1)] ring-1 ring-white/40"
-                    style={{ background: `linear-gradient(135deg, ${badgeData.badge_color}, ${badgeData.badge_color}cc)` }}
+                    className={cn(
+                      "flex items-center gap-2 w-fit h-9 pl-1.5 pr-3 rounded-full border mb-4",
+                      badgeData.tier_color || "border-border text-charcoal/60"
+                    )}
+                    style={{ borderColor: "currentColor" }}
                   >
-                    <VerifiedBadge color="#ffffff" opacity={0.95} size={14} />
-                    <span className="text-xs font-semibold text-white tracking-wide">{badgeData.tier_name} Member</span>
+                    <span className="flex items-center justify-center h-6 w-6 rounded-full bg-white/60">
+                      <User className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="text-xs font-semibold tracking-wide">{badgeData.tier_name} Member</span>
                   </Link>
                 )}
 

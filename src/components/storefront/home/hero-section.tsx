@@ -46,10 +46,15 @@ const positionHClass: Record<BannerSettings["positionH"], string> = {
   right: "items-end text-right ml-auto",
 };
 
+// Vertical alignment needs `flex-col` on the container for `justify-*` to act
+// on the vertical axis at all — the previous version omitted flex-col, so
+// "Top"/"Bottom" silently had no effect and text always rendered vertically
+// centered. Minimum top/bottom padding keeps text off the banner's edges at
+// every position (paired with positionHClass's horizontal padding below).
 const positionVClass: Record<BannerSettings["positionV"], string> = {
-  top: "justify-start pt-16 sm:pt-20",
+  top: "justify-start",
   center: "justify-center",
-  bottom: "justify-end pb-16 sm:pb-20",
+  bottom: "justify-end",
 };
 
 export function HeroSection() {
@@ -196,8 +201,8 @@ export function HeroSection() {
             />
           )}
 
-          <div className={`absolute inset-0 flex ${positionVClass[settings.positionV]}`}>
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 w-full">
+          <div className={`absolute inset-0 flex flex-col py-10 sm:py-14 lg:py-16 ${positionVClass[settings.positionV]}`}>
+            <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-14 w-full">
               <div className={`flex flex-col max-w-lg drop-shadow-[0_2px_12px_rgba(0,0,0,0.3)] ${positionHClass[settings.positionH]}`}>
                 {showDescriptionAbove ? (<>{descriptionEl}{titleEl}</>) : (<>{titleEl}{descriptionEl}</>)}
                 {slide.cta_text && slide.link && (
