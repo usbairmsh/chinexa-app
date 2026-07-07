@@ -15,6 +15,8 @@ import { useCategoriesStore } from "@/stores/categories.store";
 import { MAIN_NAV, type NavItem } from "@/data/constants/navigation";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "./notification-bell";
+import { useCustomerBadge } from "@/hooks/use-customer-badge";
+import { VerifiedBadge } from "@/components/shared/verified-badge";
 
 export function Header() {
   const pathname = usePathname();
@@ -28,6 +30,7 @@ export function Header() {
   // Persisted store differs from server HTML on hard refresh — rendering it
   // before mount causes a hydration mismatch that wedges the splash loader.
   const isAuthenticated = mounted && storeAuthenticated;
+  const badgeData = useCustomerBadge();
   const hiddenSeedIds = useCategoriesStore((s) => s.hiddenSeedIds);
   const [navItems, setNavItems] = useState<NavItem[]>(MAIN_NAV);
   const [announcement, setAnnouncement] = useState<{ visible: boolean; text: string; phone: string }>({ visible: true, text: "", phone: "+880 1700-000000" });
@@ -84,33 +87,38 @@ export function Header() {
 
   return (
     <>
-      {/* ══════ TOP UTILITY BAR ══════ */}
-      {announcement.visible && (
-        <div className="bg-primary-light border-b border-border/20">
-          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10 flex items-center justify-between h-8">
-            <span className="text-[11px] text-charcoal-lighter hidden sm:flex items-center gap-1.5">
-              <Phone className="h-3 w-3" /> {announcement.phone || "+880 1700-000000"}
-            </span>
-            <p className="text-[10px] sm:text-[11px] text-charcoal-light text-center flex-1 sm:flex-none tracking-wide truncate px-2 sm:px-0">
-              {announcement.text || "Free shipping above ৳3,000 | Use code WELCOME10 for 10% off"}
-            </p>
-            <div className="hidden sm:flex items-center gap-4 text-[11px] text-charcoal-lighter">
-              <Link href="/track-order" className="hover:text-secondary transition-colors">Track Order</Link>
-              <Link href="/faq" className="hover:text-secondary transition-colors">FAQ</Link>
+      {/* ══════ STICKY UNIT: announcement bar + main header pinned together ══════ */}
+      {/* Both live inside one sticky container so the header never "jumps" up when the
+          announcement bar scrolls out of the normal document flow — the whole assembly
+          moves as a single pinned block instead of the header snapping to top:0 mid-scroll. */}
+      <div className="sticky top-0 z-40 w-full">
+        {/* ══════ TOP UTILITY BAR ══════ */}
+        {announcement.visible && (
+          <div className="bg-primary-light border-b border-border/20">
+            <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10 flex items-center justify-between h-8">
+              <span className="text-[11px] text-charcoal-lighter hidden sm:flex items-center gap-1.5">
+                <Phone className="h-3 w-3" /> {announcement.phone || "+880 1700-000000"}
+              </span>
+              <p className="text-[10px] sm:text-[11px] text-charcoal-light text-center flex-1 sm:flex-none tracking-wide truncate px-2 sm:px-0">
+                {announcement.text || "Free shipping above ৳3,000 | Use code WELCOME10 for 10% off"}
+              </p>
+              <div className="hidden sm:flex items-center gap-4 text-[11px] text-charcoal-lighter">
+                <Link href="/track-order" className="hover:text-secondary transition-colors">Track Order</Link>
+                <Link href="/faq" className="hover:text-secondary transition-colors">FAQ</Link>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* ══════ MAIN HEADER ══════ */}
-      <header
-        className={cn(
-          "sticky top-0 z-40 w-full transition-all duration-300",
-          scrolled
-            ? "bg-white/97 backdrop-blur-xl shadow-[0_1px_20px_rgba(0,0,0,0.06)] border-b border-border/20"
-            : "bg-white border-b border-border/10"
         )}
-      >
+
+        {/* ══════ MAIN HEADER ══════ */}
+        <header
+          className={cn(
+            "w-full transition-all duration-300",
+            scrolled
+              ? "bg-white/97 backdrop-blur-xl shadow-[0_1px_20px_rgba(0,0,0,0.06)] border-b border-border/20"
+              : "bg-white border-b border-border/10"
+          )}
+        >
         <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
           <div className="flex items-center h-[52px] sm:h-[60px] lg:h-[68px]">
 
@@ -260,13 +268,29 @@ export function Header() {
 
               {/* Account */}
               {isAuthenticated ? (
-                <Link
-                  href="/dashboard"
-                  className="flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all"
-                  aria-label="Account"
-                >
-                  <User className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
-                </Link>
+                <div className="relative">
+                  <Link
+                    href="/dashboard"
+                    className="flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all"
+                    aria-label="Account"
+                  >
+                    <User className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+                  </Link>
+                  {/* Tier badge — premium pill anchored under the account icon */}
+                  {badgeData?.tier_name && (
+                    <Link
+                      href="/dashboard"
+                      className="hidden sm:flex absolute top-full right-0 mt-1.5 items-center gap-1 pl-1.5 pr-2.5 py-1 rounded-full whitespace-nowrap shadow-[0_2px_10px_rgba(0,0,0,0.12)] ring-1 ring-white/40 hover:-translate-y-px transition-transform duration-200"
+                      style={{
+                        background: `linear-gradient(135deg, ${badgeData.badge_color}, ${badgeData.badge_color}cc)`,
+                      }}
+                      title={`${badgeData.tier_name} Member`}
+                    >
+                      <VerifiedBadge color="#ffffff" opacity={0.95} size={12} />
+                      <span className="text-[10px] font-semibold text-white tracking-wide">{badgeData.tier_name}</span>
+                    </Link>
+                  )}
+                </div>
               ) : (
                 <>
                   {/* Mobile — icon */}
@@ -292,7 +316,8 @@ export function Header() {
             </div>
           </div>
         </div>
-      </header>
+        </header>
+      </div>
 
       {/* ══════ MOBILE MENU ══════ */}
       <AnimatePresence>
@@ -314,7 +339,7 @@ export function Header() {
             >
               <div className="flex-1 overflow-y-auto overscroll-contain p-5">
                 {/* Mobile Header */}
-                <div className="flex items-center justify-between mb-6 pb-4 border-b border-border/20">
+                <div className="flex items-center justify-between mb-2 pb-4 border-b border-border/20">
                   <Image src="/logo.png" alt="ChineXa" width={120} height={46} className="h-10 w-auto" />
                   <button
                     onClick={() => setMobileMenuOpen(false)}
@@ -323,6 +348,19 @@ export function Header() {
                     <X className="h-4 w-4" />
                   </button>
                 </div>
+
+                {/* Tier badge — premium pill under the mobile menu header */}
+                {isAuthenticated && badgeData?.tier_name && (
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-1.5 w-fit pl-2 pr-3 py-1.5 rounded-full mb-4 shadow-[0_2px_10px_rgba(0,0,0,0.1)] ring-1 ring-white/40"
+                    style={{ background: `linear-gradient(135deg, ${badgeData.badge_color}, ${badgeData.badge_color}cc)` }}
+                  >
+                    <VerifiedBadge color="#ffffff" opacity={0.95} size={14} />
+                    <span className="text-xs font-semibold text-white tracking-wide">{badgeData.tier_name} Member</span>
+                  </Link>
+                )}
 
                 {/* Mobile Nav */}
                 <nav className="space-y-0.5">

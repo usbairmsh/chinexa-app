@@ -7,6 +7,8 @@ interface BadgeData {
   badge_name: string;
   badge_color: string;
   badge_opacity: number;
+  tier_name: string;
+  tier_color: string;
 }
 
 const badgeCache = new Map<string, BadgeData>();
@@ -30,6 +32,8 @@ export function useCustomerBadge() {
             badge_name: data.tier.badge_name || "",
             badge_color: data.tier.badge_color || "",
             badge_opacity: data.tier.badge_opacity ?? 1,
+            tier_name: data.tier.name || "",
+            tier_color: data.tier.color || "",
           };
           badgeCache.set(user.id, b);
           setBadge(b);

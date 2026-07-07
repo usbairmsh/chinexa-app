@@ -6,7 +6,8 @@ import {
   Search, Users, DollarSign, ShoppingCart, TrendingUp, ArrowUpDown,
   ChevronRight, Mail, Phone, Edit,
   MapPin, Package, Clock, CheckCircle2, Truck, XCircle, Calendar,
-  ArrowLeft, Loader2, Crown, Gift, Plus, Tag, Save, Cake, UserCheck, UserRound
+  ArrowLeft, Loader2, Crown, Gift, Plus, Tag, Save, Cake, UserCheck, UserRound,
+  UserPlus, MessageSquare, Lock, X, Check
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,7 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { formatCurrency, formatDateShort, getInitials, cn } from "@/lib/utils";
 
@@ -79,6 +81,25 @@ export default function AdminCustomersPage() {
   const [editBirthdate, setEditBirthdate] = useState("");
   const [editActive, setEditActive] = useState(true);
   const [editSaving, setEditSaving] = useState(false);
+
+  // Add customer dialog
+  const [addCustomerOpen, setAddCustomerOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [newRegistered, setNewRegistered] = useState(true);
+  const [newPassword, setNewPassword] = useState("");
+  const [newSaving, setNewSaving] = useState(false);
+  const [newError, setNewError] = useState("");
+
+  // Send SMS dialog
+  const [smsOpen, setSmsOpen] = useState(false);
+  const [smsSearch, setSmsSearch] = useState("");
+  const [smsSearchResults, setSmsSearchResults] = useState<{ id: string; name: string; phone: string }[]>([]);
+  const [smsSelected, setSmsSelected] = useState<{ id: string; name: string; phone: string }[]>([]);
+  const [smsMessage, setSmsMessage] = useState("");
+  const [smsSending, setSmsSending] = useState(false);
+  const [smsResult, setSmsResult] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -223,6 +244,75 @@ export default function AdminCustomersPage() {
       setSelectedCustomer({ ...selectedCustomer, name: editName.trim(), email: editEmail.trim(), phone: editPhone.trim(), birthdate: editBirthdate, isActive: editActive });
       fetchCustomers();
     } catch {} finally { setEditSaving(false); }
+  };
+
+  const openAddCustomer = () => {
+    setNewName(""); setNewEmail(""); setNewPhone(""); setNewRegistered(true); setNewPassword("");
+    setNewError(""); setAddCustomerOpen(true);
+  };
+
+  const handleAddCustomer = async () => {
+    setNewError("");
+    if (!newName.trim() || !newPhone.trim()) { setNewError("Name and phone are required"); return; }
+    if (newRegistered && newPassword.length < 6) { setNewError("Password must be at least 6 characters"); return; }
+
+    setNewSaving(true);
+    try {
+      const res = await fetch("/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newName.trim(), email: newEmail.trim() || null, phone: newPhone.trim(),
+          account_type: newRegistered ? "registered" : "temporary",
+          password: newRegistered ? newPassword : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create customer");
+      setAddCustomerOpen(false);
+      fetchCustomers();
+    } catch (err: unknown) {
+      setNewError(err instanceof Error ? err.message : "Failed to create customer");
+    } finally { setNewSaving(false); }
+  };
+
+  const openSmsDialog = () => {
+    setSmsSearch(""); setSmsSearchResults([]); setSmsSelected([]); setSmsMessage(""); setSmsResult("");
+    setSmsOpen(true);
+  };
+
+  const handleSmsSearch = async (q: string) => {
+    setSmsSearch(q);
+    if (q.length < 2) { setSmsSearchResults([]); return; }
+    try {
+      const res = await fetch(`/api/customers?search=${encodeURIComponent(q)}&page_size=10`);
+      const data = await res.json();
+      if (data?.data) setSmsSearchResults(data.data.map((c: Record<string, unknown>) => ({ id: c.id as string, name: c.name as string, phone: c.phone as string })));
+    } catch {}
+  };
+
+  const toggleSmsSelected = (c: { id: string; name: string; phone: string }) => {
+    setSmsSelected((prev) => prev.some((s) => s.id === c.id) ? prev.filter((s) => s.id !== c.id) : [...prev, c]);
+  };
+
+  const handleSendSms = async () => {
+    if (smsSelected.length === 0 || !smsMessage.trim()) return;
+    setSmsSending(true);
+    setSmsResult("");
+    try {
+      const res = await fetch("/api/customers/send-sms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customer_ids: smsSelected.map((c) => c.id), message: smsMessage.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send SMS");
+      setSmsResult(`Sent to ${data.sent} of ${data.total} recipient${data.total !== 1 ? "s" : ""}${data.failed > 0 ? ` (${data.failed} failed)` : ""}`);
+      setSmsSelected([]);
+      setSmsMessage("");
+    } catch (err: unknown) {
+      setSmsResult(err instanceof Error ? err.message : "Failed to send SMS");
+    } finally { setSmsSending(false); }
   };
 
   // Fetch customer detail with orders when selecting
@@ -602,7 +692,11 @@ export default function AdminCustomersPage() {
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Customers</h1>
           <p className="text-sm text-charcoal-lighter">{activeCustomers.length} registered · {formatCurrency(totalRevenue)} lifetime revenue</p>
         </div>
-        <AdminButton variant="outline" size="sm"><Users className="h-3.5 w-3.5" /> Export</AdminButton>
+        <div className="flex gap-2">
+          <AdminButton variant="outline" size="sm" onClick={openSmsDialog}><MessageSquare className="h-3.5 w-3.5" /> Send SMS</AdminButton>
+          <AdminButton size="sm" onClick={openAddCustomer}><UserPlus className="h-3.5 w-3.5" /> Add Customer</AdminButton>
+          <AdminButton variant="outline" size="sm"><Users className="h-3.5 w-3.5" /> Export</AdminButton>
+        </div>
       </div>
 
       {/* Stats */}
@@ -735,6 +829,115 @@ export default function AdminCustomersPage() {
           </table>
         </div>
       </Card>
+
+      {/* Add Customer Dialog */}
+      <Dialog open={addCustomerOpen} onOpenChange={setAddCustomerOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><UserPlus className="h-5 w-5 text-secondary" /> Add Customer</DialogTitle>
+            <DialogDescription>Create a new customer account</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Input label="Full Name *" value={newName} onChange={(e) => setNewName(e.target.value)} />
+            <Input label="Phone *" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+8801XXXXXXXXX" />
+            <Input label="Email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+            <div className="flex items-center gap-3">
+              <Switch checked={newRegistered} onCheckedChange={setNewRegistered} />
+              <span className="text-sm text-charcoal-lighter">{newRegistered ? "Registered account" : "Temporary (guest-style) record"}</span>
+            </div>
+            {newRegistered && (
+              <Input
+                label="Password *"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="At least 6 characters"
+                icon={<Lock className="h-4 w-4" />}
+              />
+            )}
+            {newError && <p className="text-xs text-destructive">{newError}</p>}
+          </div>
+          <DialogFooter>
+            <button onClick={() => setAddCustomerOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
+            <button
+              onClick={handleAddCustomer}
+              disabled={newSaving || !newName.trim() || !newPhone.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(192,57,43,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300"
+            >
+              {newSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />} Create
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send SMS Dialog */}
+      <Dialog open={smsOpen} onOpenChange={setSmsOpen}>
+        <DialogContent className="max-w-md max-h-[85vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5 text-secondary" /> Send SMS</DialogTitle>
+            <DialogDescription>Search and select customers to message</DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-3 py-2">
+            {smsSelected.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {smsSelected.map((c) => (
+                  <span key={c.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary/10 text-secondary text-[11px] font-medium">
+                    {c.name}
+                    <button type="button" onClick={() => toggleSmsSelected(c)} className="hover:text-destructive transition-colors">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-2 px-3 rounded-xl border border-border bg-pearl/30">
+              <Search className="h-3.5 w-3.5 text-charcoal-lighter shrink-0" />
+              <input
+                type="text"
+                value={smsSearch}
+                onChange={(e) => handleSmsSearch(e.target.value)}
+                placeholder="Search by name or phone number..."
+                className="w-full py-2.5 text-sm bg-transparent outline-none text-charcoal placeholder:text-charcoal-lighter/50"
+              />
+            </div>
+            {smsSearchResults.length > 0 && (
+              <div className="max-h-40 overflow-y-auto border border-border/30 rounded-xl bg-white">
+                {smsSearchResults.map((r) => {
+                  const isSelected = smsSelected.some((s) => s.id === r.id);
+                  return (
+                    <button key={r.id} type="button" onClick={() => toggleSmsSelected(r)}
+                      className={cn("w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-pearl transition-colors", isSelected && "bg-secondary/5")}>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-charcoal truncate">{r.name}</p>
+                        <p className="text-[10px] text-charcoal-lighter truncate">{r.phone}</p>
+                      </div>
+                      {isSelected && <Check className="h-4 w-4 text-secondary shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <Textarea
+              label={`Message${smsSelected.length > 0 ? ` (to ${smsSelected.length} recipient${smsSelected.length > 1 ? "s" : ""})` : ""}`}
+              value={smsMessage}
+              onChange={(e) => setSmsMessage(e.target.value)}
+              placeholder="Type your message..."
+              className="min-h-[90px]"
+            />
+            {smsResult && <p className="text-xs text-charcoal-lighter">{smsResult}</p>}
+          </div>
+          <DialogFooter className="shrink-0 pt-2 border-t border-border/20">
+            <button onClick={() => setSmsOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Close</button>
+            <button
+              onClick={handleSendSms}
+              disabled={smsSending || smsSelected.length === 0 || !smsMessage.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(192,57,43,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300"
+            >
+              {smsSending ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageSquare className="h-3 w-3" />} Send
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

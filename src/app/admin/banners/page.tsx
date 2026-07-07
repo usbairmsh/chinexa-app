@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
-import { Plus, Edit, Trash2, MoreHorizontal, ExternalLink, Loader2, ImageIcon, AlertTriangle, Move, ZoomIn, ZoomOut, Info, RotateCcw } from "lucide-react";
+import { Plus, Edit, Trash2, MoreHorizontal, ExternalLink, Loader2, ImageIcon, AlertTriangle, Move, ZoomIn, ZoomOut, Info, RotateCcw, Sparkles } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,8 +14,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { ImageUpload } from "@/components/admin/shared/image-upload";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import type { Banner, BannerCrop } from "@/types/banner";
+import type { Banner, BannerCrop, BannerSettings } from "@/types/banner";
+import { DEFAULT_BANNER_SETTINGS } from "@/types/banner";
 
 // ─── Helpers ──────────────────────────────────────────────
 function parseCrop(val?: string): BannerCrop {
@@ -196,6 +198,7 @@ export default function AdminBannersPage() {
   const [formPosition, setFormPosition] = useState<"hero" | "promo" | "category" | "popup">("hero");
   const [formActive, setFormActive] = useState(true);
   const [formCrop, setFormCrop] = useState<BannerCrop>({ x: 50, y: 50, zoom: 1 });
+  const [formSettings, setFormSettings] = useState<BannerSettings>(DEFAULT_BANNER_SETTINGS);
 
   const fetchBanners = async () => {
     try {
@@ -210,7 +213,7 @@ export default function AdminBannersPage() {
   const resetForm = () => {
     setFormTitle(""); setFormSubtitle(""); setFormImage(""); setFormMobileImage("");
     setFormLink(""); setFormCta(""); setFormPosition("hero"); setFormActive(true);
-    setFormCrop({ x: 50, y: 50, zoom: 1 }); setEditBanner(null);
+    setFormCrop({ x: 50, y: 50, zoom: 1 }); setFormSettings(DEFAULT_BANNER_SETTINGS); setEditBanner(null);
   };
 
   const openCreate = () => { resetForm(); setDialogOpen(true); };
@@ -226,6 +229,8 @@ export default function AdminBannersPage() {
     setFormPosition(banner.position);
     setFormActive(banner.is_active);
     setFormCrop(parseCrop(banner.focal_point));
+    const existingSettings = typeof banner.settings === "string" ? JSON.parse(banner.settings) : banner.settings;
+    setFormSettings({ ...DEFAULT_BANNER_SETTINGS, ...(existingSettings || {}) });
     setDialogOpen(true);
   };
 
@@ -239,6 +244,7 @@ export default function AdminBannersPage() {
         link: formLink.trim() || null, cta_text: formCta.trim() || null,
         position: formPosition, is_active: formActive,
         focal_point: cropToString(formCrop),
+        settings: formPosition === "hero" ? formSettings : null,
       };
       if (editBanner) {
         await fetch(`/api/banners/${editBanner.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -372,6 +378,147 @@ export default function AdminBannersPage() {
                 </label>
               </div>
             </div>
+
+            {/* Hero-only display customization */}
+            {formPosition === "hero" && (
+              <>
+                <Separator />
+                <div className="space-y-4">
+                  <p className="flex items-center gap-1.5 text-sm font-semibold text-charcoal"><Sparkles className="h-4 w-4 text-secondary" /> Hero Slide Customization</p>
+
+                  {/* Title/Description toggles */}
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <label className="flex items-center justify-between p-3 rounded-xl bg-pearl/40 cursor-pointer">
+                      <span className="text-sm text-charcoal-light">Show Title</span>
+                      <Switch checked={formSettings.showTitle} onCheckedChange={(v) => setFormSettings((s) => ({ ...s, showTitle: v }))} />
+                    </label>
+                    <label className="flex items-center justify-between p-3 rounded-xl bg-pearl/40 cursor-pointer">
+                      <span className="text-sm text-charcoal-light">Show Description</span>
+                      <Switch checked={formSettings.showDescription} onCheckedChange={(v) => setFormSettings((s) => ({ ...s, showDescription: v }))} />
+                    </label>
+                  </div>
+
+                  {/* Overlay blur/fade */}
+                  <div className="p-3 rounded-xl bg-pearl/40 space-y-3">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <span className="text-sm text-charcoal-light">Dark Overlay (for text legibility)</span>
+                      <Switch checked={formSettings.overlayEnabled} onCheckedChange={(v) => setFormSettings((s) => ({ ...s, overlayEnabled: v }))} />
+                    </label>
+                    {formSettings.overlayEnabled && (
+                      <div className="grid sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] text-charcoal-lighter mb-1">Overlay Opacity ({Math.round(formSettings.overlayOpacity * 100)}%)</label>
+                          <input type="range" min="0" max="1" step="0.05" value={formSettings.overlayOpacity}
+                            onChange={(e) => setFormSettings((s) => ({ ...s, overlayOpacity: Number(e.target.value) }))}
+                            className="w-full accent-secondary" />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-charcoal-lighter mb-1">Background Blur ({formSettings.overlayBlur}px)</label>
+                          <input type="range" min="0" max="20" step="1" value={formSettings.overlayBlur}
+                            onChange={(e) => setFormSettings((s) => ({ ...s, overlayBlur: Number(e.target.value) }))}
+                            className="w-full accent-secondary" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Text position */}
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-charcoal-light mb-1.5">Text Position — Horizontal</label>
+                      <Select value={formSettings.positionH} onValueChange={(v) => setFormSettings((s) => ({ ...s, positionH: v as BannerSettings["positionH"] }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="left">Left</SelectItem>
+                          <SelectItem value="center">Center</SelectItem>
+                          <SelectItem value="right">Right</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-charcoal-light mb-1.5">Text Position — Vertical</label>
+                      <Select value={formSettings.positionV} onValueChange={(v) => setFormSettings((s) => ({ ...s, positionV: v as BannerSettings["positionV"] }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="top">Top</SelectItem>
+                          <SelectItem value="center">Center</SelectItem>
+                          <SelectItem value="bottom">Bottom</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-charcoal-light mb-1.5">Description Position</label>
+                    <Select value={formSettings.descriptionOrder} onValueChange={(v) => setFormSettings((s) => ({ ...s, descriptionOrder: v as BannerSettings["descriptionOrder"] }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="above">Above Title</SelectItem>
+                        <SelectItem value="below">Below Title</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Animations */}
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-charcoal-light mb-1.5">Title Animation</label>
+                      <Select value={formSettings.titleAnimation} onValueChange={(v) => setFormSettings((s) => ({ ...s, titleAnimation: v as BannerSettings["titleAnimation"] }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="slide-left">Slide Left</SelectItem>
+                          <SelectItem value="slide-right">Slide Right</SelectItem>
+                          <SelectItem value="slide-up">Slide Up</SelectItem>
+                          <SelectItem value="slide-down">Slide Down</SelectItem>
+                          <SelectItem value="fade">Fade In</SelectItem>
+                          <SelectItem value="zoom">Zoom In</SelectItem>
+                          <SelectItem value="none">None</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-charcoal-light mb-1.5">Description Animation</label>
+                      <Select value={formSettings.descriptionAnimation} onValueChange={(v) => setFormSettings((s) => ({ ...s, descriptionAnimation: v as BannerSettings["descriptionAnimation"] }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="slide-left">Slide Left</SelectItem>
+                          <SelectItem value="slide-right">Slide Right</SelectItem>
+                          <SelectItem value="slide-up">Slide Up</SelectItem>
+                          <SelectItem value="slide-down">Slide Down</SelectItem>
+                          <SelectItem value="fade">Fade In</SelectItem>
+                          <SelectItem value="zoom">Zoom In</SelectItem>
+                          <SelectItem value="none">None</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Carousel transition */}
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-charcoal-light mb-1.5">Slide Transition</label>
+                      <Select value={formSettings.carouselTransition} onValueChange={(v) => setFormSettings((s) => ({ ...s, carouselTransition: v as BannerSettings["carouselTransition"] }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="fade">Fade</SelectItem>
+                          <SelectItem value="slide">Slide</SelectItem>
+                          <SelectItem value="zoom">Zoom</SelectItem>
+                          <SelectItem value="none">None (Instant)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Input
+                      label="Slide Duration (ms)"
+                      type="number"
+                      min={1000}
+                      step={500}
+                      value={formSettings.transitionDuration}
+                      onChange={(e) => setFormSettings((s) => ({ ...s, transitionDuration: Math.max(1000, Number(e.target.value) || 6000) }))}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter className="shrink-0 pt-2 border-t border-border/20">
             <AdminButton variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</AdminButton>

@@ -60,7 +60,7 @@ export default function CheckoutPage() {
   const storeSettings = useStoreSettings();
   const dbPaymentMethods = storeSettings.payment_methods.filter((m) => m.enabled);
   const activePaymentMethods = dbPaymentMethods.length > 0 ? dbPaymentMethods : PAYMENT_METHODS;
-  const { freeDeliveryEnabled, freeDeliveryThreshold, zones } = useDeliveryStore();
+  const { freeDeliveryEnabled, freeDeliveryThreshold, zones, expressEnabled, expressCharge, expressDivision } = useDeliveryStore();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -140,6 +140,30 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (isAuthenticated) refreshOffers(user?.id || null);
   }, [refreshOffers, isAuthenticated, user?.id, items.length]);
+
+  // Free delivery / free express delivery rules — applicability-scoped
+  // (store-wide, category, product, brand, customer, or tier), configured in
+  // Admin → Settings → Delivery. Evaluated server-side against the cart +
+  // signed-in customer (if any); a store-wide rule applies to guests too.
+  const [ruleFreeDelivery, setRuleFreeDelivery] = useState(false);
+  const [ruleFreeExpressDelivery, setRuleFreeExpressDelivery] = useState(false);
+  useEffect(() => {
+    if (!mounted || items.length === 0) return;
+    fetch("/api/delivery-rules/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customer_id: isAuthenticated ? user?.id || null : null,
+        items: items.map((i) => ({ product_id: i.product_id, variant_id: i.variant_id || null, price: i.price, quantity: i.quantity })),
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        setRuleFreeDelivery(!!data?.standard);
+        setRuleFreeExpressDelivery(!!data?.express);
+      })
+      .catch(() => {});
+  }, [mounted, isAuthenticated, user?.id, items]);
 
   interface SavedAddress {
     id: string; label: string; name: string; phone: string;
@@ -242,10 +266,13 @@ export default function CheckoutPage() {
   const subtotal = getSubtotal();
   const offerSavings = getSavings();
   const discount = getDiscount();
-  const isFreeShipping = freeDeliveryEnabled && subtotal >= freeDeliveryThreshold;
-  // Express delivery: flat ৳200, Dhaka City only (not covered by free-delivery threshold)
-  const isExpress = shippingMethod === "express" && activeDivision === "Dhaka";
-  const effectiveShipping = isExpress ? 200 : shippingCost;
+  const isFreeShipping = (freeDeliveryEnabled && subtotal >= freeDeliveryThreshold) || ruleFreeDelivery;
+  // Express delivery: admin-configurable flat rate, restricted to one division
+  // (not covered by the free-delivery threshold — only a dedicated free-express
+  // rule, or the standard free-delivery rule, waives it).
+  const isExpress = shippingMethod === "express" && expressEnabled && activeDivision === expressDivision;
+  const isFreeExpress = isExpress && (ruleFreeExpressDelivery || ruleFreeDelivery);
+  const effectiveShipping = isExpress ? (isFreeExpress ? 0 : expressCharge) : (isFreeShipping ? 0 : shippingCost);
   const showFreeShipping = !isExpress && isFreeShipping;
   const finalTotal = Math.max(0, subtotal - offerSavings - discount + effectiveShipping);
 
@@ -729,7 +756,7 @@ export default function CheckoutPage() {
                     </div>
                     <span className="text-sm font-semibold shrink-0 ml-2">{isFreeShipping ? <span className="text-success">Free</span> : formatCurrency(shippingCost)}</span>
                   </label>
-                  {activeDivision === "Dhaka" && (
+                  {expressEnabled && activeDivision === expressDivision && (
                     <label className={cn(
                       "flex items-center justify-between p-3 sm:p-4 rounded-xl border cursor-pointer transition-colors",
                       shippingMethod === "express" ? "border-secondary bg-primary-light" : "border-border hover:border-secondary"
@@ -738,10 +765,12 @@ export default function CheckoutPage() {
                         <input type="radio" name="shipping" checked={shippingMethod === "express"} onChange={() => setShippingMethod("express")} className="accent-secondary shrink-0" />
                         <div>
                           <p className="text-sm font-medium text-charcoal">Express Delivery</p>
-                          <p className="text-xs text-charcoal-lighter">Next day delivery (Dhaka only)</p>
+                          <p className="text-xs text-charcoal-lighter">Next day delivery ({expressDivision} only)</p>
                         </div>
                       </div>
-                      <span className="text-sm font-semibold shrink-0 ml-2">৳200</span>
+                      <span className="text-sm font-semibold shrink-0 ml-2">
+                        {(ruleFreeExpressDelivery || ruleFreeDelivery) ? <span className="text-success">Free</span> : formatCurrency(expressCharge)}
+                      </span>
                     </label>
                   )}
                 </div>

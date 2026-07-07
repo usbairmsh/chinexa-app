@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import {
   Settings, Store, Truck, CreditCard, Bell, Save, Loader2, Check,
-  Plus, Trash2, X
+  Plus, Trash2, X, Edit, Globe, FolderTree, ShoppingCart, Award, Users, Search
 } from "lucide-react";
 import { SOCIAL_PLATFORMS, getPlatform } from "@/lib/social-platforms";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,10 +12,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
 import { useDeliveryStore } from "@/stores/delivery.store";
 import { formatCurrency, cn, randomId } from "@/lib/utils";
+import type { OfferApplicability } from "@/types/offer";
 
 type Tab = "general" | "store" | "delivery" | "payment" | "notifications";
 
@@ -26,6 +28,112 @@ const tabList: { id: Tab; label: string; icon: typeof Settings }[] = [
   { id: "payment", label: "Payment", icon: CreditCard },
   { id: "notifications", label: "Notifications", icon: Bell },
 ];
+
+interface ApplicableItem { id: string; name: string; extra?: string }
+
+/** Applicability picker shared by the free standard/express delivery rules — same model as offers/coupons. */
+function DeliveryApplicabilityPicker({
+  applicability, onApplicabilityChange, selectedIds, onToggleSelected, onRemoveSelected,
+  options, searchQuery, onSearch, searchResults, searchLoading,
+}: {
+  applicability: OfferApplicability;
+  onApplicabilityChange: (v: OfferApplicability) => void;
+  selectedIds: ApplicableItem[];
+  onToggleSelected: (item: ApplicableItem) => void;
+  onRemoveSelected: (id: string) => void;
+  options: ApplicableItem[];
+  searchQuery: string;
+  onSearch: (q: string) => void;
+  searchResults: ApplicableItem[];
+  searchLoading: boolean;
+}) {
+  return (
+    <div className="space-y-2">
+      <div>
+        <label className="block text-sm font-medium text-charcoal-light mb-1.5">Applies To</label>
+        <Select value={applicability} onValueChange={(v) => onApplicabilityChange(v as OfferApplicability)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="store"><span className="flex items-center gap-2"><Globe className="h-3.5 w-3.5" /> Store-wide</span></SelectItem>
+            <SelectItem value="categories"><span className="flex items-center gap-2"><FolderTree className="h-3.5 w-3.5" /> Specific Categories</span></SelectItem>
+            <SelectItem value="subcategories"><span className="flex items-center gap-2"><FolderTree className="h-3.5 w-3.5" /> Specific Subcategories</span></SelectItem>
+            <SelectItem value="products"><span className="flex items-center gap-2"><ShoppingCart className="h-3.5 w-3.5" /> Specific Products</span></SelectItem>
+            <SelectItem value="brands"><span className="flex items-center gap-2"><Award className="h-3.5 w-3.5" /> Specific Brands</span></SelectItem>
+            <SelectItem value="customers"><span className="flex items-center gap-2"><Users className="h-3.5 w-3.5" /> Specific Customers</span></SelectItem>
+            <SelectItem value="tiers"><span className="flex items-center gap-2"><Users className="h-3.5 w-3.5" /> Membership Tiers</span></SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {applicability !== "store" && (
+        <div className="space-y-2">
+          {selectedIds.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {selectedIds.map((item) => (
+                <span key={item.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary/10 text-secondary text-[11px] font-medium">
+                  {item.name}
+                  <button type="button" onClick={() => onRemoveSelected(item.id)} className="hover:text-destructive transition-colors">
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {(applicability === "customers" || applicability === "products") && (
+            <div>
+              <div className="flex items-center gap-2 px-3 rounded-xl border border-border bg-pearl/30">
+                <Search className="h-3.5 w-3.5 text-charcoal-lighter shrink-0" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => onSearch(e.target.value)}
+                  placeholder={applicability === "customers" ? "Search by phone number..." : "Search by product name or SKU..."}
+                  className="w-full py-2.5 text-sm bg-transparent outline-none text-charcoal placeholder:text-charcoal-lighter/50"
+                />
+                {searchLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-charcoal-lighter shrink-0" />}
+              </div>
+              {searchResults.length > 0 && (
+                <div className="mt-1 max-h-36 overflow-y-auto border border-border/30 rounded-xl bg-white">
+                  {searchResults.map((r) => {
+                    const isSelected = selectedIds.some((s) => s.id === r.id);
+                    return (
+                      <button key={r.id} type="button" onClick={() => onToggleSelected(r)}
+                        className={cn("w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-pearl transition-colors", isSelected && "bg-secondary/5")}>
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-charcoal truncate">{r.name}</p>
+                          <p className="text-[10px] text-charcoal-lighter truncate">{r.extra}</p>
+                        </div>
+                        {isSelected && <Check className="h-4 w-4 text-secondary shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {(applicability === "categories" || applicability === "subcategories" || applicability === "tiers" || applicability === "brands") && (
+            <div className="max-h-44 overflow-y-auto border border-border/30 rounded-xl bg-white">
+              {options.length === 0 ? (
+                <p className="px-3 py-4 text-xs text-charcoal-lighter text-center">No {applicability} found</p>
+              ) : options.map((opt) => {
+                const isSelected = selectedIds.some((s) => s.id === opt.id);
+                return (
+                  <button key={opt.id} type="button" onClick={() => onToggleSelected(opt)}
+                    className={cn("w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-pearl transition-colors border-b border-border/10 last:border-0", isSelected && "bg-secondary/5")}>
+                    <span className="text-xs text-charcoal">{opt.name}</span>
+                    {isSelected && <Check className="h-4 w-4 text-secondary shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface PaymentMethod {
   id: string; name: string; enabled: boolean; account_number: string; instructions: string;
@@ -63,13 +171,31 @@ export default function AdminSettingsPage() {
   const delivery = useDeliveryStore();
   const [mounted, setMounted] = useState(false);
   const [thresholdInput, setThresholdInput] = useState("");
+  const [expressChargeInput, setExpressChargeInput] = useState("");
   const [zoneDialog, setZoneDialog] = useState(false);
   const [zoneName, setZoneName] = useState("");
   const [zoneAreas, setZoneAreas] = useState("");
   const [zoneCharge, setZoneCharge] = useState("");
   const [zoneDays, setZoneDays] = useState("");
+  const [editZoneId, setEditZoneId] = useState<string | null>(null);
   const [deliverySaving, setDeliverySaving] = useState(false);
   const [deliverySaved, setDeliverySaved] = useState(false);
+
+  // Free delivery rules — applicability-scoped the same way as offers/coupons.
+  // One rule for standard delivery, one for express, each independently on/off.
+  const [standardRuleActive, setStandardRuleActive] = useState(false);
+  const [standardApplicability, setStandardApplicability] = useState<OfferApplicability>("store");
+  const [standardSelectedIds, setStandardSelectedIds] = useState<ApplicableItem[]>([]);
+  const [expressRuleActive, setExpressRuleActive] = useState(false);
+  const [expressApplicability, setExpressApplicability] = useState<OfferApplicability>("store");
+  const [expressSelectedIds, setExpressSelectedIds] = useState<ApplicableItem[]>([]);
+  const [deliveryRulesLoaded, setDeliveryRulesLoaded] = useState(false);
+  const [allCategoriesForDelivery, setAllCategoriesForDelivery] = useState<{ id: string; name: string; children?: { id: string; name: string }[] }[]>([]);
+  const [allTiersForDelivery, setAllTiersForDelivery] = useState<{ id: string; name: string }[]>([]);
+  const [allBrandsForDelivery, setAllBrandsForDelivery] = useState<{ id: string; name: string }[]>([]);
+  const [ruleSearchQuery, setRuleSearchQuery] = useState("");
+  const [ruleSearchResults, setRuleSearchResults] = useState<ApplicableItem[]>([]);
+  const [ruleSearchLoading, setRuleSearchLoading] = useState(false);
 
   // ═══ PAYMENT ═══
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
@@ -143,13 +269,89 @@ export default function AdminSettingsPage() {
           const cfg = data.delivery_config;
           if (cfg.freeDeliveryEnabled !== undefined) delivery.setFreeDelivery(cfg.freeDeliveryEnabled);
           if (cfg.freeDeliveryThreshold) { delivery.setFreeDeliveryThreshold(cfg.freeDeliveryThreshold); setThresholdInput(String(cfg.freeDeliveryThreshold)); }
+          if (cfg.expressEnabled !== undefined) delivery.setExpressEnabled(cfg.expressEnabled);
+          if (cfg.expressCharge !== undefined) { delivery.setExpressCharge(cfg.expressCharge); setExpressChargeInput(String(cfg.expressCharge)); }
+          if (cfg.expressDivision) delivery.setExpressDivision(cfg.expressDivision);
         }
         if (data.payment_methods && Array.isArray(data.payment_methods)) setPaymentMethods(data.payment_methods);
         if (data.notification_settings) setNotifications((p) => ({ ...p, ...data.notification_settings }));
       })
       .catch(() => {})
-      .finally(() => { setLoading(false); setThresholdInput(String(delivery.freeDeliveryThreshold)); });
+      .finally(() => {
+        setLoading(false);
+        setThresholdInput(String(delivery.freeDeliveryThreshold));
+        setExpressChargeInput(String(delivery.expressCharge));
+      });
+
+    // Free delivery rules (separate table, own endpoint)
+    fetch("/api/delivery-rules")
+      .then((r) => r.json())
+      .then((rules) => {
+        if (!Array.isArray(rules)) return;
+        for (const rule of rules) {
+          const selected = (rule.applicable_ids || []).map((id: string, i: number) => ({ id, name: rule.applicable_names?.[i] || id }));
+          if (rule.rule_type === "standard") {
+            setStandardRuleActive(!!rule.is_active);
+            setStandardApplicability(rule.applicability || "store");
+            setStandardSelectedIds(selected);
+          } else if (rule.rule_type === "express") {
+            setExpressRuleActive(!!rule.is_active);
+            setExpressApplicability(rule.applicability || "store");
+            setExpressSelectedIds(selected);
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => setDeliveryRulesLoaded(true));
+
+    fetch("/api/categories").then((r) => r.json()).then((data) => { if (Array.isArray(data)) setAllCategoriesForDelivery(data); }).catch(() => {});
+    fetch("/api/membership/tiers").then((r) => r.json()).then((data) => {
+      if (Array.isArray(data)) setAllTiersForDelivery(data.map((t: Record<string, unknown>) => ({ id: t.id as string, name: t.name as string })));
+    }).catch(() => {});
+    fetch("/api/brands").then((r) => r.json()).then((data) => {
+      if (Array.isArray(data)) setAllBrandsForDelivery(data.map((b: Record<string, unknown>) => ({ id: b.id as string, name: b.name as string })));
+    }).catch(() => {});
   }, []);
+
+  const getDeliveryRuleOptions = (applicability: OfferApplicability) => {
+    if (applicability === "categories") return allCategoriesForDelivery.map((c) => ({ id: c.id, name: c.name }));
+    if (applicability === "subcategories") return allCategoriesForDelivery.flatMap((c) => (c.children || []).map((s) => ({ id: s.id, name: `${c.name} → ${s.name}` })));
+    if (applicability === "tiers") return allTiersForDelivery;
+    if (applicability === "brands") return allBrandsForDelivery;
+    return [];
+  };
+
+  const handleRuleSearch = async (applicability: OfferApplicability, q: string) => {
+    setRuleSearchQuery(q);
+    if (q.length < 2) { setRuleSearchResults([]); return; }
+    setRuleSearchLoading(true);
+    try {
+      if (applicability === "customers") {
+        const res = await fetch(`/api/customers?search=${encodeURIComponent(q)}&page_size=10`);
+        const data = await res.json();
+        if (data?.data) setRuleSearchResults(data.data.map((c: Record<string, unknown>) => ({ id: c.id as string, name: c.name as string, extra: c.phone as string })));
+      } else if (applicability === "products") {
+        const res = await fetch(`/api/products?search=${encodeURIComponent(q)}&all=1&page_size=10`);
+        const data = await res.json();
+        if (data?.data) setRuleSearchResults(data.data.map((p: Record<string, unknown>) => ({ id: p.id as string, name: p.name as string, extra: p.sku as string })));
+      }
+    } catch {} finally { setRuleSearchLoading(false); }
+  };
+
+  const saveDeliveryRule = async (ruleType: "standard" | "express") => {
+    const isActive = ruleType === "standard" ? standardRuleActive : expressRuleActive;
+    const applicability = ruleType === "standard" ? standardApplicability : expressApplicability;
+    const selectedIds = ruleType === "standard" ? standardSelectedIds : expressSelectedIds;
+    await fetch("/api/delivery-rules", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        rule_type: ruleType,
+        is_active: isActive,
+        applicability,
+        applicable_ids: applicability === "store" ? [] : selectedIds.map((s) => s.id),
+      }),
+    });
+  };
 
   // ═══ SAVE HELPERS ═══
   const saveSettings = async (keys: Record<string, unknown>, setSaving: (v: boolean) => void, setSaved: (v: boolean) => void) => {
@@ -164,7 +366,43 @@ export default function AdminSettingsPage() {
 
   const saveGeneral = () => saveSettings({ store_name: storeName, store_email: storeEmail, store_phone: storePhone, store_address: storeAddress, features }, setGeneralSaving, setGeneralSaved);
   const saveStoreSettings = () => saveSettings({ store_logo: storeLogo, store_tagline: storeTagline, about_text: aboutText, social_links: socialLinks, maintenance_mode: maintenanceMode, announcement: { text: announcementText, visible: announcementVisible } }, setStoreSaving, setStoreSaved);
-  const saveDelivery = () => { const val = Number(thresholdInput); if (val > 0) delivery.setFreeDeliveryThreshold(val); saveSettings({ delivery_config: { freeDeliveryEnabled: delivery.freeDeliveryEnabled, freeDeliveryThreshold: val || delivery.freeDeliveryThreshold, zones: delivery.zones, partners: delivery.partners }, free_delivery_enabled: delivery.freeDeliveryEnabled, free_delivery_threshold: val || delivery.freeDeliveryThreshold }, setDeliverySaving, setDeliverySaved); };
+  const saveDelivery = async () => {
+    const val = Number(thresholdInput);
+    if (val > 0) delivery.setFreeDeliveryThreshold(val);
+    const expressVal = Number(expressChargeInput);
+    if (expressVal >= 0 && expressChargeInput !== "") delivery.setExpressCharge(expressVal);
+    setDeliverySaving(true);
+    try {
+      await Promise.all([
+        fetch("/api/settings", {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            key: "delivery_config",
+            value: {
+              freeDeliveryEnabled: delivery.freeDeliveryEnabled,
+              freeDeliveryThreshold: val || delivery.freeDeliveryThreshold,
+              zones: delivery.zones,
+              partners: delivery.partners,
+              expressEnabled: delivery.expressEnabled,
+              expressCharge: expressVal >= 0 && expressChargeInput !== "" ? expressVal : delivery.expressCharge,
+              expressDivision: delivery.expressDivision,
+            },
+          }),
+        }),
+        fetch("/api/settings", {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: "free_delivery_enabled", value: delivery.freeDeliveryEnabled }),
+        }),
+        fetch("/api/settings", {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: "free_delivery_threshold", value: val || delivery.freeDeliveryThreshold }),
+        }),
+        saveDeliveryRule("standard"),
+        saveDeliveryRule("express"),
+      ]);
+      setDeliverySaved(true); setTimeout(() => setDeliverySaved(false), 3000);
+    } catch {} finally { setDeliverySaving(false); }
+  };
   const savePayment = () => saveSettings({ payment_methods: paymentMethods }, setPaymentSaving, setPaymentSaved);
   const saveNotifications = () => saveSettings({ notification_settings: notifications }, setNotifSaving, setNotifSaved);
 
@@ -323,26 +561,86 @@ export default function AdminSettingsPage() {
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-3"><Switch checked={delivery.freeDeliveryEnabled} onCheckedChange={delivery.setFreeDelivery} /><span className="text-sm text-charcoal-lighter">{delivery.freeDeliveryEnabled ? "Enabled" : "Disabled"}</span></div>
                 {delivery.freeDeliveryEnabled && <Input label="Min Order (৳)" type="number" value={thresholdInput} onChange={(e) => setThresholdInput(e.target.value)} />}
+                <Separator />
+                <div className="flex items-center gap-3">
+                  <Switch checked={standardRuleActive} onCheckedChange={setStandardRuleActive} />
+                  <span className="text-sm text-charcoal-lighter">Also free for specific customers/products/etc.</span>
+                </div>
+                {standardRuleActive && (
+                  <DeliveryApplicabilityPicker
+                    applicability={standardApplicability}
+                    onApplicabilityChange={(v) => { setStandardApplicability(v); setStandardSelectedIds([]); setRuleSearchQuery(""); setRuleSearchResults([]); }}
+                    selectedIds={standardSelectedIds}
+                    onToggleSelected={(item) => setStandardSelectedIds((prev) => prev.some((s) => s.id === item.id) ? prev.filter((s) => s.id !== item.id) : [...prev, item])}
+                    onRemoveSelected={(id) => setStandardSelectedIds((prev) => prev.filter((s) => s.id !== id))}
+                    options={getDeliveryRuleOptions(standardApplicability)}
+                    searchQuery={ruleSearchQuery}
+                    onSearch={(q) => handleRuleSearch(standardApplicability, q)}
+                    searchResults={ruleSearchResults}
+                    searchLoading={ruleSearchLoading}
+                  />
+                )}
               </CardContent>
             </Card>
-            <Card><CardHeader><div className="flex items-center justify-between"><CardTitle className="text-base">Delivery Zones</CardTitle><AdminButton size="xs" onClick={() => setZoneDialog(true)}><Plus className="h-3 w-3" /> Add</AdminButton></div></CardHeader>
-              <CardContent className="space-y-2">
-                {delivery.zones.map((z) => (
-                  <div key={z.id} className="flex items-center justify-between p-3 rounded-lg bg-pearl/40">
-                    <div><p className="text-sm font-medium text-charcoal">{z.name}</p><p className="text-[10px] text-charcoal-lighter">{z.estimatedDays} days · {formatCurrency(z.charge)}</p></div>
-                    <div className="flex items-center gap-2">
-                      <Switch checked={z.isActive} onCheckedChange={(v) => delivery.updateZone(z.id, { isActive: v })} />
-                      <button onClick={() => delivery.removeZone(z.id)} className="p-1 text-charcoal-lighter hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
-                    </div>
-                  </div>
-                ))}
-                {delivery.zones.length === 0 && <p className="text-xs text-charcoal-lighter text-center py-4">No zones</p>}
+            <Card><CardHeader><CardTitle className="text-base">Express Delivery</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-3"><Switch checked={delivery.expressEnabled} onCheckedChange={delivery.setExpressEnabled} /><span className="text-sm text-charcoal-lighter">{delivery.expressEnabled ? "Enabled" : "Disabled"}</span></div>
+                {delivery.expressEnabled && (
+                  <>
+                    <Input label="Express Charge (৳)" type="number" value={expressChargeInput} onChange={(e) => setExpressChargeInput(e.target.value)} />
+                    <Input label="Available Division" value={delivery.expressDivision} onChange={(e) => delivery.setExpressDivision(e.target.value)} placeholder="Dhaka" />
+                    <p className="text-[10px] text-charcoal-lighter">Express delivery is only offered within this division; other areas use standard zone shipping.</p>
+                  </>
+                )}
+                <Separator />
+                <div className="flex items-center gap-3">
+                  <Switch checked={expressRuleActive} onCheckedChange={setExpressRuleActive} />
+                  <span className="text-sm text-charcoal-lighter">Free express for specific customers/products/etc.</span>
+                </div>
+                {expressRuleActive && (
+                  <DeliveryApplicabilityPicker
+                    applicability={expressApplicability}
+                    onApplicabilityChange={(v) => { setExpressApplicability(v); setExpressSelectedIds([]); setRuleSearchQuery(""); setRuleSearchResults([]); }}
+                    selectedIds={expressSelectedIds}
+                    onToggleSelected={(item) => setExpressSelectedIds((prev) => prev.some((s) => s.id === item.id) ? prev.filter((s) => s.id !== item.id) : [...prev, item])}
+                    onRemoveSelected={(id) => setExpressSelectedIds((prev) => prev.filter((s) => s.id !== id))}
+                    options={getDeliveryRuleOptions(expressApplicability)}
+                    searchQuery={ruleSearchQuery}
+                    onSearch={(q) => handleRuleSearch(expressApplicability, q)}
+                    searchResults={ruleSearchResults}
+                    searchLoading={ruleSearchLoading}
+                  />
+                )}
               </CardContent>
             </Card>
           </div>
+
+          <Card><CardHeader><div className="flex items-center justify-between"><CardTitle className="text-base">Delivery Zones</CardTitle><AdminButton size="xs" onClick={() => { setEditZoneId(null); setZoneName(""); setZoneAreas(""); setZoneCharge(""); setZoneDays(""); setZoneDialog(true); }}><Plus className="h-3 w-3" /> Add</AdminButton></div></CardHeader>
+            <CardContent className="space-y-2">
+              {delivery.zones.map((z) => (
+                <div key={z.id} className="flex items-center justify-between p-3 rounded-lg bg-pearl/40">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-charcoal">{z.name}</p>
+                    <p className="text-[10px] text-charcoal-lighter truncate">{z.areas}</p>
+                    <p className="text-[10px] text-charcoal-lighter">{z.estimatedDays} days · {formatCurrency(z.charge)}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Switch checked={z.isActive} onCheckedChange={(v) => delivery.updateZone(z.id, { isActive: v })} />
+                    <button
+                      onClick={() => { setEditZoneId(z.id); setZoneName(z.name); setZoneAreas(z.areas); setZoneCharge(String(z.charge)); setZoneDays(z.estimatedDays); setZoneDialog(true); }}
+                      className="p-1 text-charcoal-lighter hover:text-secondary"
+                    ><Edit className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => delivery.removeZone(z.id)} className="p-1 text-charcoal-lighter hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                  </div>
+                </div>
+              ))}
+              {delivery.zones.length === 0 && <p className="text-xs text-charcoal-lighter text-center py-4">No zones</p>}
+            </CardContent>
+          </Card>
+
           <Dialog open={zoneDialog} onOpenChange={setZoneDialog}>
             <DialogContent className="max-w-sm">
-              <DialogHeader><DialogTitle>Add Delivery Zone</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{editZoneId ? "Edit Delivery Zone" : "Add Delivery Zone"}</DialogTitle></DialogHeader>
               <div className="space-y-3 py-2">
                 <Input label="Zone Name" value={zoneName} onChange={(e) => setZoneName(e.target.value)} placeholder="Dhaka City" />
                 <Input label="Areas" value={zoneAreas} onChange={(e) => setZoneAreas(e.target.value)} placeholder="Gulshan, Banani" />
@@ -350,7 +648,20 @@ export default function AdminSettingsPage() {
               </div>
               <DialogFooter>
                 <AdminButton variant="outline" size="sm" onClick={() => setZoneDialog(false)}>Cancel</AdminButton>
-                <AdminButton size="sm" disabled={!zoneName.trim()} onClick={() => { delivery.addZone({ id: `zone-${randomId()}`, name: zoneName.trim(), areas: zoneAreas.trim(), charge: Number(zoneCharge) || 0, estimatedDays: zoneDays.trim() || "3-5", isActive: true }); setZoneDialog(false); setZoneName(""); setZoneAreas(""); setZoneCharge(""); setZoneDays(""); }}><Plus className="h-3 w-3" /> Add</AdminButton>
+                <AdminButton
+                  size="sm"
+                  disabled={!zoneName.trim()}
+                  onClick={() => {
+                    if (editZoneId) {
+                      delivery.updateZone(editZoneId, { name: zoneName.trim(), areas: zoneAreas.trim(), charge: Number(zoneCharge) || 0, estimatedDays: zoneDays.trim() || "3-5" });
+                    } else {
+                      delivery.addZone({ id: `zone-${randomId()}`, name: zoneName.trim(), areas: zoneAreas.trim(), charge: Number(zoneCharge) || 0, estimatedDays: zoneDays.trim() || "3-5", isActive: true });
+                    }
+                    setZoneDialog(false); setEditZoneId(null); setZoneName(""); setZoneAreas(""); setZoneCharge(""); setZoneDays("");
+                  }}
+                >
+                  {editZoneId ? <Save className="h-3 w-3" /> : <Plus className="h-3 w-3" />} {editZoneId ? "Save" : "Add"}
+                </AdminButton>
               </DialogFooter>
             </DialogContent>
           </Dialog>

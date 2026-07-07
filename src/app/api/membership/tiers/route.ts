@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    await ensurePromotionColumns();
     const rows = await query<RowDataPacket[]>(
       "SELECT * FROM membership_tiers ORDER BY sort_order ASC"
     );

@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Separator } from "@/components/ui/separator";
 import { formatDateShort, cn } from "@/lib/utils";
 import type { Offer, OfferApplicability, DiscountType } from "@/types/offer";
 
@@ -310,42 +311,6 @@ export default function AdminOffersPage() {
             <DialogDescription>{editOffer ? "Update offer details" : "Set up a new promotional campaign"}</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-4 py-2 pr-1">
-            <Input label="Offer Title *" placeholder="Summer Sale — 30% Off" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
-            <Textarea label="Description" placeholder="Describe the offer details..." value={formDesc} onChange={(e) => setFormDesc(e.target.value)} className="min-h-[60px]" />
-
-            {/* Structured discount */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-charcoal-light mb-1.5">Discount Type *</label>
-                <Select value={formDiscountType} onValueChange={(v) => setFormDiscountType(v as DiscountType)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="percentage">Percentage (%)</SelectItem>
-                    <SelectItem value="fixed">Fixed Amount (৳)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Input
-                label={formDiscountType === "percentage" ? "Discount % *" : "Discount ৳ *"}
-                type="number"
-                min="0"
-                max={formDiscountType === "percentage" ? "100" : undefined}
-                placeholder={formDiscountType === "percentage" ? "30" : "500"}
-                value={formDiscountValue}
-                onChange={(e) => setFormDiscountValue(e.target.value)}
-              />
-            </div>
-            {formDiscountType === "percentage" && (
-              <Input
-                label="Max Discount Cap (৳, optional)"
-                type="number"
-                min="0"
-                placeholder="e.g., 1000 — leave blank for no cap"
-                value={formMaxDiscount}
-                onChange={(e) => setFormMaxDiscount(e.target.value)}
-              />
-            )}
-
             {/* Applicability */}
             <div>
               <label className="block text-sm font-medium text-charcoal-light mb-1.5">Offer Applicability</label>
@@ -432,6 +397,44 @@ export default function AdminOffersPage() {
                   </div>
                 )}
               </div>
+            )}
+
+            <Separator />
+
+            <Input label="Offer Title *" placeholder="Summer Sale — 30% Off" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
+            <Textarea label="Description" placeholder="Describe the offer details..." value={formDesc} onChange={(e) => setFormDesc(e.target.value)} className="min-h-[60px]" />
+
+            {/* Structured discount */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-charcoal-light mb-1.5">Discount Type *</label>
+                <Select value={formDiscountType} onValueChange={(v) => setFormDiscountType(v as DiscountType)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="fixed">Fixed Amount (৳)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Input
+                label={formDiscountType === "percentage" ? "Discount % *" : "Discount ৳ *"}
+                type="number"
+                min="0"
+                max={formDiscountType === "percentage" ? "100" : undefined}
+                placeholder={formDiscountType === "percentage" ? "30" : "500"}
+                value={formDiscountValue}
+                onChange={(e) => setFormDiscountValue(e.target.value)}
+              />
+            </div>
+            {formDiscountType === "percentage" && (
+              <Input
+                label="Max Discount Cap (৳, optional)"
+                type="number"
+                min="0"
+                placeholder="e.g., 1000 — leave blank for no cap"
+                value={formMaxDiscount}
+                onChange={(e) => setFormMaxDiscount(e.target.value)}
+              />
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

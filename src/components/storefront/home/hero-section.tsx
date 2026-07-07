@@ -5,14 +5,59 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useBanners } from "@/hooks/queries/use-banners";
+import { DEFAULT_BANNER_SETTINGS, type BannerSettings, type TextAnimation, type CarouselTransition } from "@/types/banner";
+
+function parseSettings(raw: unknown): BannerSettings {
+  if (!raw) return DEFAULT_BANNER_SETTINGS;
+  const parsed = typeof raw === "string" ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : raw;
+  return { ...DEFAULT_BANNER_SETTINGS, ...(parsed as Partial<BannerSettings> | null) };
+}
+
+/** Off-screen starting point (and exit point) for a text-animation type, framer-motion inline-props style. */
+function textMotionProps(animation: TextAnimation, delay: number) {
+  const base = { transition: { delay, duration: 0.6 } };
+  switch (animation) {
+    case "slide-left": return { initial: { opacity: 0, x: 40 }, animate: { opacity: 1, x: 0 }, ...base };
+    case "slide-right": return { initial: { opacity: 0, x: -40 }, animate: { opacity: 1, x: 0 }, ...base };
+    case "slide-up": return { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, ...base };
+    case "slide-down": return { initial: { opacity: 0, y: -20 }, animate: { opacity: 1, y: 0 }, ...base };
+    case "zoom": return { initial: { opacity: 0, scale: 0.85 }, animate: { opacity: 1, scale: 1 }, ...base };
+    case "none": return { initial: { opacity: 1 }, animate: { opacity: 1 }, transition: { duration: 0 } };
+    case "fade":
+    default: return { initial: { opacity: 0 }, animate: { opacity: 1 }, ...base };
+  }
+}
+
+/** Slide-to-slide (image) transition, keyed off the banner's carouselTransition. */
+function slideMotionProps(transition: CarouselTransition) {
+  switch (transition) {
+    case "slide": return { initial: { opacity: 1, x: "100%" }, animate: { opacity: 1, x: 0 }, exit: { opacity: 1, x: "-100%" } };
+    case "zoom": return { initial: { opacity: 0, scale: 1.15 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 0.9 } };
+    case "none": return { initial: { opacity: 1 }, animate: { opacity: 1 }, exit: { opacity: 1 } };
+    case "fade":
+    default: return { initial: { opacity: 0, scale: 1.05 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 0.98 } };
+  }
+}
+
+const positionHClass: Record<BannerSettings["positionH"], string> = {
+  left: "items-start text-left mr-auto",
+  center: "items-center text-center mx-auto",
+  right: "items-end text-right ml-auto",
+};
+
+const positionVClass: Record<BannerSettings["positionV"], string> = {
+  top: "justify-start pt-16 sm:pt-20",
+  center: "justify-center",
+  bottom: "justify-end pb-16 sm:pb-20",
+};
 
 export function HeroSection() {
   const { data: banners } = useBanners("hero");
   const [current, setCurrent] = useState(0);
 
   const slides = banners || [];
+  const settings = slides[current] ? parseSettings(slides[current].settings) : DEFAULT_BANNER_SETTINGS;
 
   // Reset current if it goes out of bounds (e.g., slides array changes)
   useEffect(() => {
@@ -25,9 +70,9 @@ export function HeroSection() {
     if (slides.length <= 1) return;
     const timer = setInterval(() => {
       setCurrent((prev) => (prev + 1) % slides.length);
-    }, 6000);
+    }, settings.transitionDuration || 6000);
     return () => clearInterval(timer);
-  }, [slides.length]);
+  }, [slides.length, settings.transitionDuration]);
 
   // Show shimmer while banners are loading — no text flash
   if (!banners) {
@@ -83,24 +128,48 @@ export function HeroSection() {
     );
   }
 
+  const slide = slides[current];
+  const slideMotion = slideMotionProps(settings.carouselTransition);
+  const showDescriptionAbove = settings.descriptionOrder === "above";
+
+  const titleEl = settings.showTitle && (
+    <motion.h2
+      key="title"
+      {...textMotionProps(settings.titleAnimation, 0.4)}
+      className="font-heading text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 leading-tight"
+      style={{ color: "#FFFFFF", textShadow: "0 2px 16px rgba(0,0,0,0.5)" }}
+    >
+      {slide.title}
+    </motion.h2>
+  );
+
+  const descriptionEl = settings.showDescription && slide.subtitle && (
+    <motion.p
+      key="description"
+      {...textMotionProps(settings.descriptionAnimation, 0.3)}
+      className="text-sm font-medium tracking-widest uppercase mb-3"
+      style={{ color: "rgba(255,255,255,0.85)", textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}
+    >
+      {slide.subtitle}
+    </motion.p>
+  );
+
   return (
     <section className="relative h-[70vh] sm:h-[80vh] overflow-hidden bg-pearl">
       <AnimatePresence mode="wait">
         <motion.div
           key={current}
-          initial={{ opacity: 0, scale: 1.05 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.98 }}
+          {...slideMotion}
           transition={{ duration: 0.8 }}
           className="absolute inset-0"
         >
           <Image
-            src={slides[current].image}
-            alt={slides[current].title}
+            src={slide.image}
+            alt={slide.title}
             fill
             className="object-cover"
             style={(() => {
-              const fp = slides[current].focal_point;
+              const fp = slide.focal_point;
               if (!fp) return { objectPosition: "50% 50%" };
               try {
                 const c = JSON.parse(fp);
@@ -116,40 +185,30 @@ export function HeroSection() {
             priority
             sizes="100vw"
           />
-          {/* Strong gradient overlay for text contrast on any image */}
-          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-black/10" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+          {/* Overlay — per-banner toggle, opacity, and blur */}
+          {settings.overlayEnabled && (
+            <div
+              className="absolute inset-0"
+              style={{
+                background: `linear-gradient(to right, rgba(0,0,0,${settings.overlayOpacity}), rgba(0,0,0,${settings.overlayOpacity * 0.55}), transparent)`,
+                backdropFilter: settings.overlayBlur > 0 ? `blur(${settings.overlayBlur}px)` : undefined,
+              }}
+            />
+          )}
 
-          <div className="absolute inset-0 flex items-center">
+          <div className={`absolute inset-0 flex ${positionVClass[settings.positionV]}`}>
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 w-full">
-              <div className="max-w-lg drop-shadow-[0_2px_12px_rgba(0,0,0,0.3)]">
-                <motion.p
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="text-sm font-medium tracking-widest uppercase mb-3"
-                  style={{ color: "rgba(255,255,255,0.85)", textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}
-                >
-                  {slides[current].subtitle}
-                </motion.p>
-                <motion.h2
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                  className="font-heading text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 leading-tight"
-                  style={{ color: "#FFFFFF", textShadow: "0 2px 16px rgba(0,0,0,0.5)" }}
-                >
-                  {slides[current].title}
-                </motion.h2>
-                {slides[current].cta_text && slides[current].link && (
+              <div className={`flex flex-col max-w-lg drop-shadow-[0_2px_12px_rgba(0,0,0,0.3)] ${positionHClass[settings.positionH]}`}>
+                {showDescriptionAbove ? (<>{descriptionEl}{titleEl}</>) : (<>{titleEl}{descriptionEl}</>)}
+                {slide.cta_text && slide.link && (
                   <motion.div
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.5 }}
                   >
-                    <Link href={slides[current].link!}>
+                    <Link href={slide.link}>
                       <span className="group inline-flex items-center gap-2.5 h-12 px-8 sm:h-14 sm:px-10 rounded-full bg-white text-charcoal text-sm sm:text-[15px] font-body font-semibold tracking-wide shadow-[0_4px_30px_rgba(0,0,0,0.2)] hover:bg-secondary hover:text-white hover:shadow-[0_6px_35px_rgba(192,57,43,0.4)] active:scale-[0.96] transition-all duration-300">
-                        {slides[current].cta_text}
+                        {slide.cta_text}
                         <svg className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                       </span>
                     </Link>

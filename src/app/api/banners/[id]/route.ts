@@ -12,6 +12,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     for (const [k, col] of Object.entries({ title: "title", subtitle: "subtitle", image: "image", mobile_image: "mobile_image", link: "link", cta_text: "cta_text", position: "position", focal_point: "focal_point", order: "`order`" })) {
       if (body[k] !== undefined) { fields.push(`${col} = ?`); values.push(body[k]); }
     }
+    if (body.settings !== undefined) { fields.push("settings = ?"); values.push(body.settings ? JSON.stringify(body.settings) : null); }
     if (body.is_active !== undefined) { fields.push("is_active = ?"); values.push(body.is_active ? 1 : 0); }
     if (fields.length === 0) return NextResponse.json({ error: "No fields" }, { status: 400 });
     values.push(id);

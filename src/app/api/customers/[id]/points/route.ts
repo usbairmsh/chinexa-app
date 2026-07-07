@@ -3,6 +3,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { notifyTierUpgrade } from "@/lib/notify";
+import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ interface TierData {
 // GET /api/customers/[id]/points — get points balance, history, and tier
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await ensurePromotionColumns();
     const { id } = await params;
 
     // Get total points balance

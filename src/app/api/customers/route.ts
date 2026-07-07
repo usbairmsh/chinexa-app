@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
+import bcrypt from "bcryptjs";
 import { query, execute, escapeLike } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
@@ -77,6 +78,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    await ensurePromotionColumns();
     const body = await req.json();
     if (!body.name || typeof body.name !== "string" || !body.name.trim()) {
       return NextResponse.json({ error: "Customer name is required" }, { status: 400 });
@@ -84,10 +86,19 @@ export async function POST(req: NextRequest) {
     if (!body.phone || typeof body.phone !== "string" || !body.phone.trim()) {
       return NextResponse.json({ error: "Customer phone is required" }, { status: 400 });
     }
+
+    // Admin-created customers can be registered up front (with a real login
+    // password) or left as a plain temporary record, same as a guest checkout.
+    const accountType = body.account_type === "registered" ? "registered" : "temporary";
+    if (accountType === "registered" && (!body.password || String(body.password).length < 6)) {
+      return NextResponse.json({ error: "Password must be at least 6 characters for a registered customer" }, { status: 400 });
+    }
+    const hashedPassword = accountType === "registered" ? await bcrypt.hash(String(body.password), 10) : null;
+
     const id = `cust-${Date.now()}`;
     await execute(
-      "INSERT INTO customers (id, name, email, phone, is_active) VALUES (?, ?, ?, ?, TRUE)",
-      [id, body.name.trim(), body.email || null, body.phone.trim()]
+      "INSERT INTO customers (id, name, email, phone, password, account_type, is_active) VALUES (?, ?, ?, ?, ?, ?, TRUE)",
+      [id, body.name.trim(), body.email || null, body.phone.trim(), hashedPassword, accountType]
     );
     if (body.address) {
       await execute(
@@ -95,7 +106,7 @@ export async function POST(req: NextRequest) {
         [`addr-${id}`, id, body.address.label || "Home", body.name, body.phone, body.address.address_line_1 || "", body.address.city || null, body.address.district || null, body.address.division || null, body.address.postal_code || null]
       );
     }
-    await logActivity("Created customer", "customer", id, body.name);
+    await logActivity(accountType === "registered" ? "Created registered customer" : "Created customer", "customer", id, body.name);
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Error";

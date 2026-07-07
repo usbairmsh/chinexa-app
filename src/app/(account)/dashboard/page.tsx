@@ -97,7 +97,7 @@ export default function AccountDashboard() {
     // wishlist store is persisted — render 0 until mounted to match server HTML
     { label: "Wishlist", value: String(mounted ? wishlistCount || 0 : 0), icon: Heart, color: "text-coral bg-coral-light", href: "/dashboard/wishlist" },
     { label: "Addresses", value: String(totalAddresses), icon: MapPin, color: "text-blue-500 bg-blue-50", href: "/dashboard/addresses" },
-    { label: "Points", value: loyaltyPoints.toLocaleString(), icon: Star, color: "text-gold bg-gold/10", href: "/dashboard/orders" },
+    { label: "Points", value: loyaltyPoints.toLocaleString(), icon: Star, color: "text-gold bg-gold/10", href: "/dashboard/points" },
   ];
 
   return (
@@ -116,8 +116,11 @@ export default function AccountDashboard() {
                 {badgeData && <VerifiedBadge color={badgeData.badge_color} opacity={badgeData.badge_opacity} size={26} tooltip={badgeData.badge_name} />}
                 &#10024;
               </h2>
-              <p className="text-sm text-charcoal-lighter max-w-md mb-4">
-                You have {loyaltyPoints.toLocaleString()} loyalty points.{nextTierName ? ` Keep shopping to reach ${nextTierName} status.` : " You've reached the highest tier!"}
+              <p className="text-sm text-charcoal-lighter max-w-md mb-4 flex items-center gap-2 flex-wrap">
+                <span>You have {loyaltyPoints.toLocaleString()} loyalty points.{nextTierName ? ` Keep shopping to reach ${nextTierName} status.` : " You've reached the highest tier!"}</span>
+                <Link href="/dashboard/points" className="text-secondary hover:text-secondary-dark font-medium text-xs whitespace-nowrap">
+                  View Details →
+                </Link>
               </p>
               {nextTierAt > 0 && (
                 <div className="max-w-xs">

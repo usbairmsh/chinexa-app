@@ -262,6 +262,7 @@ CREATE TABLE IF NOT EXISTS banners (
   cta_text VARCHAR(100),
   position ENUM('hero', 'promo', 'category', 'popup') DEFAULT 'hero',
   focal_point VARCHAR(100) DEFAULT '{"x":50,"y":50,"zoom":1}',
+  settings JSON,
   `order` INT DEFAULT 0,
   is_active BOOLEAN DEFAULT TRUE,
   start_date TIMESTAMP NULL,
@@ -449,6 +450,17 @@ CREATE TABLE IF NOT EXISTS membership_tiers (
   sort_order INT DEFAULT 0,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- Delivery Rules (free standard / free express delivery, applicability-scoped
+-- the same way as offers/coupons — see the `offers` table's `applicability` column)
+CREATE TABLE IF NOT EXISTS delivery_rules (
+  id VARCHAR(50) PRIMARY KEY,
+  rule_type ENUM('standard', 'express') NOT NULL UNIQUE,
+  is_active BOOLEAN DEFAULT FALSE,
+  applicability ENUM('store', 'categories', 'subcategories', 'products', 'brands', 'customers', 'tiers') DEFAULT 'store',
+  applicable_ids JSON,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 

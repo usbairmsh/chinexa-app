@@ -19,6 +19,17 @@ async function ensureColumn(table: string, column: string, definition: string) {
   await execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
 }
 
+/** Drop a column only if it's currently present (idempotent, no error on re-run). */
+async function dropColumnIfExists(table: string, column: string) {
+  const rows = await query<RowDataPacket[]>(
+    `SELECT COUNT(*) AS c FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?`,
+    [table, column]
+  );
+  if (Number(rows[0]?.c) === 0) return;
+  await execute(`ALTER TABLE ${table} DROP COLUMN ${column}`);
+}
+
 /**
  * Widen an existing ENUM column to a new set of values (idempotent — checks
  * the column's current definition first via information_schema, since MySQL
@@ -65,6 +76,29 @@ export async function ensurePromotionColumns() {
     // Customers: registered (went through /api/auth register or reset_password,
     // i.e. has a real password) vs temporary (auto-created from a guest checkout)
     await ensureColumn("customers", "account_type", "ENUM('registered', 'temporary') NOT NULL DEFAULT 'temporary'");
+
+    // Membership tiers: superseded by applicability-based delivery_rules below —
+    // drop the short-lived per-tier columns from that earlier iteration.
+    await dropColumnIfExists("membership_tiers", "free_delivery");
+    await dropColumnIfExists("membership_tiers", "free_express_delivery");
+
+    // Delivery rules: free (standard) / free express delivery, targeted using
+    // the same applicability model as offers/coupons. One row per rule type
+    // ("standard" | "express"); site-wide config lives in `settings` still.
+    await execute(`
+      CREATE TABLE IF NOT EXISTS delivery_rules (
+        id VARCHAR(50) PRIMARY KEY,
+        rule_type ENUM('standard', 'express') NOT NULL UNIQUE,
+        is_active BOOLEAN DEFAULT FALSE,
+        applicability ENUM(${applicabilityValues.map((v) => `'${v}'`).join(",")}) DEFAULT 'store',
+        applicable_ids JSON,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB
+    `);
+
+    // Banners: per-banner hero display customization (title/description
+    // toggles, position, animation, overlay, carousel transition + timing)
+    await ensureColumn("banners", "settings", "JSON");
 
     done = true; // only latch once every column is confirmed/created
   } catch (err) {

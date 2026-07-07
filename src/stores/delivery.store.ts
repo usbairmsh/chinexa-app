@@ -26,6 +26,12 @@ interface DeliveryState {
   freeDeliveryThreshold: number;
   zones: DeliveryZone[];
   partners: DeliveryPartner[];
+  // Express delivery — separate from standard zone shipping. Restricted to a
+  // single division (e.g. "Dhaka") since couriers only guarantee same/next-day
+  // service in the capital; other divisions fall back to standard delivery.
+  expressEnabled: boolean;
+  expressCharge: number;
+  expressDivision: string;
   setFreeDelivery: (enabled: boolean) => void;
   setFreeDeliveryThreshold: (amount: number) => void;
   updateZone: (id: string, updates: Partial<DeliveryZone>) => void;
@@ -34,6 +40,9 @@ interface DeliveryState {
   updatePartner: (id: string, updates: Partial<DeliveryPartner>) => void;
   addPartner: (partner: DeliveryPartner) => void;
   removePartner: (id: string) => void;
+  setExpressEnabled: (enabled: boolean) => void;
+  setExpressCharge: (amount: number) => void;
+  setExpressDivision: (division: string) => void;
   getShippingCost: (subtotal: number, zone?: string) => number;
 }
 
@@ -60,6 +69,9 @@ export const useDeliveryStore = create<DeliveryState>()(
         { id: "sundarban", name: "Sundarban Courier", trackingUrl: "https://sundarbanbd.com/track", zones: ["dhaka-city", "dhaka-sub", "chittagong", "rajshahi", "khulna", "sylhet", "rangpur", "barisal", "mymensingh"], isActive: false },
         { id: "paperfly", name: "Paperfly", trackingUrl: "https://paperfly.com.bd/track", zones: ["dhaka-city", "dhaka-sub"], isActive: false },
       ],
+      expressEnabled: true,
+      expressCharge: 200,
+      expressDivision: "Dhaka",
 
       setFreeDelivery: (enabled) => set({ freeDeliveryEnabled: enabled }),
       setFreeDeliveryThreshold: (amount) => set({ freeDeliveryThreshold: amount }),
@@ -71,6 +83,10 @@ export const useDeliveryStore = create<DeliveryState>()(
       updatePartner: (id, updates) => set((s) => ({ partners: s.partners.map((p) => p.id === id ? { ...p, ...updates } : p) })),
       addPartner: (partner) => set((s) => ({ partners: [...s.partners, partner] })),
       removePartner: (id) => set((s) => ({ partners: s.partners.filter((p) => p.id !== id) })),
+
+      setExpressEnabled: (enabled) => set({ expressEnabled: enabled }),
+      setExpressCharge: (amount) => set({ expressCharge: amount }),
+      setExpressDivision: (division) => set({ expressDivision: division }),
 
       getShippingCost: (subtotal, zone = "dhaka-city") => {
         const state = get();

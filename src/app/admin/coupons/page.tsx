@@ -13,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Separator } from "@/components/ui/separator";
 import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
 import type { Coupon, CouponApplicability } from "@/types/coupon";
 
@@ -326,36 +327,6 @@ export default function AdminCouponsPage() {
             <DialogDescription>{editCoupon ? "Update coupon details" : "Add a new discount coupon"}</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-4 py-2 pr-1">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input label="Coupon Code *" placeholder="e.g., SUMMER25" value={formCode} onChange={(e) => setFormCode(e.target.value.toUpperCase())} />
-              <Input label="Description" placeholder="25% off summer collection" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-charcoal-light mb-1.5">Discount Type</label>
-                <Select value={formType} onValueChange={(v) => setFormType(v as "percentage" | "fixed")}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="percentage">Percentage (%)</SelectItem>
-                    <SelectItem value="fixed">Fixed Amount (৳)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Input label={formType === "percentage" ? "Discount %" : "Discount Amount (৳)"} placeholder={formType === "percentage" ? "25" : "500"} type="number" value={formValue} onChange={(e) => setFormValue(e.target.value)} />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input label="Min. Order (৳)" placeholder="1500" type="number" value={formMinOrder} onChange={(e) => setFormMinOrder(e.target.value)} />
-              <Input label="Max Discount (৳)" placeholder="500" type="number" value={formMaxDiscount} onChange={(e) => setFormMaxDiscount(e.target.value)} />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input label="Valid From" type="date" value={formValidFrom} onChange={(e) => setFormValidFrom(e.target.value)} />
-              <Input label="Valid Until" type="date" value={formValidUntil} onChange={(e) => setFormValidUntil(e.target.value)} />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input label="Total Usage Limit" placeholder="1000 (empty = unlimited)" type="number" value={formUsageLimit} onChange={(e) => setFormUsageLimit(e.target.value)} />
-              <Input label="Limit Per Customer" placeholder="1 (empty = unlimited)" type="number" value={formPerCustomerLimit} onChange={(e) => setFormPerCustomerLimit(e.target.value)} />
-            </div>
-
             {/* Applicability — who/what the coupon can be redeemed on */}
             <div>
               <label className="block text-sm font-medium text-charcoal-light mb-1.5">Coupon Applicability</label>
@@ -442,6 +413,38 @@ export default function AdminCouponsPage() {
                 )}
               </div>
             )}
+
+            <Separator />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input label="Coupon Code *" placeholder="e.g., SUMMER25" value={formCode} onChange={(e) => setFormCode(e.target.value.toUpperCase())} />
+              <Input label="Description" placeholder="25% off summer collection" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-charcoal-light mb-1.5">Discount Type</label>
+                <Select value={formType} onValueChange={(v) => setFormType(v as "percentage" | "fixed")}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="fixed">Fixed Amount (৳)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Input label={formType === "percentage" ? "Discount %" : "Discount Amount (৳)"} placeholder={formType === "percentage" ? "25" : "500"} type="number" value={formValue} onChange={(e) => setFormValue(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input label="Min. Order (৳)" placeholder="1500" type="number" value={formMinOrder} onChange={(e) => setFormMinOrder(e.target.value)} />
+              <Input label="Max Discount (৳)" placeholder="500" type="number" value={formMaxDiscount} onChange={(e) => setFormMaxDiscount(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input label="Valid From" type="date" value={formValidFrom} onChange={(e) => setFormValidFrom(e.target.value)} />
+              <Input label="Valid Until" type="date" value={formValidUntil} onChange={(e) => setFormValidUntil(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input label="Total Usage Limit" placeholder="1000 (empty = unlimited)" type="number" value={formUsageLimit} onChange={(e) => setFormUsageLimit(e.target.value)} />
+              <Input label="Limit Per Customer" placeholder="1 (empty = unlimited)" type="number" value={formPerCustomerLimit} onChange={(e) => setFormPerCustomerLimit(e.target.value)} />
+            </div>
 
             <div className="flex items-center gap-3">
               <Switch checked={formActive} onCheckedChange={setFormActive} />
