@@ -59,7 +59,15 @@ export default function CheckoutPage() {
   const { items, getSubtotal, clearCart, couponCode, getDiscount, getSavings, appliedOffers, applyCoupon, removeCoupon, refreshOffers } = useCartStore();
   const storeSettings = useStoreSettings();
   const dbPaymentMethods = storeSettings.payment_methods.filter((m) => m.enabled);
-  const activePaymentMethods = dbPaymentMethods.length > 0 ? dbPaymentMethods : PAYMENT_METHODS;
+  // Only fall back to the built-in method list once settings have actually
+  // loaded and the store genuinely has none configured — never render the
+  // hardcoded list while the real settings fetch is still in flight, since
+  // that would flash payment options the store may not actually offer.
+  const activePaymentMethods = dbPaymentMethods.length > 0
+    ? dbPaymentMethods
+    : storeSettings.loaded
+      ? PAYMENT_METHODS
+      : [];
   const { freeDeliveryEnabled, freeDeliveryThreshold, zones, expressEnabled, expressCharge, expressDivision } = useDeliveryStore();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -826,7 +834,11 @@ export default function CheckoutPage() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <h2 className="font-heading text-xl font-semibold text-charcoal">Payment Method</h2>
                 <div className="space-y-3">
-                  {activePaymentMethods.map((method) => (
+                  {!storeSettings.loaded ? (
+                    Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="h-14 rounded-xl bg-pearl animate-pulse" />
+                    ))
+                  ) : activePaymentMethods.map((method) => (
                     <label key={method.id}
                       className={cn("flex items-center justify-between p-3 sm:p-4 rounded-xl border cursor-pointer transition-colors",
                         paymentMethod === method.id ? "border-secondary bg-primary-light" : "border-border hover:border-secondary")}>

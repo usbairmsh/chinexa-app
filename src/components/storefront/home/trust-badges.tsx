@@ -3,13 +3,6 @@
 import { motion } from "framer-motion";
 import { Shield, Truck, RotateCcw, Headphones } from "lucide-react";
 
-const defaultBadges = [
-  { title: "100% Authentic", description: "Every product is genuine and verified" },
-  { title: "Free Shipping", description: "On orders above ৳3,000" },
-  { title: "Easy Returns", description: "7-day hassle-free return policy" },
-  { title: "24/7 Support", description: "We're here whenever you need us" },
-];
-
 const icons = [Shield, Truck, RotateCcw, Headphones];
 
 interface TrustBadgesProps {
@@ -17,7 +10,10 @@ interface TrustBadgesProps {
 }
 
 export function TrustBadges({ badges }: TrustBadgesProps) {
-  const items = badges?.length ? badges : defaultBadges;
+  // No hardcoded fallback — render nothing until the admin-configured badges
+  // actually arrive, rather than flashing placeholder copy first.
+  if (!badges?.length) return null;
+  const items = badges;
 
   return (
     <section className="py-16 bg-white border-y border-border/30">
