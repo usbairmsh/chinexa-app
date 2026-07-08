@@ -19,6 +19,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AdminButton } from "@/components/admin/shared/admin-button";
+import { Pagination } from "@/components/ui/pagination";
 import { formatCurrency, formatDateShort, getInitials, cn } from "@/lib/utils";
 
 type OrderStatus = "pending" | "confirmed" | "processing" | "shipped" | "on_delivery" | "received" | "not_received";
@@ -43,11 +44,19 @@ const nextStatus: Partial<Record<OrderStatus, OrderStatus>> = {
   pending: "confirmed", confirmed: "processing", processing: "shipped", shipped: "on_delivery", on_delivery: "received",
 };
 
+const PAGE_SIZE = 20;
+
 export default function OrderManagementPage() {
   const [activeTab, setActiveTab] = useState<"all" | OrderStatus>("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState(""); // debounced value actually sent to the API
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [orders, setOrders] = useState<Order[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
+  const [totalCount, setTotalCount] = useState(0);
+  const [revenue, setRevenue] = useState(0);
   const [copiedId, setCopiedId] = useState("");
   const [loading, setLoading] = useState(true);
   const [statusDialog, setStatusDialog] = useState<Order | null>(null);
@@ -55,11 +64,24 @@ export default function OrderManagementPage() {
   const [cancelDialog, setCancelDialog] = useState<Order | null>(null);
   const [advanceDialog, setAdvanceDialog] = useState<Order | null>(null);
 
-  // Fetch orders from DB
+  // Debounce the search box — avoid firing a request on every keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchQuery(searchInput), 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Reset to page 1 whenever a filter changes
+  useEffect(() => { setPage(1); }, [activeTab, searchQuery, paymentFilter]);
+
+  // Fetch the current page of orders — filtered/paginated server-side
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/orders?page_size=200");
+      const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
+      if (activeTab !== "all") params.set("status", activeTab);
+      if (searchQuery) params.set("search", searchQuery);
+      if (paymentFilter !== "all") params.set("payment", paymentFilter);
+      const res = await fetch(`/api/orders?${params.toString()}`);
       const data = await res.json();
       if (!res.ok) { setOrders([]); return; }
       setOrders((Array.isArray(data?.data) ? data.data : []).map((o: Record<string, unknown>) => ({
@@ -74,25 +96,43 @@ export default function OrderManagementPage() {
         items: Number(o.item_count) || 0,
         date: (o.created_at as string) || new Date().toISOString(),
       })));
+      setTotalPages(Number(data?.total_pages) || 1);
     } catch {} finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchOrders(); }, []);
+  // Separate lightweight query for tab counts + revenue — these reflect the
+  // search term (so tab counts stay meaningful while searching) but NOT the
+  // active tab/payment filter, since the counts describe every tab at once.
+  const fetchCounts = async () => {
+    try {
+      const params = new URLSearchParams({ count_by_status: "1" });
+      if (searchQuery) params.set("search", searchQuery);
+      const res = await fetch(`/api/orders?${params.toString()}`);
+      const data = await res.json();
+      if (res.ok) {
+        setStatusCounts(data.counts || {});
+        setTotalCount(Number(data.total) || 0);
+        setRevenue(Number(data.revenue) || 0);
+      }
+    } catch {}
+  };
 
+  useEffect(() => { fetchOrders(); }, [page, activeTab, searchQuery, paymentFilter]);
+  useEffect(() => { fetchCounts(); }, [searchQuery]);
+
+  // A status change can move an order out of the currently active tab's
+  // filter (e.g. advancing a "pending" order while viewing the Pending tab),
+  // so we refetch both the page and the tab counts rather than patch local
+  // state — local patching would leave a now-mismatched order visible.
   const handleStatusChange = async () => {
     if (!statusDialog || !newStatus) return;
     await fetch(`/api/orders/${statusDialog.dbId}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: newStatus }),
     }).catch(() => {});
-    // Reflect payment_status changes locally
-    let updatedPayment = statusDialog.payment_status;
-    const isCOD = statusDialog.payment.toLowerCase() === "cod";
-    if (newStatus === "received" && isCOD) updatedPayment = "paid";
-    if (newStatus === "confirmed" && !isCOD) updatedPayment = "paid";
-    setOrders((prev) => prev.map((o) => o.id === statusDialog.id ? { ...o, status: newStatus, payment_status: updatedPayment } : o));
     triggerDashboardRefresh();
     setStatusDialog(null); setNewStatus("");
+    fetchOrders(); fetchCounts();
   };
 
   const handleNotReceived = async () => {
@@ -101,9 +141,9 @@ export default function OrderManagementPage() {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "not_received" }),
     }).catch(() => {});
-    setOrders((prev) => prev.map((o) => o.id === cancelDialog.id ? { ...o, status: "not_received" as OrderStatus } : o));
     triggerDashboardRefresh();
     setCancelDialog(null);
+    fetchOrders(); fetchCounts();
   };
 
   const handleQuickAdvance = (order: Order) => {
@@ -120,33 +160,24 @@ export default function OrderManagementPage() {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: next }),
     }).catch(() => {});
-    // Reflect payment_status changes locally
-    let updatedPayment = advanceDialog.payment_status;
-    const isCOD = advanceDialog.payment.toLowerCase() === "cod";
-    if (next === "received" && isCOD) updatedPayment = "paid";
-    if (next === "confirmed" && !isCOD) updatedPayment = "paid";
-    setOrders((prev) => prev.map((o) => o.id === advanceDialog.id ? { ...o, status: next, payment_status: updatedPayment } : o));
     triggerDashboardRefresh();
     setAdvanceDialog(null);
+    fetchOrders(); fetchCounts();
   };
 
   // Filters
-  let filtered = orders;
-  if (activeTab !== "all") filtered = filtered.filter((o) => o.status === activeTab);
-  if (searchQuery) { const q = searchQuery.toLowerCase(); filtered = filtered.filter((o) => o.id.toLowerCase().includes(q) || o.customer.toLowerCase().includes(q) || o.phone.includes(q)); }
-  if (paymentFilter !== "all") filtered = filtered.filter((o) => o.payment === paymentFilter);
-
-  const revenue = orders.filter((o) => o.status === "received" && o.payment_status === "paid").reduce((s, o) => s + o.total, 0);
+  // `orders` is already the current page of server-filtered/paginated results
+  const filtered = orders;
 
   const tabs: { id: "all" | OrderStatus; label: string; count: number }[] = [
-    { id: "all", label: "All", count: orders.length },
-    { id: "pending", label: "Pending", count: orders.filter((o) => o.status === "pending").length },
-    { id: "confirmed", label: "Confirmed", count: orders.filter((o) => o.status === "confirmed").length },
-    { id: "processing", label: "Processing", count: orders.filter((o) => o.status === "processing").length },
-    { id: "shipped", label: "Shipped", count: orders.filter((o) => o.status === "shipped").length },
-    { id: "on_delivery", label: "On Delivery", count: orders.filter((o) => o.status === "on_delivery").length },
-    { id: "received", label: "Received", count: orders.filter((o) => o.status === "received").length },
-    { id: "not_received", label: "Not Received", count: orders.filter((o) => o.status === "not_received").length },
+    { id: "all", label: "All", count: totalCount },
+    { id: "pending", label: "Pending", count: statusCounts.pending || 0 },
+    { id: "confirmed", label: "Confirmed", count: statusCounts.confirmed || 0 },
+    { id: "processing", label: "Processing", count: statusCounts.processing || 0 },
+    { id: "shipped", label: "Shipped", count: statusCounts.shipped || 0 },
+    { id: "on_delivery", label: "On Delivery", count: statusCounts.on_delivery || 0 },
+    { id: "received", label: "Received", count: statusCounts.received || 0 },
+    { id: "not_received", label: "Not Received", count: statusCounts.not_received || 0 },
   ];
 
   return (
@@ -154,7 +185,7 @@ export default function OrderManagementPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Order Management</h1>
-          <p className="text-sm text-charcoal-lighter">{orders.length} orders · {formatCurrency(revenue)} revenue</p>
+          <p className="text-sm text-charcoal-lighter">{totalCount} orders · {formatCurrency(revenue)} revenue</p>
         </div>
         <AdminButton variant="outline" size="sm"><Download className="h-3.5 w-3.5" /> Export</AdminButton>
       </div>
@@ -162,11 +193,11 @@ export default function OrderManagementPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
         {[
-          { label: "Pending", value: orders.filter((o) => o.status === "pending").length, icon: Clock, color: "text-warning", bg: "bg-warning/10" },
-          { label: "In Progress", value: orders.filter((o) => ["confirmed", "processing"].includes(o.status)).length, icon: Package, color: "text-secondary", bg: "bg-secondary/10" },
-          { label: "In Transit", value: orders.filter((o) => ["shipped", "on_delivery"].includes(o.status)).length, icon: Truck, color: "text-violet-500", bg: "bg-violet-50" },
-          { label: "Received", value: orders.filter((o) => o.status === "received").length, icon: PackageCheck, color: "text-success", bg: "bg-success/10" },
-          { label: "Not Received", value: orders.filter((o) => o.status === "not_received").length, icon: ThumbsDown, color: "text-destructive", bg: "bg-destructive/10" },
+          { label: "Pending", value: statusCounts.pending || 0, icon: Clock, color: "text-warning", bg: "bg-warning/10" },
+          { label: "In Progress", value: (statusCounts.confirmed || 0) + (statusCounts.processing || 0), icon: Package, color: "text-secondary", bg: "bg-secondary/10" },
+          { label: "In Transit", value: (statusCounts.shipped || 0) + (statusCounts.on_delivery || 0), icon: Truck, color: "text-violet-500", bg: "bg-violet-50" },
+          { label: "Received", value: statusCounts.received || 0, icon: PackageCheck, color: "text-success", bg: "bg-success/10" },
+          { label: "Not Received", value: statusCounts.not_received || 0, icon: ThumbsDown, color: "text-destructive", bg: "bg-destructive/10" },
           { label: "Revenue", value: formatCurrency(revenue), icon: DollarSign, color: "text-gold", bg: "bg-gold/10" },
         ].map((s) => (
           <Card key={s.label}><CardContent className="p-3 flex items-center gap-2.5">
@@ -192,7 +223,7 @@ export default function OrderManagementPage() {
       <Card>
         <div className="p-3 border-b border-border/20">
           <div className="flex flex-col sm:flex-row gap-3">
-            <Input placeholder="Search order, customer, phone..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} icon={<Search className="h-4 w-4" />} className="flex-1" />
+            <Input placeholder="Search order, customer, phone..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} icon={<Search className="h-4 w-4" />} className="flex-1" />
             <Select value={paymentFilter} onValueChange={setPaymentFilter}>
               <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -308,6 +339,11 @@ export default function OrderManagementPage() {
             </table>
           )}
         </div>
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-border/30">
+            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+          </div>
+        )}
       </Card>
 
       {/* Change Status Dialog */}

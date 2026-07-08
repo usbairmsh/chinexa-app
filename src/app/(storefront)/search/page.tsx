@@ -1,20 +1,31 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Search as SearchIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Pagination } from "@/components/ui/pagination";
 import { ProductCard } from "@/components/storefront/product/product-card";
 import { useSearchProducts } from "@/hooks/queries/use-products";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 24;
 
 function SearchContent() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") || "";
-  const [query, setQuery] = useState(initialQuery);
-  const { data, isLoading } = useSearchProducts(query);
+  const [queryInput, setQueryInput] = useState(initialQuery);
+  const [page, setPage] = useState(1);
+  const query = useDebouncedValue(queryInput, 300);
+
+  // A brand-new search term always starts back at page 1
+  useEffect(() => { setPage(1); }, [query]);
+
+  const { data, isLoading, isFetching } = useSearchProducts(query, { page, page_size: PAGE_SIZE });
 
   return (
     <div className="bg-white min-h-screen">
@@ -27,10 +38,10 @@ function SearchContent() {
           <div className="max-w-xl">
             <Input
               placeholder="Search for skincare, bags, perfumes..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              value={queryInput}
+              onChange={(e) => setQueryInput(e.target.value)}
               icon={<SearchIcon className="h-4 w-4" />}
-              className="bg-white h-12 text-base"
+              className="bg-white h-12 text-base rounded-luxury"
             />
           </div>
         </div>
@@ -54,20 +65,27 @@ function SearchContent() {
           </div>
         ) : (
           <>
-            <p className="text-sm text-charcoal-lighter mb-6">
+            <p className={cn("text-sm text-charcoal-lighter mb-6", isFetching && "opacity-60")}>
               {data?.total || 0} results for &ldquo;<span className="font-medium text-charcoal">{query}</span>&rdquo;
             </p>
             {data && data.data.length > 0 ? (
-              <motion.div
-                key={query}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6"
-              >
-                {data.data.map((product, i) => (
-                  <ProductCard key={product.id} product={product} index={i} />
-                ))}
-              </motion.div>
+              <>
+                <motion.div
+                  key={`${query}-${page}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6"
+                >
+                  {data.data.map((product, i) => (
+                    <ProductCard key={product.id} product={product} index={i} />
+                  ))}
+                </motion.div>
+                {data.total_pages > 1 && (
+                  <div className="mt-10 flex justify-center">
+                    <Pagination currentPage={page} totalPages={data.total_pages} onPageChange={setPage} />
+                  </div>
+                )}
+              </>
             ) : (
               <p className="text-center text-charcoal-lighter py-16">
                 No products found. Try a different search term.

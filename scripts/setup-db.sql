@@ -53,7 +53,24 @@ CREATE TABLE IF NOT EXISTS products (
   seo_description TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+  FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
+  INDEX idx_products_category (category_id),
+  INDEX idx_products_brand (brand_id),
+  INDEX idx_products_active_featured (is_active, is_featured, created_at),
+  INDEX idx_products_price (price),
+  INDEX idx_products_rating (average_rating),
+  FULLTEXT INDEX ft_products_search (name, short_description, description, category_name, subcategory, brand_name, sku, ingredients)
+) ENGINE=InnoDB;
+
+-- Search activity log — powers real "trending searches" from actual customer
+-- search behavior instead of a hardcoded list.
+CREATE TABLE IF NOT EXISTS search_logs (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  term VARCHAR(255) NOT NULL,
+  result_count INT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_search_logs_term_time (term, created_at),
+  INDEX idx_search_logs_time (created_at)
 ) ENGINE=InnoDB;
 
 -- Brands

@@ -47,15 +47,44 @@ export async function GET(req: NextRequest) {
   try {
     await ensureColumns();
     const { searchParams } = new URL(req.url);
+
+    // Lightweight per-status counts + received/paid revenue for the admin tab
+    // bar and stat cards — deliberately separate from the paginated/filtered
+    // list query below, since you can't derive "how many shipped orders exist
+    // in total" (or total revenue) from a filtered/paginated page.
+    if (searchParams.get("count_by_status") === "1") {
+      const search = searchParams.get("search");
+      let cwhere = "WHERE 1=1";
+      const cparams: (string | number)[] = [];
+      if (search) { cwhere += " AND (order_number LIKE ? OR customer_name LIKE ? OR customer_phone LIKE ?)"; const q = `%${escapeLike(search)}%`; cparams.push(q, q, q); }
+      const rows = await query<RowDataPacket[]>(
+        `SELECT status, COUNT(*) AS count FROM orders ${cwhere} GROUP BY status`,
+        cparams
+      );
+      const counts: Record<string, number> = {};
+      let total = 0;
+      for (const r of rows) { counts[r.status as string] = Number(r.count); total += Number(r.count); }
+
+      const revenueRows = await query<RowDataPacket[]>(
+        `SELECT COALESCE(SUM(total), 0) AS revenue FROM orders ${cwhere} AND status = 'received' AND payment_status = 'paid'`,
+        cparams
+      );
+      const revenue = Number(revenueRows[0]?.revenue) || 0;
+
+      return NextResponse.json({ counts, total, revenue });
+    }
+
     const page = Number(searchParams.get("page")) || 1;
     const pageSize = Number(searchParams.get("page_size")) || 20;
     const status = searchParams.get("status");
     const search = searchParams.get("search");
+    const payment = searchParams.get("payment");
 
     let where = "WHERE 1=1";
     const params: (string | number)[] = [];
     if (status) { where += " AND status = ?"; params.push(status); }
     if (search) { where += " AND (order_number LIKE ? OR customer_name LIKE ? OR customer_phone LIKE ?)"; const q = `%${escapeLike(search)}%`; params.push(q, q, q); }
+    if (payment) { where += " AND payment_method = ?"; params.push(payment.toUpperCase()); }
 
     const countRows = await query<RowDataPacket[]>(`SELECT COUNT(*) as total FROM orders ${where}`, params);
     const total = (countRows[0] as { total: number })?.total || 0;

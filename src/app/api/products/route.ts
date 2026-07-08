@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
-import { query, escapeLike } from "@/lib/db";
+import { query, execute, escapeLike } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { validate, validationError, dependencyError } from "@/lib/validate";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
+import { ensureSearchIndexes } from "@/lib/migrate-search";
 
 interface ProductRow extends RowDataPacket {
   id: string; name: string; slug: string; description: string; short_description: string;
@@ -56,8 +57,25 @@ function buildProduct(row: ProductRow, images: ImageRow[], variants: VariantRow[
   };
 }
 
+/**
+ * Builds a FULLTEXT boolean-mode query string from free-text user input.
+ * Each word gets a trailing `*` for prefix matching (so "leath" matches
+ * "leather" while the user is still typing) and a `+` prefix so every word
+ * is required — mirrors how users expect multi-word search to behave
+ * ("blue leather bag" should narrow, not broaden, results).
+ */
+function toBooleanFulltextQuery(term: string): string {
+  return term
+    .split(/\s+/)
+    .map((w) => w.replace(/[+\-<>()~*"@]/g, "")) // strip FULLTEXT boolean-mode operators from user input
+    .filter(Boolean)
+    .map((w) => `+${w}*`)
+    .join(" ");
+}
+
 export async function GET(req: NextRequest) {
   try {
+    await ensureSearchIndexes();
     const { searchParams } = new URL(req.url);
     const page = Number(searchParams.get("page")) || 1;
     const pageSize = Number(searchParams.get("page_size")) || 12;
@@ -65,7 +83,7 @@ export async function GET(req: NextRequest) {
     const subcategory = searchParams.get("subcategory");
     const brand = searchParams.get("brand");
     const sortBy = searchParams.get("sort_by") || "featured";
-    const search = searchParams.get("search");
+    const search = searchParams.get("search")?.trim() || "";
     const badges = searchParams.get("badges");
     const minPrice = searchParams.get("min_price");
     const maxPrice = searchParams.get("max_price");
@@ -75,6 +93,10 @@ export async function GET(req: NextRequest) {
     const all = searchParams.get("all");
     let where = all ? "WHERE 1=1" : "WHERE p.is_active = 1";
     const params: (string | number)[] = [];
+    // Relevance score selected alongside the row when searching, so results
+    // can be ordered by match quality instead of just created_at/featured.
+    let relevanceSelect = "";
+    let relevanceParams: (string | number)[] = [];
 
     if (category) {
       // Check if this slug is a subcategory (has a parent_id) or a parent category
@@ -118,36 +140,60 @@ export async function GET(req: NextRequest) {
       }
     }
     if (search) {
-      const q = `%${escapeLike(search)}%`;
-      where += ` AND (p.name LIKE ? OR p.sku LIKE ? OR p.category_name LIKE ? OR p.subcategory LIKE ? OR p.tags LIKE ? OR p.ingredients LIKE ? OR p.short_description LIKE ? OR EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND (pv.name LIKE ? OR pv.value LIKE ?)))`;
-      params.push(q, q, q, q, q, q, q, q, q);
+      const booleanQuery = toBooleanFulltextQuery(search);
+      const skuLike = `${escapeLike(search)}%`; // prefix match — SKUs are short codes FULLTEXT handles poorly
+      if (booleanQuery) {
+        // FULLTEXT (name/short_description/description/category_name/subcategory/brand_name/sku/ingredients)
+        // handles real free-text relevance search; a SKU prefix LIKE and a
+        // variant-name/value LIKE fill the two gaps FULLTEXT can't cover well
+        // (short exact-ish codes, and a separate child table).
+        where += ` AND (
+          MATCH(p.name, p.short_description, p.description, p.category_name, p.subcategory, p.brand_name, p.sku, p.ingredients) AGAINST (? IN BOOLEAN MODE)
+          OR p.sku LIKE ?
+          OR EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND (pv.name LIKE ? OR pv.value LIKE ?))
+        )`;
+        params.push(booleanQuery, skuLike, skuLike, skuLike);
+        relevanceSelect = ", MATCH(p.name, p.short_description, p.description, p.category_name, p.subcategory, p.brand_name, p.sku, p.ingredients) AGAINST (? IN BOOLEAN MODE) AS relevance";
+        relevanceParams = [booleanQuery];
+      }
     }
     if (badges) { where += " AND p.badges LIKE ?"; params.push(`%${escapeLike(badges)}%`); }
     if (minPrice) { where += " AND p.price >= ?"; params.push(Number(minPrice)); }
     if (maxPrice) { where += " AND p.price <= ?"; params.push(Number(maxPrice)); }
     if (featured === "true") { where += " AND p.is_featured = 1"; }
 
+    // Relevance is the default sort while searching (unless the user picked a
+    // specific sort like price/newest) — best matches first, not just newest.
     let orderBy = "ORDER BY p.is_featured DESC, p.created_at DESC";
     if (sortBy === "newest") orderBy = "ORDER BY p.created_at DESC";
     else if (sortBy === "price_asc") orderBy = "ORDER BY p.price ASC";
     else if (sortBy === "price_desc") orderBy = "ORDER BY p.price DESC";
     else if (sortBy === "rating") orderBy = "ORDER BY p.average_rating DESC";
     else if (sortBy === "name_asc") orderBy = "ORDER BY p.name ASC";
+    else if (relevanceSelect && sortBy === "featured") orderBy = "ORDER BY relevance DESC, p.is_featured DESC";
 
     // Count
     const countRows = await query<CountRow[]>(`SELECT COUNT(*) as total FROM products p ${where}`, params);
     const total = countRows[0]?.total || 0;
 
+    // Fire-and-forget search logging — powers real trending-searches data.
+    // Never awaited into the response path; a logging failure must not affect
+    // search results.
+    if (search) {
+      execute("INSERT INTO search_logs (term, result_count) VALUES (?, ?)", [search.slice(0, 255), total]).catch(() => {});
+    }
+
     // If limit param, use it directly (for featured/new/best/trending queries)
     const actualLimit = limit ? Number(limit) : pageSize;
     const offset = limit ? 0 : (page - 1) * pageSize;
 
-    // Products
+    // Products — relevanceSelect's param must be bound first since it appears
+    // earlier in the SQL string (SELECT clause) than the WHERE clause params.
     const safeLimit = Math.max(1, Math.min(Math.floor(actualLimit), 100));
     const safeOffset = Math.max(0, Math.floor(offset));
     const products = await query<ProductRow[]>(
-      `SELECT p.* FROM products p ${where} ${orderBy} LIMIT ${safeLimit} OFFSET ${safeOffset}`,
-      params
+      `SELECT p.*${relevanceSelect} FROM products p ${where} ${orderBy} LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+      [...relevanceParams, ...params]
     );
 
     if (products.length === 0) {
