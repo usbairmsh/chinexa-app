@@ -100,7 +100,7 @@ export function Header() {
               <span className="text-[11px] text-charcoal-lighter hidden sm:flex items-center gap-1.5">
                 <Phone className="h-3 w-3" /> {announcement.phone || "+880 1700-000000"}
               </span>
-              <p className="text-[10px] sm:text-[11px] text-charcoal-light text-center flex-1 sm:flex-none tracking-wide truncate px-2 sm:px-0">
+              <p className="text-[10px] sm:text-[11px] text-charcoal-light text-center flex-1 sm:flex-none tracking-[0.03em] truncate px-2 sm:px-0">
                 {announcement.text || "Free shipping above ৳3,000 | Use code WELCOME10 for 10% off"}
               </p>
               <div className="hidden sm:flex items-center gap-4 text-[11px] text-charcoal-lighter">
@@ -158,12 +158,13 @@ export function Header() {
                 />
               </Link>
 
-              {/* Search — lives beside the logo (bell took its old spot on the right) */}
+              {/* Search — lens tilts in as if leaning closer to look, matching a
+                  literal magnifying-glass motion rather than a generic scale/rotate */}
               <motion.button
                 onClick={() => setSearchOverlayOpen(true)}
-                whileHover={{ scale: 1.12, rotate: -8 }}
-                whileTap={{ scale: 0.9 }}
-                transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                whileHover={{ scale: 1.1, rotate: -15 }}
+                whileTap={{ scale: 0.92 }}
+                transition={{ type: "spring", stiffness: 350, damping: 12 }}
                 className="flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors ml-1 lg:ml-3"
                 aria-label="Search"
               >
@@ -185,10 +186,10 @@ export function Header() {
                   <Link
                     href={item.href}
                     className={cn(
-                      "relative inline-flex items-center gap-1 px-4 py-2 text-[13px] font-medium tracking-wide uppercase transition-colors",
+                      "relative inline-flex items-center gap-1.5 px-4 py-2 font-heading text-[15px] font-medium tracking-[0.01em] transition-colors",
                       activeMenu === item.label
                         ? "text-secondary"
-                        : "text-charcoal/70 hover:text-charcoal"
+                        : "text-charcoal/75 hover:text-charcoal"
                     )}
                   >
                     {item.label}
@@ -250,12 +251,12 @@ export function Header() {
               {/* Notifications — signed-in customers only */}
               {isAuthenticated && <NotificationBell />}
 
-              {/* Wishlist */}
+              {/* Wishlist — a heartbeat: two quick pulses on hover, like an actual heart, not a generic scale/rotate */}
               <Link href="/wishlist" aria-label="Wishlist">
                 <motion.span
-                  whileHover={{ scale: 1.12, rotate: 8 }}
-                  whileTap={{ scale: 0.9 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                  whileHover={{ scale: [1, 1.28, 1.05, 1.22, 1] }}
+                  whileTap={{ scale: 0.88 }}
+                  transition={{ duration: 0.6, ease: "easeInOut", times: [0, 0.25, 0.4, 0.6, 1] }}
                   className="relative flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors"
                 >
                   <Heart className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
@@ -276,13 +277,14 @@ export function Header() {
                 </motion.span>
               </Link>
 
-              {/* Cart — hidden on cart page */}
+              {/* Cart — swings gently side to side like a bag handle being nudged,
+                  rather than a generic scale/rotate */}
               {pathname !== "/cart" && (
                 <motion.button
                   onClick={() => setCartDrawerOpen(true)}
-                  whileHover={{ scale: 1.12, rotate: -8 }}
-                  whileTap={{ scale: 0.9 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                  whileHover={{ rotate: [0, -12, 10, -6, 0], scale: 1.08 }}
+                  whileTap={{ scale: 0.92 }}
+                  transition={{ duration: 0.5, ease: "easeInOut" }}
                   className="relative flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors"
                   aria-label="Cart"
                 >
@@ -320,22 +322,23 @@ export function Header() {
                     title={`${badgeData.tier_name} Member`}
                   >
                     <motion.span
-                      whileHover={{ scale: 1.15, rotate: 8 }}
-                      whileTap={{ scale: 0.9 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                      whileHover={{ y: [0, -3, 0], scale: 1.08 }}
+                      whileTap={{ scale: 0.92 }}
+                      transition={{ duration: 0.4, ease: "easeInOut" }}
                       className="flex items-center justify-center h-7 w-7 rounded-full bg-white"
                       style={{ boxShadow: "inset 0 0 0 1px currentColor" }}
                     >
                       <User className="h-3.5 w-3.5" />
                     </motion.span>
-                    <span className="text-[11px] font-bold tracking-wide whitespace-nowrap uppercase">{badgeData.tier_name}</span>
+                    <span className="font-heading text-[12px] font-semibold tracking-[0.03em] whitespace-nowrap">{badgeData.tier_name}</span>
                   </Link>
                 ) : (
                   <Link href="/dashboard" aria-label="Account">
+                    {/* Account — a small nod (like acknowledging you), not a rotate */}
                     <motion.span
-                      whileHover={{ scale: 1.12, rotate: 8 }}
-                      whileTap={{ scale: 0.9 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                      whileHover={{ y: [0, -3, 0], scale: 1.08 }}
+                      whileTap={{ scale: 0.92 }}
+                      transition={{ duration: 0.4, ease: "easeInOut" }}
                       className="flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors"
                     >
                       <User className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
@@ -347,9 +350,9 @@ export function Header() {
                   {/* Mobile — icon */}
                   <Link href="/login" aria-label="Sign In" className="flex sm:hidden">
                     <motion.span
-                      whileHover={{ scale: 1.12, rotate: 8 }}
-                      whileTap={{ scale: 0.9 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                      whileHover={{ y: [0, -3, 0], scale: 1.08 }}
+                      whileTap={{ scale: 0.92 }}
+                      transition={{ duration: 0.4, ease: "easeInOut" }}
                       className="flex items-center justify-center h-9 w-9 rounded-full bg-secondary text-white hover:bg-secondary-dark transition-colors"
                     >
                       <User className="h-4 w-4" />
@@ -425,7 +428,7 @@ export function Header() {
                     >
                       <User className="h-3.5 w-3.5" />
                     </span>
-                    <span className="text-xs font-bold tracking-wide uppercase">{badgeData.tier_name} Member</span>
+                    <span className="font-heading text-[13px] font-semibold tracking-[0.02em]">{badgeData.tier_name} Member</span>
                   </Link>
                 )}
 
@@ -436,7 +439,7 @@ export function Header() {
                       <Link
                         href={item.href}
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center justify-between py-2.5 px-2 rounded-xl text-[15px] font-medium text-charcoal hover:bg-primary-light hover:text-secondary transition-colors"
+                        className="flex items-center justify-between py-2.5 px-2 rounded-xl font-heading text-[16px] font-medium text-charcoal hover:bg-primary-light hover:text-secondary transition-colors"
                       >
                         <span>{item.label}</span>
                         {item.badge && (

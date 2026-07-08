@@ -164,11 +164,14 @@ export function NotificationBell() {
 
   return (
     <div className="relative" ref={panelRef}>
+      {/* Bell literally rings — a quick side-to-side wiggle around the top pivot,
+          like a clapper striking, rather than a generic scale/rotate */}
       <motion.button
         onClick={handleBellClick}
-        whileHover={{ scale: 1.12, rotate: 8 }}
-        whileTap={{ scale: 0.9 }}
-        transition={{ type: "spring", stiffness: 400, damping: 15 }}
+        whileHover={{ rotate: [0, 14, -12, 9, -6, 3, 0] }}
+        whileTap={{ scale: 0.92 }}
+        transition={{ duration: 0.55, ease: "easeInOut" }}
+        style={{ transformOrigin: "top center" }}
         className="relative flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors"
         aria-label={unread > 0 ? `Notifications (${unread} unread)` : "Notifications"}
       >

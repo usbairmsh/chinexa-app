@@ -5,28 +5,28 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-body text-sm font-semibold tracking-wide transition-all duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 cursor-pointer active:scale-[0.96]",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-body text-sm font-semibold tracking-wide transition-all duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 cursor-pointer active:scale-[0.97]",
   {
     variants: {
       variant: {
         default:
-          "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px]",
+          "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_8px_28px_rgba(122,46,39,0.35)] hover:-translate-y-px",
         primary:
-          "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px]",
+          "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_8px_28px_rgba(122,46,39,0.35)] hover:-translate-y-px",
         secondary:
-          "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px]",
+          "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_8px_28px_rgba(122,46,39,0.35)] hover:-translate-y-px",
         outline:
-          "border-2 border-secondary/30 bg-white text-secondary hover:bg-secondary hover:text-white hover:border-secondary hover:shadow-[0_6px_25px_rgba(192,57,43,0.25)] hover:-translate-y-[1px]",
+          "border border-secondary/25 bg-white text-secondary hover:bg-secondary hover:text-white hover:border-secondary hover:shadow-[0_8px_24px_rgba(122,46,39,0.22)] hover:-translate-y-px",
         ghost:
-          "text-charcoal-light hover:bg-pearl hover:text-charcoal hover:shadow-sm",
+          "text-charcoal-light hover:bg-pearl hover:text-charcoal",
         link:
           "text-secondary underline-offset-4 hover:underline hover:text-secondary-dark",
         luxury:
-          "bg-gradient-to-r from-secondary to-coral text-white hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:brightness-110 hover:-translate-y-[1px]",
+          "bg-gradient-to-r from-secondary to-coral text-white hover:shadow-[0_8px_28px_rgba(122,46,39,0.35)] hover:brightness-[1.08] hover:-translate-y-px",
         destructive:
-          "bg-destructive text-white hover:bg-destructive/90 hover:shadow-[0_6px_20px_rgba(239,68,68,0.3)] hover:-translate-y-[1px]",
+          "bg-destructive text-white hover:bg-destructive/90 hover:shadow-[0_8px_24px_rgba(239,68,68,0.28)] hover:-translate-y-px",
         gold:
-          "bg-gold text-white hover:bg-gold-light hover:shadow-[0_6px_20px_rgba(212,175,55,0.3)] hover:-translate-y-[1px]",
+          "bg-gold text-white hover:bg-gold-light hover:shadow-[0_8px_24px_rgba(201,164,92,0.35)] hover:-translate-y-px",
       },
       size: {
         default: "h-10 px-6 py-2.5 text-[13px]",

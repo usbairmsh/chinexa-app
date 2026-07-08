@@ -5,52 +5,57 @@
    ============================================ */
 
 @theme inline {
-  /* Colors — matched to ChineXa cherry blossom logo */
-  --color-primary: #F8D7E5;
-  --color-primary-dark: #E8A0B8;
-  --color-primary-light: #FDF0F5;
-  --color-primary-50: #FFF5F9;
-  --color-primary-100: #FDF0F5;
-  --color-primary-200: #F8D7E5;
-  --color-primary-300: #F5C4D9;
-  --color-primary-400: #F0A8C6;
-  --color-primary-500: #E06B8A;
-  --color-primary-600: #C94B6D;
-  --color-primary-700: #A83A56;
-  --color-primary-800: #7A2B3F;
-  --color-primary-900: #4E1A28;
+  /* Colors — refined toward a quieter, more sophisticated version of the
+     original ChineXa cherry-blossom palette. Same hue family throughout
+     (blush pink -> wine red), desaturated and warmed rather than replaced,
+     plus a new soft-gold accent for premium touches (dividers, badges,
+     hover glow) that the original palette didn't have. */
+  --color-primary: #F0DCDE;
+  --color-primary-dark: #D9AEB2;
+  --color-primary-light: #FBF2F0;
+  --color-primary-50: #FDF7F5;
+  --color-primary-100: #FBF2F0;
+  --color-primary-200: #F0DCDE;
+  --color-primary-300: #E4C6C9;
+  --color-primary-400: #D2A3A8;
+  --color-primary-500: #B97B7F;
+  --color-primary-600: #9C5B5C;
+  --color-primary-700: #82464A;
+  --color-primary-800: #5E353A;
+  --color-primary-900: #3D2226;
 
-  /* Cherry red from logo "X" and blossoms */
-  --color-secondary: #C0392B;
-  --color-secondary-dark: #96281E;
-  --color-secondary-light: #F2D7D5;
+  /* Deepened, desaturated cherry red — "aged wine" instead of fire-engine red */
+  --color-secondary: #7A2E27;
+  --color-secondary-dark: #5C221D;
+  --color-secondary-light: #EFDAD6;
 
-  --color-coral: #E74C3C;
-  --color-coral-light: #FADBD8;
-  --color-beige: #F5F0EB;
-  --color-beige-dark: #E8DDD4;
-  --color-ivory: #FFFFF0;
-  --color-pearl: #F8F6F0;
-  --color-cream: #FFF8F6;
+  --color-coral: #B85C4E;
+  --color-coral-light: #F3E1DC;
+  --color-beige: #F3EDE6;
+  --color-beige-dark: #E3D6CB;
+  --color-ivory: #FFFDF8;
+  --color-pearl: #FBF5F2;
+  --color-cream: #FDF6F3;
 
-  /* Brown from logo tree trunk */
-  --color-charcoal: #2D2D2D;
-  --color-charcoal-light: #4A4A4A;
-  --color-charcoal-lighter: #6B6B6B;
+  /* Brown from logo tree trunk — warmed to match */
+  --color-charcoal: #2A2420;
+  --color-charcoal-light: #4A4038;
+  --color-charcoal-lighter: #6E6459;
 
   --color-trunk: #6B3A2A;
   --color-trunk-light: #8B5E4B;
 
-  --color-gold: #D4AF37;
-  --color-gold-light: #E8D48B;
+  /* New premium gold accent — dividers, tier badges, subtle hover glow */
+  --color-gold: #C9A45C;
+  --color-gold-light: #E6D3A8;
 
   --color-background: #FFFFFF;
-  --color-foreground: #2D2D2D;
-  --color-muted: #F5F0EB;
-  --color-muted-foreground: #6B6B6B;
-  --color-border: #E8DDD4;
-  --color-ring: #C0392B;
-  --color-input: #E8DDD4;
+  --color-foreground: #2A2420;
+  --color-muted: #F3EDE6;
+  --color-muted-foreground: #6E6459;
+  --color-border: #E3D6CB;
+  --color-ring: #7A2E27;
+  --color-input: #E3D6CB;
 
   --color-destructive: #EF4444;
   --color-destructive-foreground: #FFFFFF;
@@ -60,12 +65,12 @@
   --color-warning-foreground: #FFFFFF;
 
   --color-card: #FFFFFF;
-  --color-card-foreground: #2D2D2D;
+  --color-card-foreground: #2A2420;
   --color-popover: #FFFFFF;
-  --color-popover-foreground: #2D2D2D;
+  --color-popover-foreground: #2A2420;
 
-  --color-accent: #FDF0F5;
-  --color-accent-foreground: #4E1A28;
+  --color-accent: #FBF2F0;
+  --color-accent-foreground: #3D2226;
 
   /* Fonts */
   --font-heading: "Playfair Display", "Cormorant Garamond", Georgia, serif;
@@ -300,6 +305,14 @@ h1, h2, h3, h4, h5, h6 {
 /* Text gradient */
 .text-gradient-luxury {
   background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-coral) 50%, var(--color-primary-400) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Soft gold sheen — for premium accents (badges, dividers, subtle highlights) */
+.text-gradient-gold {
+  background: linear-gradient(135deg, var(--color-gold) 0%, var(--color-gold-light) 50%, var(--color-gold) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
