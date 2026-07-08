@@ -4,6 +4,7 @@ import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { deleteUploadedFile } from "@/lib/delete-upload";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
+import { pingIndexNowUrl } from "@/lib/indexnow";
 
 interface ProductRow extends RowDataPacket { [key: string]: unknown; }
 interface ImageRow extends RowDataPacket { id: string; product_id: string; url: string; alt: string; order: number; }
@@ -104,6 +105,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     await logActivity("Updated product", "product", id);
+
+    // Fire-and-forget — a content/price/stock change is worth a fresh
+    // recrawl signal too, not just brand-new products.
+    if (body.is_active !== false) {
+      const rows = await query<RowDataPacket[]>("SELECT slug FROM products WHERE id = ? LIMIT 1", [id]);
+      if (rows[0]?.slug) {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
+        pingIndexNowUrl(`${siteUrl}/products/${rows[0].slug}`);
+      }
+    }
+
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

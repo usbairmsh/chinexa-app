@@ -27,8 +27,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   try {
-    // Products — paginate so catalogs beyond 100 items are fully covered
-    for (let page = 1; page <= 5; page++) {
+    // Products — paginate until every page has been fetched, not a fixed
+    // page count, so the sitemap never silently truncates as the catalog
+    // grows past whatever cap a hardcoded loop bound would impose.
+    let page = 1;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
       const res = await fetch(`${internalUrl}/api/products?page=${page}&page_size=100`, { cache: "no-store" }).catch(() => null);
       if (!res?.ok) break;
       const prodData = await res.json();
@@ -44,6 +48,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         }
       }
       if (products.length < 100 || page >= Number(prodData?.total_pages || 1)) break;
+      page++;
     }
 
     const [categoriesRes, blogRes, brandsRes] = await Promise.all([
@@ -99,8 +104,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         }
       }
     }
-  } catch {
-    // If APIs fail, return static pages only
+  } catch (err) {
+    // If APIs fail, still return the static pages rather than a hard error —
+    // but log it, since a silently-broken sitemap (e.g. DB down, internal
+    // fetch misconfigured) would otherwise serve a near-empty sitemap to
+    // Google indefinitely with zero visibility into why.
+    console.error("[sitemap] failed to load dynamic entries:", err);
   }
 
   return entries;

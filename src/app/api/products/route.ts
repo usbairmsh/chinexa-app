@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/log-activity";
 import { validate, validationError, dependencyError } from "@/lib/validate";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { ensureSearchIndexes } from "@/lib/migrate-search";
+import { pingIndexNowUrl } from "@/lib/indexnow";
 
 interface ProductRow extends RowDataPacket {
   id: string; name: string; slug: string; description: string; short_description: string;
@@ -302,6 +303,15 @@ export async function POST(req: NextRequest) {
     }
 
     await logActivity("Created product", "product", id, body.name);
+
+    // Fire-and-forget — tell IndexNow-supporting search engines (Bing, Yandex,
+    // etc.) this URL exists right now instead of waiting for their own crawl
+    // schedule to rediscover it via the sitemap.
+    if (body.is_active !== false) {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
+      pingIndexNowUrl(`${siteUrl}/products/${slug}`);
+    }
+
     return NextResponse.json({ success: true, id, slug }, { status: 201 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "";

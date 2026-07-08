@@ -1,6 +1,6 @@
 export const SITE_NAME = "ChineXa";
 export const SITE_DESCRIPTION = "Premium Beauty & Lifestyle";
-export const SITE_URL = "https://chinexa.com";
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
 export const CURRENCY = { code: "BDT", symbol: "৳", locale: "en-BD" };
 export const PHONE_PREFIX = "+880";
 export const DEFAULT_OTP = "123456";
