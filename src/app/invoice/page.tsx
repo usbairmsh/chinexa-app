@@ -50,7 +50,7 @@ function formatAddress(addr: OrderData["billing_address"]) {
 function InvoiceContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("id") || "";
-  const { store_name, store_email, store_phone } = useStoreSettings();
+  const { store_name, store_email, store_phone, loaded: settingsLoaded } = useStoreSettings();
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -63,15 +63,16 @@ function InvoiceContent() {
       .finally(() => setLoading(false));
   }, [orderId]);
 
-  // Auto-print once loaded
+  // Auto-print once loaded — wait on store settings too, so a real phone/email
+  // ends up on the printed page rather than the placeholder defaults.
   useEffect(() => {
-    if (order && !loading) {
+    if (order && !loading && settingsLoaded) {
       const timer = setTimeout(() => window.print(), 600);
       return () => clearTimeout(timer);
     }
-  }, [order, loading]);
+  }, [order, loading, settingsLoaded]);
 
-  if (loading) {
+  if (loading || !settingsLoaded) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
         <Loader2 style={{ height: 32, width: 32, animation: "spin 1s linear infinite", color: "#999" }} />

@@ -78,7 +78,7 @@ export default function ProductDetailPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
-  const { free_delivery_threshold } = useStoreSettings();
+  const { free_delivery_threshold, loaded: storeSettingsLoaded } = useStoreSettings();
   const [shared, setShared] = useState(false);
 
   const handleShare = () => {
@@ -627,10 +627,12 @@ export default function ProductDetailPage() {
                   <Truck className="h-4 w-4 text-secondary mt-0.5 shrink-0" />
                   <div><span className="font-medium text-charcoal">Inside Dhaka:</span> 1-2 business days. <span className="font-medium text-charcoal">Outside Dhaka:</span> 3-5 business days.</div>
                 </div>
-                <div className="flex items-start gap-3">
-                  <Package className="h-4 w-4 text-secondary mt-0.5 shrink-0" />
-                  <div>Free shipping on orders above <span className="font-medium text-charcoal">৳{free_delivery_threshold.toLocaleString()}</span>. Standard shipping fee: ৳120.</div>
-                </div>
+                {storeSettingsLoaded && (
+                  <div className="flex items-start gap-3">
+                    <Package className="h-4 w-4 text-secondary mt-0.5 shrink-0" />
+                    <div>Free shipping on orders above <span className="font-medium text-charcoal">৳{free_delivery_threshold.toLocaleString()}</span>. Standard shipping fee: ৳120.</div>
+                  </div>
+                )}
                 <div className="flex items-start gap-3">
                   <RotateCcw className="h-4 w-4 text-secondary mt-0.5 shrink-0" />
                   <div>7-day hassle-free returns for unused, unopened items in original packaging.</div>

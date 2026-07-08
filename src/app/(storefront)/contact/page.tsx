@@ -10,7 +10,7 @@ import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { useStoreSettings } from "@/hooks/use-store-settings";
 
 export default function ContactPage() {
-  const { store_phone, store_email, store_address, social_links } = useStoreSettings();
+  const { store_phone, store_email, store_address, social_links, loaded } = useStoreSettings();
 
   const contactInfo = [
     { icon: Phone, label: "Phone", value: store_phone, href: `tel:${store_phone.replace(/[\s-]/g, "")}` },
@@ -37,7 +37,11 @@ export default function ContactPage() {
         <div className="grid lg:grid-cols-5 gap-8 lg:gap-10">
           {/* Contact Info */}
           <div className="lg:col-span-2 space-y-4">
-            {contactInfo.map((item, i) => (
+            {!loaded ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-[68px] rounded-xl bg-pearl animate-pulse" />
+              ))
+            ) : contactInfo.map((item, i) => (
               <motion.div
                 key={item.label}
                 initial={{ opacity: 0, x: -20 }}

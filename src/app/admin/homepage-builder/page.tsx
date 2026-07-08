@@ -150,11 +150,16 @@ export default function AdminHomepageBuilder() {
   };
 
   const handleReset = () => {
+    // Section layout/order is structural, safe to restore to sensible
+    // defaults. Announcement copy and trust-badge text are NOT — if an admin
+    // resets and saves without editing further, this would publish demo
+    // placeholder copy to every real visitor. Clear those to empty instead,
+    // so the admin has to type their own real copy before it can go live.
     setSections(defaultSections);
-    setAnnouncementVisible(true);
-    setAnnouncementText("Free shipping on orders above ৳3,000 | Use code WELCOME10 for 10% off");
-    setAnnouncementPhone("+880 1700-000000");
-    setTrustBadges(defaultTrustBadges);
+    setAnnouncementVisible(false);
+    setAnnouncementText("");
+    setAnnouncementPhone("");
+    setTrustBadges(Array.from({ length: 4 }, () => ({ title: "", description: "" })));
   };
 
   // Which section types have editable title/subtitle

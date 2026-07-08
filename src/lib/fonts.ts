@@ -4,7 +4,8 @@ export const playfairDisplay = Playfair_Display({
   subsets: ["latin"],
   variable: "--font-heading",
   display: "swap",
-  weight: ["400", "500", "600", "700", "800", "900"],
+  // 800/900 dropped — no font-extrabold/font-black usage anywhere in the app
+  weight: ["400", "500", "600", "700"],
   style: ["normal", "italic"],
 });
 
