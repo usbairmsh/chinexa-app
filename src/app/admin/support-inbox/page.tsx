@@ -1,10 +1,25 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { MessageCircle, Send, Loader2, LifeBuoy, Search, User, Trash2, AlertTriangle, Check, CheckCheck } from "lucide-react";
+import { MessageCircle, Send, Loader2, LifeBuoy, Search, User, Trash2, AlertTriangle, Check, CheckCheck, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AdminButton } from "@/components/admin/shared/admin-button";
+
+type SortKey = "time" | "tier";
+
+// Fallback colors for tier names that don't (yet) carry their own `color`
+// from /api/membership/tiers — same map used on the customers page, so tier
+// badges look consistent across admin. "Guest" is a pseudo-tier (no
+// customer_id) that stands in place of a real membership tier in this filter.
+const fallbackTierColors: Record<string, string> = {
+  Guest: "bg-charcoal/10 text-charcoal-lighter",
+  Bronze: "bg-orange-100 text-orange-700",
+  Silver: "bg-gray-100 text-gray-600",
+  Gold: "bg-amber-50 text-amber-700",
+  Platinum: "bg-violet-50 text-violet-700",
+};
 
 const ACTIVE_POLL_MS = 3000; // a conversation is open in the thread view
 const LIST_POLL_MS = 20000; // conversation list, background refresh
@@ -31,6 +46,8 @@ interface Conversation {
   admin_unread: number;
   last_message_at: string;
   created_at: string;
+  phone: string | null;
+  tier: string;
 }
 
 interface ChatMessage {
@@ -63,6 +80,11 @@ export default function SupportInboxPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [search, setSearch] = useState("");
+  const [tierFilter, setTierFilter] = useState("all");
+  const [tierColorMap, setTierColorMap] = useState<Record<string, string>>({});
+  const [tierOrder, setTierOrder] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<SortKey>("time");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -88,6 +110,21 @@ export default function SupportInboxPage() {
     const interval = setInterval(fetchConversations, LIST_POLL_MS);
     return () => clearInterval(interval);
   }, [fetchConversations, pageVisible]);
+
+  // Real configured membership tiers, for the filter dropdown + badge colors.
+  // "Guest" is appended after — it's not a real tier row, just the label the
+  // API assigns to conversations with no customer_id.
+  useEffect(() => {
+    fetch("/api/membership/tiers")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setTierOrder([...data.map((t: { name: string }) => t.name), "Guest"]);
+          setTierColorMap(Object.fromEntries(data.map((t: { name: string; color?: string }) => [t.name, t.color || ""])));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const markRead = useCallback((conversationId: string) => {
     fetch("/api/chat/mark-read", {
@@ -178,9 +215,43 @@ export default function SupportInboxPage() {
     }
   };
 
-  const filtered = conversations.filter((c) => c.display_name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = conversations
+    .filter((c) => c.display_name.toLowerCase().includes(search.toLowerCase()))
+    .filter((c) => tierFilter === "all" || c.tier === tierFilter)
+    .slice()
+    .sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === "time") {
+        cmp = new Date(a.last_message_at).getTime() - new Date(b.last_message_at).getTime();
+      } else {
+        // Rank by configured tier order (Guest last), not alphabetically —
+        // tierOrder already ends with "Guest" so an unknown tier falls back after it.
+        const rank = (t: string) => { const i = tierOrder.indexOf(t); return i === -1 ? tierOrder.length : i; };
+        cmp = rank(a.tier) - rank(b.tier);
+      }
+      return sortDir === "desc" ? -cmp : cmp;
+    });
   const active = conversations.find((c) => c.id === activeId) || null;
   const lastAdminMessageId = [...messages].reverse().find((m) => m.sender_type === "admin")?.id;
+
+  const toggleSort = (key: SortKey) => {
+    if (sortBy === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortBy(key); setSortDir(key === "time" ? "desc" : "asc"); }
+  };
+
+  const tierBadgeClass = (tier: string) => {
+    const color = tierColorMap[tier];
+    if (color) return "";
+    return fallbackTierColors[tier] || "bg-pearl text-charcoal-lighter";
+  };
+  const TierBadge = ({ tier }: { tier: string }) => (
+    <span
+      className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 uppercase tracking-wide", tierBadgeClass(tier))}
+      style={tierColorMap[tier] ? { backgroundColor: `${tierColorMap[tier]}1A`, color: tierColorMap[tier] } : undefined}
+    >
+      {tier}
+    </span>
+  );
 
   return (
     <div className="space-y-4">
@@ -194,7 +265,7 @@ export default function SupportInboxPage() {
       <div className="flex h-[calc(100vh-220px)] min-h-[500px] rounded-2xl border border-border/30 bg-white overflow-hidden">
         {/* Conversation list */}
         <div className={cn("w-full sm:w-80 shrink-0 border-r border-border/20 flex flex-col", activeId && "hidden sm:flex")}>
-          <div className="p-3 border-b border-border/20">
+          <div className="p-3 border-b border-border/20 space-y-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-charcoal-lighter" />
               <input
@@ -203,6 +274,36 @@ export default function SupportInboxPage() {
                 placeholder="Search conversations..."
                 className="w-full rounded-full border border-border/30 bg-pearl/40 py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-secondary/30"
               />
+            </div>
+            <Select value={tierFilter} onValueChange={setTierFilter}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="All tiers" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All tiers</SelectItem>
+                {tierOrder.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-charcoal-lighter shrink-0">Sort by</span>
+              <button
+                type="button"
+                onClick={() => toggleSort("time")}
+                className={cn(
+                  "flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium transition-colors",
+                  sortBy === "time" ? "bg-secondary/10 text-secondary" : "text-charcoal-lighter hover:bg-pearl"
+                )}
+              >
+                Time <ArrowUpDown className={cn("h-2.5 w-2.5", sortBy === "time" && "text-secondary")} />
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleSort("tier")}
+                className={cn(
+                  "flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium transition-colors",
+                  sortBy === "tier" ? "bg-secondary/10 text-secondary" : "text-charcoal-lighter hover:bg-pearl"
+                )}
+              >
+                Tier <ArrowUpDown className={cn("h-2.5 w-2.5", sortBy === "tier" && "text-secondary")} />
+              </button>
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
@@ -234,7 +335,10 @@ export default function SupportInboxPage() {
                         <span className="text-[9px] text-charcoal-lighter shrink-0">{timeAgo(c.last_message_at)}</span>
                       </div>
                       <div className="flex items-center justify-between gap-2 mt-0.5">
-                        <p className="text-[11px] text-charcoal-lighter truncate">{c.customer_id ? "Registered customer" : "Guest"}</p>
+                        <span className="flex items-center gap-1.5 min-w-0">
+                          <p className="text-[11px] text-charcoal-lighter truncate">{c.phone || (c.customer_id ? "Registered customer" : "Guest")}</p>
+                          <TierBadge tier={c.tier} />
+                        </span>
                         {c.admin_unread > 0 && (
                           <span className="text-[9px] font-bold bg-secondary text-white px-1.5 py-0.5 rounded-full shrink-0">{c.admin_unread}</span>
                         )}
@@ -271,7 +375,10 @@ export default function SupportInboxPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-charcoal">{active.display_name}</p>
-                  <p className="text-[10px] text-charcoal-lighter">{active.customer_id ? "Registered customer" : "Guest visitor"}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-[10px] text-charcoal-lighter">{active.phone || (active.customer_id ? "Registered customer" : "Guest visitor")}</p>
+                    <TierBadge tier={active.tier} />
+                  </div>
                 </div>
                 <button
                   onClick={() => setDeleteTarget(active)}

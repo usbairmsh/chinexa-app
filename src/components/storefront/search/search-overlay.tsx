@@ -124,12 +124,7 @@ export function SearchOverlay() {
             <div className="bg-white sm:rounded-2xl shadow-[0_24px_70px_rgba(0,0,0,0.22)] max-h-screen sm:max-h-[80vh] overflow-hidden flex flex-col ring-1 ring-black/[0.03]">
               {/* Input */}
               <div className="relative shrink-0">
-                <div
-                  className={cn(
-                    "flex items-center gap-3 h-16 px-5 border-b transition-colors duration-200",
-                    focused ? "border-secondary/25" : query ? "border-border/30" : "border-transparent"
-                  )}
-                >
+                <div className="flex items-center gap-3 h-16 px-5">
                   <motion.span
                     animate={searching ? { scale: [1, 1.15, 1] } : { scale: 1 }}
                     transition={searching ? { duration: 0.9, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}

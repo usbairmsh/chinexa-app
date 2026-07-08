@@ -176,6 +176,16 @@
   to { height: 0; opacity: 0; }
 }
 
+/* Bright red blink — draws the eye to an action still required (Pay Now),
+   distinct from the soft pastel palette used everywhere else */
+@keyframes blink-urgent {
+  0%, 100% { background-color: #EF4444; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+  50% { background-color: #DC2626; box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+}
+.animate-blink-urgent {
+  animation: blink-urgent 1.1s ease-in-out infinite;
+}
+
 /* ============================================
    Base Styles
    ============================================ */

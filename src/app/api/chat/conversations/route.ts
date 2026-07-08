@@ -17,7 +17,46 @@ export async function GET(req: NextRequest) {
       const rows = await query<RowDataPacket[]>(
         `SELECT * FROM chat_conversations ORDER BY last_message_at DESC`
       );
-      return NextResponse.json(rows);
+
+      // Attach phone + membership tier so the inbox can show/filter by them —
+      // same resolution used by /api/customers (points bucketed into
+      // membership_tiers ranges). Guests have no customer_id, so they get a
+      // fixed "Guest" pseudo-tier instead of a real one.
+      const customerIds = rows.map((r) => r.customer_id as string).filter(Boolean);
+      let phoneById = new Map<string, string>();
+      let pointsById = new Map<string, number>();
+      if (customerIds.length > 0) {
+        const placeholders = customerIds.map(() => "?").join(",");
+        const custRows = await query<RowDataPacket[]>(
+          `SELECT id, phone FROM customers WHERE id IN (${placeholders})`,
+          customerIds
+        );
+        phoneById = new Map(custRows.map((r) => [r.id as string, r.phone as string]));
+
+        const pointsRows = await query<RowDataPacket[]>(
+          `SELECT customer_id, COALESCE(SUM(points), 0) as total_points FROM customer_points WHERE customer_id IN (${placeholders}) GROUP BY customer_id`,
+          customerIds
+        );
+        pointsById = new Map(pointsRows.map((r) => [r.customer_id as string, Number(r.total_points)]));
+      }
+
+      const tierRows = await query<RowDataPacket[]>(
+        "SELECT name, min_points, max_points FROM membership_tiers WHERE is_active = 1 ORDER BY sort_order ASC"
+      );
+      const tiers = tierRows.map((t) => ({ name: t.name as string, min: Number(t.min_points), max: Number(t.max_points) }));
+      const resolveTier = (points: number): string => {
+        const match = tiers.find((t) => points >= t.min && points <= t.max);
+        return match?.name || tiers[0]?.name || "Bronze";
+      };
+
+      return NextResponse.json(rows.map((r) => {
+        const customerId = r.customer_id as string | null;
+        return {
+          ...r,
+          phone: customerId ? phoneById.get(customerId) || null : null,
+          tier: customerId ? resolveTier(pointsById.get(customerId) || 0) : "Guest",
+        };
+      }));
     }
 
     const customerId = searchParams.get("customer_id");

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { CreditCard, Truck, FileText, CheckCircle2, MapPin, Clock, Tag, X, Loader2, Home, Briefcase, Plus } from "lucide-react";
+import { CreditCard, Truck, FileText, CheckCircle2, MapPin, Clock, Tag, X, Loader2, Home, Briefcase, Plus, Download, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { useCartStore } from "@/stores/cart.store";
@@ -77,6 +78,10 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState("COD");
   const [shippingMethod, setShippingMethod] = useState<"standard" | "express">("standard");
   const [transactionId, setTransactionId] = useState("");
+  const [transactionIdDraft, setTransactionIdDraft] = useState("");
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [payNowOpen, setPayNowOpen] = useState(false);
+  const [placeOrderConfirmOpen, setPlaceOrderConfirmOpen] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
   const [placing, setPlacing] = useState(false);
   const [validationError, setValidationError] = useState("");
@@ -329,11 +334,35 @@ export default function CheckoutPage() {
   const validateStep3 = (): boolean => {
     const errors: Record<string, string> = {};
     if (paymentMethod !== "COD" && !transactionId.trim()) {
-      errors.transactionId = "Transaction ID is required for online payments";
+      errors.transactionId = "Please complete payment and enter the transaction ID";
     }
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) return false;
     return true;
+  };
+
+  const handlePaymentMethodChange = (id: string) => {
+    setPaymentMethod(id);
+    setTransactionId("");
+    setTransactionIdDraft("");
+    setPaymentConfirmed(false);
+    setFieldErrors({});
+  };
+
+  const handleSubmitTransactionId = () => {
+    if (!transactionIdDraft.trim()) return;
+    setTransactionId(transactionIdDraft.trim());
+    setPaymentConfirmed(true);
+    setPayNowOpen(false);
+    setFieldErrors((p) => ({ ...p, transactionId: "" }));
+  };
+
+  // "Place Order" for non-COD methods asks the customer to confirm they've
+  // actually paid before submitting — COD needs no such confirmation.
+  const handlePlaceOrderClick = () => {
+    if (!validateStep3()) return;
+    if (paymentMethod !== "COD") { setPlaceOrderConfirmOpen(true); return; }
+    handlePlaceOrder();
   };
 
   const goToStep = (target: number) => {
@@ -830,36 +859,139 @@ export default function CheckoutPage() {
             )}
 
             {/* ═══ STEP 3: Payment ═══ */}
-            {step === 3 && (
+            {step === 3 && (() => {
+              const selectedMethod = activePaymentMethods.find((pm) => pm.id === paymentMethod);
+              const qrImage = selectedMethod && "qr_image" in selectedMethod ? selectedMethod.qr_image : "";
+              const customInstructions = selectedMethod && "instructions" in selectedMethod ? selectedMethod.instructions : "";
+              const accountNumber = selectedMethod && "account_number" in selectedMethod ? selectedMethod.account_number : "";
+              const instructionsText = customInstructions || (accountNumber ? `Please send payment to: ${accountNumber}` : `Please send payment via ${selectedMethod?.name || paymentMethod}`);
+
+              return (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <h2 className="font-heading text-xl font-semibold text-charcoal">Payment Method</h2>
-                <div className="space-y-3">
-                  {!storeSettings.loaded ? (
-                    Array.from({ length: 3 }).map((_, i) => (
-                      <div key={i} className="h-14 rounded-xl bg-pearl animate-pulse" />
-                    ))
-                  ) : activePaymentMethods.map((method) => (
-                    <label key={method.id}
-                      className={cn("flex items-center justify-between p-3 sm:p-4 rounded-xl border cursor-pointer transition-colors",
-                        paymentMethod === method.id ? "border-secondary bg-primary-light" : "border-border hover:border-secondary")}>
-                      <div className="flex items-center gap-2 sm:gap-3">
-                        <input type="radio" name="payment" value={method.id} checked={paymentMethod === method.id} onChange={() => { setPaymentMethod(method.id); setFieldErrors({}); }} className="accent-secondary" />
-                        <span className="text-sm font-medium text-charcoal">{method.name}</span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-                {paymentMethod !== "COD" && (
-                  <div className="p-3 sm:p-4 rounded-xl bg-pearl/50 space-y-3">
-                    <div>
-                      <Input label="Transaction ID *" placeholder="Enter transaction ID" value={transactionId} onChange={(e) => { setTransactionId(e.target.value); setFieldErrors((p) => ({ ...p, transactionId: "" })); }} className={fieldErrors.transactionId ? "border-destructive" : ""} />
-                      <FieldError field="transactionId" />
-                    </div>
-                    <p className="text-xs text-charcoal-lighter">
-                      {(() => { const m = activePaymentMethods.find((pm) => pm.id === paymentMethod); return m && 'account_number' in m && m.account_number ? `Please send payment to: ${m.account_number}` : `Please send payment via ${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)}`; })()}
-                    </p>
+
+                {!storeSettings.loaded ? (
+                  <div className="h-11 rounded-xl bg-pearl animate-pulse" />
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-charcoal-light mb-1.5">Select payment method *</label>
+                    <Select value={paymentMethod} onValueChange={handlePaymentMethodChange}>
+                      <SelectTrigger><SelectValue placeholder="Choose a payment method" /></SelectTrigger>
+                      <SelectContent>
+                        {activePaymentMethods.map((method) => (
+                          <SelectItem key={method.id} value={method.id}>{method.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
+
+                {/* Non-COD: either the blinking Pay Now trigger, or a view-only
+                    confirmation once the transaction ID has been submitted */}
+                {paymentMethod !== "COD" && !paymentConfirmed && (
+                  <div className="flex flex-col items-center gap-2 py-2">
+                    <button
+                      type="button"
+                      onClick={() => { setTransactionIdDraft(transactionId); setPayNowOpen(true); }}
+                      className="animate-blink-urgent flex items-center gap-2 px-8 py-3 rounded-full text-white font-semibold text-sm shadow-lg"
+                    >
+                      <CreditCard className="h-4 w-4" /> Pay Now
+                    </button>
+                    <FieldError field="transactionId" />
+                  </div>
+                )}
+
+                {paymentMethod !== "COD" && paymentConfirmed && (
+                  <div className="p-3 sm:p-4 rounded-xl bg-success/5 border border-success/20 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-success shrink-0" />
+                      <p className="text-sm font-semibold text-success">Payment details submitted</p>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wide text-charcoal-lighter">Method</p>
+                        <p className="font-medium text-charcoal">{selectedMethod?.name || paymentMethod}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wide text-charcoal-lighter">Transaction ID</p>
+                        <p className="font-medium text-charcoal">{transactionId}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setTransactionIdDraft(transactionId); setPayNowOpen(true); }}
+                      className="text-xs text-secondary hover:underline"
+                    >
+                      Edit transaction ID
+                    </button>
+                  </div>
+                )}
+
+                {/* Pay Now popup — instructions, then QR (view/download), then transaction ID entry */}
+                <Dialog open={payNowOpen} onOpenChange={setPayNowOpen}>
+                  <DialogContent className="max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Pay with {selectedMethod?.name || paymentMethod}</DialogTitle>
+                      <DialogDescription className="whitespace-pre-wrap text-left">{instructionsText}</DialogDescription>
+                    </DialogHeader>
+
+                    {qrImage && (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="relative h-52 w-52 rounded-xl overflow-hidden bg-white border border-border/30">
+                          <Image src={qrImage} alt={`${selectedMethod?.name} QR code`} fill className="object-contain" sizes="208px" unoptimized={qrImage.startsWith("data:") || qrImage.includes("/uploads/")} />
+                        </div>
+                        <a
+                          href={qrImage}
+                          download={`${(selectedMethod?.name || "payment").replace(/\s+/g, "-").toLowerCase()}-qr`}
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-secondary hover:underline"
+                        >
+                          <Download className="h-3.5 w-3.5" /> Download QR code
+                        </a>
+                      </div>
+                    )}
+
+                    <div>
+                      <Input
+                        label="Transaction ID *"
+                        placeholder="Enter transaction ID"
+                        value={transactionIdDraft}
+                        onChange={(e) => setTransactionIdDraft(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleSubmitTransactionId()}
+                      />
+                    </div>
+
+                    <DialogFooter>
+                      <Button variant="secondary" className="!text-white" disabled={!transactionIdDraft.trim()} onClick={handleSubmitTransactionId}>
+                        Submit
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Place order confirmation — non-COD only, asks the customer to
+                    confirm payment was actually completed before submitting */}
+                <Dialog open={placeOrderConfirmOpen} onOpenChange={setPlaceOrderConfirmOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Confirm your payment</DialogTitle>
+                      <DialogDescription>
+                        Have you completed the {selectedMethod?.name || paymentMethod} payment for transaction ID <span className="font-semibold text-charcoal">{transactionId}</span>?
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setPlaceOrderConfirmOpen(false)}>Cancel</Button>
+                      <Button
+                        variant="secondary"
+                        className="!text-white"
+                        isLoading={placing}
+                        disabled={placing}
+                        onClick={() => { setPlaceOrderConfirmOpen(false); handlePlaceOrder(); }}
+                      >
+                        Yes, payment is done
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
 
                 {/* Price Breakdown */}
                 <div className="p-3 sm:p-4 rounded-xl border border-border/30 bg-pearl/20">
@@ -885,12 +1017,13 @@ export default function CheckoutPage() {
 
                 <div className="flex flex-col-reverse sm:flex-row gap-3">
                   <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
-                  <Button variant="secondary" size="lg" className="w-full sm:w-auto !text-white" onClick={handlePlaceOrder} isLoading={placing} disabled={placing}>
+                  <Button variant="secondary" size="lg" className="w-full sm:w-auto !text-white" onClick={handlePlaceOrderClick} isLoading={placing} disabled={placing}>
                     {placing ? "Placing Order..." : `Place Order — ${formatCurrency(finalTotal)}`}
                   </Button>
                 </div>
               </motion.div>
-            )}
+              );
+            })()}
           </div>
 
           {/* ═══ Order Summary Sidebar ═══ */}

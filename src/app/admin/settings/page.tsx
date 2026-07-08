@@ -139,7 +139,7 @@ function DeliveryApplicabilityPicker({
 }
 
 interface PaymentMethod {
-  id: string; name: string; enabled: boolean; account_number: string; instructions: string;
+  id: string; name: string; enabled: boolean; account_number: string; instructions: string; qr_image: string;
 }
 
 export default function AdminSettingsPage() {
@@ -201,14 +201,15 @@ export default function AdminSettingsPage() {
 
   // ═══ PAYMENT ═══
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
-    { id: "COD", name: "Cash on Delivery", enabled: true, account_number: "", instructions: "Pay when you receive" },
-    { id: "bkash", name: "bKash", enabled: true, account_number: "", instructions: "" },
-    { id: "nagad", name: "Nagad", enabled: true, account_number: "", instructions: "" },
-    { id: "rocket", name: "Rocket", enabled: false, account_number: "", instructions: "" },
-    { id: "card", name: "Card Payment", enabled: false, account_number: "", instructions: "" },
+    { id: "COD", name: "Cash on Delivery", enabled: true, account_number: "", instructions: "Pay when you receive", qr_image: "" },
+    { id: "bkash", name: "bKash", enabled: true, account_number: "", instructions: "", qr_image: "" },
+    { id: "nagad", name: "Nagad", enabled: true, account_number: "", instructions: "", qr_image: "" },
+    { id: "rocket", name: "Rocket", enabled: false, account_number: "", instructions: "", qr_image: "" },
+    { id: "card", name: "Card Payment", enabled: false, account_number: "", instructions: "", qr_image: "" },
   ]);
   const [paymentSaving, setPaymentSaving] = useState(false);
   const [paymentSaved, setPaymentSaved] = useState(false);
+  const [newPaymentName, setNewPaymentName] = useState("");
 
   // ═══ NOTIFICATIONS ═══
   const [notifications, setNotifications] = useState<Record<string, boolean>>({
@@ -274,7 +275,12 @@ export default function AdminSettingsPage() {
           if (cfg.expressCharge !== undefined) { delivery.setExpressCharge(cfg.expressCharge); setExpressChargeInput(String(cfg.expressCharge)); }
           if (cfg.expressDivision) delivery.setExpressDivision(cfg.expressDivision);
         }
-        if (data.payment_methods && Array.isArray(data.payment_methods)) setPaymentMethods(data.payment_methods);
+        if (data.payment_methods && Array.isArray(data.payment_methods)) {
+          setPaymentMethods(data.payment_methods.map((m: Partial<PaymentMethod>) => ({
+            id: m.id || randomId(), name: m.name || "", enabled: !!m.enabled,
+            account_number: m.account_number || "", instructions: m.instructions || "", qr_image: m.qr_image || "",
+          })));
+        }
         if (data.notification_settings) setNotifications((p) => ({ ...p, ...data.notification_settings }));
       })
       .catch(() => {})
@@ -774,14 +780,72 @@ export default function AdminSettingsPage() {
       {activeTab === "payment" && (
         <div className="space-y-5">
           <div className="flex justify-end"><SaveBtn saving={paymentSaving} saved={paymentSaved} onSave={savePayment} /></div>
+
+          <Card>
+            <CardContent className="pt-5 flex flex-col sm:flex-row gap-3">
+              <div className="flex-1">
+                <Input
+                  label="New payment method name"
+                  value={newPaymentName}
+                  onChange={(e) => setNewPaymentName(e.target.value)}
+                  placeholder="e.g. Upay, SSLCommerz"
+                />
+              </div>
+              <div className="flex items-end">
+                <AdminButton
+                  type="button"
+                  disabled={!newPaymentName.trim()}
+                  onClick={() => {
+                    const name = newPaymentName.trim();
+                    if (!name) return;
+                    setPaymentMethods((p) => [...p, { id: randomId(), name, enabled: true, account_number: "", instructions: "", qr_image: "" }]);
+                    setNewPaymentName("");
+                  }}
+                  className="gap-1.5"
+                >
+                  <Plus className="h-4 w-4" /> Add payment method
+                </AdminButton>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid lg:grid-cols-2 gap-5">
             {paymentMethods.map((m) => (
               <Card key={m.id} className={cn(!m.enabled && "opacity-60")}>
-                <CardHeader><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><CreditCard className="h-4 w-4 text-secondary" /> {m.name}</CardTitle><Switch checked={m.enabled} onCheckedChange={(v) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, enabled: v } : pm))} /></div></CardHeader>
+                <CardHeader>
+                  <div className="flex items-center justify-between gap-2">
+                    <CardTitle className="text-base flex items-center gap-2 min-w-0">
+                      <CreditCard className="h-4 w-4 text-secondary shrink-0" />
+                      <Input
+                        value={m.name}
+                        onChange={(e) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, name: e.target.value } : pm))}
+                        className="!h-8 text-sm font-semibold"
+                      />
+                    </CardTitle>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Switch checked={m.enabled} onCheckedChange={(v) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, enabled: v } : pm))} />
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethods((p) => p.filter((pm) => pm.id !== m.id))}
+                        className="flex items-center justify-center h-8 w-8 rounded-full text-charcoal-lighter hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        aria-label={`Remove ${m.name}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </CardHeader>
                 {m.enabled && m.id !== "COD" && (
                   <CardContent className="space-y-3">
                     <Input label="Account / Phone" value={m.account_number} onChange={(e) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, account_number: e.target.value } : pm))} placeholder="01XXXXXXXXX" />
-                    <Input label="Instructions" value={m.instructions} onChange={(e) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, instructions: e.target.value } : pm))} />
+                    <Textarea label="Instructions" value={m.instructions} onChange={(e) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, instructions: e.target.value } : pm))} placeholder="How should customers pay with this method?" className="min-h-[80px]" />
+                    <ImageUpload
+                      label="QR Code (optional)"
+                      value={m.qr_image}
+                      onChange={(url) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, qr_image: url } : pm))}
+                      aspectRatio="square"
+                      folder="payment-qr"
+                    />
                   </CardContent>
                 )}
               </Card>
