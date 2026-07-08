@@ -43,22 +43,16 @@ export async function sendSms(phone: string, message: string): Promise<{ success
     return { success: false, error: "SMS gateway is not configured (missing SMS_API_KEY/SMS_SENDER_ID)" };
   }
 
-  const gatewayNumber = toGatewayNumber(phone);
   const params = new URLSearchParams({
     api_key: apiKey,
     senderid: senderId,
-    number: gatewayNumber,
+    number: toGatewayNumber(phone),
     message,
   });
-
-  // TEMP DIAGNOSTIC — remove once the is_masking crash is root-caused.
-  // Logs everything except the API key so it's safe to paste from server logs.
-  console.log("[SMS DEBUG] senderid:", JSON.stringify(senderId), "| number:", JSON.stringify(gatewayNumber), "| message length:", message.length, "| message:", JSON.stringify(message));
 
   try {
     const res = await fetch(`${SMS_API_URL}?${params.toString()}`, { method: "GET" });
     const text = (await res.text()).trim();
-    console.log("[SMS DEBUG] raw gateway response:", JSON.stringify(text));
 
     // Gateway sometimes replies with a bare numeric code ("202", "1007", ...)
     // and sometimes with a JSON object ({"response_code":1031,"error_message":"..."})
