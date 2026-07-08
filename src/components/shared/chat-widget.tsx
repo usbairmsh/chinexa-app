@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { usePathname } from "next/navigation";
-import { MessageCircle, X, Send, Loader2, LifeBuoy, Check, CheckCheck } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, LifeBuoy, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/stores/auth.store";
 import { useChatStore } from "@/stores/chat.store";
@@ -141,25 +141,20 @@ export function ChatWidget() {
   // already shown, and only while the tab is actually focused. Paused the
   // instant the tab is backgrounded or the panel is closed, so it never
   // competes with browsing/checkout for network or main-thread time.
+  // Customers only ever see "Delivered" (never "Seen") — no read-state patch
+  // needed here, unlike the admin side which does show read receipts.
   useEffect(() => {
     if (!open || !conversationId || !pageVisible) return;
     const interval = setInterval(async () => {
       const lastId = messages[messages.length - 1]?.id;
       try {
         const res = await fetch(
-          `/api/chat/messages?conversation_id=${conversationId}&viewer=customer${lastId ? `&after_id=${lastId}` : ""}`
+          `/api/chat/messages?conversation_id=${conversationId}${lastId ? `&after_id=${lastId}` : ""}`
         );
         const data = await res.json();
         if (Array.isArray(data.messages) && data.messages.length > 0) {
           setMessages((prev) => [...prev, ...data.messages]);
           markRead(conversationId);
-        }
-        // Patch in a "Seen" flip on our own last message without a full
-        // reload — the row itself was already rendered before this poll's
-        // cursor, so the delta fetch above would never surface it again.
-        if (data.lastOwnMessageReadState) {
-          const { id, is_read } = data.lastOwnMessageReadState;
-          setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, is_read } : m)));
         }
       } catch {}
     }, ACTIVE_POLL_MS);
@@ -275,8 +270,9 @@ export function ChatWidget() {
                       <p className="whitespace-pre-wrap break-words">{m.body}</p>
                       <div className={cn("flex items-center gap-1 mt-1", m.sender_type === "customer" ? "text-white/60 justify-end" : "text-charcoal-lighter")}>
                         <span className="text-[9px]">{timeLabel(m.created_at)}</span>
+                        {/* Customers only ever see "Delivered" — never a read/"Seen" receipt */}
                         {m.sender_type === "customer" && m.id === lastCustomerMessageId && (
-                          m.is_read ? <CheckCheck className="h-3 w-3" /> : <Check className="h-3 w-3" />
+                          <Check className="h-3 w-3" />
                         )}
                       </div>
                     </div>
