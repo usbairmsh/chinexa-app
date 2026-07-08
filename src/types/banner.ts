@@ -22,7 +22,11 @@ export interface BannerSettings {
   titleAnimation: TextAnimation;
   descriptionAnimation: TextAnimation;
   carouselTransition: CarouselTransition;
-  transitionDuration: number; // ms, carousel autoplay interval
+  /** @deprecated use stayDuration — kept only so old saved settings still parse */
+  transitionDuration?: number;
+  inDuration: number;   // ms, how long the "in" (enter) animation plays
+  outDuration: number;  // ms, how long the "out" (exit) animation plays
+  stayDuration: number; // ms, how long the slide stays fully visible before it starts leaving
 }
 
 export const DEFAULT_BANNER_SETTINGS: BannerSettings = {
@@ -37,7 +41,9 @@ export const DEFAULT_BANNER_SETTINGS: BannerSettings = {
   titleAnimation: "slide-up",
   descriptionAnimation: "fade",
   carouselTransition: "fade",
-  transitionDuration: 6000,
+  inDuration: 800,
+  outDuration: 800,
+  stayDuration: 5000,
 };
 
 export interface Banner {

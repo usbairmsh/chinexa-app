@@ -230,7 +230,13 @@ export default function AdminBannersPage() {
     setFormActive(banner.is_active);
     setFormCrop(parseCrop(banner.focal_point));
     const existingSettings = typeof banner.settings === "string" ? JSON.parse(banner.settings) : banner.settings;
-    setFormSettings({ ...DEFAULT_BANNER_SETTINGS, ...(existingSettings || {}) });
+    const merged = { ...DEFAULT_BANNER_SETTINGS, ...(existingSettings || {}) };
+    // Migrate banners saved before in/out/stay were split out of the old
+    // single "transitionDuration" (full autoplay interval) field.
+    if (existingSettings?.transitionDuration != null && existingSettings?.stayDuration == null) {
+      merged.stayDuration = Math.max(500, existingSettings.transitionDuration - merged.inDuration - merged.outDuration);
+    }
+    setFormSettings(merged);
     setDialogOpen(true);
   };
 
@@ -494,28 +500,49 @@ export default function AdminBannersPage() {
                   </div>
 
                   {/* Carousel transition */}
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-charcoal-light mb-1.5">Slide Transition</label>
-                      <Select value={formSettings.carouselTransition} onValueChange={(v) => setFormSettings((s) => ({ ...s, carouselTransition: v as BannerSettings["carouselTransition"] }))}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="fade">Fade</SelectItem>
-                          <SelectItem value="slide">Slide</SelectItem>
-                          <SelectItem value="zoom">Zoom</SelectItem>
-                          <SelectItem value="none">None (Instant)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-charcoal-light mb-1.5">Slide Transition</label>
+                    <Select value={formSettings.carouselTransition} onValueChange={(v) => setFormSettings((s) => ({ ...s, carouselTransition: v as BannerSettings["carouselTransition"] }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fade">Fade</SelectItem>
+                        <SelectItem value="slide">Slide</SelectItem>
+                        <SelectItem value="zoom">Zoom</SelectItem>
+                        <SelectItem value="none">None (Instant)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* In / Stay / Out timing — one full cycle per slide */}
+                  <div className="grid sm:grid-cols-3 gap-3">
                     <Input
-                      label="Slide Duration (ms)"
+                      label="In Transition (ms)"
                       type="number"
-                      min={1000}
+                      min={0}
+                      step={100}
+                      value={formSettings.inDuration}
+                      onChange={(e) => setFormSettings((s) => ({ ...s, inDuration: Math.max(0, Number(e.target.value) || 0) }))}
+                    />
+                    <Input
+                      label="Stay Time (ms)"
+                      type="number"
+                      min={500}
                       step={500}
-                      value={formSettings.transitionDuration}
-                      onChange={(e) => setFormSettings((s) => ({ ...s, transitionDuration: Math.max(1000, Number(e.target.value) || 6000) }))}
+                      value={formSettings.stayDuration}
+                      onChange={(e) => setFormSettings((s) => ({ ...s, stayDuration: Math.max(500, Number(e.target.value) || 500) }))}
+                    />
+                    <Input
+                      label="Out Transition (ms)"
+                      type="number"
+                      min={0}
+                      step={100}
+                      value={formSettings.outDuration}
+                      onChange={(e) => setFormSettings((s) => ({ ...s, outDuration: Math.max(0, Number(e.target.value) || 0) }))}
                     />
                   </div>
+                  <p className="text-xs text-charcoal-lighter -mt-1">
+                    Each slide plays In ({formSettings.inDuration}ms) → Stay ({formSettings.stayDuration}ms) → Out ({formSettings.outDuration}ms) before the next slide begins — a full cycle of {formSettings.inDuration + formSettings.stayDuration + formSettings.outDuration}ms.
+                  </p>
                 </div>
               </>
             )}

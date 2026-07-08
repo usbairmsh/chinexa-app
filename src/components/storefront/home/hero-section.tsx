@@ -11,7 +11,14 @@ import { DEFAULT_BANNER_SETTINGS, type BannerSettings, type TextAnimation, type 
 function parseSettings(raw: unknown): BannerSettings {
   if (!raw) return DEFAULT_BANNER_SETTINGS;
   const parsed = typeof raw === "string" ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : raw;
-  return { ...DEFAULT_BANNER_SETTINGS, ...(parsed as Partial<BannerSettings> | null) };
+  const merged = { ...DEFAULT_BANNER_SETTINGS, ...(parsed as Partial<BannerSettings> | null) };
+  // Migrate banners saved before in/out/stay were split out — the old single
+  // "transitionDuration" was the full autoplay interval, so treat it as the
+  // stay time and keep the new default in/out animation speeds.
+  if (parsed && (parsed as Partial<BannerSettings>).transitionDuration != null && (parsed as Partial<BannerSettings>).stayDuration == null) {
+    merged.stayDuration = Math.max(1000, (parsed as Partial<BannerSettings>).transitionDuration! - merged.inDuration - merged.outDuration);
+  }
+  return merged;
 }
 
 /** Off-screen starting point (and exit point) for a text-animation type, framer-motion inline-props style. */
@@ -29,14 +36,36 @@ function textMotionProps(animation: TextAnimation, delay: number) {
   }
 }
 
-/** Slide-to-slide (image) transition, keyed off the banner's carouselTransition. */
-function slideMotionProps(transition: CarouselTransition) {
+/**
+ * Slide-to-slide (image) transition, keyed off the banner's carouselTransition.
+ * `animate` (entering slide) and `exit` (leaving slide) each get their own
+ * duration from the admin's In/Out settings, converted from ms to seconds.
+ */
+function slideMotionProps(transition: CarouselTransition, inDurationMs: number, outDurationMs: number) {
+  const inTransition = { duration: inDurationMs / 1000 };
+  const outTransition = { duration: outDurationMs / 1000 };
   switch (transition) {
-    case "slide": return { initial: { opacity: 1, x: "100%" }, animate: { opacity: 1, x: 0 }, exit: { opacity: 1, x: "-100%" } };
-    case "zoom": return { initial: { opacity: 0, scale: 1.15 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 0.9 } };
-    case "none": return { initial: { opacity: 1 }, animate: { opacity: 1 }, exit: { opacity: 1 } };
+    case "slide":
+      return {
+        initial: { opacity: 1, x: "100%" },
+        animate: { opacity: 1, x: 0, transition: inTransition },
+        exit: { opacity: 1, x: "-100%", transition: outTransition },
+      };
+    case "zoom":
+      return {
+        initial: { opacity: 0, scale: 1.15 },
+        animate: { opacity: 1, scale: 1, transition: inTransition },
+        exit: { opacity: 0, scale: 0.9, transition: outTransition },
+      };
+    case "none":
+      return { initial: { opacity: 1 }, animate: { opacity: 1 }, exit: { opacity: 1 } };
     case "fade":
-    default: return { initial: { opacity: 0, scale: 1.05 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 0.98 } };
+    default:
+      return {
+        initial: { opacity: 0, scale: 1.05 },
+        animate: { opacity: 1, scale: 1, transition: inTransition },
+        exit: { opacity: 0, scale: 0.98, transition: outTransition },
+      };
   }
 }
 
@@ -71,13 +100,17 @@ export function HeroSection() {
     }
   }, [slides.length, current]);
 
+  // Full cycle per slide = in + stay + out — the slide only advances once
+  // it has finished entering, sitting fully visible, and started leaving.
+  const cycleDuration = settings.inDuration + settings.stayDuration + settings.outDuration;
+
   useEffect(() => {
     if (slides.length <= 1) return;
     const timer = setInterval(() => {
       setCurrent((prev) => (prev + 1) % slides.length);
-    }, settings.transitionDuration || 6000);
+    }, cycleDuration);
     return () => clearInterval(timer);
-  }, [slides.length, settings.transitionDuration]);
+  }, [slides.length, cycleDuration]);
 
   // Show shimmer while banners are loading — no text flash
   if (!banners) {
@@ -134,7 +167,7 @@ export function HeroSection() {
   }
 
   const slide = slides[current];
-  const slideMotion = slideMotionProps(settings.carouselTransition);
+  const slideMotion = slideMotionProps(settings.carouselTransition, settings.inDuration, settings.outDuration);
   const showDescriptionAbove = settings.descriptionOrder === "above";
 
   const titleEl = settings.showTitle && (
@@ -165,7 +198,6 @@ export function HeroSection() {
         <motion.div
           key={current}
           {...slideMotion}
-          transition={{ duration: 0.8 }}
           className="absolute inset-0"
         >
           <Image
@@ -230,17 +262,17 @@ export function HeroSection() {
         <>
           <button
             onClick={() => setCurrent((prev) => (prev - 1 + slides.length) % slides.length)}
-            className="absolute left-4 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-black/25 backdrop-blur-md text-white hover:bg-black/40 transition-colors shadow-lg"
+            className="absolute left-4 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-transparent text-white/80 hover:text-white transition-colors"
             aria-label="Previous slide"
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeft className="h-6 w-6" />
           </button>
           <button
             onClick={() => setCurrent((prev) => (prev + 1) % slides.length)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-black/25 backdrop-blur-md text-white hover:bg-black/40 transition-colors shadow-lg"
+            className="absolute right-4 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-transparent text-white/80 hover:text-white transition-colors"
             aria-label="Next slide"
           >
-            <ChevronRight className="h-5 w-5" />
+            <ChevronRight className="h-6 w-6" />
           </button>
 
           {/* Dots */}
