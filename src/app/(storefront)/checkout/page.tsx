@@ -334,7 +334,7 @@ export default function CheckoutPage() {
   const validateStep3 = (): boolean => {
     const errors: Record<string, string> = {};
     if (paymentMethod !== "COD" && !transactionId.trim()) {
-      errors.transactionId = "Please complete payment and enter the transaction ID";
+      errors.transactionId = "Please complete payment before placing your order";
     }
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) return false;
@@ -349,8 +349,16 @@ export default function CheckoutPage() {
     setFieldErrors({});
   };
 
+  // Admin picks, per method, whether the customer confirms payment with a
+  // transaction ID or the last 4 digits of the phone/account they paid from —
+  // defaults to transaction_id for methods saved before this field existed.
+  const selectedPaymentMethod = activePaymentMethods.find((pm) => pm.id === paymentMethod);
+  const confirmInputType = selectedPaymentMethod && "input_type" in selectedPaymentMethod && selectedPaymentMethod.input_type === "phone_number" ? "phone_number" : "transaction_id";
+  const isValidLast4 = (v: string) => /^\d{4}$/.test(v.trim());
+
   const handleSubmitTransactionId = () => {
     if (!transactionIdDraft.trim()) return;
+    if (confirmInputType === "phone_number" && !isValidLast4(transactionIdDraft)) return;
     setTransactionId(transactionIdDraft.trim());
     setPaymentConfirmed(true);
     setPayNowOpen(false);
@@ -865,6 +873,8 @@ export default function CheckoutPage() {
               const customInstructions = selectedMethod && "instructions" in selectedMethod ? selectedMethod.instructions : "";
               const accountNumber = selectedMethod && "account_number" in selectedMethod ? selectedMethod.account_number : "";
               const instructionsText = customInstructions || (accountNumber ? `Please send payment to: ${accountNumber}` : `Please send payment via ${selectedMethod?.name || paymentMethod}`);
+              const confirmFieldLabel = confirmInputType === "phone_number" ? "Last 4 Digit of Phone/Account No." : "Transaction ID";
+              const confirmFieldPlaceholder = confirmInputType === "phone_number" ? "e.g. 1234" : "Enter transaction ID";
 
               return (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -913,7 +923,7 @@ export default function CheckoutPage() {
                         <p className="font-medium text-charcoal">{selectedMethod?.name || paymentMethod}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase tracking-wide text-charcoal-lighter">Transaction ID</p>
+                        <p className="text-[10px] uppercase tracking-wide text-charcoal-lighter">{confirmFieldLabel}</p>
                         <p className="font-medium text-charcoal">{transactionId}</p>
                       </div>
                     </div>
@@ -922,7 +932,7 @@ export default function CheckoutPage() {
                       onClick={() => { setTransactionIdDraft(transactionId); setPayNowOpen(true); }}
                       className="text-xs text-secondary hover:underline"
                     >
-                      Edit transaction ID
+                      Edit {confirmFieldLabel.toLowerCase()}
                     </button>
                   </div>
                 )}
@@ -937,31 +947,41 @@ export default function CheckoutPage() {
 
                     {qrImage && (
                       <div className="flex flex-col items-center gap-2">
-                        <div className="relative h-52 w-52 rounded-xl overflow-hidden bg-white border border-border/30">
-                          <Image src={qrImage} alt={`${selectedMethod?.name} QR code`} fill className="object-contain" sizes="208px" unoptimized={qrImage.startsWith("data:") || qrImage.includes("/uploads/")} />
+                        <div className="relative h-[250px] w-[250px] rounded-xl overflow-hidden bg-white border border-border/30">
+                          <Image src={qrImage} alt={`${selectedMethod?.name} QR code`} fill className="object-contain" sizes="250px" unoptimized={qrImage.startsWith("data:") || qrImage.includes("/uploads/")} />
                         </div>
                         <a
                           href={qrImage}
                           download={`${(selectedMethod?.name || "payment").replace(/\s+/g, "-").toLowerCase()}-qr`}
                           className="inline-flex items-center gap-1.5 text-xs font-medium text-secondary hover:underline"
                         >
-                          <Download className="h-3.5 w-3.5" /> Download QR code
+                          <Download className="h-3.5 w-3.5" /> Download
                         </a>
                       </div>
                     )}
 
                     <div>
                       <Input
-                        label="Transaction ID *"
-                        placeholder="Enter transaction ID"
+                        label={`${confirmFieldLabel} *`}
+                        placeholder={confirmFieldPlaceholder}
+                        type={confirmInputType === "phone_number" ? "tel" : "text"}
+                        maxLength={confirmInputType === "phone_number" ? 4 : undefined}
                         value={transactionIdDraft}
-                        onChange={(e) => setTransactionIdDraft(e.target.value)}
+                        onChange={(e) => setTransactionIdDraft(confirmInputType === "phone_number" ? e.target.value.replace(/\D/g, "").slice(0, 4) : e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && handleSubmitTransactionId()}
                       />
+                      {confirmInputType === "phone_number" && transactionIdDraft.trim() && !isValidLast4(transactionIdDraft) && (
+                        <p className="text-xs text-destructive mt-1">Enter exactly 4 digits</p>
+                      )}
                     </div>
 
                     <DialogFooter>
-                      <Button variant="secondary" className="!text-white" disabled={!transactionIdDraft.trim()} onClick={handleSubmitTransactionId}>
+                      <Button
+                        variant="secondary"
+                        className="!text-white"
+                        disabled={!transactionIdDraft.trim() || (confirmInputType === "phone_number" && !isValidLast4(transactionIdDraft))}
+                        onClick={handleSubmitTransactionId}
+                      >
                         Submit
                       </Button>
                     </DialogFooter>
@@ -975,7 +995,7 @@ export default function CheckoutPage() {
                     <DialogHeader>
                       <DialogTitle>Confirm your payment</DialogTitle>
                       <DialogDescription>
-                        Have you completed the {selectedMethod?.name || paymentMethod} payment for transaction ID <span className="font-semibold text-charcoal">{transactionId}</span>?
+                        Have you completed the {selectedMethod?.name || paymentMethod} payment for {confirmFieldLabel.toLowerCase()} <span className="font-semibold text-charcoal">{transactionId}</span>?
                       </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
