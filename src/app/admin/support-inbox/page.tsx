@@ -1,8 +1,25 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { MessageCircle, Send, Loader2, LifeBuoy, Search, User } from "lucide-react";
+import { MessageCircle, Send, Loader2, LifeBuoy, Search, User, Trash2, AlertTriangle, Check, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { AdminButton } from "@/components/admin/shared/admin-button";
+
+const ACTIVE_POLL_MS = 3000; // a conversation is open in the thread view
+const LIST_POLL_MS = 20000; // conversation list, background refresh
+
+/** True while the tab is in the foreground — pause polling otherwise. */
+function useIsPageVisible(): boolean {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const onChange = () => setVisible(document.visibilityState === "visible");
+    onChange();
+    document.addEventListener("visibilitychange", onChange);
+    return () => document.removeEventListener("visibilitychange", onChange);
+  }, []);
+  return visible;
+}
 
 interface Conversation {
   id: string;
@@ -22,6 +39,7 @@ interface ChatMessage {
   sender_type: "customer" | "admin";
   flag: "general" | "help_and_support";
   body: string;
+  is_read: boolean;
   created_at: string;
 }
 
@@ -41,6 +59,7 @@ function timeLabel(dateStr: string): string {
 }
 
 export default function SupportInboxPage() {
+  const pageVisible = useIsPageVisible();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [search, setSearch] = useState("");
@@ -49,7 +68,11 @@ export default function SupportInboxPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<ChatMessage[]>([]);
+  messagesRef.current = messages;
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -60,33 +83,55 @@ export default function SupportInboxPage() {
   }, []);
 
   useEffect(() => {
+    if (!pageVisible) return;
     fetchConversations();
-    const interval = setInterval(fetchConversations, 20000);
+    const interval = setInterval(fetchConversations, LIST_POLL_MS);
     return () => clearInterval(interval);
-  }, [fetchConversations]);
+  }, [fetchConversations, pageVisible]);
 
-  const loadMessages = useCallback(async (conversationId: string) => {
-    setLoadingMessages(true);
-    try {
-      const res = await fetch(`/api/chat/messages?conversation_id=${conversationId}&admin=1`);
-      const data = await res.json();
-      if (Array.isArray(data)) setMessages(data);
-    } catch {} finally { setLoadingMessages(false); }
-  }, []);
-
-  useEffect(() => {
-    if (!activeId) return;
-    loadMessages(activeId);
+  const markRead = useCallback((conversationId: string) => {
     fetch("/api/chat/mark-read", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ conversation_id: activeId, reader: "admin" }),
+      body: JSON.stringify({ conversation_id: conversationId, reader: "admin" }),
     }).catch(() => {});
-    setConversations((prev) => prev.map((c) => (c.id === activeId ? { ...c, admin_unread: 0 } : c)));
+  }, []);
 
-    const interval = setInterval(() => loadMessages(activeId), 8000);
+  // Initial full load whenever a different conversation is selected.
+  useEffect(() => {
+    if (!activeId) return;
+    let cancelled = false;
+    setLoadingMessages(true);
+    fetch(`/api/chat/messages?conversation_id=${activeId}&admin=1`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (Array.isArray(data)) setMessages(data);
+        markRead(activeId);
+        setConversations((prev) => prev.map((c) => (c.id === activeId ? { ...c, admin_unread: 0 } : c)));
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoadingMessages(false); });
+    return () => { cancelled = true; };
+  }, [activeId, markRead]);
+
+  // Delta polling — only the messages newer than the last one shown, and only
+  // while the tab is focused. Avoids re-downloading the whole thread every tick.
+  useEffect(() => {
+    if (!activeId || !pageVisible) return;
+    const interval = setInterval(async () => {
+      const lastId = messagesRef.current[messagesRef.current.length - 1]?.id;
+      try {
+        const res = await fetch(`/api/chat/messages?conversation_id=${activeId}&admin=1${lastId ? `&after_id=${lastId}` : ""}`);
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setMessages((prev) => [...prev, ...data]);
+          markRead(activeId);
+        }
+      } catch {}
+    }, ACTIVE_POLL_MS);
     return () => clearInterval(interval);
-  }, [activeId, loadMessages]);
+  }, [activeId, pageVisible, markRead]);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
@@ -110,8 +155,24 @@ export default function SupportInboxPage() {
     } catch {} finally { setSending(false); }
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/chat/conversations?id=${deleteTarget.id}`, { method: "DELETE" });
+      if (res.ok) {
+        setConversations((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+        if (activeId === deleteTarget.id) { setActiveId(null); setMessages([]); }
+      }
+    } catch {} finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
+  };
+
   const filtered = conversations.filter((c) => c.display_name.toLowerCase().includes(search.toLowerCase()));
   const active = conversations.find((c) => c.id === activeId) || null;
+  const lastAdminMessageId = [...messages].reverse().find((m) => m.sender_type === "admin")?.id;
 
   return (
     <div className="space-y-4">
@@ -148,30 +209,39 @@ export default function SupportInboxPage() {
               </div>
             ) : (
               filtered.map((c) => (
-                <button
+                <div
                   key={c.id}
-                  onClick={() => setActiveId(c.id)}
                   className={cn(
-                    "w-full flex items-center gap-3 px-4 py-3 text-left border-b border-border/10 hover:bg-pearl/50 transition-colors",
+                    "group w-full flex items-center gap-3 px-4 py-3 border-b border-border/10 hover:bg-pearl/50 transition-colors",
                     activeId === c.id && "bg-primary-light/50"
                   )}
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/10 text-secondary">
-                    <User className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className={cn("text-sm truncate", c.admin_unread > 0 ? "font-semibold text-charcoal" : "text-charcoal")}>{c.display_name}</p>
-                      <span className="text-[9px] text-charcoal-lighter shrink-0">{timeAgo(c.last_message_at)}</span>
+                  <button onClick={() => setActiveId(c.id)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/10 text-secondary">
+                      <User className="h-4 w-4" />
                     </div>
-                    <div className="flex items-center justify-between gap-2 mt-0.5">
-                      <p className="text-[11px] text-charcoal-lighter truncate">{c.customer_id ? "Registered customer" : "Guest"}</p>
-                      {c.admin_unread > 0 && (
-                        <span className="text-[9px] font-bold bg-secondary text-white px-1.5 py-0.5 rounded-full shrink-0">{c.admin_unread}</span>
-                      )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className={cn("text-sm truncate", c.admin_unread > 0 ? "font-semibold text-charcoal" : "text-charcoal")}>{c.display_name}</p>
+                        <span className="text-[9px] text-charcoal-lighter shrink-0">{timeAgo(c.last_message_at)}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 mt-0.5">
+                        <p className="text-[11px] text-charcoal-lighter truncate">{c.customer_id ? "Registered customer" : "Guest"}</p>
+                        {c.admin_unread > 0 && (
+                          <span className="text-[9px] font-bold bg-secondary text-white px-1.5 py-0.5 rounded-full shrink-0">{c.admin_unread}</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </button>
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setDeleteTarget(c); }}
+                    className="shrink-0 rounded-full p-1.5 text-charcoal-lighter opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
+                    aria-label={`Delete conversation with ${c.display_name}`}
+                    title="Delete conversation"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               ))
             )}
           </div>
@@ -191,10 +261,18 @@ export default function SupportInboxPage() {
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary/10 text-secondary">
                   <User className="h-4 w-4" />
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-charcoal">{active.display_name}</p>
                   <p className="text-[10px] text-charcoal-lighter">{active.customer_id ? "Registered customer" : "Guest visitor"}</p>
                 </div>
+                <button
+                  onClick={() => setDeleteTarget(active)}
+                  className="shrink-0 rounded-full p-2 text-charcoal-lighter hover:bg-destructive/10 hover:text-destructive transition-colors"
+                  aria-label="Delete conversation"
+                  title="Delete conversation"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </div>
 
               <div ref={listRef} className="flex-1 overflow-y-auto overscroll-contain bg-pearl/30 px-4 py-4 space-y-2">
@@ -219,7 +297,12 @@ export default function SupportInboxPage() {
                           <span className="block text-[9px] font-semibold uppercase tracking-wide text-secondary mb-0.5">Help & Support</span>
                         )}
                         <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                        <p className={cn("text-[9px] mt-1", m.sender_type === "admin" ? "text-white/60" : "text-charcoal-lighter")}>{timeLabel(m.created_at)}</p>
+                        <div className={cn("flex items-center gap-1 mt-1", m.sender_type === "admin" ? "text-white/60 justify-end" : "text-charcoal-lighter")}>
+                          <span className="text-[9px]">{timeLabel(m.created_at)}</span>
+                          {m.sender_type === "admin" && m.id === lastAdminMessageId && (
+                            m.is_read ? <CheckCheck className="h-3 w-3" /> : <Check className="h-3 w-3" />
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))
@@ -248,6 +331,29 @@ export default function SupportInboxPage() {
           )}
         </div>
       </div>
+
+      {/* Delete confirmation — permanent, no undo (messages cascade-delete with the conversation) */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" /> Delete Conversation
+            </DialogTitle>
+            <DialogDescription>
+              This will permanently delete the entire conversation with <strong>{deleteTarget?.display_name}</strong> and all its messages from the database. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <AdminButton variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              Cancel
+            </AdminButton>
+            <AdminButton variant="danger" onClick={handleDelete} disabled={deleting}>
+              {deleting && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+              {deleting ? "Deleting..." : "Delete Permanently"}
+            </AdminButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

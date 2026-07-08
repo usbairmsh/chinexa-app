@@ -1,4 +1,15 @@
-import { execute } from "@/lib/db";
+import { type RowDataPacket } from "mysql2/promise";
+import { query, execute } from "@/lib/db";
+
+async function ensureColumn(table: string, column: string, definition: string) {
+  const rows = await query<RowDataPacket[]>(
+    `SELECT COUNT(*) AS c FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?`,
+    [table, column]
+  );
+  if (Number(rows[0]?.c) > 0) return;
+  await execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
 
 let tablesEnsured = false;
 
@@ -31,11 +42,13 @@ export async function ensureChatTables() {
         flag ENUM('general', 'help_and_support') DEFAULT 'general',
         body TEXT NOT NULL,
         is_read BOOLEAN DEFAULT FALSE,
+        read_at TIMESTAMP NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_conversation (conversation_id, created_at),
         FOREIGN KEY (conversation_id) REFERENCES chat_conversations(id) ON DELETE CASCADE
       ) ENGINE=InnoDB`
     );
+    await ensureColumn("chat_messages", "read_at", "TIMESTAMP NULL");
     tablesEnsured = true;
   } catch (err) {
     console.error("[ensureChatTables] failed:", err);

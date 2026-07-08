@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { usePathname } from "next/navigation";
-import { MessageCircle, X, Send, Loader2, LifeBuoy } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, LifeBuoy, Check, CheckCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/stores/auth.store";
 import { useChatStore } from "@/stores/chat.store";
@@ -14,11 +14,27 @@ interface ChatMessage {
   sender_type: "customer" | "admin";
   flag: "general" | "help_and_support";
   body: string;
+  is_read: boolean;
   created_at: string;
 }
 
+const ACTIVE_POLL_MS = 3000; // panel open + tab focused
+const IDLE_POLL_MS = 45000; // panel closed — unread badge only
+
 function timeLabel(dateStr: string): string {
   return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).format(new Date(dateStr));
+}
+
+/** True while the tab is in the foreground — pause all chat polling otherwise. */
+function useIsPageVisible(): boolean {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const onChange = () => setVisible(document.visibilityState === "visible");
+    onChange();
+    document.addEventListener("visibilitychange", onChange);
+    return () => document.removeEventListener("visibilitychange", onChange);
+  }, []);
+  return visible;
 }
 
 export function ChatWidget() {
@@ -26,6 +42,7 @@ export function ChatWidget() {
   const isAdminRoute = pathname?.startsWith("/admin");
   const storeUser = useAuthStore((s) => s.user);
   const { open, pendingFlag, unread, openChat, closeChat, setUnread } = useChatStore();
+  const pageVisible = useIsPageVisible();
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -37,31 +54,39 @@ export function ChatWidget() {
   const [sending, setSending] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const identity = mounted
-    ? storeUser?.id
-      ? { customerId: storeUser.id, displayName: storeUser.phone }
-      : { guestId: getGuestId(), displayName: `guest${getGuestId().replace("guest", "")}` }
-    : null;
+  // Stable identity — memoized on primitive values only. The previous version
+  // built this as a fresh object literal every render, which meant every
+  // effect depending on it (loading messages, polling) tore down and re-ran
+  // on every render, so the loading spinner never got a chance to resolve.
+  const customerId = mounted ? storeUser?.id ?? null : null;
+  const customerPhone = mounted ? storeUser?.phone ?? null : null;
+  const guestId = mounted && !customerId ? getGuestId() : null;
+  const identity = useMemo(() => {
+    if (!mounted) return null;
+    if (customerId) return { customerId, guestId: null as string | null, displayName: customerPhone || "Customer" };
+    if (guestId) return { customerId: null as string | null, guestId, displayName: `guest${guestId.replace("guest", "")}` };
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, customerId, customerPhone, guestId]);
 
-  // Unread badge — poll every 45s and on route change, matching the header bell's cadence.
   const fetchUnread = useCallback(async () => {
     if (!identity) return;
     try {
-      const params = identity.customerId
-        ? `customer_id=${identity.customerId}`
-        : `guest_id=${identity.guestId}`;
+      const params = identity.customerId ? `customer_id=${identity.customerId}` : `guest_id=${identity.guestId}`;
       const res = await fetch(`/api/chat/unread-count?${params}`);
       const data = await res.json();
       if (res.ok && Number.isFinite(Number(data?.unread))) setUnread(Number(data.unread));
     } catch {}
   }, [identity, setUnread]);
 
+  // Idle badge polling — only while the panel is closed; the open-panel effect
+  // below takes over (faster cadence) once it's opened.
   useEffect(() => {
-    if (isAdminRoute || !identity) return;
+    if (isAdminRoute || !identity || open || !pageVisible) return;
     fetchUnread();
-    const interval = setInterval(fetchUnread, 45000);
+    const interval = setInterval(fetchUnread, IDLE_POLL_MS);
     return () => clearInterval(interval);
-  }, [isAdminRoute, identity, pathname, fetchUnread]);
+  }, [isAdminRoute, identity, open, pageVisible, fetchUnread]);
 
   const ensureConversation = useCallback(async (): Promise<string | null> => {
     if (!identity) return null;
@@ -78,38 +103,59 @@ export function ChatWidget() {
     return null;
   }, [identity]);
 
-  const loadMessages = useCallback(async (convId: string) => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/chat/messages?conversation_id=${convId}`);
-      const data = await res.json();
-      if (Array.isArray(data)) setMessages(data);
-    } catch {} finally { setLoading(false); }
+  const markRead = useCallback((convId: string) => {
+    fetch("/api/chat/mark-read", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversation_id: convId, reader: "customer" }),
+    }).catch(() => {});
   }, []);
 
-  // Once open: get-or-create the conversation, load history, mark read, and
-  // poll for new replies every 8s while the panel stays open.
+  // Initial load when the panel opens: get-or-create conversation, fetch full
+  // history once, mark read. Runs only on open/identity changes — not on every
+  // render — since `identity` is now a stable memoized reference.
   useEffect(() => {
     if (!open || !identity) return;
     let cancelled = false;
-    let interval: ReturnType<typeof setInterval> | undefined;
 
     (async () => {
-      const convId = conversationId || (await ensureConversation());
-      if (cancelled || !convId) return;
-      await loadMessages(convId);
-      fetch("/api/chat/mark-read", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversation_id: convId, reader: "customer" }),
-      }).catch(() => {});
-      setUnread(0);
-      interval = setInterval(() => loadMessages(convId), 8000);
+      setLoading(true);
+      try {
+        const convId = conversationId || (await ensureConversation());
+        if (cancelled || !convId) return;
+        const res = await fetch(`/api/chat/messages?conversation_id=${convId}`);
+        const data = await res.json();
+        if (cancelled) return;
+        if (Array.isArray(data)) setMessages(data);
+        markRead(convId);
+        setUnread(0);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
 
-    return () => { cancelled = true; if (interval) clearInterval(interval); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, identity]);
+    return () => { cancelled = true; };
+  }, [open, identity, conversationId, ensureConversation, markRead, setUnread]);
+
+  // Delta polling while open — only fetches messages newer than the last one
+  // already shown, and only while the tab is actually focused. Paused the
+  // instant the tab is backgrounded or the panel is closed, so it never
+  // competes with browsing/checkout for network or main-thread time.
+  useEffect(() => {
+    if (!open || !conversationId || !pageVisible) return;
+    const interval = setInterval(async () => {
+      const lastId = messages[messages.length - 1]?.id;
+      try {
+        const res = await fetch(`/api/chat/messages?conversation_id=${conversationId}${lastId ? `&after_id=${lastId}` : ""}`);
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setMessages((prev) => [...prev, ...data]);
+          markRead(conversationId);
+        }
+      } catch {}
+    }, ACTIVE_POLL_MS);
+    return () => clearInterval(interval);
+  }, [open, conversationId, pageVisible, messages, markRead]);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
@@ -140,6 +186,8 @@ export function ChatWidget() {
   };
 
   if (!mounted || isAdminRoute) return null;
+
+  const lastCustomerMessageId = [...messages].reverse().find((m) => m.sender_type === "customer")?.id;
 
   return (
     <>
@@ -216,7 +264,12 @@ export function ChatWidget() {
                         <span className="block text-[9px] font-semibold uppercase tracking-wide text-white/70 mb-0.5">Help & Support</span>
                       )}
                       <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                      <p className={cn("text-[9px] mt-1", m.sender_type === "customer" ? "text-white/60" : "text-charcoal-lighter")}>{timeLabel(m.created_at)}</p>
+                      <div className={cn("flex items-center gap-1 mt-1", m.sender_type === "customer" ? "text-white/60 justify-end" : "text-charcoal-lighter")}>
+                        <span className="text-[9px]">{timeLabel(m.created_at)}</span>
+                        {m.sender_type === "customer" && m.id === lastCustomerMessageId && (
+                          m.is_read ? <CheckCheck className="h-3 w-3" /> : <Check className="h-3 w-3" />
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))

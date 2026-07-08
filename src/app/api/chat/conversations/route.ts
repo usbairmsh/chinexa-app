@@ -54,3 +54,22 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
   }
 }
+
+// DELETE — admin only: permanently remove a conversation and all its
+// messages (chat_messages cascades via its FOREIGN KEY ... ON DELETE CASCADE).
+export async function DELETE(req: NextRequest) {
+  await ensureChatTables();
+  const conversationId = req.nextUrl.searchParams.get("id");
+  if (!conversationId) {
+    return NextResponse.json({ error: "id required" }, { status: 400 });
+  }
+  try {
+    const result = await execute("DELETE FROM chat_conversations WHERE id = ?", [conversationId]);
+    if (result.affectedRows === 0) {
+      return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+  }
+}

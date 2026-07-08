@@ -8,16 +8,30 @@ export const dynamic = "force-dynamic";
 
 // GET — message history for a conversation. Customers only see the last 30
 // days (older messages stay in the DB for admin's full record, per design).
+// Pass `after_id` to fetch only messages newer than a given message id —
+// used by the polling loop so it doesn't re-download the whole thread on
+// every tick, just the (usually empty) delta since the last check.
 export async function GET(req: NextRequest) {
   await ensureChatTables();
   const { searchParams } = req.nextUrl;
   const conversationId = searchParams.get("conversation_id");
   const forAdmin = searchParams.get("admin") === "1";
+  const afterId = searchParams.get("after_id");
   if (!conversationId) {
     return NextResponse.json({ error: "conversation_id required" }, { status: 400 });
   }
 
   try {
+    if (afterId) {
+      const afterRows = await query<RowDataPacket[]>("SELECT created_at FROM chat_messages WHERE id = ?", [afterId]);
+      const afterTime = afterRows[0]?.created_at ?? "1970-01-01";
+      const rows = await query<RowDataPacket[]>(
+        "SELECT * FROM chat_messages WHERE conversation_id = ? AND created_at > ? ORDER BY created_at ASC",
+        [conversationId, afterTime]
+      );
+      return NextResponse.json(rows);
+    }
+
     const rows = await query<RowDataPacket[]>(
       forAdmin
         ? "SELECT * FROM chat_messages WHERE conversation_id = ? ORDER BY created_at ASC"
