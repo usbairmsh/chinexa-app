@@ -27,7 +27,7 @@ export function useCustomerBadge() {
     fetch(`/api/customers/${user.id}/points`)
       .then((r) => r.json())
       .then((data) => {
-        if (data?.tier?.badge_color) {
+        if (data?.tier?.name) {
           const b: BadgeData = {
             badge_name: data.tier.badge_name || "",
             badge_color: data.tier.badge_color || "",

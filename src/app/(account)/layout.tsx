@@ -6,7 +6,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, ShoppingBag, Heart, MapPin, UserCircle,
-  LogOut, ChevronRight, HelpCircle, Tag
+  LogOut, ChevronRight, HelpCircle, Tag, Crown
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Header } from "@/components/layout/header/header";
@@ -28,6 +28,7 @@ const accountNav = [
   { icon: Heart, label: "Wishlist", href: "/dashboard/wishlist" },
   { icon: MapPin, label: "Addresses", href: "/dashboard/addresses" },
   { icon: Tag, label: "Offers & Coupons", href: "/dashboard/coupons" },
+  { icon: Crown, label: "Membership Benefits", href: "/dashboard/membership" },
   { icon: UserCircle, label: "Profile", href: "/dashboard/profile" },
   { icon: HelpCircle, label: "Help & Support", href: "/faq" },
 ];
@@ -119,7 +120,7 @@ export default function AccountLayout({
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-charcoal flex items-center gap-1 text-sm sm:text-base">
                         <span className="truncate">{user?.name || "Guest User"}</span>
-                        {badge && <VerifiedBadge color={badge.badge_color} opacity={badge.badge_opacity} size={17} tooltip={badge.badge_name} />}
+                        {badge?.badge_color && <VerifiedBadge color={badge.badge_color} opacity={badge.badge_opacity} size={17} tooltip={badge.badge_name} />}
                       </p>
                       <p className="text-xs text-charcoal-lighter truncate">
                         {user?.phone || "Not signed in"}

@@ -11,15 +11,8 @@ interface ReviewItem {
   product: string;
 }
 
-const fallbackReviews: ReviewItem[] = [
-  { name: "Fatima A.", rating: 5, text: "Absolutely love the skincare products! My skin has never looked better.", product: "Vitamin C Serum" },
-  { name: "Ayesha R.", rating: 5, text: "The bag quality exceeded my expectations. Truly premium!", product: "Aria Leather Tote" },
-  { name: "Nusrat J.", rating: 5, text: "Best perfume I've ever owned. The scent lasts all day long.", product: "Midnight Rose EDP" },
-  { name: "Sadia I.", rating: 4, text: "Beautiful jewelry set. Perfect gift for my sister's birthday.", product: "Aurora Pendant Set" },
-];
-
 export function ReviewsMarquee() {
-  const [reviews, setReviews] = useState<ReviewItem[]>(fallbackReviews);
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
 
   useEffect(() => {
     fetch("/api/reviews?is_approved=true&limit=20")

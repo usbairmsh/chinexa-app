@@ -42,8 +42,8 @@ export default function PointsHistoryPage() {
   const user = mounted ? storeUser : null;
 
   const [totalPoints, setTotalPoints] = useState(0);
-  const [tierName, setTierName] = useState("Bronze");
-  const [tierColor, setTierColor] = useState("bg-orange-100 text-orange-700");
+  const [tierName, setTierName] = useState<string | null>(null);
+  const [tierColor, setTierColor] = useState("bg-pearl text-charcoal-lighter");
   const [nextTierName, setNextTierName] = useState<string | null>(null);
   const [nextTierAt, setNextTierAt] = useState(0);
   const [pointsToNext, setPointsToNext] = useState(0);
@@ -93,7 +93,7 @@ export default function PointsHistoryPage() {
         <CardContent className="p-6">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
-              <Badge className={cn("text-[10px] mb-2", tierColor)}>{tierName} Member</Badge>
+              {tierName && <Badge className={cn("text-[10px] mb-2", tierColor)}>{tierName} Member</Badge>}
               <p className="font-heading text-3xl font-bold text-charcoal flex items-center gap-2">
                 <Star className="h-6 w-6 text-gold" /> {totalPoints.toLocaleString()} <span className="text-sm font-normal text-charcoal-lighter">points</span>
               </p>

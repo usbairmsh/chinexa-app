@@ -32,7 +32,9 @@ export function Header() {
   const badgeData = useCustomerBadge();
   const hiddenSeedIds = useCategoriesStore((s) => s.hiddenSeedIds);
   const [navItems, setNavItems] = useState<NavItem[]>(MAIN_NAV);
-  const [announcement, setAnnouncement] = useState<{ visible: boolean; text: string; phone: string }>({ visible: true, text: "", phone: "+880 1700-000000" });
+  // Start hidden — showing the bar with placeholder text before /api/settings
+  // resolves would flash fake copy in front of every visitor on every page load.
+  const [announcement, setAnnouncement] = useState<{ visible: boolean; text: string; phone: string }>({ visible: false, text: "", phone: "" });
 
   useEffect(() => {
     setMounted(true);
@@ -265,23 +267,28 @@ export function Header() {
                 </button>
               )}
 
-              {/* Account — profile icon + tier name in one rounded-border pill, tinted in the tier's own color */}
+              {/* Account — profile icon + tier name in one rounded-border pill, tinted in the tier's own color.
+                  Styled with a subtle gradient sheen + tier-tinted shadow + ring so it reads as a premium
+                  membership chip rather than a flat outline. */}
               {isAuthenticated ? (
                 badgeData?.tier_name ? (
                   <Link
                     href="/dashboard"
                     className={cn(
-                      "flex items-center gap-1.5 h-9 pl-1.5 pr-3 rounded-full border transition-all",
+                      "group relative flex items-center gap-1.5 h-9 pl-1 pr-3.5 rounded-full border bg-gradient-to-b from-white/80 to-white/30 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-px",
                       badgeData.tier_color || "border-border text-charcoal/60 hover:bg-primary-light"
                     )}
-                    style={{ borderColor: "currentColor" }}
+                    style={{ borderColor: "currentColor", boxShadow: "0 1px 6px -1px currentColor" }}
                     aria-label="Account"
                     title={`${badgeData.tier_name} Member`}
                   >
-                    <span className="flex items-center justify-center h-6 w-6 rounded-full bg-white/60">
+                    <span
+                      className="flex items-center justify-center h-7 w-7 rounded-full bg-white"
+                      style={{ boxShadow: "inset 0 0 0 1px currentColor" }}
+                    >
                       <User className="h-3.5 w-3.5" />
                     </span>
-                    <span className="text-[11px] font-semibold tracking-wide whitespace-nowrap">{badgeData.tier_name}</span>
+                    <span className="text-[11px] font-bold tracking-wide whitespace-nowrap uppercase">{badgeData.tier_name}</span>
                   </Link>
                 ) : (
                   <Link
@@ -350,21 +357,24 @@ export function Header() {
                   </button>
                 </div>
 
-                {/* Tier badge — same rounded-border pill as the header, sized up for mobile */}
+                {/* Tier badge — same premium pill as the header, sized up for mobile */}
                 {isAuthenticated && badgeData?.tier_name && (
                   <Link
                     href="/dashboard"
                     onClick={() => setMobileMenuOpen(false)}
                     className={cn(
-                      "flex items-center gap-2 w-fit h-9 pl-1.5 pr-3 rounded-full border mb-4",
+                      "flex items-center gap-2 w-fit h-9 pl-1 pr-3.5 rounded-full border bg-gradient-to-b from-white/80 to-white/30 shadow-sm mb-4",
                       badgeData.tier_color || "border-border text-charcoal/60"
                     )}
-                    style={{ borderColor: "currentColor" }}
+                    style={{ borderColor: "currentColor", boxShadow: "0 1px 6px -1px currentColor" }}
                   >
-                    <span className="flex items-center justify-center h-6 w-6 rounded-full bg-white/60">
+                    <span
+                      className="flex items-center justify-center h-7 w-7 rounded-full bg-white"
+                      style={{ boxShadow: "inset 0 0 0 1px currentColor" }}
+                    >
                       <User className="h-3.5 w-3.5" />
                     </span>
-                    <span className="text-xs font-semibold tracking-wide">{badgeData.tier_name} Member</span>
+                    <span className="text-xs font-bold tracking-wide uppercase">{badgeData.tier_name} Member</span>
                   </Link>
                 )}
 

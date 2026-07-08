@@ -72,8 +72,8 @@ export default function ProfilePage() {
   const [passwordError, setPasswordError] = useState("");
 
   // Tier data
-  const [tierName, setTierName] = useState("Bronze");
-  const [tierColor, setTierColor] = useState("bg-orange-100 text-orange-700");
+  const [tierName, setTierName] = useState<string | null>(null);
+  const [tierColor, setTierColor] = useState("bg-pearl text-charcoal-lighter");
   // Same source as the "My Account" dashboard badge — using badge_color/name
   // directly instead of guessing a hex from the Tailwind `tier.color` class
   // keeps this badge in sync with what the dashboard page shows.
@@ -259,13 +259,15 @@ export default function ProfilePage() {
               <div className="text-center sm:text-left">
                 <h3 className="font-heading text-lg font-semibold text-charcoal flex items-center gap-1.5">
                   {user?.name || "Guest User"}
-                  {badgeData && <VerifiedBadge color={badgeData.badge_color} opacity={badgeData.badge_opacity} size={22} tooltip={badgeData.badge_name} />}
+                  {badgeData?.badge_color && <VerifiedBadge color={badgeData.badge_color} opacity={badgeData.badge_opacity} size={22} tooltip={badgeData.badge_name} />}
                 </h3>
                 <p className="text-sm text-charcoal-lighter">{user?.phone || "Not signed in"}</p>
                 <div className="flex items-center gap-2 mt-2 justify-center sm:justify-start">
-                  <Badge className={cn("text-[10px]", tierColor)}>
-                    <Crown className="h-3 w-3 mr-1" /> {tierName} Member
-                  </Badge>
+                  {tierName && (
+                    <Badge className={cn("text-[10px]", tierColor)}>
+                      <Crown className="h-3 w-3 mr-1" /> {tierName} Member
+                    </Badge>
+                  )}
                   <Badge variant="outline" className="text-[10px]">
                     <Shield className="h-3 w-3 mr-1" /> Phone Verified
                   </Badge>

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   ShoppingBag, Heart, MapPin, Star, Package, Truck,
-  CheckCircle2, Clock, ArrowRight, Gift, TrendingUp, Loader2, Tag
+  CheckCircle2, Clock, ArrowRight, Gift, TrendingUp, Loader2, Tag, Crown
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -39,8 +39,8 @@ export default function AccountDashboard() {
   const wishlistCount = useWishlistStore((s) => s.items.length);
 
   const [loyaltyPoints, setLoyaltyPoints] = useState(0);
-  const [loyaltyTier, setLoyaltyTier] = useState("Bronze");
-  const [tierColor, setTierColor] = useState("bg-orange-100 text-orange-700");
+  const [loyaltyTier, setLoyaltyTier] = useState<string | null>(null);
+  const [tierColor, setTierColor] = useState("bg-pearl text-charcoal-lighter");
   const [nextTierName, setNextTierName] = useState<string | null>(null);
   const [nextTierAt, setNextTierAt] = useState(0);
   const [pointsToNext, setPointsToNext] = useState(0);
@@ -107,13 +107,15 @@ export default function AccountDashboard() {
         <Card className="bg-gradient-to-r from-secondary/10 via-primary-light to-coral-light border-0 overflow-hidden relative">
           <CardContent className="p-6 sm:p-8">
             <div className="relative z-10">
-              <p className="text-xs font-medium text-secondary uppercase tracking-widest mb-1">
-                <Badge className={cn("text-[10px]", tierColor)}>{loyaltyTier} Member</Badge>
-              </p>
+              {loyaltyTier && (
+                <p className="text-xs font-medium text-secondary uppercase tracking-widest mb-1">
+                  <Badge className={cn("text-[10px]", tierColor)}>{loyaltyTier} Member</Badge>
+                </p>
+              )}
               <h2 className="font-heading text-xl sm:text-2xl font-semibold text-charcoal mb-2 flex items-center gap-1.5 flex-wrap">
                 {/* Gate on `mounted` — the persisted store differs from server HTML on refresh */}
                 Welcome back, {mounted && user?.name ? user.name : "Beautiful"}!
-                {badgeData && <VerifiedBadge color={badgeData.badge_color} opacity={badgeData.badge_opacity} size={26} tooltip={badgeData.badge_name} />}
+                {badgeData?.badge_color && <VerifiedBadge color={badgeData.badge_color} opacity={badgeData.badge_opacity} size={26} tooltip={badgeData.badge_name} />}
                 &#10024;
               </h2>
               <p className="text-sm text-charcoal-lighter max-w-md mb-4 flex items-center gap-2 flex-wrap">
@@ -208,7 +210,7 @@ export default function AccountDashboard() {
       </Card>
 
       {/* Quick Actions */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
         <Link href="/dashboard/orders">
           <Card className="hover:shadow-card-hover transition-all cursor-pointer group h-full">
             <CardContent className="p-5 flex items-center gap-4">
@@ -257,6 +259,19 @@ export default function AccountDashboard() {
               <div>
                 <p className="text-sm font-medium text-charcoal group-hover:text-secondary transition-colors">Offers & Coupons</p>
                 <p className="text-[10px] text-charcoal-lighter">Your discounts & deals</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/dashboard/membership">
+          <Card className="hover:shadow-card-hover transition-all cursor-pointer group h-full">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gold/10 shrink-0">
+                <Crown className="h-5 w-5 text-gold" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-charcoal group-hover:text-secondary transition-colors">Membership Benefits</p>
+                <p className="text-[10px] text-charcoal-lighter">Levels & perks</p>
               </div>
             </CardContent>
           </Card>
