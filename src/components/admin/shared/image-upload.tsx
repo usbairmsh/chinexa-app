@@ -225,7 +225,7 @@ export function ImageUpload({
               type="button"
               onClick={handleUrlApply}
               disabled={!urlInput.trim()}
-              className="h-10 px-4 rounded-full bg-secondary text-white text-[12px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="h-10 px-4 rounded-full bg-secondary text-white text-[12px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Apply
             </button>

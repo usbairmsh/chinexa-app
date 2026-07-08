@@ -311,7 +311,7 @@ export default function OrderManagementPage() {
                             {/* Advance Status */}
                             {next ? (
                               <button onClick={() => handleQuickAdvance(order)}
-                                className="flex h-8 items-center gap-1 px-2.5 rounded-lg bg-charcoal text-[10px] font-semibold !text-white hover:bg-secondary hover:shadow-[0_2px_12px_rgba(192,57,43,0.25)] transition-all">
+                                className="flex h-8 items-center gap-1 px-2.5 rounded-lg bg-charcoal text-[10px] font-semibold !text-white hover:bg-secondary hover:shadow-[0_2px_12px_rgba(122,79,160,0.25)] transition-all">
                                 <ArrowUpRight className="h-3 w-3" /> <span className="hidden xl:inline">{statusConfig[next].label}</span>
                               </button>
                             ) : null}

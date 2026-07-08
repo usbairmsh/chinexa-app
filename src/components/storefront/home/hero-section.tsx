@@ -150,7 +150,7 @@ export function HeroSection() {
             className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center"
           >
             <Link href="/products">
-              <span className="group inline-flex items-center gap-2.5 h-12 px-8 sm:h-14 sm:px-10 rounded-full bg-secondary text-white text-sm sm:text-[15px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] active:scale-[0.96] transition-all duration-300">
+              <span className="group inline-flex items-center gap-2.5 h-12 px-8 sm:h-14 sm:px-10 rounded-full bg-secondary text-white text-sm sm:text-[15px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] active:scale-[0.96] transition-all duration-300">
                 Shop Now
                 <svg className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
               </span>
@@ -244,7 +244,7 @@ export function HeroSection() {
                     transition={{ delay: 0.5 }}
                   >
                     <Link href={slide.link}>
-                      <span className="group inline-flex items-center gap-2.5 h-12 px-8 sm:h-14 sm:px-10 rounded-full bg-white text-charcoal text-sm sm:text-[15px] font-body font-semibold tracking-wide shadow-[0_4px_30px_rgba(0,0,0,0.2)] hover:bg-secondary hover:text-white hover:shadow-[0_6px_35px_rgba(192,57,43,0.4)] active:scale-[0.96] transition-all duration-300">
+                      <span className="group inline-flex items-center gap-2.5 h-12 px-8 sm:h-14 sm:px-10 rounded-full bg-white text-charcoal text-sm sm:text-[15px] font-body font-semibold tracking-wide shadow-[0_4px_30px_rgba(0,0,0,0.2)] hover:bg-secondary hover:text-white hover:shadow-[0_6px_35px_rgba(122,79,160,0.4)] active:scale-[0.96] transition-all duration-300">
                         {slide.cta_text}
                         <svg className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                       </span>

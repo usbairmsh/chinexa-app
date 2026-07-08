@@ -394,7 +394,7 @@ export default function AddProductPage() {
                   </div>
                   <button
                     onClick={addVariant}
-                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full bg-secondary text-white text-[12px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(192,57,43,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full bg-secondary text-white text-[12px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 cursor-pointer"
                   >
                     <Plus className="h-3.5 w-3.5" /> Add Variant
                   </button>

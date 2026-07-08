@@ -5,57 +5,59 @@
    ============================================ */
 
 @theme inline {
-  /* Colors — refined toward a quieter, more sophisticated version of the
-     original ChineXa cherry-blossom palette. Same hue family throughout
-     (blush pink -> wine red), desaturated and warmed rather than replaced,
-     plus a new soft-gold accent for premium touches (dividers, badges,
-     hover glow) that the original palette didn't have. */
-  --color-primary: #F0DCDE;
-  --color-primary-dark: #D9AEB2;
-  --color-primary-light: #FBF2F0;
-  --color-primary-50: #FDF7F5;
-  --color-primary-100: #FBF2F0;
-  --color-primary-200: #F0DCDE;
-  --color-primary-300: #E4C6C9;
-  --color-primary-400: #D2A3A8;
-  --color-primary-500: #B97B7F;
-  --color-primary-600: #9C5B5C;
-  --color-primary-700: #82464A;
-  --color-primary-800: #5E353A;
-  --color-primary-900: #3D2226;
+  /* Colors — "Cotton Candy Pastel": pink + lilac kept genuinely pastel
+     throughout, with a dark plum-black ink (never grey) and gold carrying
+     all the "premium" signal, so the softness doesn't read as childish.
+     Applies to both customer-facing and admin sides — same token file. */
+  --color-primary: #F9CFE0;
+  --color-primary-dark: #EFAAC7;
+  --color-primary-light: #FDEEF4;
+  --color-primary-50: #FFF8FB;
+  --color-primary-100: #FDEEF4;
+  --color-primary-200: #F9CFE0;
+  --color-primary-300: #F2AFC9;
+  --color-primary-400: #E88CAF;
+  --color-primary-500: #D9668F;
+  --color-primary-600: #BC4A72;
+  --color-primary-700: #97395A;
+  --color-primary-800: #6E2A43;
+  --color-primary-900: #47192B;
 
-  /* Deepened, desaturated cherry red — "aged wine" instead of fire-engine red */
-  --color-secondary: #7A2E27;
-  --color-secondary-dark: #5C221D;
-  --color-secondary-light: #EFDAD6;
+  /* Soft lilac, deepened enough for white-text buttons/CTAs to stay legible —
+     the artifact's pastel lilac (#C9AEE6) is used for badges/accents below;
+     this is that same hue pushed darker specifically for solid-fill controls. */
+  --color-secondary: #7A4FA0;
+  --color-secondary-dark: #5F3C7D;
+  --color-secondary-light: #EDE0F5;
 
-  --color-coral: #B85C4E;
-  --color-coral-light: #F3E1DC;
-  --color-beige: #F3EDE6;
-  --color-beige-dark: #E3D6CB;
-  --color-ivory: #FFFDF8;
-  --color-pearl: #FBF5F2;
-  --color-cream: #FDF6F3;
+  --color-coral: #C9AEE6;
+  --color-coral-light: #F2E8FA;
+  --color-beige: #FBF0F5;
+  --color-beige-dark: #F3DFEC;
+  --color-ivory: #FFFDFE;
+  --color-pearl: #FFF8FB;
+  --color-cream: #FEF6FA;
 
-  /* Brown from logo tree trunk — warmed to match */
-  --color-charcoal: #2A2420;
-  --color-charcoal-light: #4A4038;
-  --color-charcoal-lighter: #6E6459;
+  /* Ink — genuinely dark plum-black, never grey, so pastel surfaces still
+     have real contrast to sit against */
+  --color-charcoal: #3A2438;
+  --color-charcoal-light: #5C4058;
+  --color-charcoal-lighter: #8A7590;
 
-  --color-trunk: #6B3A2A;
-  --color-trunk-light: #8B5E4B;
+  --color-trunk: #6E2A43;
+  --color-trunk-light: #97395A;
 
-  /* New premium gold accent — dividers, tier badges, subtle hover glow */
-  --color-gold: #C9A45C;
-  --color-gold-light: #E6D3A8;
+  /* Gold — carries the premium signal since everything else leans soft */
+  --color-gold: #E0B96C;
+  --color-gold-light: #EDD39C;
 
   --color-background: #FFFFFF;
-  --color-foreground: #2A2420;
-  --color-muted: #F3EDE6;
-  --color-muted-foreground: #6E6459;
-  --color-border: #E3D6CB;
-  --color-ring: #7A2E27;
-  --color-input: #E3D6CB;
+  --color-foreground: #3A2438;
+  --color-muted: #FBF0F5;
+  --color-muted-foreground: #8A7590;
+  --color-border: #F3DFEC;
+  --color-ring: #7A4FA0;
+  --color-input: #F3DFEC;
 
   --color-destructive: #EF4444;
   --color-destructive-foreground: #FFFFFF;
@@ -65,12 +67,12 @@
   --color-warning-foreground: #FFFFFF;
 
   --color-card: #FFFFFF;
-  --color-card-foreground: #2A2420;
+  --color-card-foreground: #3A2438;
   --color-popover: #FFFFFF;
-  --color-popover-foreground: #2A2420;
+  --color-popover-foreground: #3A2438;
 
-  --color-accent: #FBF2F0;
-  --color-accent-foreground: #3D2226;
+  --color-accent: #FDEEF4;
+  --color-accent-foreground: #47192B;
 
   /* Fonts */
   --font-heading: "Playfair Display", "Cormorant Garamond", Georgia, serif;

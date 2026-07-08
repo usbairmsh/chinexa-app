@@ -16,6 +16,7 @@ import { MAIN_NAV, type NavItem } from "@/data/constants/navigation";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "./notification-bell";
 import { useCustomerBadge } from "@/hooks/use-customer-badge";
+import { useIconPlay } from "@/hooks/use-icon-play";
 
 export function Header() {
   const pathname = usePathname();
@@ -30,6 +31,11 @@ export function Header() {
   // before mount causes a hydration mismatch that wedges the splash loader.
   const isAuthenticated = mounted && storeAuthenticated;
   const badgeData = useCustomerBadge();
+  const wishlistIcon = useIconPlay<HTMLSpanElement>();
+  const cartIcon = useIconPlay<HTMLButtonElement>();
+  const accountPillIcon = useIconPlay<HTMLSpanElement>();
+  const accountIcon = useIconPlay<HTMLSpanElement>();
+  const mobileSignInIcon = useIconPlay<HTMLSpanElement>();
   const hiddenSeedIds = useCategoriesStore((s) => s.hiddenSeedIds);
   const [navItems, setNavItems] = useState<NavItem[]>(MAIN_NAV);
   // Start hidden — showing the bar with placeholder text before /api/settings
@@ -159,7 +165,8 @@ export function Header() {
               </Link>
 
               {/* Search — lens tilts in as if leaning closer to look, matching a
-                  literal magnifying-glass motion rather than a generic scale/rotate */}
+                  literal magnifying-glass motion rather than a generic scale/rotate.
+                  Single-keyframe, so whileHover interrupt-and-reverse is safe here. */}
               <motion.button
                 onClick={() => setSearchOverlayOpen(true)}
                 whileHover={{ scale: 1.1, rotate: -15 }}
@@ -251,12 +258,14 @@ export function Header() {
               {/* Notifications — signed-in customers only */}
               {isAuthenticated && <NotificationBell />}
 
-              {/* Wishlist — a heartbeat: two quick pulses on hover, like an actual heart, not a generic scale/rotate */}
+              {/* Wishlist — a heartbeat: two quick pulses on hover, like an actual heart, not a generic
+                  scale/rotate. Played imperatively so leaving mid-beat always finishes back to scale 1
+                  instead of snapping (whileHover would interrupt-and-reverse from wherever it was). */}
               <Link href="/wishlist" aria-label="Wishlist">
                 <motion.span
-                  whileHover={{ scale: [1, 1.28, 1.05, 1.22, 1] }}
+                  ref={wishlistIcon.scope}
+                  onHoverStart={() => wishlistIcon.play({ scale: [1, 1.28, 1.05, 1.22, 1] }, 0.6)}
                   whileTap={{ scale: 0.88 }}
-                  transition={{ duration: 0.6, ease: "easeInOut", times: [0, 0.25, 0.4, 0.6, 1] }}
                   className="relative flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors"
                 >
                   <Heart className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
@@ -277,14 +286,14 @@ export function Header() {
                 </motion.span>
               </Link>
 
-              {/* Cart — swings gently side to side like a bag handle being nudged,
-                  rather than a generic scale/rotate */}
+              {/* Cart — swings gently side to side like a bag handle being nudged, rather than a
+                  generic scale/rotate. Played imperatively so it always completes back to rotate 0. */}
               {pathname !== "/cart" && (
                 <motion.button
+                  ref={cartIcon.scope}
                   onClick={() => setCartDrawerOpen(true)}
-                  whileHover={{ rotate: [0, -12, 10, -6, 0], scale: 1.08 }}
+                  onHoverStart={() => cartIcon.play({ rotate: [0, -12, 10, -6, 0], scale: [1, 1.08, 1.08, 1.08, 1] }, 0.5)}
                   whileTap={{ scale: 0.92 }}
-                  transition={{ duration: 0.5, ease: "easeInOut" }}
                   className="relative flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors"
                   aria-label="Cart"
                 >
@@ -322,9 +331,9 @@ export function Header() {
                     title={`${badgeData.tier_name} Member`}
                   >
                     <motion.span
-                      whileHover={{ y: [0, -3, 0], scale: 1.08 }}
+                      ref={accountPillIcon.scope}
+                      onHoverStart={() => accountPillIcon.play({ y: [0, -3, 0], scale: [1, 1.08, 1] }, 0.4)}
                       whileTap={{ scale: 0.92 }}
-                      transition={{ duration: 0.4, ease: "easeInOut" }}
                       className="flex items-center justify-center h-7 w-7 rounded-full bg-white"
                       style={{ boxShadow: "inset 0 0 0 1px currentColor" }}
                     >
@@ -336,9 +345,9 @@ export function Header() {
                   <Link href="/dashboard" aria-label="Account">
                     {/* Account — a small nod (like acknowledging you), not a rotate */}
                     <motion.span
-                      whileHover={{ y: [0, -3, 0], scale: 1.08 }}
+                      ref={accountIcon.scope}
+                      onHoverStart={() => accountIcon.play({ y: [0, -3, 0], scale: [1, 1.08, 1] }, 0.4)}
                       whileTap={{ scale: 0.92 }}
-                      transition={{ duration: 0.4, ease: "easeInOut" }}
                       className="flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors"
                     >
                       <User className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
@@ -350,9 +359,9 @@ export function Header() {
                   {/* Mobile — icon */}
                   <Link href="/login" aria-label="Sign In" className="flex sm:hidden">
                     <motion.span
-                      whileHover={{ y: [0, -3, 0], scale: 1.08 }}
+                      ref={mobileSignInIcon.scope}
+                      onHoverStart={() => mobileSignInIcon.play({ y: [0, -3, 0], scale: [1, 1.08, 1] }, 0.4)}
                       whileTap={{ scale: 0.92 }}
-                      transition={{ duration: 0.4, ease: "easeInOut" }}
                       className="flex items-center justify-center h-9 w-9 rounded-full bg-secondary text-white hover:bg-secondary-dark transition-colors"
                     >
                       <User className="h-4 w-4" />

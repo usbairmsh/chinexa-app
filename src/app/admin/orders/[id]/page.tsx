@@ -492,7 +492,7 @@ export default function OrderDetailPage() {
           </div>
           <DialogFooter>
             <button onClick={() => setEditOrderOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
-            <button onClick={handleSaveOrder} disabled={editSaving} className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(192,57,43,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300">
+            <button onClick={handleSaveOrder} disabled={editSaving} className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300">
               {editSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save
             </button>
           </DialogFooter>

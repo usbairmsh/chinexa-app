@@ -10,23 +10,23 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_8px_28px_rgba(122,46,39,0.35)] hover:-translate-y-px",
+          "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_8px_28px_rgba(122,79,160,0.35)] hover:-translate-y-px",
         primary:
-          "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_8px_28px_rgba(122,46,39,0.35)] hover:-translate-y-px",
+          "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_8px_28px_rgba(122,79,160,0.35)] hover:-translate-y-px",
         secondary:
-          "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_8px_28px_rgba(122,46,39,0.35)] hover:-translate-y-px",
+          "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_8px_28px_rgba(122,79,160,0.35)] hover:-translate-y-px",
         outline:
-          "border border-secondary/25 bg-white text-secondary hover:bg-secondary hover:text-white hover:border-secondary hover:shadow-[0_8px_24px_rgba(122,46,39,0.22)] hover:-translate-y-px",
+          "border border-secondary/25 bg-white text-secondary hover:bg-secondary hover:text-white hover:border-secondary hover:shadow-[0_8px_24px_rgba(122,79,160,0.22)] hover:-translate-y-px",
         ghost:
           "text-charcoal-light hover:bg-pearl hover:text-charcoal",
         link:
           "text-secondary underline-offset-4 hover:underline hover:text-secondary-dark",
         luxury:
-          "bg-gradient-to-r from-secondary to-coral text-white hover:shadow-[0_8px_28px_rgba(122,46,39,0.35)] hover:brightness-[1.08] hover:-translate-y-px",
+          "bg-gradient-to-r from-secondary to-coral text-white hover:shadow-[0_8px_28px_rgba(122,79,160,0.35)] hover:brightness-[1.08] hover:-translate-y-px",
         destructive:
           "bg-destructive text-white hover:bg-destructive/90 hover:shadow-[0_8px_24px_rgba(239,68,68,0.28)] hover:-translate-y-px",
         gold:
-          "bg-gold text-white hover:bg-gold-light hover:shadow-[0_8px_24px_rgba(201,164,92,0.35)] hover:-translate-y-px",
+          "bg-gold text-white hover:bg-gold-light hover:shadow-[0_8px_24px_rgba(224,185,108,0.35)] hover:-translate-y-px",
       },
       size: {
         default: "h-10 px-6 py-2.5 text-[13px]",

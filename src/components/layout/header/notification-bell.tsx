@@ -9,6 +9,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import { formatDateShort, cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useIconPlay } from "@/hooks/use-icon-play";
 
 interface Notification {
   id: string;
@@ -72,6 +73,7 @@ export function NotificationBell() {
   const [selected, setSelected] = useState<Notification | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const bellIcon = useIconPlay<HTMLButtonElement>();
 
   useEffect(() => setMounted(true), []);
 
@@ -164,13 +166,14 @@ export function NotificationBell() {
 
   return (
     <div className="relative" ref={panelRef}>
-      {/* Bell literally rings — a quick side-to-side wiggle around the top pivot,
-          like a clapper striking, rather than a generic scale/rotate */}
+      {/* Bell literally rings — a quick side-to-side wiggle around the top pivot, like a clapper
+          striking, rather than a generic scale/rotate. Played imperatively via animate() so leaving
+          mid-wiggle always finishes back to rotate 0 instead of whileHover snapping it stuck. */}
       <motion.button
+        ref={bellIcon.scope}
         onClick={handleBellClick}
-        whileHover={{ rotate: [0, 14, -12, 9, -6, 3, 0] }}
+        onHoverStart={() => bellIcon.play({ rotate: [0, 14, -12, 9, -6, 3, 0] }, 0.55)}
         whileTap={{ scale: 0.92 }}
-        transition={{ duration: 0.55, ease: "easeInOut" }}
         style={{ transformOrigin: "top center" }}
         className="relative flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors"
         aria-label={unread > 0 ? `Notifications (${unread} unread)` : "Notifications"}
