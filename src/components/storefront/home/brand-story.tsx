@@ -1,11 +1,27 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { DEFAULT_OUR_STORY, type OurStoryContent } from "@/types/our-story";
 
 export function BrandStory() {
+  const [story, setStory] = useState<OurStoryContent | null>(null);
+
+  useEffect(() => {
+    fetch("/api/settings?key=our_story")
+      .then((r) => r.json())
+      .then((data) => { if (data?.value) setStory({ ...DEFAULT_OUR_STORY, ...data.value }); })
+      .catch(() => {});
+  }, []);
+
+  // Render nothing until settings resolve (or genuinely fall back to the
+  // built-in defaults, never a flash of one before the other) — matches the
+  // "no demo content before real data loads" convention used across the app.
+  const content = story || DEFAULT_OUR_STORY;
+
   return (
     <section className="py-20 bg-pearl overflow-hidden">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -20,16 +36,13 @@ export function BrandStory() {
               Our Story
             </p>
             <h2 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-semibold text-charcoal mb-6 leading-tight">
-              True Beauty
-              <br />
-              <span className="text-gradient-luxury">Knows No Borders</span>
+              {content.heading}
             </h2>
-            <p className="text-charcoal-lighter leading-relaxed mb-4">
-              ChineXa was born from a simple belief: every woman deserves access to the world&apos;s finest beauty products. Based in Bangladesh, we curate premium skincare, luxury bags, exquisite jewelry, and fine fragrances from trusted global brands.
-            </p>
-            <p className="text-charcoal-lighter leading-relaxed mb-8">
-              We believe beauty is not about changing who you are — it&apos;s about celebrating who you already are. Each product in our collection is carefully selected to help you feel confident, radiant, and unapologetically you.
-            </p>
+            {content.paragraphs.slice(0, 2).map((p, i) => (
+              <p key={i} className={i === 0 ? "text-charcoal-lighter leading-relaxed mb-4" : "text-charcoal-lighter leading-relaxed mb-8"}>
+                {p}
+              </p>
+            ))}
             <Link href="/about">
               <Button variant="secondary" size="lg">Discover More</Button>
             </Link>
@@ -44,7 +57,7 @@ export function BrandStory() {
           >
             <div className="relative aspect-[4/5] rounded-3xl overflow-hidden">
               <Image
-                src="https://picsum.photos/seed/brand-story/800/1000"
+                src={content.image}
                 alt="ChineXa brand story"
                 fill
                 className="object-cover"

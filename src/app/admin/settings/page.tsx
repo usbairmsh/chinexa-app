@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import {
   Settings, Store, Truck, CreditCard, Bell, Save, Loader2, Check,
-  Plus, Trash2, X, Edit, Globe, FolderTree, ShoppingCart, Award, Users, Search
+  Plus, Trash2, X, Edit, Globe, FolderTree, ShoppingCart, Award, Users, Search,
+  BookOpen
 } from "lucide-react";
 import { SOCIAL_PLATFORMS, getPlatform } from "@/lib/social-platforms";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,6 +19,8 @@ import { ImageUpload } from "@/components/admin/shared/image-upload";
 import { useDeliveryStore } from "@/stores/delivery.store";
 import { formatCurrency, cn, randomId } from "@/lib/utils";
 import type { OfferApplicability } from "@/types/offer";
+import { DEFAULT_OUR_STORY, type OurStoryContent, type OurStoryValue, type OurStoryStat } from "@/types/our-story";
+import { OUR_STORY_ICON_MAP, OUR_STORY_ICON_OPTIONS } from "@/lib/our-story-icons";
 
 type Tab = "general" | "store" | "delivery" | "payment" | "notifications";
 
@@ -156,8 +159,7 @@ export default function AdminSettingsPage() {
 
   // ═══ STORE ═══
   const [storeLogo, setStoreLogo] = useState("");
-  const [storeTagline, setStoreTagline] = useState("");
-  const [aboutText, setAboutText] = useState("");
+  const [ourStory, setOurStory] = useState<OurStoryContent>(DEFAULT_OUR_STORY);
   const [socialLinks, setSocialLinks] = useState<{ platform: string; url: string }[]>([]);
   const [addSocialOpen, setAddSocialOpen] = useState(false);
   const [newSocialPlatform, setNewSocialPlatform] = useState("");
@@ -240,7 +242,7 @@ export default function AdminSettingsPage() {
   // ═══ LOAD ALL ═══
   useEffect(() => {
     setMounted(true);
-    fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,features,store_logo,store_tagline,about_text,social_links,maintenance_mode,announcement,delivery_config,payment_methods,notification_settings")
+    fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,features,store_logo,our_story,social_links,maintenance_mode,announcement,delivery_config,payment_methods,notification_settings")
       .then((r) => r.json())
       .then((data) => {
         if (data.store_name) setStoreName(data.store_name);
@@ -249,8 +251,7 @@ export default function AdminSettingsPage() {
         if (data.store_address) setStoreAddress(data.store_address);
         if (data.features) setFeatures((p) => ({ ...p, ...data.features }));
         if (data.store_logo) setStoreLogo(data.store_logo);
-        if (data.store_tagline) setStoreTagline(data.store_tagline);
-        if (data.about_text) setAboutText(data.about_text);
+        if (data.our_story) setOurStory({ ...DEFAULT_OUR_STORY, ...data.our_story });
         if (data.social_links) {
           if (Array.isArray(data.social_links)) {
             setSocialLinks(data.social_links);
@@ -365,7 +366,21 @@ export default function AdminSettingsPage() {
   };
 
   const saveGeneral = () => saveSettings({ store_name: storeName, store_email: storeEmail, store_phone: storePhone, store_address: storeAddress, features }, setGeneralSaving, setGeneralSaved);
-  const saveStoreSettings = () => saveSettings({ store_logo: storeLogo, store_tagline: storeTagline, about_text: aboutText, social_links: socialLinks, maintenance_mode: maintenanceMode, announcement: { text: announcementText, visible: announcementVisible } }, setStoreSaving, setStoreSaved);
+  const saveStoreSettings = () => saveSettings({ store_logo: storeLogo, our_story: ourStory, social_links: socialLinks, maintenance_mode: maintenanceMode, announcement: { text: announcementText, visible: announcementVisible } }, setStoreSaving, setStoreSaved);
+
+  // ─── Our Story helpers ───
+  const updateStory = (patch: Partial<OurStoryContent>) => setOurStory((s) => ({ ...s, ...patch }));
+  const updateParagraph = (i: number, text: string) => setOurStory((s) => ({ ...s, paragraphs: s.paragraphs.map((p, idx) => (idx === i ? text : p)) }));
+  const addParagraph = () => setOurStory((s) => ({ ...s, paragraphs: [...s.paragraphs, ""] }));
+  const removeParagraph = (i: number) => setOurStory((s) => ({ ...s, paragraphs: s.paragraphs.filter((_, idx) => idx !== i) }));
+
+  const updateValue = (i: number, patch: Partial<OurStoryValue>) => setOurStory((s) => ({ ...s, values: s.values.map((v, idx) => (idx === i ? { ...v, ...patch } : v)) }));
+  const addValue = () => setOurStory((s) => ({ ...s, values: [...s.values, { icon: "Sparkles", title: "", description: "" }] }));
+  const removeValue = (i: number) => setOurStory((s) => ({ ...s, values: s.values.filter((_, idx) => idx !== i) }));
+
+  const updateStat = (i: number, patch: Partial<OurStoryStat>) => setOurStory((s) => ({ ...s, stats: s.stats.map((v, idx) => (idx === i ? { ...v, ...patch } : v)) }));
+  const addStat = () => setOurStory((s) => ({ ...s, stats: [...s.stats, { value: "", label: "" }] }));
+  const removeStat = (i: number) => setOurStory((s) => ({ ...s, stats: s.stats.filter((_, idx) => idx !== i) }));
   const saveDelivery = async () => {
     const val = Number(thresholdInput);
     if (val > 0) delivery.setFreeDeliveryThreshold(val);
@@ -462,8 +477,6 @@ export default function AdminSettingsPage() {
             <Card><CardHeader><CardTitle className="text-base">Branding</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <ImageUpload label="Store Logo" value={storeLogo} onChange={setStoreLogo} aspectRatio="square" folder="general" />
-                <Input label="Tagline" value={storeTagline} onChange={(e) => setStoreTagline(e.target.value)} placeholder="True Beauty Knows No Borders" />
-                <Textarea label="About" value={aboutText} onChange={(e) => setAboutText(e.target.value)} className="min-h-[80px]" />
               </CardContent>
             </Card>
             <div className="space-y-5">
@@ -549,6 +562,95 @@ export default function AdminSettingsPage() {
               <Card><CardContent className="p-5"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-charcoal">Maintenance Mode</p><p className="text-[10px] text-charcoal-lighter">Take store offline</p></div><Switch checked={maintenanceMode} onCheckedChange={setMaintenanceMode} /></div></CardContent></Card>
             </div>
           </div>
+
+          {/* Our Story — powers the homepage "Our Story" section and the /about page */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2"><BookOpen className="h-4 w-4 text-secondary" /> Our Story</CardTitle>
+              <CardDescription>Shown on the homepage &ldquo;Our Story&rdquo; section and the full /about page</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Input label="Eyebrow" value={ourStory.eyebrow} onChange={(e) => updateStory({ eyebrow: e.target.value })} placeholder="Who We Are" />
+                <Input label="Heading" value={ourStory.heading} onChange={(e) => updateStory({ heading: e.target.value })} placeholder="Beauty that speaks to your soul" />
+              </div>
+              <ImageUpload label="Story Image" value={ourStory.image} onChange={(v) => updateStory({ image: v })} aspectRatio="portrait" folder="general" />
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-charcoal-light">Story Paragraphs</label>
+                  <AdminButton size="xs" variant="outline" onClick={addParagraph}><Plus className="h-3 w-3" /> Add Paragraph</AdminButton>
+                </div>
+                <div className="space-y-2">
+                  {ourStory.paragraphs.map((p, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <Textarea value={p} onChange={(e) => updateParagraph(i, e.target.value)} className="min-h-[70px] flex-1" placeholder={`Paragraph ${i + 1}`} />
+                      <button onClick={() => removeParagraph(i)} className="mt-2 p-1.5 rounded-md text-charcoal-lighter/50 hover:text-destructive hover:bg-destructive/5 transition-colors shrink-0">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  {ourStory.paragraphs.length === 0 && <p className="text-xs text-charcoal-lighter text-center py-3">No paragraphs yet</p>}
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-charcoal-light">Values Section</label>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-3 mb-3">
+                  <Input label="Section Heading" value={ourStory.values_heading} onChange={(e) => updateStory({ values_heading: e.target.value })} />
+                  <Input label="Section Subheading" value={ourStory.values_subheading} onChange={(e) => updateStory({ values_subheading: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  {ourStory.values.map((value, i) => {
+                    const Icon = OUR_STORY_ICON_MAP[value.icon] || OUR_STORY_ICON_MAP.Sparkles;
+                    return (
+                      <div key={i} className="flex items-start gap-2 p-3 rounded-xl border border-border/30 bg-pearl/20">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-light shrink-0 mt-0.5"><Icon className="h-4 w-4 text-secondary" /></div>
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <div className="grid sm:grid-cols-[120px_1fr] gap-2">
+                            <Select value={value.icon} onValueChange={(v) => updateValue(i, { icon: v as typeof value.icon })}>
+                              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {OUR_STORY_ICON_OPTIONS.map((opt) => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                            <Input value={value.title} onChange={(e) => updateValue(i, { title: e.target.value })} placeholder="Title" className="h-9" />
+                          </div>
+                          <Textarea value={value.description} onChange={(e) => updateValue(i, { description: e.target.value })} placeholder="Description" className="min-h-[60px]" />
+                        </div>
+                        <button onClick={() => removeValue(i)} className="p-1.5 rounded-md text-charcoal-lighter/50 hover:text-destructive hover:bg-destructive/5 transition-colors shrink-0">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <AdminButton size="xs" variant="outline" className="mt-2" onClick={addValue}><Plus className="h-3 w-3" /> Add Value</AdminButton>
+              </div>
+
+              <Separator />
+
+              <div>
+                <label className="text-sm font-medium text-charcoal-light mb-2 block">Stats Row</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {ourStory.stats.map((stat, i) => (
+                    <div key={i} className="relative p-3 rounded-xl border border-border/30 bg-pearl/20 space-y-2">
+                      <button onClick={() => removeStat(i)} className="absolute top-2 right-2 p-0.5 text-charcoal-lighter/40 hover:text-destructive transition-colors">
+                        <X className="h-3 w-3" />
+                      </button>
+                      <Input value={stat.value} onChange={(e) => updateStat(i, { value: e.target.value })} placeholder="300+" className="h-9 text-center font-semibold" />
+                      <Input value={stat.label} onChange={(e) => updateStat(i, { label: e.target.value })} placeholder="Products" className="h-9 text-center text-xs" />
+                    </div>
+                  ))}
+                </div>
+                <AdminButton size="xs" variant="outline" className="mt-2" onClick={addStat}><Plus className="h-3 w-3" /> Add Stat</AdminButton>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
