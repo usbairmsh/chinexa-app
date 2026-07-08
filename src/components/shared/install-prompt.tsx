@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { X, Share, PlusSquare, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getStoredConsent } from "@/lib/cookie-consent";
 
 const DISMISS_KEY = "chinexa-install-dismissed-at";
 const DISMISS_DAYS = 14;
@@ -61,6 +62,20 @@ export function InstallPrompt() {
   useEffect(() => {
     if (isAdminRoute || isStandalone() || wasRecentlyDismissed()) return;
 
+    // The cookie-consent banner takes priority — don't compete with it for
+    // the same bottom-corner real estate. Wait until the visitor has decided
+    // (or already had decided on a prior visit) before offering the install prompt.
+    let cancelled = false;
+    const waitForConsent = () =>
+      new Promise<void>((resolve) => {
+        if (getStoredConsent()) { resolve(); return; }
+        const onDecided = () => {
+          window.removeEventListener("chinexa-consent-updated", onDecided);
+          resolve();
+        };
+        window.addEventListener("chinexa-consent-updated", onDecided);
+      });
+
     const ua = window.navigator.userAgent;
     const isIos = /iPad|iPhone|iPod/.test(ua) || (ua.includes("Macintosh") && navigator.maxTouchPoints > 1);
     const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
@@ -68,20 +83,25 @@ export function InstallPrompt() {
     if (isIos && isSafari) {
       // No install-readiness signal on iOS — show after a short delay so it
       // doesn't compete with the initial page-load experience.
-      const timer = setTimeout(() => { setShowIosBanner(true); setVisible(true); }, 4000);
-      return () => clearTimeout(timer);
+      waitForConsent().then(() => {
+        if (cancelled) return;
+        const timer = setTimeout(() => { if (!cancelled) { setShowIosBanner(true); setVisible(true); } }, 4000);
+        return () => clearTimeout(timer);
+      });
+      return () => { cancelled = true; };
     }
 
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setVisible(true);
+      waitForConsent().then(() => { if (!cancelled) setVisible(true); });
     };
     window.addEventListener("beforeinstallprompt", handler);
     // If the browser installs it another way (e.g. omnibox icon), hide our banner.
     const onInstalled = () => { setVisible(false); markDismissed(); };
     window.addEventListener("appinstalled", onInstalled);
     return () => {
+      cancelled = true;
       window.removeEventListener("beforeinstallprompt", handler);
       window.removeEventListener("appinstalled", onInstalled);
     };

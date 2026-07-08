@@ -27,6 +27,22 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // App-level fallback so these hold even if Caddy (the primary layer, on the
+  // VPS) is ever bypassed or misconfigured. CSP and HSTS are deliberately kept
+  // Caddy-only — CSP needs iterative tuning against real browser console output
+  // and HSTS should be set as close to the TLS termination point as possible.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

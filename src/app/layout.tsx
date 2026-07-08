@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { playfairDisplay, inter } from "@/lib/fonts";
 import { Providers } from "@/providers";
 import { InstallPrompt } from "@/components/shared/install-prompt";
+import { CookieConsent } from "@/components/shared/cookie-consent";
 import { ServiceWorkerRegister } from "@/components/shared/sw-register";
 import "./globals.css";
 
@@ -158,6 +159,7 @@ export default function RootLayout({
         <Providers>{children}</Providers>
         <ServiceWorkerRegister />
         <InstallPrompt />
+        <CookieConsent />
       </body>
     </html>
   );
