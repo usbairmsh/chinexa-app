@@ -164,22 +164,30 @@ export function NotificationBell() {
 
   return (
     <div className="relative" ref={panelRef}>
-      <button
+      <motion.button
         onClick={handleBellClick}
-        className="relative flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all"
+        whileHover={{ scale: 1.12, rotate: 8 }}
+        whileTap={{ scale: 0.9 }}
+        transition={{ type: "spring", stiffness: 400, damping: 15 }}
+        className="relative flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors"
         aria-label={unread > 0 ? `Notifications (${unread} unread)` : "Notifications"}
       >
         <Bell className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
-        {isAuthenticated && unread > 0 && (
-          <motion.span
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="absolute top-0 right-0 sm:top-0.5 sm:right-0.5 flex h-[14px] min-w-[14px] px-0.5 items-center justify-center rounded-full bg-secondary text-[8px] font-bold text-white ring-2 ring-white"
-          >
-            {unread > 99 ? "99+" : unread}
-          </motion.span>
-        )}
-      </button>
+        <AnimatePresence>
+          {isAuthenticated && unread > 0 && (
+            <motion.span
+              key={unread}
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0 }}
+              transition={{ type: "spring", stiffness: 500, damping: 12 }}
+              className="absolute top-0 right-0 sm:top-0.5 sm:right-0.5 flex h-[14px] min-w-[14px] px-0.5 items-center justify-center rounded-full bg-secondary text-[8px] font-bold text-white ring-2 ring-white"
+            >
+              {unread > 99 ? "99+" : unread}
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </motion.button>
 
       {/* Popup — bottom sheet on phones (portaled to body), anchored dropdown on ≥sm */}
       <MaybePortal active={useSheet}>

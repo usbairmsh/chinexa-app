@@ -125,13 +125,27 @@ export function Header() {
 
             {/* ── LEFT: Hamburger (mobile) + Logo ── */}
             <div className="flex items-center gap-2 lg:gap-0 shrink-0">
-              <button
+              <motion.button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                whileHover={{ scale: 1.12 }}
+                whileTap={{ scale: 0.9 }}
+                transition={{ type: "spring", stiffness: 400, damping: 15 }}
                 className="lg:hidden flex items-center justify-center h-9 w-9 rounded-full hover:bg-primary-light text-charcoal transition-colors"
                 aria-label="Toggle menu"
               >
-                {mobileMenuOpen ? <X className="h-[18px] w-[18px]" /> : <Menu className="h-[18px] w-[18px]" />}
-              </button>
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.span
+                    key={mobileMenuOpen ? "close" : "open"}
+                    initial={{ opacity: 0, rotate: -45 }}
+                    animate={{ opacity: 1, rotate: 0 }}
+                    exit={{ opacity: 0, rotate: 45 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex"
+                  >
+                    {mobileMenuOpen ? <X className="h-[18px] w-[18px]" /> : <Menu className="h-[18px] w-[18px]" />}
+                  </motion.span>
+                </AnimatePresence>
+              </motion.button>
 
               <Link href="/" className="flex items-center overflow-hidden">
                 <Image
@@ -145,13 +159,16 @@ export function Header() {
               </Link>
 
               {/* Search — lives beside the logo (bell took its old spot on the right) */}
-              <button
+              <motion.button
                 onClick={() => setSearchOverlayOpen(true)}
-                className="flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all ml-1 lg:ml-3"
+                whileHover={{ scale: 1.12, rotate: -8 }}
+                whileTap={{ scale: 0.9 }}
+                transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                className="flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors ml-1 lg:ml-3"
                 aria-label="Search"
               >
                 <Search className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
-              </button>
+              </motion.button>
             </div>
 
             {/* ── CENTER: Navigation ── */}
@@ -234,37 +251,57 @@ export function Header() {
               {isAuthenticated && <NotificationBell />}
 
               {/* Wishlist */}
-              <Link
-                href="/wishlist"
-                className="relative flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all"
-                aria-label="Wishlist"
-              >
-                <Heart className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
-                {mounted && wishlistCount > 0 && (
-                  <span className="absolute top-0 right-0 sm:top-0.5 sm:right-0.5 flex h-[14px] w-[14px] items-center justify-center rounded-full bg-secondary text-[8px] font-bold text-white ring-2 ring-white">
-                    {wishlistCount}
-                  </span>
-                )}
+              <Link href="/wishlist" aria-label="Wishlist">
+                <motion.span
+                  whileHover={{ scale: 1.12, rotate: 8 }}
+                  whileTap={{ scale: 0.9 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                  className="relative flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors"
+                >
+                  <Heart className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+                  <AnimatePresence>
+                    {mounted && wishlistCount > 0 && (
+                      <motion.span
+                        key={wishlistCount}
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        exit={{ scale: 0 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 12 }}
+                        className="absolute top-0 right-0 sm:top-0.5 sm:right-0.5 flex h-[14px] w-[14px] items-center justify-center rounded-full bg-secondary text-[8px] font-bold text-white ring-2 ring-white"
+                      >
+                        {wishlistCount}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.span>
               </Link>
 
               {/* Cart — hidden on cart page */}
               {pathname !== "/cart" && (
-                <button
+                <motion.button
                   onClick={() => setCartDrawerOpen(true)}
-                  className="relative flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all"
+                  whileHover={{ scale: 1.12, rotate: -8 }}
+                  whileTap={{ scale: 0.9 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                  className="relative flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors"
                   aria-label="Cart"
                 >
                   <ShoppingBag className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
-                  {mounted && cartCount > 0 && (
-                    <motion.span
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="absolute top-0 right-0 sm:top-0.5 sm:right-0.5 flex h-[14px] w-[14px] items-center justify-center rounded-full bg-secondary text-[8px] font-bold text-white ring-2 ring-white"
-                    >
-                      {cartCount}
-                    </motion.span>
-                  )}
-                </button>
+                  <AnimatePresence>
+                    {mounted && cartCount > 0 && (
+                      <motion.span
+                        key={cartCount}
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        exit={{ scale: 0 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 12 }}
+                        className="absolute top-0 right-0 sm:top-0.5 sm:right-0.5 flex h-[14px] w-[14px] items-center justify-center rounded-full bg-secondary text-[8px] font-bold text-white ring-2 ring-white"
+                      >
+                        {cartCount}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.button>
               )}
 
               {/* Account — profile icon + tier name in one rounded-border pill, tinted in the tier's own color.
@@ -282,41 +319,55 @@ export function Header() {
                     aria-label="Account"
                     title={`${badgeData.tier_name} Member`}
                   >
-                    <span
+                    <motion.span
+                      whileHover={{ scale: 1.15, rotate: 8 }}
+                      whileTap={{ scale: 0.9 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 15 }}
                       className="flex items-center justify-center h-7 w-7 rounded-full bg-white"
                       style={{ boxShadow: "inset 0 0 0 1px currentColor" }}
                     >
                       <User className="h-3.5 w-3.5" />
-                    </span>
+                    </motion.span>
                     <span className="text-[11px] font-bold tracking-wide whitespace-nowrap uppercase">{badgeData.tier_name}</span>
                   </Link>
                 ) : (
-                  <Link
-                    href="/dashboard"
-                    className="flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-all"
-                    aria-label="Account"
-                  >
-                    <User className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+                  <Link href="/dashboard" aria-label="Account">
+                    <motion.span
+                      whileHover={{ scale: 1.12, rotate: 8 }}
+                      whileTap={{ scale: 0.9 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                      className="flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors"
+                    >
+                      <User className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+                    </motion.span>
                   </Link>
                 )
               ) : (
                 <>
                   {/* Mobile — icon */}
-                  <Link
-                    href="/login"
-                    className="flex sm:hidden items-center justify-center h-9 w-9 rounded-full bg-secondary text-white hover:bg-secondary-dark transition-all duration-200"
-                    aria-label="Sign In"
-                  >
-                    <User className="h-4 w-4" />
+                  <Link href="/login" aria-label="Sign In" className="flex sm:hidden">
+                    <motion.span
+                      whileHover={{ scale: 1.12, rotate: 8 }}
+                      whileTap={{ scale: 0.9 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                      className="flex items-center justify-center h-9 w-9 rounded-full bg-secondary text-white hover:bg-secondary-dark transition-colors"
+                    >
+                      <User className="h-4 w-4" />
+                    </motion.span>
                   </Link>
                   {/* Desktop — pill button */}
                   <div className="hidden sm:flex items-center">
                     <div className="w-px h-5 bg-border/30 mx-2" />
                     <Link href="/login">
-                      <span className="inline-flex items-center gap-1.5 h-9 px-5 rounded-full bg-secondary text-white text-[13px] font-body font-medium tracking-wide hover:bg-secondary-dark hover:shadow-lg transition-all duration-200 cursor-pointer">
+                      <motion.span
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                        className="inline-flex items-center gap-1.5 h-9 px-5 rounded-full bg-secondary text-white text-[13px] font-body font-medium tracking-wide hover:bg-secondary-dark hover:shadow-lg transition-colors duration-200 cursor-pointer"
+                      >
                         <User className="h-3.5 w-3.5" />
                         Sign In
-                      </span>
+                      </motion.span>
                     </Link>
                   </div>
                 </>

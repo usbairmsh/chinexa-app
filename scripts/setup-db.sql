@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS products (
   INDEX idx_products_active_featured (is_active, is_featured, created_at),
   INDEX idx_products_price (price),
   INDEX idx_products_rating (average_rating),
-  FULLTEXT INDEX ft_products_search (name, short_description, description, category_name, subcategory, brand_name, sku, ingredients)
+  FULLTEXT INDEX ft_products_search (name, short_description, description, category_name, subcategory, brand_name, sku, ingredients, how_to_use, seo_title, seo_description, country_of_origin, weight)
 ) ENGINE=InnoDB;
 
 -- Search activity log — powers real "trending searches" from actual customer

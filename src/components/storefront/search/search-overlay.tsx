@@ -6,7 +6,6 @@ import Image from "next/image";
 import { Search, X, ArrowRight, Clock, TrendingUp, Loader2, CornerDownLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUIStore } from "@/stores/ui.store";
-import { useCategories } from "@/hooks/queries/use-categories";
 import { useSearchProducts } from "@/hooks/queries/use-products";
 import { useTrendingSearches } from "@/hooks/queries/use-trending-searches";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -19,6 +18,7 @@ export function SearchOverlay() {
   const [query, setQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -27,9 +27,6 @@ export function SearchOverlay() {
 
   const { data: searchData, isFetching: searching } = useSearchProducts(isSubmittable ? debouncedQuery : "", { page_size: 8 });
   const results = useMemo(() => searchData?.data || [], [searchData]);
-
-  const { data: categoriesData } = useCategories();
-  const popularCategories = useMemo(() => (categoriesData || []).slice(0, 4), [categoriesData]);
 
   const { data: trendingData } = useTrendingSearches();
   const trendingTerms = trendingData?.terms || [];
@@ -129,29 +126,44 @@ export function SearchOverlay() {
               <div className="relative shrink-0">
                 <div
                   className={cn(
-                    "flex items-center gap-3 h-16 px-5 border-b transition-colors",
-                    query ? "border-border/30" : "border-transparent"
+                    "flex items-center gap-3 h-16 px-5 border-b transition-colors duration-200",
+                    focused ? "border-secondary/25" : query ? "border-border/30" : "border-transparent"
                   )}
                 >
-                  <Search className="h-5 w-5 text-secondary shrink-0" strokeWidth={2.25} />
+                  <motion.span
+                    animate={searching ? { scale: [1, 1.15, 1] } : { scale: 1 }}
+                    transition={searching ? { duration: 0.9, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}
+                    className="shrink-0"
+                  >
+                    <Search className={cn("h-5 w-5 transition-colors duration-200", focused ? "text-secondary" : "text-charcoal-lighter")} strokeWidth={2.25} />
+                  </motion.span>
                   <input
                     ref={inputRef}
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search for products, brands, categories..."
+                    onFocus={() => setFocused(true)}
+                    onBlur={() => setFocused(false)}
+                    placeholder="Search products, brands, ingredients..."
                     className="flex-1 h-full text-[15px] font-medium text-charcoal placeholder:text-charcoal-lighter/60 placeholder:font-normal outline-none bg-transparent"
                     autoComplete="off"
                   />
-                  {query && (
-                    <button
-                      onClick={() => { setQuery(""); inputRef.current?.focus(); }}
-                      className="p-1.5 rounded-full hover:bg-pearl text-charcoal-lighter shrink-0"
-                      aria-label="Clear search"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
+                  <AnimatePresence>
+                    {query && (
+                      <motion.button
+                        initial={{ opacity: 0, scale: 0.7 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.7 }}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => { setQuery(""); inputRef.current?.focus(); }}
+                        className="p-1.5 rounded-full hover:bg-pearl text-charcoal-lighter shrink-0"
+                        aria-label="Clear search"
+                      >
+                        <X className="h-4 w-4" />
+                      </motion.button>
+                    )}
+                  </AnimatePresence>
                   <button
                     onClick={closeOverlay}
                     className="hidden sm:flex items-center gap-1 h-7 px-2 rounded-md border border-border/40 text-[10px] font-medium text-charcoal-lighter shrink-0"
@@ -166,6 +178,13 @@ export function SearchOverlay() {
                     <X className="h-4 w-4" />
                   </button>
                 </div>
+                {/* Subtle animated underline glow while focused — minimal, not flashy */}
+                <motion.div
+                  initial={false}
+                  animate={{ scaleX: focused ? 1 : 0, opacity: focused ? 1 : 0 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  className="absolute bottom-0 left-0 right-0 h-[2px] bg-secondary origin-left"
+                />
               </div>
 
               {/* Results Area */}
@@ -178,40 +197,46 @@ export function SearchOverlay() {
                       </p>
                       <div className="space-y-0.5">
                         {results.map((product, i) => (
-                          <Link
+                          <motion.div
                             key={product.id}
-                            data-index={i}
-                            href={`/products/${product.slug}`}
-                            onClick={() => { rememberSearch(product.name); closeOverlay(); }}
-                            onMouseEnter={() => setActiveIndex(i)}
-                            className={cn(
-                              "flex items-center gap-3.5 p-2.5 rounded-xl transition-colors group",
-                              activeIndex === i ? "bg-primary-light" : "hover:bg-pearl/70"
-                            )}
+                            initial={{ opacity: 0, y: 6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.025 }}
                           >
-                            <div className="relative h-12 w-12 rounded-lg overflow-hidden bg-pearl shrink-0 ring-1 ring-black/[0.04]">
-                              <Image
-                                src={product.images[0]?.url || `https://picsum.photos/seed/${product.slug}/100/100`}
-                                alt={product.name}
-                                fill
-                                className="object-cover"
-                                sizes="48px"
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-charcoal group-hover:text-secondary transition-colors truncate">
-                                {product.name}
-                              </p>
-                              <p className="text-[11px] text-charcoal-lighter truncate">{product.category_name}</p>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <p className="text-sm font-semibold text-charcoal">{formatCurrency(product.price)}</p>
-                              {product.compare_at_price && (
-                                <p className="text-[10px] text-charcoal-lighter line-through">{formatCurrency(product.compare_at_price)}</p>
+                            <Link
+                              data-index={i}
+                              href={`/products/${product.slug}`}
+                              onClick={() => { rememberSearch(product.name); closeOverlay(); }}
+                              onMouseEnter={() => setActiveIndex(i)}
+                              className={cn(
+                                "flex items-center gap-3.5 p-2.5 rounded-xl transition-colors group",
+                                activeIndex === i ? "bg-primary-light" : "hover:bg-pearl/70"
                               )}
-                            </div>
-                            {activeIndex === i && <CornerDownLeft className="h-3.5 w-3.5 text-secondary shrink-0" />}
-                          </Link>
+                            >
+                              <div className="relative h-12 w-12 rounded-lg overflow-hidden bg-pearl shrink-0 ring-1 ring-black/[0.04]">
+                                <Image
+                                  src={product.images[0]?.url || `https://picsum.photos/seed/${product.slug}/100/100`}
+                                  alt={product.name}
+                                  fill
+                                  className="object-cover transition-transform duration-300 group-hover:scale-110"
+                                  sizes="48px"
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-charcoal group-hover:text-secondary transition-colors truncate">
+                                  {product.name}
+                                </p>
+                                <p className="text-[11px] text-charcoal-lighter truncate">{product.category_name}</p>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="text-sm font-semibold text-charcoal">{formatCurrency(product.price)}</p>
+                                {product.compare_at_price && (
+                                  <p className="text-[10px] text-charcoal-lighter line-through">{formatCurrency(product.compare_at_price)}</p>
+                                )}
+                              </div>
+                              {activeIndex === i && <CornerDownLeft className="h-3.5 w-3.5 text-secondary shrink-0" />}
+                            </Link>
+                          </motion.div>
                         ))}
                       </div>
 
@@ -253,14 +278,19 @@ export function SearchOverlay() {
                             </button>
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            {recentSearches.map((term) => (
-                              <button
+                            {recentSearches.map((term, i) => (
+                              <motion.button
                                 key={term}
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: i * 0.03 }}
+                                whileHover={{ scale: 1.05, y: -1 }}
+                                whileTap={{ scale: 0.96 }}
                                 onClick={() => setQuery(term)}
                                 className="px-3.5 py-2 rounded-full bg-pearl text-xs font-medium text-charcoal hover:bg-primary-light hover:text-secondary transition-colors"
                               >
                                 {term}
-                              </button>
+                              </motion.button>
                             ))}
                           </div>
                         </div>
@@ -272,45 +302,28 @@ export function SearchOverlay() {
                             <TrendingUp className="h-3 w-3" /> Trending Now
                           </p>
                           <div className="flex flex-wrap gap-2">
-                            {trendingTerms.map((term) => (
-                              <button
+                            {trendingTerms.map((term, i) => (
+                              <motion.button
                                 key={term}
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: i * 0.03 }}
+                                whileHover={{ scale: 1.05, y: -1 }}
+                                whileTap={{ scale: 0.96 }}
                                 onClick={() => setQuery(term)}
-                                className="px-3.5 py-2 rounded-full border border-border/40 text-xs font-medium text-charcoal-light hover:border-secondary hover:text-secondary hover:bg-primary-light transition-all capitalize"
+                                className="px-3.5 py-2 rounded-full border border-border/40 text-xs font-medium text-charcoal-light hover:border-secondary hover:text-secondary hover:bg-primary-light transition-colors capitalize"
                               >
                                 {term}
-                              </button>
+                              </motion.button>
                             ))}
                           </div>
                         </div>
                       )}
 
-                      {popularCategories.length > 0 && (
-                        <div>
-                          <p className="text-[10px] font-semibold text-charcoal-lighter uppercase tracking-widest mb-2 px-1">
-                            Shop by Category
-                          </p>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                            {popularCategories.map((cat) => (
-                              <Link
-                                key={cat.id}
-                                href={`/categories/${cat.slug}`}
-                                onClick={closeOverlay}
-                                className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-pearl/70 transition-colors group text-center"
-                              >
-                                <div className="relative h-12 w-12 rounded-full overflow-hidden bg-pearl shrink-0 ring-1 ring-black/[0.04]">
-                                  {cat.image ? (
-                                    <Image src={cat.image} alt={cat.name} fill className="object-cover" sizes="48px" />
-                                  ) : (
-                                    <div className="h-full w-full flex items-center justify-center text-secondary font-heading font-semibold">
-                                      {cat.name.charAt(0)}
-                                    </div>
-                                  )}
-                                </div>
-                                <span className="text-xs font-medium text-charcoal group-hover:text-secondary transition-colors leading-tight">{cat.name}</span>
-                              </Link>
-                            ))}
-                          </div>
+                      {recentSearches.length === 0 && trendingTerms.length === 0 && (
+                        <div className="text-center py-14 px-4">
+                          <Search className="h-9 w-9 text-charcoal-lighter/25 mx-auto mb-3" />
+                          <p className="text-sm text-charcoal-lighter">Start typing to search the catalog</p>
                         </div>
                       )}
                     </div>

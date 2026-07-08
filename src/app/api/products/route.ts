@@ -58,19 +58,27 @@ function buildProduct(row: ProductRow, images: ImageRow[], variants: VariantRow[
   };
 }
 
+// InnoDB's default minimum indexed word length — words shorter than this are
+// never stored in the FULLTEXT index at all, so marking one `+` (required)
+// makes MATCH...AGAINST return nothing even when every other word matches.
+const FULLTEXT_MIN_WORD_LEN = 3;
+
 /**
- * Builds a FULLTEXT boolean-mode query string from free-text user input.
- * Each word gets a trailing `*` for prefix matching (so "leath" matches
- * "leather" while the user is still typing) and a `+` prefix so every word
- * is required — mirrors how users expect multi-word search to behave
- * ("blue leather bag" should narrow, not broaden, results).
+ * Builds a FULLTEXT boolean-mode query string from free-text, possibly
+ * multi-word user input. Words at/above the FULLTEXT minimum length are
+ * marked `+` (required) with a trailing `*` for prefix matching (so "leath"
+ * matches "leather" mid-typing); shorter words (e.g. "c", "4k") are left as
+ * plain optional terms, since InnoDB never indexes them and marking one
+ * `+`-required would silently zero out an otherwise-good multi-word match
+ * (e.g. searching "vitamin c serum" must not fail just because "c" alone
+ * can't be matched).
  */
 function toBooleanFulltextQuery(term: string): string {
   return term
     .split(/\s+/)
     .map((w) => w.replace(/[+\-<>()~*"@]/g, "")) // strip FULLTEXT boolean-mode operators from user input
     .filter(Boolean)
-    .map((w) => `+${w}*`)
+    .map((w) => (w.length >= FULLTEXT_MIN_WORD_LEN ? `+${w}*` : w))
     .join(" ");
 }
 
@@ -142,19 +150,27 @@ export async function GET(req: NextRequest) {
     }
     if (search) {
       const booleanQuery = toBooleanFulltextQuery(search);
+      const likeTerm = `%${escapeLike(search)}%`;
       const skuLike = `${escapeLike(search)}%`; // prefix match — SKUs are short codes FULLTEXT handles poorly
+      const matchColumns = "p.name, p.short_description, p.description, p.category_name, p.subcategory, p.brand_name, p.sku, p.ingredients, p.how_to_use, p.seo_title, p.seo_description, p.country_of_origin, p.weight";
       if (booleanQuery) {
-        // FULLTEXT (name/short_description/description/category_name/subcategory/brand_name/sku/ingredients)
-        // handles real free-text relevance search; a SKU prefix LIKE and a
-        // variant-name/value LIKE fill the two gaps FULLTEXT can't cover well
-        // (short exact-ish codes, and a separate child table).
+        // FULLTEXT covers every admin-entered text field on the product for
+        // real relevance-ranked search. A plain LIKE on the raw phrase against
+        // `name`/`tags` fills the gaps FULLTEXT structurally can't: short/
+        // stopword-only queries, hyphenated/compound codes that don't split on
+        // word boundaries the way FULLTEXT expects, and the tags column (JSON,
+        // can't be part of a FULLTEXT index at all). SKU prefix LIKE and a
+        // variant-name/value LIKE cover short exact-ish codes and the separate
+        // variants child table.
         where += ` AND (
-          MATCH(p.name, p.short_description, p.description, p.category_name, p.subcategory, p.brand_name, p.sku, p.ingredients) AGAINST (? IN BOOLEAN MODE)
+          MATCH(${matchColumns}) AGAINST (? IN BOOLEAN MODE)
+          OR p.name LIKE ?
+          OR p.tags LIKE ?
           OR p.sku LIKE ?
           OR EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND (pv.name LIKE ? OR pv.value LIKE ?))
         )`;
-        params.push(booleanQuery, skuLike, skuLike, skuLike);
-        relevanceSelect = ", MATCH(p.name, p.short_description, p.description, p.category_name, p.subcategory, p.brand_name, p.sku, p.ingredients) AGAINST (? IN BOOLEAN MODE) AS relevance";
+        params.push(booleanQuery, likeTerm, likeTerm, skuLike, skuLike, skuLike);
+        relevanceSelect = `, MATCH(${matchColumns}) AGAINST (? IN BOOLEAN MODE) AS relevance`;
         relevanceParams = [booleanQuery];
       }
     }
