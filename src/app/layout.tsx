@@ -5,6 +5,7 @@ import { InstallPrompt } from "@/components/shared/install-prompt";
 import { CookieConsent } from "@/components/shared/cookie-consent";
 import { ChatWidget } from "@/components/shared/chat-widget";
 import { ServiceWorkerRegister } from "@/components/shared/sw-register";
+import { RouteScrollReset } from "@/components/shared/route-scroll-reset";
 import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
@@ -158,6 +159,7 @@ export default function RootLayout({
           })();
         `}} />
         <Providers>{children}</Providers>
+        <RouteScrollReset />
         <ServiceWorkerRegister />
         <InstallPrompt />
         <CookieConsent />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -95,6 +95,14 @@ export default function AdminLayout({
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+
+  // <main> is its own scroll container (overflow-y-auto), so navigating
+  // between admin pages doesn't reset window scroll — it leaves this pane
+  // wherever it was on the previous page, landing the admin mid/end-of-page.
+  useEffect(() => {
+    mainRef.current?.scrollTo(0, 0);
+  }, [pathname]);
 
   // Admin profile state
   const [adminName, setAdminName] = useState("");
@@ -199,7 +207,11 @@ export default function AdminLayout({
     return pathname.startsWith(href);
   };
 
-  const SidebarContent = () => (
+  // Plain JSX, not a nested component function — a nested function gets a new
+  // identity every render, so React tore down and remounted the whole sidebar
+  // (including this <nav>'s scroll position) on every navigation, since
+  // `pathname` changing re-renders AdminLayout on every route change.
+  const sidebarContent = (
     <div className="flex h-full flex-col">
       {/* Logo */}
       <div className="flex h-[76px] items-center justify-between px-4 border-b border-border/30">
@@ -269,6 +281,67 @@ export default function AdminLayout({
     </div>
   );
 
+  // Mobile sidebar needs its own instance (a second DOM subtree can't share
+  // one JSX element), but it's genuinely mount/unmount-per-toggle already —
+  // scroll preservation only matters for the always-mounted desktop sidebar.
+  const mobileSidebarContent = (
+    <div className="flex h-full flex-col">
+      {/* Logo */}
+      <div className="flex h-[76px] items-center justify-between px-4 border-b border-border/30">
+        <Link href="/admin" className="flex items-center gap-1.5">
+          <Image src="/logo.png" alt="ChineXa" width={200} height={76} className="h-[64px] w-auto" />
+          <span className="text-[9px] text-charcoal-lighter font-body bg-pearl px-1.5 py-0.5 rounded-md">Admin</span>
+        </Link>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto p-3 space-y-4">
+        {navSections.map((section) => {
+          const visibleItems = section.items.filter((item) =>
+            item.perm === "dashboard" || adminPermissions === null || adminPermissions.includes(item.perm)
+          );
+          if (visibleItems.length === 0) return null;
+          return (
+            <div key={section.label}>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-charcoal-lighter px-3 mb-1">
+                {section.label}
+              </p>
+              <div className="space-y-0.5">
+                {visibleItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                      isActive(item.href)
+                        ? "bg-primary-light text-charcoal font-medium"
+                        : "text-charcoal-lighter hover:bg-pearl hover:text-charcoal"
+                    )}
+                  >
+                    <item.icon className="h-4 w-4 flex-shrink-0" />
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </nav>
+
+      {/* Bottom */}
+      <div className="border-t border-border/30 p-3">
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-charcoal-lighter hover:bg-pearl hover:text-charcoal transition-colors w-full"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Logout</span>
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex h-screen bg-pearl overflow-hidden">
       <Suspense><PageLoader /></Suspense>
@@ -280,7 +353,7 @@ export default function AdminLayout({
         )}
         style={{ transition: "width 200ms ease-in-out" }}
       >
-        <SidebarContent />
+        {sidebarContent}
       </aside>
 
       {/* Mobile Sidebar Overlay */}
@@ -288,7 +361,7 @@ export default function AdminLayout({
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-charcoal/40" onClick={() => setMobileOpen(false)} />
           <div className="absolute inset-y-0 left-0 w-60 bg-white shadow-luxury-hover">
-            <SidebarContent />
+            {mobileSidebarContent}
           </div>
         </div>
       )}
@@ -336,7 +409,7 @@ export default function AdminLayout({
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <main ref={mainRef} className="flex-1 overflow-y-auto p-4 lg:p-6">
           {children}
         </main>
       </div>

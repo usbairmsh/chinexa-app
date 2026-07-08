@@ -115,7 +115,7 @@ export function HeroSection() {
   // Show shimmer while banners are loading — no text flash
   if (!banners) {
     return (
-      <section className="relative h-[70vh] sm:h-[80vh] bg-hero-gradient flex items-center justify-center">
+      <section className="relative aspect-[12/5] lg:h-[80vh] lg:aspect-auto bg-hero-gradient flex items-center justify-center">
         <div className="absolute inset-0 bg-gradient-to-r from-pearl via-white to-pearl animate-pulse" />
       </section>
     );
@@ -123,7 +123,7 @@ export function HeroSection() {
 
   if (slides.length === 0 || !slides[current]) {
     return (
-      <section className="relative h-[70vh] sm:h-[80vh] bg-hero-gradient flex items-center justify-center">
+      <section className="relative aspect-[12/5] lg:h-[80vh] lg:aspect-auto bg-hero-gradient flex items-center justify-center">
         <div className="text-center px-4">
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
@@ -174,7 +174,7 @@ export function HeroSection() {
     <motion.h2
       key="title"
       {...textMotionProps(settings.titleAnimation, 0.4)}
-      className="font-heading text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 leading-tight"
+      className="font-heading text-lg sm:text-3xl lg:text-5xl font-bold mb-1.5 sm:mb-4 lg:mb-6 leading-tight"
       style={{ color: "#FFFFFF", textShadow: "0 2px 16px rgba(0,0,0,0.5)" }}
     >
       {slide.title}
@@ -185,7 +185,7 @@ export function HeroSection() {
     <motion.p
       key="description"
       {...textMotionProps(settings.descriptionAnimation, 0.3)}
-      className="text-sm font-medium tracking-widest uppercase mb-3"
+      className="text-[9px] sm:text-sm font-medium tracking-widest uppercase mb-1 sm:mb-3"
       style={{ color: "rgba(255,255,255,0.85)", textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}
     >
       {slide.subtitle}
@@ -193,7 +193,7 @@ export function HeroSection() {
   );
 
   return (
-    <section className="relative h-[70vh] sm:h-[80vh] overflow-hidden bg-pearl">
+    <section className="relative aspect-[12/5] lg:h-[80vh] lg:aspect-auto overflow-hidden bg-pearl">
       <AnimatePresence mode="wait">
         <motion.div
           key={current}
@@ -233,8 +233,8 @@ export function HeroSection() {
             />
           )}
 
-          <div className={`absolute inset-0 flex flex-col py-10 sm:py-14 lg:py-16 ${positionVClass[settings.positionV]}`}>
-            <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-14 w-full">
+          <div className={`absolute inset-0 flex flex-col py-3 sm:py-8 lg:py-16 ${positionVClass[settings.positionV]}`}>
+            <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-14 w-full">
               <div className={`flex flex-col max-w-lg drop-shadow-[0_2px_12px_rgba(0,0,0,0.3)] ${positionHClass[settings.positionH]}`}>
                 {showDescriptionAbove ? (<>{descriptionEl}{titleEl}</>) : (<>{titleEl}{descriptionEl}</>)}
                 {slide.cta_text && slide.link && (
@@ -244,9 +244,9 @@ export function HeroSection() {
                     transition={{ delay: 0.5 }}
                   >
                     <Link href={slide.link}>
-                      <span className="group inline-flex items-center gap-2.5 h-12 px-8 sm:h-14 sm:px-10 rounded-full bg-white text-charcoal text-sm sm:text-[15px] font-body font-semibold tracking-wide shadow-[0_4px_30px_rgba(0,0,0,0.2)] hover:bg-secondary hover:text-white hover:shadow-[0_6px_35px_rgba(122,79,160,0.4)] active:scale-[0.96] transition-all duration-300">
+                      <span className="group inline-flex items-center gap-1.5 sm:gap-2.5 h-8 px-4 sm:h-12 sm:px-8 lg:h-14 lg:px-10 rounded-full bg-white text-charcoal text-[11px] sm:text-sm lg:text-[15px] font-body font-semibold tracking-wide shadow-[0_4px_30px_rgba(0,0,0,0.2)] hover:bg-secondary hover:text-white hover:shadow-[0_6px_35px_rgba(122,79,160,0.4)] active:scale-[0.96] transition-all duration-300">
                         {slide.cta_text}
-                        <svg className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                        <svg className="h-3 w-3 sm:h-4 sm:w-4 transition-transform duration-200 group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                       </span>
                     </Link>
                   </motion.div>

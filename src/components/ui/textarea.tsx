@@ -19,10 +19,10 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         <textarea
           id={textareaId}
           className={cn(
-            "flex min-h-[100px] w-full rounded-luxury bg-pearl/60 px-4 py-3 text-sm text-charcoal transition-colors duration-200 ease-out caret-secondary",
-            "placeholder:text-charcoal-lighter/50",
-            "hover:bg-pearl",
-            "focus:bg-white focus:outline-none focus:ring-0",
+            "flex min-h-[100px] w-full rounded-luxury bg-beige-dark/70 px-4 py-3 text-sm text-charcoal transition-colors duration-200 ease-out caret-secondary shadow-[inset_0_0_0_1px_rgba(58,36,56,0.06)]",
+            "placeholder:text-charcoal-lighter/70",
+            "hover:bg-beige-dark",
+            "focus:bg-white focus:outline-none focus:ring-0 focus:shadow-[inset_0_0_0_1.5px_var(--color-secondary)]",
             "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-muted",
             "resize-y",
             error && "text-destructive",
