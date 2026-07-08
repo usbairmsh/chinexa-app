@@ -122,11 +122,19 @@ export default function SupportInboxPage() {
     const interval = setInterval(async () => {
       const lastId = messagesRef.current[messagesRef.current.length - 1]?.id;
       try {
-        const res = await fetch(`/api/chat/messages?conversation_id=${activeId}&admin=1${lastId ? `&after_id=${lastId}` : ""}`);
+        const res = await fetch(
+          `/api/chat/messages?conversation_id=${activeId}&admin=1&viewer=admin${lastId ? `&after_id=${lastId}` : ""}`
+        );
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setMessages((prev) => [...prev, ...data]);
+        if (Array.isArray(data.messages) && data.messages.length > 0) {
+          setMessages((prev) => [...prev, ...data.messages]);
           markRead(activeId);
+        }
+        // Patch in a "Seen" flip on the admin's own last reply without a full
+        // reload — same reasoning as the customer widget's poll.
+        if (data.lastOwnMessageReadState) {
+          const { id, is_read } = data.lastOwnMessageReadState;
+          setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, is_read } : m)));
         }
       } catch {}
     }, ACTIVE_POLL_MS);

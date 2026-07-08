@@ -11,12 +11,20 @@ export const dynamic = "force-dynamic";
 // Pass `after_id` to fetch only messages newer than a given message id —
 // used by the polling loop so it doesn't re-download the whole thread on
 // every tick, just the (usually empty) delta since the last check.
+//
+// Pass `viewer` ("customer" | "admin") alongside `after_id` to also get back
+// the current read-state of the viewer's own last outgoing message. Delta
+// polling by definition never re-fetches rows the client already has, so
+// without this a "Seen" receipt that flips after the poll's cursor would
+// never reach a client that's already rendered that message — this reports
+// just that one flag instead of forcing a full thread reload.
 export async function GET(req: NextRequest) {
   await ensureChatTables();
   const { searchParams } = req.nextUrl;
   const conversationId = searchParams.get("conversation_id");
   const forAdmin = searchParams.get("admin") === "1";
   const afterId = searchParams.get("after_id");
+  const viewer = searchParams.get("viewer") as "customer" | "admin" | null;
   if (!conversationId) {
     return NextResponse.json({ error: "conversation_id required" }, { status: 400 });
   }
@@ -29,7 +37,19 @@ export async function GET(req: NextRequest) {
         "SELECT * FROM chat_messages WHERE conversation_id = ? AND created_at > ? ORDER BY created_at ASC",
         [conversationId, afterTime]
       );
-      return NextResponse.json(rows);
+
+      let lastOwnMessageReadState: { id: string; is_read: boolean } | null = null;
+      if (viewer) {
+        const ownRows = await query<RowDataPacket[]>(
+          "SELECT id, is_read FROM chat_messages WHERE conversation_id = ? AND sender_type = ? ORDER BY created_at DESC LIMIT 1",
+          [conversationId, viewer]
+        );
+        if (ownRows.length > 0) {
+          lastOwnMessageReadState = { id: ownRows[0].id as string, is_read: !!ownRows[0].is_read };
+        }
+      }
+
+      return NextResponse.json({ messages: rows, lastOwnMessageReadState });
     }
 
     const rows = await query<RowDataPacket[]>(

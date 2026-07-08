@@ -146,11 +146,20 @@ export function ChatWidget() {
     const interval = setInterval(async () => {
       const lastId = messages[messages.length - 1]?.id;
       try {
-        const res = await fetch(`/api/chat/messages?conversation_id=${conversationId}${lastId ? `&after_id=${lastId}` : ""}`);
+        const res = await fetch(
+          `/api/chat/messages?conversation_id=${conversationId}&viewer=customer${lastId ? `&after_id=${lastId}` : ""}`
+        );
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setMessages((prev) => [...prev, ...data]);
+        if (Array.isArray(data.messages) && data.messages.length > 0) {
+          setMessages((prev) => [...prev, ...data.messages]);
           markRead(conversationId);
+        }
+        // Patch in a "Seen" flip on our own last message without a full
+        // reload — the row itself was already rendered before this poll's
+        // cursor, so the delta fetch above would never surface it again.
+        if (data.lastOwnMessageReadState) {
+          const { id, is_read } = data.lastOwnMessageReadState;
+          setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, is_read } : m)));
         }
       } catch {}
     }, ACTIVE_POLL_MS);
