@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Package, FolderTree, ShoppingCart, Users, Star,
   Image as ImageIcon, Tag, Gift, FileText, Search, BarChart3,
   DollarSign, AlertTriangle, Activity, UserCog, Settings,
-  Menu, ChevronLeft, LogOut, Bell, Warehouse, Key, User, Loader2, Lock
+  Menu, ChevronLeft, LogOut, Bell, Warehouse, Key, User, Loader2, Lock, MessageCircle
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,12 @@ const navSections = [
       { icon: DollarSign, label: "Accounting", href: "/admin/accounting", perm: "accounting" },
       { icon: AlertTriangle, label: "Fraud", href: "/admin/fraud", perm: "fraud" },
       { icon: Activity, label: "Activity Log", href: "/admin/activity-log", perm: "activity_log" },
+    ],
+  },
+  {
+    label: "Support",
+    items: [
+      { icon: MessageCircle, label: "Support Inbox", href: "/admin/support-inbox", perm: "support_inbox" },
     ],
   },
   {

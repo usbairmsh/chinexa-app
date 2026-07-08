@@ -3,6 +3,7 @@ import { playfairDisplay, inter } from "@/lib/fonts";
 import { Providers } from "@/providers";
 import { InstallPrompt } from "@/components/shared/install-prompt";
 import { CookieConsent } from "@/components/shared/cookie-consent";
+import { ChatWidget } from "@/components/shared/chat-widget";
 import { ServiceWorkerRegister } from "@/components/shared/sw-register";
 import "./globals.css";
 
@@ -160,6 +161,7 @@ export default function RootLayout({
         <ServiceWorkerRegister />
         <InstallPrompt />
         <CookieConsent />
+        <ChatWidget />
       </body>
     </html>
   );

@@ -527,6 +527,35 @@ CREATE TABLE IF NOT EXISTS notification_broadcasts (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
+-- Support Chat — one conversation per customer/guest, Messenger-style
+CREATE TABLE IF NOT EXISTS chat_conversations (
+  id VARCHAR(50) PRIMARY KEY,
+  customer_id VARCHAR(50) NULL,
+  guest_id VARCHAR(50) NULL,
+  display_name VARCHAR(150) NOT NULL,
+  status ENUM('open', 'closed') DEFAULT 'open',
+  customer_unread INT DEFAULT 0,
+  admin_unread INT DEFAULT 0,
+  last_message_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_customer (customer_id),
+  UNIQUE KEY uniq_guest (guest_id),
+  INDEX idx_last_message (last_message_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id VARCHAR(50) PRIMARY KEY,
+  conversation_id VARCHAR(50) NOT NULL,
+  sender_type ENUM('customer', 'admin') NOT NULL,
+  sender_label VARCHAR(150),
+  flag ENUM('general', 'help_and_support') DEFAULT 'general',
+  body TEXT NOT NULL,
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_conversation (conversation_id, created_at),
+  FOREIGN KEY (conversation_id) REFERENCES chat_conversations(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 -- Insert default settings
 INSERT IGNORE INTO settings (`key`, value) VALUES
   ('store_name', '"ChineXa"'),

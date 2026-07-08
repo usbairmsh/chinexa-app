@@ -93,6 +93,7 @@ export const FOOTER_LINKS = {
   help: {
     title: "Help",
     links: [
+      { label: "Get Help", href: "#chat" },
       { label: "FAQ", href: "/faq" },
       { label: "Shipping", href: "/policies/shipping" },
       { label: "Returns", href: "/policies/returns" },

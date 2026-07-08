@@ -6,10 +6,12 @@ import { Separator } from "@/components/ui/separator";
 import { FOOTER_LINKS } from "@/data/constants/navigation";
 import { useStoreSettings } from "@/hooks/use-store-settings";
 import { getPlatform, SocialIconButton } from "@/lib/social-platforms";
+import { useChatStore } from "@/stores/chat.store";
 
 export function Footer() {
   const { store_name, store_phone, store_email, social_links, payment_methods } = useStoreSettings();
   const enabledPayments = payment_methods.filter((m) => m.enabled).map((m) => m.name);
+  const openChat = useChatStore((s) => s.openChat);
 
   return (
     <footer className="bg-pearl border-t border-border/30">
@@ -38,9 +40,20 @@ export function Footer() {
             <div key={section.title}>
               <h4 className="font-heading text-sm font-semibold text-charcoal mb-4 tracking-wide">{section.title}</h4>
               <ul className="space-y-2.5">
-                {section.links.map((link) => (
-                  <li key={link.label}><Link href={link.href} className="text-sm text-charcoal-lighter hover:text-secondary transition-colors">{link.label}</Link></li>
-                ))}
+                {section.links.map((link) =>
+                  link.href === "#chat" ? (
+                    <li key={link.label}>
+                      <button
+                        onClick={() => openChat("help_and_support")}
+                        className="text-sm text-charcoal-lighter hover:text-secondary transition-colors text-left"
+                      >
+                        {link.label}
+                      </button>
+                    </li>
+                  ) : (
+                    <li key={link.label}><Link href={link.href} className="text-sm text-charcoal-lighter hover:text-secondary transition-colors">{link.label}</Link></li>
+                  )
+                )}
               </ul>
             </div>
           ))}

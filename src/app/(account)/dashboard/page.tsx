@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   ShoppingBag, Heart, MapPin, Star, Package, Truck,
-  CheckCircle2, Clock, ArrowRight, Gift, TrendingUp, Loader2, Tag, Crown
+  CheckCircle2, Clock, ArrowRight, Gift, TrendingUp, Loader2, Tag, Crown, MessageCircle
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress";
 
 import { useAuthStore } from "@/stores/auth.store";
 import { useCustomerBadge } from "@/hooks/use-customer-badge";
+import { useChatStore } from "@/stores/chat.store";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { useWishlistStore } from "@/stores/wishlist.store";
 import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
@@ -37,6 +38,7 @@ export default function AccountDashboard() {
   const user = useAuthStore((s) => s.user);
   const badgeData = useCustomerBadge();
   const wishlistCount = useWishlistStore((s) => s.items.length);
+  const openChat = useChatStore((s) => s.openChat);
 
   const [loyaltyPoints, setLoyaltyPoints] = useState(0);
   const [loyaltyTier, setLoyaltyTier] = useState<string | null>(null);
@@ -210,7 +212,7 @@ export default function AccountDashboard() {
       </Card>
 
       {/* Quick Actions */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         <Link href="/dashboard/orders">
           <Card className="hover:shadow-card-hover transition-all cursor-pointer group h-full">
             <CardContent className="p-5 flex items-center gap-4">
@@ -276,6 +278,19 @@ export default function AccountDashboard() {
             </CardContent>
           </Card>
         </Link>
+        <button onClick={() => openChat("help_and_support")} className="text-left">
+          <Card className="hover:shadow-card-hover transition-all cursor-pointer group h-full">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-secondary/10 shrink-0">
+                <MessageCircle className="h-5 w-5 text-secondary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-charcoal group-hover:text-secondary transition-colors">Get Help</p>
+                <p className="text-[10px] text-charcoal-lighter">Chat with our team</p>
+              </div>
+            </CardContent>
+          </Card>
+        </button>
       </div>
     </div>
   );

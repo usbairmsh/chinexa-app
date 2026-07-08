@@ -41,7 +41,7 @@ export async function ensureNotificationTables() {
 }
 
 // ─── Admin incoming notifications (new orders, returns, reviews, stock, fraud) ───
-export type AdminNotificationType = "order" | "return" | "review" | "stock" | "fraud" | "customer" | "system";
+export type AdminNotificationType = "order" | "return" | "review" | "stock" | "fraud" | "customer" | "system" | "chat";
 
 let adminTableEnsured = false;
 export async function ensureAdminNotificationTable() {

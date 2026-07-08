@@ -6,7 +6,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, ShoppingBag, Heart, MapPin, UserCircle,
-  LogOut, ChevronRight, HelpCircle, Tag, Crown
+  LogOut, ChevronRight, HelpCircle, Tag, Crown, MessageCircle
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Header } from "@/components/layout/header/header";
@@ -19,6 +19,7 @@ import { SearchOverlay } from "@/components/storefront/search/search-overlay";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useAuthStore } from "@/stores/auth.store";
+import { useChatStore } from "@/stores/chat.store";
 import { cn, getInitials } from "@/lib/utils";
 
 // Notifications intentionally omitted — they live in the header bell popup now
@@ -30,6 +31,7 @@ const accountNav = [
   { icon: Tag, label: "Offers & Coupons", href: "/dashboard/coupons" },
   { icon: Crown, label: "Membership Benefits", href: "/dashboard/membership" },
   { icon: UserCircle, label: "Profile", href: "/dashboard/profile" },
+  { icon: MessageCircle, label: "Get Help", href: "#chat" },
   { icon: HelpCircle, label: "Help & Support", href: "/faq" },
 ];
 
@@ -42,6 +44,7 @@ export default function AccountLayout({
   const router = useRouter();
   const { user: storeUser, isAuthenticated: storeAuthenticated, logout } = useAuthStore();
   const badge = useCustomerBadge();
+  const openChat = useChatStore((s) => s.openChat);
 
   // The auth store rehydrates from localStorage on the client, so its values
   // differ from the server-rendered HTML on hard refresh. Rendering them before
@@ -131,21 +134,32 @@ export default function AccountLayout({
 
                 {/* ── Phone/Tablet: fully-visible grid of icon tiles, no scrolling ── */}
                 <nav className="grid grid-cols-4 sm:grid-cols-5 gap-1 p-2 lg:hidden">
-                  {accountNav.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={cn(
-                        "flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2.5 text-center transition-all duration-150",
-                        isActive(item.href)
-                          ? "bg-secondary/10 text-secondary"
-                          : "text-charcoal/70 hover:bg-pearl hover:text-charcoal"
-                      )}
-                    >
-                      <item.icon className="h-5 w-5 shrink-0" />
-                      <span className="text-[10px] font-medium leading-tight line-clamp-1">{item.label}</span>
-                    </Link>
-                  ))}
+                  {accountNav.map((item) =>
+                    item.href === "#chat" ? (
+                      <button
+                        key={item.href}
+                        onClick={() => openChat("help_and_support")}
+                        className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2.5 text-center transition-all duration-150 text-charcoal/70 hover:bg-pearl hover:text-charcoal"
+                      >
+                        <item.icon className="h-5 w-5 shrink-0" />
+                        <span className="text-[10px] font-medium leading-tight line-clamp-1">{item.label}</span>
+                      </button>
+                    ) : (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={cn(
+                          "flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2.5 text-center transition-all duration-150",
+                          isActive(item.href)
+                            ? "bg-secondary/10 text-secondary"
+                            : "text-charcoal/70 hover:bg-pearl hover:text-charcoal"
+                        )}
+                      >
+                        <item.icon className="h-5 w-5 shrink-0" />
+                        <span className="text-[10px] font-medium leading-tight line-clamp-1">{item.label}</span>
+                      </Link>
+                    )
+                  )}
 
                   {isAuthenticated ? (
                     <button
@@ -168,24 +182,35 @@ export default function AccountLayout({
 
                 {/* ── Desktop: vertical list ── */}
                 <nav className="hidden lg:flex lg:flex-col p-2">
-                  {accountNav.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150",
-                        isActive(item.href)
-                          ? "bg-secondary/10 text-secondary font-medium"
-                          : "text-charcoal/70 hover:bg-pearl hover:text-charcoal"
-                      )}
-                    >
-                      <item.icon className="h-[18px] w-[18px] shrink-0" />
-                      <span className="flex-1">{item.label}</span>
-                      {isActive(item.href) && (
-                        <ChevronRight className="h-3.5 w-3.5 text-secondary" />
-                      )}
-                    </Link>
-                  ))}
+                  {accountNav.map((item) =>
+                    item.href === "#chat" ? (
+                      <button
+                        key={item.href}
+                        onClick={() => openChat("help_and_support")}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150 text-charcoal/70 hover:bg-pearl hover:text-charcoal"
+                      >
+                        <item.icon className="h-[18px] w-[18px] shrink-0" />
+                        <span className="flex-1 text-left">{item.label}</span>
+                      </button>
+                    ) : (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150",
+                          isActive(item.href)
+                            ? "bg-secondary/10 text-secondary font-medium"
+                            : "text-charcoal/70 hover:bg-pearl hover:text-charcoal"
+                        )}
+                      >
+                        <item.icon className="h-[18px] w-[18px] shrink-0" />
+                        <span className="flex-1">{item.label}</span>
+                        {isActive(item.href) && (
+                          <ChevronRight className="h-3.5 w-3.5 text-secondary" />
+                        )}
+                      </Link>
+                    )
+                  )}
 
                   <Separator className="my-2" />
 

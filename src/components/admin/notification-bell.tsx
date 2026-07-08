@@ -3,13 +3,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, usePathname } from "next/navigation";
-import { Bell, Send, Package, RotateCcw, Star, AlertTriangle, UserPlus, Warehouse, Loader2, CheckCheck, ArrowRight } from "lucide-react";
+import { Bell, Send, Package, RotateCcw, Star, AlertTriangle, UserPlus, Warehouse, Loader2, CheckCheck, ArrowRight, MessageCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatDateShort, cn } from "@/lib/utils";
 
 interface AdminNotification {
   id: string;
-  type: "order" | "return" | "review" | "stock" | "fraud" | "customer" | "system";
+  type: "order" | "return" | "review" | "stock" | "fraud" | "customer" | "system" | "chat";
   title: string;
   message: string;
   link?: string | null;
@@ -25,6 +25,7 @@ const typeConfig: Record<string, { icon: typeof Bell; color: string }> = {
   fraud: { icon: AlertTriangle, color: "bg-destructive/10 text-destructive" },
   customer: { icon: UserPlus, color: "bg-blue-50 text-blue-600" },
   system: { icon: Bell, color: "bg-pearl text-charcoal-lighter" },
+  chat: { icon: MessageCircle, color: "bg-secondary/10 text-secondary" },
 };
 
 function timeAgo(dateStr: string): string {

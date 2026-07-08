@@ -37,6 +37,7 @@ const faqSections = [
     faqs: [
       { q: "How do I create an account?", a: "We don't require a separate registration step. Simply enter your phone number, verify with OTP, and you're in! Your account is automatically created when you first log in or make a purchase." },
       { q: "How do I contact customer support?", a: "You can reach us via WhatsApp at +880 1700-000000 (fastest), email at hello@chinexa.com, or through the Contact Us page. Our support hours are Saturday–Thursday, 10AM–8PM." },
+      { q: "How do I get help from an agent?", a: "Click the chat icon at the bottom-left of any page, or use \"Get Help\" in the footer or your account dashboard, to open a live chat with our support team. You don't need an account to use it — just start typing and we'll reply as soon as possible." },
       { q: "I forgot my account. How do I log in?", a: "We use phone-based login with OTP verification — no passwords to remember. Just enter your phone number on the login page, receive an OTP, and you're in." },
     ],
   },
