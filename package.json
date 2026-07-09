@@ -42,6 +42,7 @@
     "react-easy-crop": "^6.2.2",
     "recharts": "^3.9.0",
     "tailwind-merge": "^3.6.0",
+    "turndown": "^7.2.4",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
@@ -51,6 +52,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/turndown": "^5.0.6",
     "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",

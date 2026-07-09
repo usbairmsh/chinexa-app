@@ -1,42 +1,29 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+// Content pages eligible for markdown negotiation. Cart/checkout/dashboard/
+// homepage are intentionally excluded — they're interactive, client-rendered
+// UI with no stable "document" to convert, not the kind of content an agent
+// would want as Markdown.
+const MARKDOWN_ELIGIBLE = [
+  /^\/products\/[^/]+$/,
+  /^\/blog\/[^/]+$/,
+  /^\/policies\/[^/]+$/,
+  /^\/categories\/[^/]+$/,
+  /^\/brands\/[^/]+$/,
+];
 
-  // Allow admin login page without auth
-  if (pathname === "/admin/login") {
-    return NextResponse.next();
-  }
+export function proxy(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+  const accept = req.headers.get("accept") || "";
 
-  // Skip API routes, static files, and prefetch requests
-  if (pathname.startsWith("/admin/api") || pathname.startsWith("/api/")) {
-    return NextResponse.next();
-  }
+  if (!accept.includes("text/markdown")) return NextResponse.next();
+  if (!MARKDOWN_ELIGIBLE.some((re) => re.test(pathname))) return NextResponse.next();
 
-  // Don't redirect on prefetch/RSC requests — just let them through
-  // This prevents logout on client-side navigation
-  const isPrefetch = request.headers.get("next-router-prefetch") === "1" ||
-    request.headers.get("purpose") === "prefetch" ||
-    request.headers.get("rsc") === "1";
-
-  // Protect all other /admin routes
-  if (pathname.startsWith("/admin")) {
-    const roleCookie = request.cookies.get("chinexa-role")?.value;
-
-    if (roleCookie !== "superadmin" && roleCookie !== "admin") {
-      // On prefetch, return empty response instead of redirect
-      if (isPrefetch) {
-        return new NextResponse(null, { status: 204 });
-      }
-      const loginUrl = new URL("/admin/login", request.url);
-      return NextResponse.redirect(loginUrl);
-    }
-  }
-
-  return NextResponse.next();
+  const url = req.nextUrl.clone();
+  url.pathname = `/md${pathname}`;
+  return NextResponse.rewrite(url);
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/products/:slug", "/blog/:slug", "/policies/:slug", "/categories/:slug", "/brands/:slug"],
 };

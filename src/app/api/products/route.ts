@@ -37,7 +37,6 @@ function buildProduct(row: ProductRow, images: ImageRow[], variants: VariantRow[
     description: row.description, short_description: row.short_description,
     sku: row.sku, price: Number(row.price),
     compare_at_price: row.compare_at_price ? Number(row.compare_at_price) : undefined,
-    cost_price: Number(row.cost_price) || 0,
     currency: row.currency,
     images: images.filter((i) => i.product_id === row.id).map((i) => ({ id: i.id, url: i.url, alt: i.alt || "", order: i.order })),
     category_id: row.category_id, category_name: row.category_name,
@@ -47,7 +46,7 @@ function buildProduct(row: ProductRow, images: ImageRow[], variants: VariantRow[
     variants: variants.filter((v) => v.product_id === row.id).map((v) => ({
       id: v.id, name: v.name, type: v.type as "size" | "color" | "shade" | "weight",
       value: v.value, hex: v.hex || undefined,
-      price_adjustment: Number(v.price_adjustment), cost_price_adjustment: Number(v.cost_price_adjustment) || 0, stock: v.stock, sku: v.sku,
+      price_adjustment: Number(v.price_adjustment), stock: v.stock, sku: v.sku,
       image: v.image || undefined,
     })),
     stock_quantity: row.stock_quantity, is_active: !!row.is_active, is_featured: !!row.is_featured,

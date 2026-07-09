@@ -26,18 +26,23 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const images = await query<ImageRow[]>("SELECT * FROM product_images WHERE product_id = ? ORDER BY `order`", [product.id as string]);
     const variants = await query<VariantRow[]>("SELECT * FROM product_variants WHERE product_id = ?", [product.id as string]);
 
+    // cost_price / cost_price_adjustment are internal margin data — never
+    // returned from this shared public+admin endpoint (see /api/admin/products/[id]/cost
+    // for the admin-only equivalent that includes them).
+    const { cost_price: _costPrice, ...publicProduct } = product;
+    void _costPrice;
+
     return NextResponse.json({
-      ...product,
+      ...publicProduct,
       price: Number(product.price),
       compare_at_price: product.compare_at_price ? Number(product.compare_at_price) : undefined,
-      cost_price: Number(product.cost_price) || 0,
       is_active: !!product.is_active,
       is_featured: !!product.is_featured,
       average_rating: Number(product.average_rating),
       tags: typeof product.tags === "string" ? JSON.parse(product.tags || "[]") : product.tags || [],
       badges: typeof product.badges === "string" ? JSON.parse(product.badges || "[]") : product.badges || [],
       images: images.map((i) => ({ id: i.id, url: i.url, alt: i.alt || "", order: i.order })),
-      variants: variants.map((v) => ({ id: v.id, name: v.name, type: v.type, value: v.value, hex: v.hex || undefined, price_adjustment: Number(v.price_adjustment), cost_price_adjustment: Number(v.cost_price_adjustment) || 0, stock: v.stock, sku: v.sku, image: v.image || undefined, focal_point: v.focal_point || undefined })),
+      variants: variants.map((v) => ({ id: v.id, name: v.name, type: v.type, value: v.value, hex: v.hex || undefined, price_adjustment: Number(v.price_adjustment), stock: v.stock, sku: v.sku, image: v.image || undefined, focal_point: v.focal_point || undefined })),
     });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });

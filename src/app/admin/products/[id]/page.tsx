@@ -146,8 +146,22 @@ export default function EditProductPage() {
       if (data?.value && Array.isArray(data.value)) setAvailableTrustBadges(data.value);
     }).catch(() => {});
 
-    fetch(`/api/products/${id}`).then((r) => r.json()).then((p) => {
+    Promise.all([
+      fetch(`/api/products/${id}`).then((r) => r.json()),
+      fetch(`/api/admin/products/${id}/cost`).then((r) => r.json()).catch(() => null),
+    ]).then(([p, cost]) => {
       if (p.error) { setLoading(false); return; }
+      if (cost && !cost.error) {
+        p.cost_price = cost.cost_price;
+        const costAdjustmentByVariantId = new Map<string, number>(
+          (cost.variants || []).map((v: { id: string; cost_price_adjustment: number }) => [v.id, v.cost_price_adjustment])
+        );
+        if (Array.isArray(p.variants)) {
+          p.variants = p.variants.map((v: Record<string, unknown>) => ({
+            ...v, cost_price_adjustment: costAdjustmentByVariantId.get(v.id as string) || 0,
+          }));
+        }
+      }
       setProductName(p.name || "");
       setProductSlug(p.slug || "");
       setSku(p.sku || "");

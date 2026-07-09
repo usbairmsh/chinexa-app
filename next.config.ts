@@ -45,6 +45,14 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         ],
       },
+      // RFC 8288 Link header on the homepage so agents/crawlers can discover
+      // the read-only API catalog (RFC 9727) without guessing at endpoints.
+      {
+        source: "/",
+        headers: [
+          { key: "Link", value: '</.well-known/api-catalog>; rel="api-catalog", </sitemap.xml>; rel="service-doc"' },
+        ],
+      },
     ];
   },
 };
