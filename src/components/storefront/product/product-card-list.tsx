@@ -21,10 +21,13 @@ interface ProductCardListProps {
 export function ProductCardList({ product, index = 0 }: ProductCardListProps) {
   const router = useRouter();
   const addToCart = useCartStore((s) => s.addItem);
-  const { toggleItem, isInWishlist } = useWishlistStore();
+  const toggleItem = useWishlistStore((s) => s.toggleItem);
+  // Selector on the one boolean this card needs — avoids re-rendering every
+  // card on the page whenever any card's wishlist state changes.
+  const isWishlisted = useWishlistStore((s) => s.items.includes(product.id));
   const setCartDrawerOpen = useUIStore((s) => s.setCartDrawerOpen);
   const [mounted, setMounted] = useState(false);
-  const wishlisted = mounted && isInWishlist(product.id);
+  const wishlisted = mounted && isWishlisted;
 
   const hasVariants = product.variants.length > 0;
 

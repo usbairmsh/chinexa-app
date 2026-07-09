@@ -20,10 +20,14 @@ interface ProductCardProps {
 
 export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const addToCart = useCartStore((s) => s.addItem);
-  const { toggleItem, isInWishlist } = useWishlistStore();
+  const toggleItem = useWishlistStore((s) => s.toggleItem);
+  // Selector on the one boolean this card actually needs — a whole-store
+  // destructure here would re-render every product card on the page whenever
+  // ANY card's wishlist state changes, not just this one.
+  const isWishlisted = useWishlistStore((s) => s.items.includes(product.id));
   const setCartDrawerOpen = useUIStore((s) => s.setCartDrawerOpen);
   const [mounted, setMounted] = useState(false);
-  const wishlisted = mounted && isInWishlist(product.id);
+  const wishlisted = mounted && isWishlisted;
 
   useEffect(() => setMounted(true), []);
 
