@@ -1,35 +1,55 @@
 import type { Metadata } from "next";
-import pool from "@/lib/db";
+import { cache } from "react";
+import { query } from "@/lib/db";
 import { type RowDataPacket } from "mysql2/promise";
 import { ProductJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
 
+interface LayoutProductRow extends RowDataPacket {
+  id: string; name: string; short_description: string | null; description: string | null;
+  price: number; category_name: string | null; average_rating: number; review_count: number;
+  sku: string; stock_quantity: number;
+}
+
+// React's cache() dedupes this across generateMetadata + the layout body
+// within the same request — previously each ran its own independent set of
+// raw pool.execute() calls (5 total per page load: product+image in
+// generateMetadata, then product+image+variants again in the layout), which
+// meant every single product page load did roughly double the DB round-trips
+// of any other route in the app, all through the pool directly instead of
+// the shared query() helper the rest of the app uses.
+const getProductForLayout = cache(async (slug: string) => {
+  const products = await query<LayoutProductRow[]>(
+    "SELECT id, name, short_description, description, price, category_name, average_rating, review_count, sku, stock_quantity FROM products WHERE slug = ? AND is_active = 1 LIMIT 1",
+    [slug]
+  );
+  if (products.length === 0) return null;
+  const product = products[0];
+
+  const [images, variants] = await Promise.all([
+    query<RowDataPacket[]>("SELECT url FROM product_images WHERE product_id = ? ORDER BY `order` LIMIT 1", [product.id]),
+    query<RowDataPacket[]>("SELECT price_adjustment FROM product_variants WHERE product_id = ?", [product.id]),
+  ]);
+
+  return { product, imageUrl: images[0]?.url as string | undefined, variants };
+});
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
 
   try {
-    const [rows] = await pool.execute<RowDataPacket[]>(
-      "SELECT name, short_description, description, price, category_name, average_rating, review_count, sku FROM products WHERE slug = ? AND is_active = 1 LIMIT 1",
-      [slug]
-    );
+    const data = await getProductForLayout(slug);
+    if (!data) return { title: "Product Not Found" };
 
-    if (rows.length === 0) {
-      return { title: "Product Not Found" };
-    }
-
-    const product = rows[0];
+    const { product, imageUrl } = data;
     const title = `${product.name} — Buy Online in Bangladesh`;
     const description = (product.short_description || product.description || "").slice(0, 160) ||
       `Buy ${product.name} at the best price in Bangladesh. Genuine product with cash on delivery.`;
 
-    // Get first product image
-    const [images] = await pool.execute<RowDataPacket[]>(
-      "SELECT url FROM product_images WHERE product_id = (SELECT id FROM products WHERE slug = ? LIMIT 1) ORDER BY `order` LIMIT 1",
-      [slug]
-    );
-    const imageUrl = images.length > 0 ? (images[0].url as string) : `${siteUrl}/logo.png`;
-    const fullImageUrl = imageUrl.startsWith("http") ? imageUrl : `${siteUrl}${imageUrl}`;
+    const fullImageUrl = imageUrl
+      ? (imageUrl.startsWith("http") ? imageUrl : `${siteUrl}${imageUrl}`)
+      : `${siteUrl}/logo.png`;
 
     return {
       title,
@@ -40,11 +60,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         description,
         url: `${siteUrl}/products/${slug}`,
         type: "website",
-        images: [{ url: fullImageUrl, width: 800, height: 800, alt: product.name as string }],
+        images: [{ url: fullImageUrl, width: 800, height: 800, alt: product.name }],
       },
       twitter: {
         card: "summary_large_image",
-        title: product.name as string,
+        title: product.name,
         description,
         images: [fullImageUrl],
       },
@@ -63,42 +83,30 @@ export default async function ProductLayout({
 }) {
   const { slug } = await params;
 
-  // Fetch product for JSON-LD
   let productData = null;
   try {
-    const [rows] = await pool.execute<RowDataPacket[]>(
-      "SELECT id, name, short_description, description, price, category_name, average_rating, review_count, sku, stock_quantity FROM products WHERE slug = ? AND is_active = 1 LIMIT 1",
-      [slug]
-    );
-    if (rows.length > 0) {
-      const p = rows[0];
-      const [images] = await pool.execute<RowDataPacket[]>(
-        "SELECT url FROM product_images WHERE product_id = ? ORDER BY `order` LIMIT 1",
-        [p.id]
-      );
-      // Get variant prices for price range
-      const [variantRows] = await pool.execute<RowDataPacket[]>(
-        "SELECT price_adjustment FROM product_variants WHERE product_id = ?", [p.id]
-      );
-      const basePrice = Number(p.price);
+    const data = await getProductForLayout(slug);
+    if (data) {
+      const { product, imageUrl, variants } = data;
+      const basePrice = Number(product.price);
       let highPrice: number | undefined;
-      if (variantRows.length > 1) {
-        const prices = variantRows.map((v) => basePrice + Number(v.price_adjustment));
+      if (variants.length > 1) {
+        const prices = variants.map((v) => basePrice + Number(v.price_adjustment));
         const maxP = Math.max(...prices);
         if (maxP > basePrice) highPrice = maxP;
       }
 
       productData = {
-        name: p.name as string,
-        description: ((p.short_description || p.description || "") as string).slice(0, 300),
-        image: images.length > 0 ? (images[0].url as string) : "/logo.png",
-        sku: p.sku as string,
+        name: product.name,
+        description: (product.short_description || product.description || "").slice(0, 300),
+        image: imageUrl || "/logo.png",
+        sku: product.sku,
         price: basePrice,
         highPrice,
-        availability: (Number(p.stock_quantity) > 0 ? "InStock" : "OutOfStock") as "InStock" | "OutOfStock",
-        rating: Number(p.average_rating) || undefined,
-        reviewCount: Number(p.review_count) || undefined,
-        category: (p.category_name as string) || undefined,
+        availability: (Number(product.stock_quantity) > 0 ? "InStock" : "OutOfStock") as "InStock" | "OutOfStock",
+        rating: Number(product.average_rating) || undefined,
+        reviewCount: Number(product.review_count) || undefined,
+        category: product.category_name || undefined,
         url: `/products/${slug}`,
       };
     }
