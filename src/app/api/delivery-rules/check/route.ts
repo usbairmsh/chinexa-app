@@ -43,9 +43,12 @@ export async function POST(req: NextRequest) {
     const result = { standard: false, express: false };
     if (rows.length === 0) return NextResponse.json(result);
 
-    const tier = customerId ? await getCustomerTier(customerId) : null;
+    // Independent of each other — batched instead of sequential.
+    const [tier, items] = await Promise.all([
+      customerId ? getCustomerTier(customerId) : Promise.resolve(null),
+      rawItems.length > 0 ? enrichCartItems(rawItems) : Promise.resolve([]),
+    ]);
     const ctx: PromoContext = { customerId, tierName: tier?.name ?? null, tierId: tier?.id ?? null };
-    const items = rawItems.length > 0 ? await enrichCartItems(rawItems) : [];
 
     for (const r of rows as RuleRow[]) {
       const applicability = r.applicability || "store";

@@ -8,13 +8,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   try {
     await ensurePromotionColumns();
     const { id } = await params;
-    const customers = await query<RowDataPacket[]>(
-      "SELECT id, name, email, phone, birthdate, account_type, avatar, total_orders, total_spent, is_active, deactivated_at, deactivation_reason, created_at, updated_at, last_order_at FROM customers WHERE id = ? LIMIT 1",
-      [id]
-    );
+    // None of these three depend on each other's results — only the 404 check
+    // below depends on `customers`' content — so all run as one round-trip.
+    const [customers, addresses, orders] = await Promise.all([
+      query<RowDataPacket[]>(
+        "SELECT id, name, email, phone, birthdate, account_type, avatar, total_orders, total_spent, is_active, deactivated_at, deactivation_reason, created_at, updated_at, last_order_at FROM customers WHERE id = ? LIMIT 1",
+        [id]
+      ),
+      query<RowDataPacket[]>("SELECT * FROM customer_addresses WHERE customer_id = ?", [id]),
+      query<RowDataPacket[]>("SELECT * FROM orders WHERE customer_id = ? ORDER BY created_at DESC", [id]),
+    ]);
     if (customers.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    const addresses = await query<RowDataPacket[]>("SELECT * FROM customer_addresses WHERE customer_id = ?", [id]);
-    const orders = await query<RowDataPacket[]>("SELECT * FROM orders WHERE customer_id = ? ORDER BY created_at DESC", [id]);
 
     // Fetch order items with product details for each order
     const orderIds = orders.map((o) => o.id as string);

@@ -77,12 +77,10 @@ export const useCartStore = create<CartState>()(
           }
           return { items: [...state.items, { ...item, id: `cart-${Date.now()}` }] };
         });
-        get().refreshOffers();
       },
 
       removeItem: (id) => {
         set((state) => ({ items: state.items.filter((i) => i.id !== id) }));
-        get().refreshOffers();
       },
 
       updateQuantity: (id, quantity) => {
@@ -93,7 +91,6 @@ export const useCartStore = create<CartState>()(
                 i.id === id ? { ...i, quantity: Math.min(quantity, i.stock) } : i
               ),
         }));
-        get().refreshOffers();
       },
 
       clearCart: () => set({

@@ -20,6 +20,17 @@ async function ensureColumn(table: string, column: string, definition: string) {
   await execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
 }
 
+/** Add an index only if it isn't already present (idempotent, no error on re-run). */
+async function ensureIndex(table: string, indexName: string, columns: string) {
+  const rows = await query<RowDataPacket[]>(
+    `SELECT COUNT(*) AS c FROM information_schema.statistics
+     WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?`,
+    [table, indexName]
+  );
+  if (Number(rows[0]?.c) > 0) return;
+  await execute(`ALTER TABLE ${table} ADD INDEX ${indexName} (${columns})`);
+}
+
 export async function ensureAccountingTables() {
   if (done) return;
   try {
@@ -159,6 +170,15 @@ export async function ensureAccountingTables() {
         ('exp-cat-website', 'Website Cost', 5),
         ('exp-cat-salary', 'Salary', 6)
     `);
+
+    // Cross-cutting query-performance indexes — orders/order_items had no
+    // secondary indexes at all beyond the PK/unique/FK-implicit ones, despite
+    // being filtered/sorted on status/payment_status/created_at/customer_id
+    // in nearly every admin, analytics, and accounting query in the app.
+    await ensureIndex("orders", "idx_orders_status_created", "status, created_at");
+    await ensureIndex("orders", "idx_orders_customer_created", "customer_id, created_at");
+    await ensureIndex("orders", "idx_orders_payment_status", "payment_status, status");
+    await ensureIndex("order_items", "idx_order_items_variant", "variant_id");
 
     done = true; // only latch once everything is confirmed/created
   } catch (err) {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
-import { query, execute } from "@/lib/db";
+import pool, { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { validate, validationError } from "@/lib/validate";
 import { notifyAdmin } from "@/lib/notify";
@@ -47,43 +47,67 @@ export async function POST(req: NextRequest) {
     ]);
     if (err) return validationError(err);
 
-    // Verify order exists and is delivered
-    const orders = await query<RowDataPacket[]>("SELECT * FROM orders WHERE id = ? OR order_number = ? LIMIT 1", [body.order_id, body.order_id]);
-    if (orders.length === 0) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    const order = orders[0];
-
-    if (order.status !== "received") {
-      return NextResponse.json({ error: "Returns can only be requested for delivered orders" }, { status: 400 });
-    }
-
-    // Check if return already exists for this order
-    const existing = await query<RowDataPacket[]>("SELECT id FROM order_returns WHERE order_id = ? AND status NOT IN ('rejected')", [order.id]);
-    if (existing.length > 0) {
-      return NextResponse.json({ error: "A return request already exists for this order" }, { status: 409 });
-    }
-
-    // Check 7-day return window
-    const orderDate = new Date(order.created_at as string);
-    const daysSinceOrder = (Date.now() - orderDate.getTime()) / (1000 * 60 * 60 * 24);
-    if (daysSinceOrder > 7) {
-      return NextResponse.json({ error: "Return window has expired. Returns must be requested within 7 days of delivery." }, { status: 400 });
-    }
-
+    // Verify order exists, is delivered, has no existing return, and is within
+    // the return window, then insert — all inside one transaction with the
+    // order row locked, so two concurrent return requests for the same order
+    // can't both pass the duplicate-check before either inserts.
     const id = `ret-${Date.now()}`;
-    await execute(
-      "INSERT INTO order_returns (id, order_id, order_number, customer_id, customer_name, reason, description, status, refund_amount, items) VALUES (?, ?, ?, ?, ?, ?, ?, 'requested', ?, ?)",
-      [
-        id,
-        order.id,
-        order.order_number,
-        order.customer_id || null,
-        order.customer_name,
-        body.reason,
-        body.description || null,
-        Number(order.total) || 0,
-        JSON.stringify(body.items || []),
-      ]
-    );
+    let order: RowDataPacket;
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const [orders] = await conn.execute<RowDataPacket[]>("SELECT * FROM orders WHERE id = ? OR order_number = ? LIMIT 1 FOR UPDATE", [body.order_id, body.order_id]);
+      if (orders.length === 0) {
+        await conn.rollback();
+        conn.release();
+        return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      }
+      order = orders[0];
+
+      if (order.status !== "received") {
+        await conn.rollback();
+        conn.release();
+        return NextResponse.json({ error: "Returns can only be requested for delivered orders" }, { status: 400 });
+      }
+
+      const [existing] = await conn.execute<RowDataPacket[]>("SELECT id FROM order_returns WHERE order_id = ? AND status NOT IN ('rejected')", [order.id]);
+      if (existing.length > 0) {
+        await conn.rollback();
+        conn.release();
+        return NextResponse.json({ error: "A return request already exists for this order" }, { status: 409 });
+      }
+
+      const orderDate = new Date(order.created_at as string);
+      const daysSinceOrder = (Date.now() - orderDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSinceOrder > 7) {
+        await conn.rollback();
+        conn.release();
+        return NextResponse.json({ error: "Return window has expired. Returns must be requested within 7 days of delivery." }, { status: 400 });
+      }
+
+      await conn.execute(
+        "INSERT INTO order_returns (id, order_id, order_number, customer_id, customer_name, reason, description, status, refund_amount, items) VALUES (?, ?, ?, ?, ?, ?, ?, 'requested', ?, ?)",
+        [
+          id,
+          order.id,
+          order.order_number,
+          order.customer_id || null,
+          order.customer_name,
+          body.reason,
+          body.description || null,
+          Number(order.total) || 0,
+          JSON.stringify(body.items || []),
+        ]
+      );
+
+      await conn.commit();
+      conn.release();
+    } catch (txError) {
+      await conn.rollback().catch(() => {});
+      conn.release();
+      throw txError;
+    }
 
     // Notify customer
     if (order.customer_id) {

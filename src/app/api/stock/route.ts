@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
-import { query, execute, escapeLike } from "@/lib/db";
+import pool, { query, execute, escapeLike } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 
 interface StockRow extends RowDataPacket {
@@ -38,25 +38,46 @@ export async function GET(req: NextRequest) {
     else if (sortBy === "name_asc") orderBy = "ORDER BY p.name ASC";
     else if (sortBy === "value_desc") orderBy = "ORDER BY (p.price * p.stock_quantity) DESC";
 
-    // Count
-    const [countResult] = await query<StatsRow[]>(`SELECT COUNT(*) as count FROM products p ${where}`, params);
+    // All 8 queries are independent of each other (the 6 summary stats are
+    // fixed regardless of the page's filter/search) — one round-trip batch
+    // instead of 8 sequential ones.
+    const [
+      [countResult],
+      products,
+      [totalProducts],
+      [outOfStock],
+      [lowStock],
+      [healthyStock],
+      [overStock],
+      [totalUnits],
+      [stockValue],
+    ] = await Promise.all([
+      query<StatsRow[]>(`SELECT COUNT(*) as count FROM products p ${where}`, params),
+      // First image per product via a pre-aggregated derived table (min `order`,
+      // then MIN(url) as a tie-breaker so ties on `order` can't fan out into
+      // duplicate product rows) instead of a correlated subquery re-evaluated
+      // per product row.
+      query<StockRow[]>(`
+        SELECT p.id, p.name, p.sku, p.stock_quantity, p.min_stock, p.max_stock, p.price, p.category_name, p.is_active,
+               first_img.url as image_url
+        FROM products p
+        LEFT JOIN (
+          SELECT product_id, MIN(url) AS url FROM product_images pi
+          WHERE \`order\` = (SELECT MIN(\`order\`) FROM product_images WHERE product_id = pi.product_id)
+          GROUP BY product_id
+        ) first_img ON first_img.product_id = p.id
+        ${where} ${orderBy} LIMIT ${Math.max(1, Math.min(Math.floor(pageSize), 100))} OFFSET ${Math.max(0, Math.floor((page - 1) * pageSize))}
+      `, params),
+      // Summary stats — use min_stock/max_stock for thresholds
+      query<StatsRow[]>("SELECT COUNT(*) as count FROM products WHERE is_active = 1"),
+      query<StatsRow[]>("SELECT COUNT(*) as count FROM products WHERE is_active = 1 AND stock_quantity = 0"),
+      query<StatsRow[]>("SELECT COUNT(*) as count FROM products WHERE is_active = 1 AND stock_quantity > 0 AND stock_quantity <= min_stock"),
+      query<StatsRow[]>("SELECT COUNT(*) as count FROM products WHERE is_active = 1 AND stock_quantity > min_stock AND stock_quantity <= max_stock"),
+      query<StatsRow[]>("SELECT COUNT(*) as count FROM products WHERE is_active = 1 AND stock_quantity > max_stock"),
+      query<SumRow[]>("SELECT COALESCE(SUM(stock_quantity), 0) as total FROM products WHERE is_active = 1"),
+      query<SumRow[]>("SELECT COALESCE(SUM(price * stock_quantity), 0) as total FROM products WHERE is_active = 1"),
+    ]);
     const total = countResult?.count || 0;
-
-    // Products with first image + min/max stock
-    const products = await query<StockRow[]>(`
-      SELECT p.id, p.name, p.sku, p.stock_quantity, p.min_stock, p.max_stock, p.price, p.category_name, p.is_active,
-             (SELECT url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.\`order\` LIMIT 1) as image_url
-      FROM products p ${where} ${orderBy} LIMIT ${Math.max(1, Math.min(Math.floor(pageSize), 100))} OFFSET ${Math.max(0, Math.floor((page - 1) * pageSize))}
-    `, params);
-
-    // Summary stats — use min_stock/max_stock for thresholds
-    const [totalProducts] = await query<StatsRow[]>("SELECT COUNT(*) as count FROM products WHERE is_active = 1");
-    const [outOfStock] = await query<StatsRow[]>("SELECT COUNT(*) as count FROM products WHERE is_active = 1 AND stock_quantity = 0");
-    const [lowStock] = await query<StatsRow[]>("SELECT COUNT(*) as count FROM products WHERE is_active = 1 AND stock_quantity > 0 AND stock_quantity <= min_stock");
-    const [healthyStock] = await query<StatsRow[]>("SELECT COUNT(*) as count FROM products WHERE is_active = 1 AND stock_quantity > min_stock AND stock_quantity <= max_stock");
-    const [overStock] = await query<StatsRow[]>("SELECT COUNT(*) as count FROM products WHERE is_active = 1 AND stock_quantity > max_stock");
-    const [totalUnits] = await query<SumRow[]>("SELECT COALESCE(SUM(stock_quantity), 0) as total FROM products WHERE is_active = 1");
-    const [stockValue] = await query<SumRow[]>("SELECT COALESCE(SUM(price * stock_quantity), 0) as total FROM products WHERE is_active = 1");
 
     return NextResponse.json({
       data: products.map((p) => ({
@@ -89,9 +110,21 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
 
     if (body.updates && Array.isArray(body.updates)) {
-      // Bulk update: [{ id, stock }]
-      for (const item of body.updates) {
-        await execute("UPDATE products SET stock_quantity = ?, updated_at = NOW() WHERE id = ?", [item.stock, item.id]);
+      // Bulk update: [{ id, stock }] — wrapped in one transaction so a
+      // failure partway through rolls back instead of leaving stock
+      // partially updated.
+      const conn = await pool.getConnection();
+      try {
+        await conn.beginTransaction();
+        for (const item of body.updates) {
+          await conn.execute("UPDATE products SET stock_quantity = ?, updated_at = NOW() WHERE id = ?", [item.stock, item.id]);
+        }
+        await conn.commit();
+        conn.release();
+      } catch (txError) {
+        await conn.rollback().catch(() => {});
+        conn.release();
+        throw txError;
       }
       await logActivity(`Bulk stock update (${body.updates.length} products)`, "stock", undefined, `Updated ${body.updates.length} products`);
       return NextResponse.json({ success: true, updated: body.updates.length });

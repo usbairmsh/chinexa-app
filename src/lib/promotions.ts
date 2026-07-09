@@ -79,25 +79,26 @@ export async function enrichCartItems(
   const productIds = [...new Set(items.map((i) => i.product_id))];
   if (productIds.length === 0) return [];
 
-  const productPlaceholders = productIds.map(() => "?").join(",");
-  const productRows = await query<RowDataPacket[]>(
-    `SELECT id, category_id, subcategory, brand_id, price FROM products WHERE id IN (${productPlaceholders})`,
-    productIds
-  );
-  const productById = new Map(productRows.map((r) => [r.id as string, r]));
-
   // Look up any selected variants so we can apply their price adjustment.
   const variantIds = [...new Set(items.map((i) => i.variant_id).filter((v): v is string => !!v))];
+
+  const productPlaceholders = productIds.map(() => "?").join(",");
+  const [productRows, variantRows] = await Promise.all([
+    query<RowDataPacket[]>(
+      `SELECT id, category_id, subcategory, brand_id, price FROM products WHERE id IN (${productPlaceholders})`,
+      productIds
+    ),
+    variantIds.length > 0
+      ? query<RowDataPacket[]>(
+          `SELECT id, price_adjustment FROM product_variants WHERE id IN (${variantIds.map(() => "?").join(",")})`,
+          variantIds
+        )
+      : Promise.resolve([] as RowDataPacket[]),
+  ]);
+  const productById = new Map(productRows.map((r) => [r.id as string, r]));
   const adjustmentByVariant = new Map<string, number>();
-  if (variantIds.length > 0) {
-    const variantPlaceholders = variantIds.map(() => "?").join(",");
-    const variantRows = await query<RowDataPacket[]>(
-      `SELECT id, price_adjustment FROM product_variants WHERE id IN (${variantPlaceholders})`,
-      variantIds
-    );
-    for (const v of variantRows) {
-      adjustmentByVariant.set(v.id as string, Number(v.price_adjustment) || 0);
-    }
+  for (const v of variantRows) {
+    adjustmentByVariant.set(v.id as string, Number(v.price_adjustment) || 0);
   }
 
   return items.map((i) => {

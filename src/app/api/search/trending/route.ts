@@ -32,11 +32,13 @@ export async function GET() {
 
     // Not enough real search history yet — fall back to top-selling products
     // as a reasonable stand-in for "trending", rather than a hardcoded list.
+    // Sold-quantity pre-aggregated via a derived table instead of a
+    // correlated subquery re-evaluated per product row.
     const fallback = await query<RowDataPacket[]>(
       `SELECT p.name FROM products p
+       LEFT JOIN (SELECT product_id, SUM(quantity) AS qty FROM order_items GROUP BY product_id) oi_agg ON oi_agg.product_id = p.id
        WHERE p.is_active = 1
-       ORDER BY (SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi WHERE oi.product_id = p.id) DESC,
-                p.is_featured DESC, p.created_at DESC
+       ORDER BY COALESCE(oi_agg.qty, 0) DESC, p.is_featured DESC, p.created_at DESC
        LIMIT 6`
     );
 

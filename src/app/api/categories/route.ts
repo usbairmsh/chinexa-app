@@ -10,27 +10,26 @@ interface CategoryRow extends RowDataPacket {
   is_active: number; product_count: number; created_at: string;
 }
 
+interface CountRow extends RowDataPacket { category_id: string; count: number; }
+interface SubCountRow extends RowDataPacket { subcategory: string; count: number; }
+interface BrandCountRow extends RowDataPacket { brand_name: string; count: number; }
+
 export async function GET() {
   try {
-    const rows = await query<CategoryRow[]>("SELECT * FROM categories ORDER BY `order`");
+    // All 5 queries are independent of each other — batched into one
+    // round-trip instead of 5 sequential ones (this route backs the
+    // storefront nav/footer, so it's hit on nearly every page load).
+    const [rows, counts, subCounts, brandCounts, brandRows] = await Promise.all([
+      query<CategoryRow[]>("SELECT * FROM categories ORDER BY `order`"),
+      query<CountRow[]>("SELECT category_id, COUNT(*) as count FROM products WHERE is_active = 1 AND category_id IS NOT NULL GROUP BY category_id"),
+      query<SubCountRow[]>("SELECT subcategory, COUNT(*) as count FROM products WHERE is_active = 1 AND subcategory IS NOT NULL AND subcategory != '' GROUP BY subcategory"),
+      query<BrandCountRow[]>("SELECT brand_name, COUNT(*) as count FROM products WHERE is_active = 1 AND brand_name IS NOT NULL AND brand_name != '' GROUP BY brand_name"),
+      query<RowDataPacket[]>("SELECT id, name FROM brands WHERE is_active = 1"),
+    ]);
 
-    // Get live product counts per category
-    interface CountRow extends RowDataPacket { category_id: string; count: number; }
-    const counts = await query<CountRow[]>("SELECT category_id, COUNT(*) as count FROM products WHERE is_active = 1 AND category_id IS NOT NULL GROUP BY category_id");
     const countMap = new Map(counts.map((c) => [c.category_id, c.count]));
-
-    // Get product counts per subcategory (by name match)
-    interface SubCountRow extends RowDataPacket { subcategory: string; count: number; }
-    const subCounts = await query<SubCountRow[]>("SELECT subcategory, COUNT(*) as count FROM products WHERE is_active = 1 AND subcategory IS NOT NULL AND subcategory != '' GROUP BY subcategory");
     const subCountMap = new Map(subCounts.map((c) => [c.subcategory, c.count]));
-
-    // Get product counts per brand
-    interface BrandCountRow extends RowDataPacket { brand_name: string; count: number; }
-    const brandCounts = await query<BrandCountRow[]>("SELECT brand_name, COUNT(*) as count FROM products WHERE is_active = 1 AND brand_name IS NOT NULL AND brand_name != '' GROUP BY brand_name");
     const brandCountMap = new Map(brandCounts.map((c) => [c.brand_name, c.count]));
-
-    // Get brand names for brand_ids mapping
-    const brandRows = await query<RowDataPacket[]>("SELECT id, name FROM brands WHERE is_active = 1");
     const brandNameMap = new Map(brandRows.map((b) => [b.id as string, b.name as string]));
 
     const parents = rows.filter((r) => !r.parent_id).map((r) => ({

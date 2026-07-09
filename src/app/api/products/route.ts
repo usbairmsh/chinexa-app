@@ -88,6 +88,25 @@ export async function GET(req: NextRequest) {
     await ensureSearchIndexes();
     await ensureAccountingTables();
     const { searchParams } = new URL(req.url);
+
+    // Batched lookup by id list (e.g. wishlist page) — bypasses pagination/
+    // filtering entirely, just returns whichever of these ids exist.
+    const idsParam = searchParams.get("ids");
+    if (idsParam) {
+      const ids = idsParam.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 100);
+      if (ids.length === 0) return NextResponse.json({ data: [] });
+      const placeholders = ids.map(() => "?").join(",");
+      const products = await query<ProductRow[]>(`SELECT * FROM products p WHERE p.id IN (${placeholders})`, ids);
+      if (products.length === 0) return NextResponse.json({ data: [] });
+      const foundIds = products.map((p) => p.id);
+      const idPlaceholders = foundIds.map(() => "?").join(",");
+      const [images, variants] = await Promise.all([
+        query<ImageRow[]>(`SELECT * FROM product_images WHERE product_id IN (${idPlaceholders}) ORDER BY \`order\``, foundIds),
+        query<VariantRow[]>(`SELECT * FROM product_variants WHERE product_id IN (${idPlaceholders})`, foundIds),
+      ]);
+      return NextResponse.json({ data: products.map((p) => buildProduct(p, images, variants)) });
+    }
+
     const page = Number(searchParams.get("page")) || 1;
     const pageSize = Number(searchParams.get("page_size")) || 12;
     const category = searchParams.get("category");
@@ -191,8 +210,23 @@ export async function GET(req: NextRequest) {
     else if (sortBy === "name_asc") orderBy = "ORDER BY p.name ASC";
     else if (relevanceSelect && sortBy === "featured") orderBy = "ORDER BY relevance DESC, p.is_featured DESC";
 
-    // Count
-    const countRows = await query<CountRow[]>(`SELECT COUNT(*) as total FROM products p ${where}`, params);
+    // If limit param, use it directly (for featured/new/best/trending queries)
+    const actualLimit = limit ? Number(limit) : pageSize;
+    const offset = limit ? 0 : (page - 1) * pageSize;
+    const safeLimit = Math.max(1, Math.min(Math.floor(actualLimit), 100));
+    const safeOffset = Math.max(0, Math.floor(offset));
+
+    // Count and data share the identical WHERE/params, so they're independent
+    // of each other — one round-trip instead of two sequential ones.
+    const [countRows, products] = await Promise.all([
+      query<CountRow[]>(`SELECT COUNT(*) as total FROM products p ${where}`, params),
+      // relevanceSelect's param must be bound first since it appears earlier
+      // in the SQL string (SELECT clause) than the WHERE clause params.
+      query<ProductRow[]>(
+        `SELECT p.*${relevanceSelect} FROM products p ${where} ${orderBy} LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+        [...relevanceParams, ...params]
+      ),
+    ]);
     const total = countRows[0]?.total || 0;
 
     // Fire-and-forget search logging — powers real trending-searches data.
@@ -202,29 +236,17 @@ export async function GET(req: NextRequest) {
       execute("INSERT INTO search_logs (term, result_count) VALUES (?, ?)", [search.slice(0, 255), total]).catch(() => {});
     }
 
-    // If limit param, use it directly (for featured/new/best/trending queries)
-    const actualLimit = limit ? Number(limit) : pageSize;
-    const offset = limit ? 0 : (page - 1) * pageSize;
-
-    // Products — relevanceSelect's param must be bound first since it appears
-    // earlier in the SQL string (SELECT clause) than the WHERE clause params.
-    const safeLimit = Math.max(1, Math.min(Math.floor(actualLimit), 100));
-    const safeOffset = Math.max(0, Math.floor(offset));
-    const products = await query<ProductRow[]>(
-      `SELECT p.*${relevanceSelect} FROM products p ${where} ${orderBy} LIMIT ${safeLimit} OFFSET ${safeOffset}`,
-      [...relevanceParams, ...params]
-    );
-
     if (products.length === 0) {
       return NextResponse.json({ data: [], total, page, page_size: pageSize, total_pages: Math.ceil(total / pageSize) });
     }
 
-    // Batch load images and variants
+    // Batch load images and variants — independent of each other.
     const productIds = products.map((p) => p.id);
     const placeholders = productIds.map(() => "?").join(",");
-
-    const images = await query<ImageRow[]>(`SELECT * FROM product_images WHERE product_id IN (${placeholders}) ORDER BY \`order\``, productIds);
-    const variants = await query<VariantRow[]>(`SELECT * FROM product_variants WHERE product_id IN (${placeholders})`, productIds);
+    const [images, variants] = await Promise.all([
+      query<ImageRow[]>(`SELECT * FROM product_images WHERE product_id IN (${placeholders}) ORDER BY \`order\``, productIds),
+      query<VariantRow[]>(`SELECT * FROM product_variants WHERE product_id IN (${placeholders})`, productIds),
+    ]);
 
     const data = products.map((p) => buildProduct(p, images, variants));
 

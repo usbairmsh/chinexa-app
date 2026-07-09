@@ -53,9 +53,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const orders = await query<RowDataPacket[]>("SELECT * FROM orders WHERE id = ? OR order_number = ? LIMIT 1", [id, id]);
     if (orders.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const order = orders[0];
-    const items = await query<RowDataPacket[]>("SELECT * FROM order_items WHERE order_id = ?", [order.id]);
-    const addresses = await query<RowDataPacket[]>("SELECT * FROM order_addresses WHERE order_id = ?", [order.id]);
-    const timeline = await query<RowDataPacket[]>("SELECT * FROM order_timeline WHERE order_id = ? ORDER BY created_at", [order.id]);
+    const [items, addresses, timeline] = await Promise.all([
+      query<RowDataPacket[]>("SELECT * FROM order_items WHERE order_id = ?", [order.id]),
+      query<RowDataPacket[]>("SELECT * FROM order_addresses WHERE order_id = ?", [order.id]),
+      query<RowDataPacket[]>("SELECT * FROM order_timeline WHERE order_id = ? ORDER BY created_at", [order.id]),
+    ]);
     return NextResponse.json({
       ...order,
       // mysql2 returns DECIMAL as string — normalize money fields for the frontend

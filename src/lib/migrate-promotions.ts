@@ -19,6 +19,17 @@ async function ensureColumn(table: string, column: string, definition: string) {
   await execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
 }
 
+/** Add an index only if it isn't already present (idempotent, no error on re-run). */
+async function ensureIndex(table: string, indexName: string, columns: string) {
+  const rows = await query<RowDataPacket[]>(
+    `SELECT COUNT(*) AS c FROM information_schema.statistics
+     WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?`,
+    [table, indexName]
+  );
+  if (Number(rows[0]?.c) > 0) return;
+  await execute(`ALTER TABLE ${table} ADD INDEX ${indexName} (${columns})`);
+}
+
 /** Drop a column only if it's currently present (idempotent, no error on re-run). */
 async function dropColumnIfExists(table: string, column: string) {
   const rows = await query<RowDataPacket[]>(
@@ -104,6 +115,15 @@ export async function ensurePromotionColumns() {
     // previously inferred from `!!badge_color`, which meant disabling the badge
     // destroyed the configured color instead of just hiding it.
     await ensureColumn("membership_tiers", "badge_enabled", "BOOLEAN NOT NULL DEFAULT FALSE");
+
+    // Offer/tier lookups on every cart re-price filter on these columns with
+    // no supporting index — add them so the scan stays cheap as both tables grow.
+    await ensureIndex("offers", "idx_offers_active_window", "is_active, start_date, end_date");
+    await ensureIndex("membership_tiers", "idx_membership_tiers_active_points", "is_active, min_points, max_points");
+
+    // Unbounded append-only audit log — ORDER BY created_at DESC had no
+    // supporting index at all.
+    await ensureIndex("activity_log", "idx_activity_log_created", "created_at");
 
     done = true; // only latch once every column is confirmed/created
   } catch (err) {

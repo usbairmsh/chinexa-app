@@ -20,23 +20,22 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     await ensurePromotionColumns();
     const { id } = await params;
 
-    // Get total points balance
-    const balanceRows = await query<RowDataPacket[]>(
-      "SELECT COALESCE(SUM(points), 0) as total_points FROM customer_points WHERE customer_id = ?",
-      [id]
-    );
+    // Balance, history, and tiers are independent of each other — one
+    // round-trip batch instead of three sequential ones.
+    const [balanceRows, history, tiers] = await Promise.all([
+      query<RowDataPacket[]>(
+        "SELECT COALESCE(SUM(points), 0) as total_points FROM customer_points WHERE customer_id = ?",
+        [id]
+      ),
+      query<RowDataPacket[]>(
+        "SELECT * FROM customer_points WHERE customer_id = ? ORDER BY created_at DESC LIMIT 50",
+        [id]
+      ),
+      query<RowDataPacket[]>(
+        "SELECT * FROM membership_tiers WHERE is_active = 1 ORDER BY sort_order ASC"
+      ),
+    ]);
     const totalPoints = Number(balanceRows[0]?.total_points) || 0;
-
-    // Get points history (latest 50)
-    const history = await query<RowDataPacket[]>(
-      "SELECT * FROM customer_points WHERE customer_id = ? ORDER BY created_at DESC LIMIT 50",
-      [id]
-    );
-
-    // Get all tiers to determine current tier and next tier
-    const tiers = await query<RowDataPacket[]>(
-      "SELECT * FROM membership_tiers WHERE is_active = 1 ORDER BY sort_order ASC"
-    );
     const parsedTiers: TierData[] = tiers.map((t) => ({
       id: t.id as string,
       name: t.name as string,

@@ -29,18 +29,14 @@ export default function AccountWishlistPage() {
     let cancelled = false;
     setLoading(true);
 
-    Promise.all(
-      items.map((id) =>
-        fetch(`/api/products/${id}`)
-          .then((r) => r.json())
-          .then((data) => (data && !data.error ? data : null))
-          .catch(() => null)
-      )
-    ).then((results) => {
-      if (cancelled) return;
-      setProducts(results.filter(Boolean) as Product[]);
-      setLoading(false);
-    });
+    fetch(`/api/products?ids=${items.map(encodeURIComponent).join(",")}`)
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .catch(() => ({ data: [] }))
+      .then((res) => {
+        if (cancelled) return;
+        setProducts(Array.isArray(res.data) ? (res.data as Product[]) : []);
+        setLoading(false);
+      });
 
     return () => { cancelled = true; };
   }, [mounted, items]);

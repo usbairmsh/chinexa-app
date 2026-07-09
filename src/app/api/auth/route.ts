@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
       const phone = normalizePhone(rawPhone);
 
       const rows = await query<RowDataPacket[]>(
-        "SELECT id, name, is_active FROM customers WHERE phone = ? OR phone = ? LIMIT 1",
+        "SELECT id, name, is_active, account_type FROM customers WHERE phone = ? OR phone = ? LIMIT 1",
         [phone, rawPhone]
       );
 
@@ -98,6 +98,13 @@ export async function POST(req: NextRequest) {
           blocked: true,
           error: "This account has been deactivated. Please contact support if you believe this is a mistake.",
         }, { status: 403 });
+      }
+
+      // A temporary account (auto-created from a guest checkout with this
+      // phone) has no password yet — it's not "registered" in any real
+      // sense, so registration should be allowed to proceed and claim it.
+      if (rows[0].account_type === "temporary") {
+        return NextResponse.json({ found: false, temporary: true, phone });
       }
 
       return NextResponse.json({ found: true, name: rows[0].name });
@@ -120,17 +127,52 @@ export async function POST(req: NextRequest) {
 
       // Check if already exists (active or inactive)
       const existing = await query<RowDataPacket[]>(
-        "SELECT id, name, is_active FROM customers WHERE phone = ? OR phone = ? LIMIT 1",
+        "SELECT id, name, email, account_type, is_active FROM customers WHERE phone = ? OR phone = ? LIMIT 1",
         [phone, rawPhone]
       );
 
       if (existing.length > 0) {
-        if (!existing[0].is_active) {
+        const existingCustomer = existing[0];
+        if (!existingCustomer.is_active) {
           return NextResponse.json({
             error: "This phone number belongs to a deactivated account. Please contact support to reactivate.",
           }, { status: 403 });
         }
-        return NextResponse.json({ error: "This phone number is already registered. Please log in instead." }, { status: 409 });
+
+        if (existingCustomer.account_type !== "temporary") {
+          return NextResponse.json({ error: "This phone number is already registered. Please log in instead." }, { status: 409 });
+        }
+
+        // Temporary account (auto-created from a guest checkout with this
+        // phone) — claim it in place rather than reject or duplicate, so the
+        // customer's existing orders/addresses (linked via customer_id) carry
+        // over automatically instead of being orphaned under a brand-new id.
+        const hashed = await bcrypt.hash(password, 10);
+        const id = existingCustomer.id as string;
+        await execute(
+          "UPDATE customers SET name = ?, email = COALESCE(email, ?), password = ?, birthdate = ?, account_type = 'registered' WHERE id = ?",
+          [name, body.email || null, hashed, birthdate, id]
+        );
+        await logActivity("Temporary customer claimed account via registration", "customer", id, phone);
+        await notifyAdmin("customer", `Returning customer registered: ${name}`, `${phone} claimed their account (previously a guest checkout).`, "/admin/customers");
+
+        if (body.address_line_1) {
+          await execute(
+            "INSERT INTO customer_addresses (id, customer_id, label, name, phone, address_line_1, city, district, division, postal_code, is_default) VALUES (?, ?, 'Home', ?, ?, ?, ?, ?, ?, ?, TRUE)",
+            [`addr-${Date.now()}`, id, name, phone, body.address_line_1, body.city || null, body.district || null, body.division || null, body.postal_code || null]
+          );
+        }
+
+        return NextResponse.json({
+          success: true,
+          user: {
+            id,
+            name,
+            email: (existingCustomer.email as string) || body.email || undefined,
+            phone,
+            role: "customer" as const,
+          },
+        }, { status: 200 });
       }
 
       const hashed = await bcrypt.hash(password, 10);

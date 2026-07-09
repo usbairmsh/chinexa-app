@@ -93,9 +93,13 @@ export async function GET(req: NextRequest) {
 
     const safeLimit = Math.max(1, Math.min(Math.floor(pageSize), 500));
     const safeOffset = Math.max(0, Math.floor((page - 1) * safeLimit));
+    // Pre-aggregate item counts once via a derived table instead of a
+    // correlated subquery re-evaluated per order row.
     const orders = await query<OrderRow[]>(
-      `SELECT o.*, (SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi WHERE oi.order_id = o.id) AS item_count
-       FROM orders o ${where} ORDER BY o.created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+      `SELECT o.*, COALESCE(oi_agg.item_count, 0) AS item_count
+       FROM orders o
+       LEFT JOIN (SELECT order_id, SUM(quantity) AS item_count FROM order_items GROUP BY order_id) oi_agg ON oi_agg.order_id = o.id
+       ${where} ORDER BY o.created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
       params
     );
 
@@ -181,34 +185,57 @@ export async function POST(req: NextRequest) {
 
       const outOfStock: string[] = [];
       const costByItemIndex = new Map<number, number>();
-      for (let idx = 0; idx < body.items.length; idx++) {
-        const item = body.items[idx];
-        if (item.product_id) {
-          if (item.variant_id) {
-            const [rows] = await conn.execute<StockRow[]>(
-              "SELECT pv.stock, p.name, p.cost_price, pv.cost_price_adjustment FROM product_variants pv JOIN products p ON p.id = pv.product_id WHERE pv.id = ? FOR UPDATE",
-              [item.variant_id]
-            );
-            if (rows.length > 0) {
-              const available = Number(rows[0].stock);
-              if (available < item.quantity) {
-                outOfStock.push(`${rows[0].name} (only ${available} left, you requested ${item.quantity})`);
-              }
-              costByItemIndex.set(idx, (Number(rows[0].cost_price) || 0) + (Number(rows[0].cost_price_adjustment) || 0));
-            }
-          } else {
-            const [rows] = await conn.execute<StockRow[]>(
-              "SELECT stock_quantity, name, cost_price FROM products WHERE id = ? FOR UPDATE",
-              [item.product_id]
-            );
-            if (rows.length > 0) {
-              const available = Number(rows[0].stock_quantity);
-              if (available < item.quantity) {
-                outOfStock.push(`${rows[0].name} (only ${available} left, you requested ${item.quantity})`);
-              }
-              costByItemIndex.set(idx, Number(rows[0].cost_price) || 0);
-            }
+
+      // Batch the row-locking stock reads into two queries (variants, plain
+      // products) instead of one FOR UPDATE per cart line — cuts how long the
+      // transaction holds these locks under concurrent checkouts.
+      const variantIndices: number[] = [];
+      const plainIndices: number[] = [];
+      body.items.forEach((item: { product_id?: string; variant_id?: string }, idx: number) => {
+        if (!item.product_id) return;
+        if (item.variant_id) variantIndices.push(idx);
+        else plainIndices.push(idx);
+      });
+
+      if (variantIndices.length > 0) {
+        const variantIds = variantIndices.map((idx) => body.items[idx].variant_id);
+        const placeholders = variantIds.map(() => "?").join(",");
+        const [rows] = await conn.execute<StockRow[]>(
+          `SELECT pv.id AS variant_id, pv.stock, p.name, p.cost_price, pv.cost_price_adjustment
+           FROM product_variants pv JOIN products p ON p.id = pv.product_id
+           WHERE pv.id IN (${placeholders}) FOR UPDATE`,
+          variantIds
+        );
+        const byVariantId = new Map(rows.map((r) => [r.variant_id as string, r]));
+        for (const idx of variantIndices) {
+          const item = body.items[idx];
+          const row = byVariantId.get(item.variant_id);
+          if (!row) continue;
+          const available = Number(row.stock);
+          if (available < item.quantity) {
+            outOfStock.push(`${row.name} (only ${available} left, you requested ${item.quantity})`);
           }
+          costByItemIndex.set(idx, (Number(row.cost_price) || 0) + (Number(row.cost_price_adjustment) || 0));
+        }
+      }
+
+      if (plainIndices.length > 0) {
+        const productIds = plainIndices.map((idx) => body.items[idx].product_id);
+        const placeholders = productIds.map(() => "?").join(",");
+        const [rows] = await conn.execute<StockRow[]>(
+          `SELECT id, stock_quantity, name, cost_price FROM products WHERE id IN (${placeholders}) FOR UPDATE`,
+          productIds
+        );
+        const byProductId = new Map(rows.map((r) => [r.id as string, r]));
+        for (const idx of plainIndices) {
+          const item = body.items[idx];
+          const row = byProductId.get(item.product_id);
+          if (!row) continue;
+          const available = Number(row.stock_quantity);
+          if (available < item.quantity) {
+            outOfStock.push(`${row.name} (only ${available} left, you requested ${item.quantity})`);
+          }
+          costByItemIndex.set(idx, Number(row.cost_price) || 0);
         }
       }
 

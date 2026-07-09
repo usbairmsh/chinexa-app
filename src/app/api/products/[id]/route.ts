@@ -23,8 +23,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (products.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const product = products[0];
-    const images = await query<ImageRow[]>("SELECT * FROM product_images WHERE product_id = ? ORDER BY `order`", [product.id as string]);
-    const variants = await query<VariantRow[]>("SELECT * FROM product_variants WHERE product_id = ?", [product.id as string]);
+    const [images, variants] = await Promise.all([
+      query<ImageRow[]>("SELECT * FROM product_images WHERE product_id = ? ORDER BY `order`", [product.id as string]),
+      query<VariantRow[]>("SELECT * FROM product_variants WHERE product_id = ?", [product.id as string]),
+    ]);
 
     // cost_price / cost_price_adjustment are internal margin data — never
     // returned from this shared public+admin endpoint (see /api/admin/products/[id]/cost

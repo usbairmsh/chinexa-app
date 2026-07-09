@@ -10,54 +10,81 @@ interface PaymentRow extends RowDataPacket { payment_method: string; count: numb
 
 export const dynamic = "force-dynamic";
 
+interface RevenueRow extends RowDataPacket { total: number; order_count: number; }
+interface PaidWindowRow extends RowDataPacket { recent_total: number; prev_total: number; recent_count: number; prev_count: number; }
+interface CustomerWindowRow extends RowDataPacket { recent_count: number; prev_count: number; }
+
 export async function GET() {
   try {
-    // Stats
-    const [totalProducts] = await query<CountRow[]>("SELECT COUNT(*) as count FROM products WHERE is_active = 1");
-    const [totalCustomers] = await query<CountRow[]>("SELECT COUNT(*) as count FROM customers");
-    const [totalOrders] = await query<CountRow[]>("SELECT COUNT(*) as count FROM orders");
-    const [revenueResult] = await query<SumRow[]>("SELECT COALESCE(SUM(total), 0) as total FROM orders WHERE status = 'received' AND payment_status = 'paid'");
-    const [pendingOrders] = await query<CountRow[]>("SELECT COUNT(*) as count FROM orders WHERE status = 'pending'");
-    const [pendingReviews] = await query<CountRow[]>("SELECT COUNT(*) as count FROM reviews WHERE is_approved = 0");
+    // All independent — none depend on another's result — so they run as one
+    // round-trip batch instead of the ~16 sequential ones this route used to issue.
+    const [
+      [totalProducts],
+      [totalCustomers],
+      [totalOrders],
+      [revenueResult],
+      [pendingOrders],
+      [pendingReviews],
+      orderStatuses,
+      categoryRevenue,
+      paymentMethods,
+      [paidWindow],
+      [customerWindow],
+    ] = await Promise.all([
+      query<CountRow[]>("SELECT COUNT(*) as count FROM products WHERE is_active = 1"),
+      query<CountRow[]>("SELECT COUNT(*) as count FROM customers"),
+      query<CountRow[]>("SELECT COUNT(*) as count FROM orders"),
+      // SUM(total) and COUNT(*) share the same predicate — one query, not two.
+      query<RevenueRow[]>("SELECT COALESCE(SUM(total), 0) as total, COUNT(*) as order_count FROM orders WHERE status = 'received' AND payment_status = 'paid'"),
+      query<CountRow[]>("SELECT COUNT(*) as count FROM orders WHERE status = 'pending'"),
+      query<CountRow[]>("SELECT COUNT(*) as count FROM reviews WHERE is_approved = 0"),
+      query<StatusRow[]>("SELECT status, COUNT(*) as count FROM orders GROUP BY status"),
+      query<CategoryRow[]>(`
+        SELECT p.category_name, COALESCE(SUM(oi.total_price), 0) as revenue
+        FROM order_items oi
+        JOIN products p ON oi.product_id = p.id
+        JOIN orders o ON oi.order_id = o.id
+        WHERE o.status = 'received' AND payment_status = 'paid'
+        GROUP BY p.category_name
+        ORDER BY revenue DESC
+      `),
+      query<PaymentRow[]>(`
+        SELECT payment_method, COUNT(*) as count, COALESCE(SUM(total), 0) as amount
+        FROM orders WHERE status = 'received' AND payment_status = 'paid'
+        GROUP BY payment_method ORDER BY amount DESC
+      `),
+      // Recent 30 days vs previous 30 days, collapsed into one conditional-
+      // aggregation query instead of 2 separate full scans.
+      query<PaidWindowRow[]>(`
+        SELECT
+          COALESCE(SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN total ELSE 0 END), 0) as recent_total,
+          COALESCE(SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY) AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY) THEN total ELSE 0 END), 0) as prev_total,
+          COUNT(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as recent_count,
+          COUNT(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY) AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as prev_count
+        FROM orders WHERE status = 'received' AND payment_status = 'paid'
+      `),
+      query<CustomerWindowRow[]>(`
+        SELECT
+          COUNT(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as recent_count,
+          COUNT(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY) AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as prev_count
+        FROM customers
+      `),
+    ]);
 
     const totalRevenue = Number(revenueResult?.total || 0);
     const orderCount = totalOrders?.count || 0;
-    const paidOrders = await query<CountRow[]>("SELECT COUNT(*) as count FROM orders WHERE status = 'received' AND payment_status = 'paid'");
-    const avgOrderValue = paidOrders[0]?.count > 0 ? Math.round(totalRevenue / paidOrders[0].count) : 0;
+    const paidOrderCount = Number(revenueResult?.order_count || 0);
+    const avgOrderValue = paidOrderCount > 0 ? Math.round(totalRevenue / paidOrderCount) : 0;
 
-    // Order status distribution
-    const orderStatuses = await query<StatusRow[]>("SELECT status, COUNT(*) as count FROM orders GROUP BY status");
-
-    // Revenue by category
-    const categoryRevenue = await query<CategoryRow[]>(`
-      SELECT p.category_name, COALESCE(SUM(oi.total_price), 0) as revenue
-      FROM order_items oi
-      JOIN products p ON oi.product_id = p.id
-      JOIN orders o ON oi.order_id = o.id
-      WHERE o.status = 'received' AND payment_status = 'paid'
-      GROUP BY p.category_name
-      ORDER BY revenue DESC
-    `);
-
-    // Payment method distribution
-    const paymentMethods = await query<PaymentRow[]>(`
-      SELECT payment_method, COUNT(*) as count, COALESCE(SUM(total), 0) as amount
-      FROM orders WHERE status = 'received' AND payment_status = 'paid'
-      GROUP BY payment_method ORDER BY amount DESC
-    `);
-
-    // Recent 30 days vs previous 30 days for change %
-    const [recent30] = await query<SumRow[]>("SELECT COALESCE(SUM(total), 0) as total FROM orders WHERE status = 'received' AND payment_status = 'paid' AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)");
-    const [prev30] = await query<SumRow[]>("SELECT COALESCE(SUM(total), 0) as total FROM orders WHERE status = 'received' AND payment_status = 'paid' AND created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY) AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)");
-    const revenueChange = Number(prev30?.total) > 0 ? Math.round(((Number(recent30?.total) - Number(prev30?.total)) / Number(prev30?.total)) * 100 * 10) / 10 : 0;
-
-    const [recentOrders30] = await query<CountRow[]>("SELECT COUNT(*) as count FROM orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)");
-    const [prevOrders30] = await query<CountRow[]>("SELECT COUNT(*) as count FROM orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY) AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)");
-    const ordersChange = prevOrders30?.count > 0 ? Math.round(((recentOrders30?.count - prevOrders30?.count) / prevOrders30?.count) * 100 * 10) / 10 : 0;
-
-    const [recentCustomers] = await query<CountRow[]>("SELECT COUNT(*) as count FROM customers WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)");
-    const [prevCustomers] = await query<CountRow[]>("SELECT COUNT(*) as count FROM customers WHERE created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY) AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)");
-    const customersChange = prevCustomers?.count > 0 ? Math.round(((recentCustomers?.count - prevCustomers?.count) / prevCustomers?.count) * 100 * 10) / 10 : 0;
+    const revenueChange = Number(paidWindow?.prev_total) > 0
+      ? Math.round(((Number(paidWindow?.recent_total) - Number(paidWindow?.prev_total)) / Number(paidWindow?.prev_total)) * 100 * 10) / 10
+      : 0;
+    const ordersChange = Number(paidWindow?.prev_count) > 0
+      ? Math.round(((Number(paidWindow?.recent_count) - Number(paidWindow?.prev_count)) / Number(paidWindow?.prev_count)) * 100 * 10) / 10
+      : 0;
+    const customersChange = Number(customerWindow?.prev_count) > 0
+      ? Math.round(((Number(customerWindow?.recent_count) - Number(customerWindow?.prev_count)) / Number(customerWindow?.prev_count)) * 100 * 10) / 10
+      : 0;
 
     return NextResponse.json({
       stats: {

@@ -48,20 +48,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ total_discount: 0, lines: [], offers: [] });
     }
 
-    const items = await enrichCartItems(rawItems);
-
     // Active, in-window offers only
     const now = new Date().toISOString().slice(0, 10);
-    const offers = await query<OfferRow[]>(
-      `SELECT id, title, applicability, applicable_ids, discount_type, discount_value, max_discount_amount
-       FROM offers
-       WHERE is_active = 1
-         AND (start_date IS NULL OR start_date <= ?)
-         AND (end_date IS NULL OR end_date >= ?)`,
-      [now, now]
-    );
-
-    const tier = customerId ? await getCustomerTier(customerId) : null;
+    const [items, offers, tier] = await Promise.all([
+      enrichCartItems(rawItems),
+      query<OfferRow[]>(
+        `SELECT id, title, applicability, applicable_ids, discount_type, discount_value, max_discount_amount
+         FROM offers
+         WHERE is_active = 1
+           AND (start_date IS NULL OR start_date <= ?)
+           AND (end_date IS NULL OR end_date >= ?)`,
+        [now, now]
+      ),
+      customerId ? getCustomerTier(customerId) : Promise.resolve(null),
+    ]);
     const ctx: PromoContext = {
       customerId,
       tierName: tier?.name ?? null,
