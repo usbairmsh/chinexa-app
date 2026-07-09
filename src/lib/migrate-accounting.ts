@@ -3,9 +3,10 @@ import { type RowDataPacket } from "mysql2/promise";
 
 // ─── Auto-migration for the accounting module ───
 // Adds cost-price columns to products/variants/order_items, a source column
-// to orders, and the expenses/import-batches/partners tables. Only latches as
-// "done" once everything is confirmed present, so a transient failure (e.g.
-// table missing on first boot) is retried later instead of permanently skipped.
+// to orders, and the expenses/import-batches/partners/loans tables. Only
+// latches as "done" once everything is confirmed present, so a transient
+// failure (e.g. table missing on first boot) is retried later instead of
+// permanently skipped.
 let done = false;
 
 /** Add a column only if it isn't already present (idempotent, no error on re-run). */
@@ -107,6 +108,45 @@ export async function ensureAccountingTables() {
         FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE CASCADE,
         INDEX idx_partner_txn_partner (partner_id),
         INDEX idx_partner_txn_date (transaction_date)
+      ) ENGINE=InnoDB
+    `);
+
+    // Loans — debt financing, kept as a separate concept from partner equity
+    // (partners = investment/withdrawal/profit_distribution; loans = a
+    // principal owed to a lender, serviced via loan_repayments). "Hybrid"
+    // funding (installment + profit share) is modeled as a partner who also
+    // has a linked loan, not a third unified table.
+    await execute(`
+      CREATE TABLE IF NOT EXISTS loans (
+        id VARCHAR(50) PRIMARY KEY,
+        lender_name VARCHAR(255) NOT NULL,
+        lender_type ENUM('bank','company','person') NOT NULL DEFAULT 'bank',
+        principal DECIMAL(12,2) NOT NULL,
+        interest_rate DECIMAL(5,2) NOT NULL DEFAULT 0,
+        repayment_type ENUM('installment','profit_based','mixed') NOT NULL DEFAULT 'installment',
+        start_date DATE NOT NULL,
+        is_active BOOLEAN DEFAULT TRUE,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB
+    `);
+
+    // Append-only repayment ledger — same "derive don't duplicate" philosophy
+    // as partner_transactions. due_amount is computed live from principal vs.
+    // SUM(type='principal') repayments, never a stored running balance.
+    await execute(`
+      CREATE TABLE IF NOT EXISTS loan_repayments (
+        id VARCHAR(50) PRIMARY KEY,
+        loan_id VARCHAR(50) NOT NULL,
+        type ENUM('principal','interest') NOT NULL,
+        amount DECIMAL(12,2) NOT NULL,
+        repayment_date DATE NOT NULL,
+        note VARCHAR(500),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (loan_id) REFERENCES loans(id) ON DELETE CASCADE,
+        INDEX idx_loan_repayments_loan (loan_id),
+        INDEX idx_loan_repayments_date (repayment_date)
       ) ENGINE=InnoDB
     `);
 

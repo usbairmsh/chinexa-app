@@ -130,6 +130,71 @@ export async function GET(req: NextRequest) {
     );
     const expenseBreakdown = breakdownRows.map((r) => ({ category: r.category, amount: Number(r.amount) || 0 }));
 
+    // ─── Real Profit: net_profit minus investor profit-share payouts and loan
+    // repayments actually recorded this year. Only counts amounts an admin has
+    // actually entered as a transaction — never an auto-calculated obligation
+    // from a partner's share_percentage. ───
+    const profitShareRows = await query<RowDataPacket[]>(
+      `SELECT MONTH(transaction_date) AS m, COALESCE(SUM(amount), 0) AS amount
+       FROM partner_transactions WHERE type = 'profit_distribution' AND YEAR(transaction_date) = ?
+       GROUP BY MONTH(transaction_date)`,
+      [year]
+    ).catch(() => [] as RowDataPacket[]);
+    const profitShareByMonth = new Map(profitShareRows.map((r) => [Number(r.m), Number(r.amount) || 0]));
+
+    const loanPaymentRows = await query<RowDataPacket[]>(
+      `SELECT MONTH(repayment_date) AS m, COALESCE(SUM(amount), 0) AS amount
+       FROM loan_repayments WHERE YEAR(repayment_date) = ? GROUP BY MONTH(repayment_date)`,
+      [year]
+    ).catch(() => [] as RowDataPacket[]);
+    const loanPaymentByMonth = new Map(loanPaymentRows.map((r) => [Number(r.m), Number(r.amount) || 0]));
+
+    const realProfitMonthly = pnlMonthly.map((m, i) => {
+      const profitShare = profitShareByMonth.get(i + 1) || 0;
+      const loanPayments = loanPaymentByMonth.get(i + 1) || 0;
+      return { month: m.month, real_profit: m.net_profit - profitShare - loanPayments };
+    });
+
+    const totalProfitShare = Array.from(profitShareByMonth.values()).reduce((s, v) => s + v, 0);
+    const totalLoanPayments = Array.from(loanPaymentByMonth.values()).reduce((s, v) => s + v, 0);
+    const realProfit = netProfit - totalProfitShare - totalLoanPayments;
+
+    // ─── Total outstanding liabilities across all active loans — a current
+    // snapshot, not year-scoped (liabilities exist independent of the P&L
+    // year filter). ───
+    const liabilityRows = await query<RowDataPacket[]>(
+      `SELECT l.id, l.principal, COALESCE(SUM(CASE WHEN lr.type = 'principal' THEN lr.amount ELSE 0 END), 0) AS principal_paid
+       FROM loans l LEFT JOIN loan_repayments lr ON lr.loan_id = l.id
+       WHERE l.is_active = 1 GROUP BY l.id, l.principal`
+    ).catch(() => [] as RowDataPacket[]);
+    const totalLiabilities = liabilityRows.reduce((s, r) => s + Math.max(0, (Number(r.principal) || 0) - (Number(r.principal_paid) || 0)), 0);
+
+    // ─── Month-end aggregate outstanding liability across all loans that
+    // existed by each month of the selected year (Reports-tab trend chart).
+    // Computed in JS from small tables, consistent with this file's existing
+    // style of JS-side month-bucketing rather than SQL window functions. ───
+    const allLoans = await query<RowDataPacket[]>("SELECT id, principal, start_date FROM loans").catch(() => [] as RowDataPacket[]);
+    const principalRepaidByLoanMonth = await query<RowDataPacket[]>(
+      `SELECT loan_id, YEAR(repayment_date) AS y, MONTH(repayment_date) AS m, COALESCE(SUM(amount),0) AS v
+       FROM loan_repayments WHERE type = 'principal' GROUP BY loan_id, YEAR(repayment_date), MONTH(repayment_date)`
+    ).catch(() => [] as RowDataPacket[]);
+
+    const liabilityMonthly = MONTH_NAMES.map((name, i) => {
+      const monthIndex = i + 1;
+      const cutoff = new Date(year, monthIndex, 0); // last day of this month
+      let outstanding = 0;
+      for (const loan of allLoans) {
+        const startDate = new Date(loan.start_date as string);
+        if (startDate > cutoff) continue; // loan didn't exist yet
+        const principal = Number(loan.principal) || 0;
+        const repaidToDate = principalRepaidByLoanMonth
+          .filter((r) => r.loan_id === loan.id && (Number(r.y) < year || (Number(r.y) === year && Number(r.m) <= monthIndex)))
+          .reduce((s, r) => s + (Number(r.v) || 0), 0);
+        outstanding += Math.max(0, principal - repaidToDate);
+      }
+      return { month: name, outstanding_liability: outstanding };
+    });
+
     return NextResponse.json({
       year,
       years: years.length > 0 ? years : [year],
@@ -146,8 +211,12 @@ export async function GET(req: NextRequest) {
         gross_profit: grossProfit,
         total_expenses: totalExpenses,
         net_profit: netProfit,
+        real_profit: realProfit,
+        total_liabilities: totalLiabilities,
       },
       pnl_monthly: pnlMonthly,
+      real_profit_monthly: realProfitMonthly,
+      liability_monthly: liabilityMonthly,
       expense_breakdown: expenseBreakdown,
       monthly,
       transactions,

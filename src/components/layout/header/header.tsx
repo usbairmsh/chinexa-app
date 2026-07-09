@@ -168,19 +168,31 @@ export function Header() {
                 />
               </Link>
 
-              {/* Search — lens tilts in as if leaning closer to look, matching a
-                  literal magnifying-glass motion rather than a generic scale/rotate.
-                  Single-keyframe, so whileHover interrupt-and-reverse is safe here. */}
+              {/* Search — mobile stays icon-only (lens tilts in as if leaning
+                  closer to look); desktop/tablet gets a pill with a wordmark
+                  and a gold-underline flourish so it reads as a real feature
+                  entry point rather than a bare icon. */}
               <motion.button
                 onClick={() => setSearchOverlayOpen(true)}
                 whileHover={{ scale: 1.1, rotate: -15 }}
                 whileTap={{ scale: 0.92 }}
                 transition={{ type: "spring", stiffness: 350, damping: 12 }}
-                className="flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors ml-1 lg:ml-3"
+                className="sm:hidden flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors ml-1"
                 aria-label="Search"
               >
-                <Search className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+                <Search className="h-4 w-4" />
               </motion.button>
+              <button
+                onClick={() => setSearchOverlayOpen(true)}
+                className="group hidden sm:inline-flex items-center gap-2 h-9 pl-3 pr-3.5 rounded-full text-charcoal/70 hover:text-charcoal hover:bg-primary-light transition-colors ml-2 lg:ml-4"
+                aria-label="Search"
+              >
+                <Search className="h-[15px] w-[15px] shrink-0" strokeWidth={2} />
+                <span className="relative font-heading text-[13px] tracking-[0.02em]">
+                  Search
+                  <span className="absolute -bottom-0.5 left-0 h-px w-0 bg-gold transition-all duration-300 group-hover:w-full" />
+                </span>
+              </button>
             </div>
 
             {/* ── CENTER: Navigation ── */}
@@ -319,24 +331,24 @@ export function Header() {
                 </motion.button>
               )}
 
-              {/* Account — profile icon + tier name in one rounded-border pill, tinted in the tier's own color.
-                  Styled with a subtle gradient sheen + tier-tinted shadow + ring so it reads as a premium
-                  membership chip rather than a flat outline. */}
+              {/* Account — profile icon + the customer's own name in one rounded-border
+                  pill, filled with the tier's own color as its background (not just an
+                  outline tint), so the container itself reads as the member's tier. */}
               {isAuthenticated ? (
                 badgeData?.tier_name ? (
                   <Link
                     href="/dashboard"
                     className={cn(
-                      "group relative flex items-center gap-1.5 h-9 pl-1 pr-3.5 rounded-full border bg-gradient-to-b from-white/80 to-white/30 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-px",
+                      "group relative flex items-center gap-1.5 h-9 pl-1 pr-3.5 rounded-full border shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-px",
                       tierPillColor.className
                     )}
                     style={{
+                      ...tierPillColor.style,
                       borderColor: tierPillColor.style?.color ?? "currentColor",
                       boxShadow: `0 1px 6px -1px ${tierPillColor.style?.color ?? "currentColor"}`,
-                      color: tierPillColor.style?.color,
                     }}
                     aria-label="Account"
-                    title={`${badgeData.tier_name} Member`}
+                    title={`${user?.name || "Account"} — ${badgeData.tier_name} Member`}
                   >
                     <motion.span
                       ref={accountPillIcon.scope}
@@ -351,7 +363,7 @@ export function Header() {
                         <User className="h-3.5 w-3.5" />
                       )}
                     </motion.span>
-                    <span className="font-heading text-[12px] font-semibold tracking-[0.03em] whitespace-nowrap">{badgeData.tier_name}</span>
+                    <span className="font-heading text-[12px] font-semibold tracking-[0.03em] whitespace-nowrap">{user?.name || "Account"}</span>
                   </Link>
                 ) : (
                   <Link href="/dashboard" aria-label="Account">
@@ -436,20 +448,23 @@ export function Header() {
                   </button>
                 </div>
 
-                {/* Tier badge — same premium pill as the header, sized up for mobile */}
+                {/* Tier badge — same premium pill as the header, sized up for mobile.
+                    Background is filled with the tier's own color; label is the
+                    customer's name rather than the tier name. */}
                 {isAuthenticated && badgeData?.tier_name && (
                   <Link
                     href="/dashboard"
                     onClick={() => setMobileMenuOpen(false)}
                     className={cn(
-                      "flex items-center gap-2 w-fit h-9 pl-1 pr-3.5 rounded-full border bg-gradient-to-b from-white/80 to-white/30 shadow-sm mb-4",
+                      "flex items-center gap-2 w-fit h-9 pl-1 pr-3.5 rounded-full border shadow-sm mb-4",
                       tierPillColor.className
                     )}
                     style={{
+                      ...tierPillColor.style,
                       borderColor: tierPillColor.style?.color ?? "currentColor",
                       boxShadow: `0 1px 6px -1px ${tierPillColor.style?.color ?? "currentColor"}`,
-                      color: tierPillColor.style?.color,
                     }}
+                    title={`${badgeData.tier_name} Member`}
                   >
                     <span
                       className="flex items-center justify-center h-7 w-7 rounded-full bg-white overflow-hidden"
@@ -461,7 +476,7 @@ export function Header() {
                         <User className="h-3.5 w-3.5" />
                       )}
                     </span>
-                    <span className="font-heading text-[13px] font-semibold tracking-[0.02em]">{badgeData.tier_name} Member</span>
+                    <span className="font-heading text-[13px] font-semibold tracking-[0.02em]">{user?.name || "Account"}</span>
                   </Link>
                 )}
 

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   DollarSign, TrendingUp, TrendingDown, Download, ArrowUpRight, ArrowDownRight, AlertTriangle,
   Plus, Trash2, Pencil, Wallet, Package, Users, PieChart as PieChartIcon, Receipt, ShoppingBag,
+  Sparkles, Landmark,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdminButton } from "@/components/admin/shared/admin-button";
@@ -19,6 +20,7 @@ import {
 import { ExpensesTab } from "@/components/admin/accounting/expenses-tab";
 import { ImportBatchesTab } from "@/components/admin/accounting/import-batches-tab";
 import { PartnersTab } from "@/components/admin/accounting/partners-tab";
+import { LoansTab } from "@/components/admin/accounting/loans-tab";
 import { RecordSaleDialog } from "@/components/admin/accounting/record-sale-dialog";
 
 const tooltipStyle = { borderRadius: "12px", border: "1px solid #E8DDD4", fontSize: "12px", boxShadow: "0 4px 30px rgba(0,0,0,0.04)" };
@@ -26,6 +28,8 @@ const PIE_COLORS = ["#7A4FA0", "#E0B96C", "#C9AEE6", "#D9668F", "#5C4058", "#F2A
 
 interface MonthRow { month: string; revenue: number; refunds: number; orders: number; }
 interface PnlMonthRow { month: string; sales: number; cogs: number; gross_profit: number; expenses: number; net_profit: number; }
+interface RealProfitMonthRow { month: string; real_profit: number; }
+interface LiabilityMonthRow { month: string; outstanding_liability: number; }
 interface Txn { id: string; type: "income" | "refund"; description: string; amount: number; method: string; source?: string; date: string; }
 interface ExpenseBreakdownRow { category: string; amount: number; }
 interface AccountingData {
@@ -33,8 +37,10 @@ interface AccountingData {
   years: number[];
   source: "website" | "manual" | "all";
   summary: { total_revenue: number; total_refunds: number; net: number; total_orders: number };
-  pnl: { total_sales: number; total_cogs: number; gross_profit: number; total_expenses: number; net_profit: number };
+  pnl: { total_sales: number; total_cogs: number; gross_profit: number; total_expenses: number; net_profit: number; real_profit: number; total_liabilities: number };
   pnl_monthly: PnlMonthRow[];
+  real_profit_monthly: RealProfitMonthRow[];
+  liability_monthly: LiabilityMonthRow[];
   expense_breakdown: ExpenseBreakdownRow[];
   monthly: MonthRow[];
   transactions: Txn[];
@@ -75,6 +81,17 @@ export default function AdminAccountingPage() {
   }, []);
 
   useEffect(() => { fetchData(year, sourceFilter); }, [fetchData, year, sourceFilter]);
+
+  // Cash Balance card (Overview) reuses the cashflow endpoint's closing_balance
+  // via its own small fetch, same independent-per-tab-fetch pattern CashFlowTab
+  // already uses — avoids threading cashflow data through props for one number.
+  const [cashBalance, setCashBalance] = useState<number>(0);
+  useEffect(() => {
+    fetch(`/api/accounting/cashflow?year=${year}`)
+      .then((r) => r.json())
+      .then((json) => setCashBalance(json.closing_balance || 0))
+      .catch(() => setCashBalance(0));
+  }, [year]);
 
   const handleExportTransactions = () => {
     if (!data) return;
@@ -136,6 +153,7 @@ export default function AdminAccountingPage() {
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
             <TabsTrigger value="import">Import Costs</TabsTrigger>
             <TabsTrigger value="partners">Partners &amp; Equity</TabsTrigger>
+            <TabsTrigger value="loans">Loans &amp; Liabilities</TabsTrigger>
             <TabsTrigger value="cashflow">Cash Flow</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
@@ -191,6 +209,45 @@ export default function AdminAccountingPage() {
                   <p className="text-xs text-charcoal-lighter mt-1">
                     {pnl && pnl.total_sales > 0 ? `Margin: ${((pnl.net_profit / pnl.total_sales) * 100).toFixed(1)}%` : "No sales recorded yet"}
                   </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid sm:grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-charcoal-lighter">Real Profit</span>
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-success/10">
+                      <Sparkles className="h-4 w-4 text-success" />
+                    </div>
+                  </div>
+                  <p className={cn("text-2xl font-bold", (pnl?.real_profit || 0) >= 0 ? "text-charcoal" : "text-destructive")}>{formatCurrency(pnl?.real_profit || 0)}</p>
+                  <p className="text-xs text-charcoal-lighter mt-1">Net profit after investor payouts &amp; loan repayments</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-charcoal-lighter">Total Liabilities</span>
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-warning/10">
+                      <Landmark className="h-4 w-4 text-warning" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-charcoal">{formatCurrency(pnl?.total_liabilities || 0)}</p>
+                  <p className="text-xs text-charcoal-lighter mt-1">Outstanding across all active loans</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-charcoal-lighter">Cash Balance</span>
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary/10">
+                      <Wallet className="h-4 w-4 text-secondary" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-secondary">{formatCurrency(cashBalance)}</p>
+                  <p className="text-xs text-charcoal-lighter mt-1">Closing balance, {year}</p>
                 </CardContent>
               </Card>
             </div>
@@ -319,6 +376,11 @@ export default function AdminAccountingPage() {
             <PartnersTab />
           </TabsContent>
 
+          {/* ═══ LOANS & LIABILITIES ═══ */}
+          <TabsContent value="loans">
+            <LoansTab />
+          </TabsContent>
+
           {/* ═══ CASH FLOW ═══ */}
           <TabsContent value="cashflow">
             <CashFlowTab year={year} />
@@ -402,6 +464,33 @@ export default function AdminAccountingPage() {
                 )}
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader><CardTitle className="text-base flex items-center gap-2"><Landmark className="h-4 w-4 text-secondary" /> Liability Reduction Over Time</CardTitle></CardHeader>
+              <CardContent>
+                {data && data.liability_monthly.every((m) => m.outstanding_liability === 0) ? (
+                  <p className="text-sm text-charcoal-lighter py-6 text-center">No active loans for {data.year}.</p>
+                ) : (
+                  <div className="w-full" style={{ height: 260 }}>
+                    <ResponsiveContainer width="100%" height="100%" debounce={300}>
+                      <AreaChart data={data?.liability_monthly || []} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="liabilityGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#D9668F" stopOpacity={0.2} />
+                            <stop offset="95%" stopColor="#D9668F" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E8DDD4" vertical={false} />
+                        <XAxis dataKey="month" tickFormatter={(v: string) => v.slice(0, 3)} tick={{ fontSize: 9, fill: "#6B6B6B" }} axisLine={false} tickLine={false} />
+                        <YAxis tickFormatter={(v) => `৳${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 9, fill: "#6B6B6B" }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatCurrency(Number(v))} />
+                        <Area type="monotone" dataKey="outstanding_liability" name="Outstanding Liability" stroke="#D9668F" fill="url(#liabilityGrad)" strokeWidth={2} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       )}
@@ -419,8 +508,8 @@ export default function AdminAccountingPage() {
 interface CashFlowMonth { month: string; cash_in: number; cash_out: number; opening_balance: number; closing_balance: number; net: number; }
 interface CashFlowData {
   opening_balance: number;
-  cash_in: { orders: number; investments: number; total: number };
-  cash_out: { expenses: number; withdrawals: number; refunds: number; total: number };
+  cash_in: { orders: number; investments: number; loan_disbursements: number; total: number };
+  cash_out: { expenses: number; withdrawals: number; loan_payments: number; refunds: number; total: number };
   closing_balance: number;
   monthly: CashFlowMonth[];
 }
@@ -454,14 +543,14 @@ function CashFlowTab({ year }: { year: number }) {
           <CardContent className="p-5">
             <span className="text-sm text-charcoal-lighter">Cash In</span>
             <p className="text-2xl font-bold text-success mt-2">+{formatCurrency(data.cash_in.total)}</p>
-            <p className="text-xs text-charcoal-lighter mt-1">Orders {formatCurrency(data.cash_in.orders)} · Investments {formatCurrency(data.cash_in.investments)}</p>
+            <p className="text-xs text-charcoal-lighter mt-1">Orders {formatCurrency(data.cash_in.orders)} · Investments {formatCurrency(data.cash_in.investments)} · Loans {formatCurrency(data.cash_in.loan_disbursements)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-5">
             <span className="text-sm text-charcoal-lighter">Cash Out</span>
             <p className="text-2xl font-bold text-destructive mt-2">-{formatCurrency(data.cash_out.total)}</p>
-            <p className="text-xs text-charcoal-lighter mt-1">Expenses {formatCurrency(data.cash_out.expenses)} · Withdrawals {formatCurrency(data.cash_out.withdrawals)} · Refunds {formatCurrency(data.cash_out.refunds)}</p>
+            <p className="text-xs text-charcoal-lighter mt-1">Expenses {formatCurrency(data.cash_out.expenses)} · Withdrawals {formatCurrency(data.cash_out.withdrawals)} · Loan Payments {formatCurrency(data.cash_out.loan_payments)} · Refunds {formatCurrency(data.cash_out.refunds)}</p>
           </CardContent>
         </Card>
         <Card>

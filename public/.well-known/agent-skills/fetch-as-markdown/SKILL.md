@@ -25,13 +25,14 @@ The response has `Content-Type: text/markdown; charset=utf-8` and an `x-markdown
 
 | Pattern | Content |
 |---|---|
+| `/` (homepage) | Store title/description, category links, and links to the real content — a summary/index, not a full render of the homepage's live sections |
 | `/products/{slug}` | Product name, price, description, variants table, ingredients, how-to-use |
 | `/blog/{slug}` | Blog post title, author, date, full body (converted from HTML) |
 | `/policies/{slug}` | Policy title, intro, sections (e.g. `shipping`, `returns`, `privacy`, `terms`) |
 | `/categories/{slug}` | Category name, description, a table of products in that category |
 | `/brands/{slug}` | Brand name, country, description, a table of that brand's products |
 
-Other pages (homepage, cart, checkout, account/dashboard pages, search) do not support this — they're interactive UI with no stable document form to convert. Use the [`browse-products`](/.well-known/agent-skills/browse-products/SKILL.md) skill's JSON API for those instead.
+Other pages (cart, checkout, account/dashboard pages, search) do not support this — they're interactive UI with no stable document form to convert. Use the [`browse-products`](/.well-known/agent-skills/browse-products/SKILL.md) skill's JSON API for those instead.
 
 ## Notes
 
