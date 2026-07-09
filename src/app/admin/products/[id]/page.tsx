@@ -29,7 +29,7 @@ import { Shield } from "lucide-react";
 type VariantRow = {
   id: string; type: "size" | "color" | "shade" | "weight";
   name: string; value: string; hex: string;
-  price: string; compare_price: string;
+  price: string; compare_price: string; cost_price: string;
   stock: string; min_stock: string; max_stock: string; sku: string;
 };
 
@@ -175,18 +175,20 @@ export default function EditProductPage() {
       if (loadedImages.length === 0) loadedImages.push({ id: "img-0", url: "", alt: "", variant_id: "", focal_point: "" });
       setImages(loadedImages);
       const basePrice = Number(p.price) || 0;
+      const baseCostPrice = Number(p.cost_price) || 0;
       const loadedVariants = (p.variants || []).map((v: Record<string, unknown>, i: number) => ({
         id: `v-${i}`, type: (v.type as VariantRow["type"]) || "size",
         name: (v.name as string) || "", value: (v.value as string) || "",
         hex: (v.hex as string) || "",
         price: String(basePrice + (Number(v.price_adjustment) || 0)),
         compare_price: i === 0 && p.compare_at_price ? String(p.compare_at_price) : "",
+        cost_price: String(baseCostPrice + (Number(v.cost_price_adjustment) || 0)),
         stock: String(v.stock || 0), min_stock: String(p.min_stock || 10), max_stock: String(p.max_stock || 100),
         sku: (v.sku as string) || "",
       }));
       // Ensure at least one variant exists
       if (loadedVariants.length === 0) {
-        loadedVariants.push({ id: `v-0`, type: "size" as const, name: "", value: "", hex: "", price: String(basePrice), compare_price: p.compare_at_price ? String(p.compare_at_price) : "", stock: String(p.stock_quantity || 0), min_stock: String(p.min_stock || 10), max_stock: String(p.max_stock || 100), sku: p.sku || "" });
+        loadedVariants.push({ id: `v-0`, type: "size" as const, name: "", value: "", hex: "", price: String(basePrice), compare_price: p.compare_at_price ? String(p.compare_at_price) : "", cost_price: String(baseCostPrice), stock: String(p.stock_quantity || 0), min_stock: String(p.min_stock || 10), max_stock: String(p.max_stock || 100), sku: p.sku || "" });
       }
       setVariants(loadedVariants);
       setLoading(false);
@@ -194,7 +196,7 @@ export default function EditProductPage() {
   }, [id]);
 
   const toggleBadge = (badge: string) => setSelectedBadges((prev) => prev.includes(badge) ? prev.filter((b) => b !== badge) : [...prev, badge]);
-  const addVariant = () => setVariants([...variants, { id: `v-${Date.now()}`, type: "size", name: "", value: "", hex: "", price: "", compare_price: "", stock: "0", min_stock: "10", max_stock: "100", sku: "" }]);
+  const addVariant = () => setVariants([...variants, { id: `v-${Date.now()}`, type: "size", name: "", value: "", hex: "", price: "", compare_price: "", cost_price: "", stock: "0", min_stock: "10", max_stock: "100", sku: "" }]);
   const addImage = () => setImages([...images, { id: `img-${Date.now()}`, url: "", alt: "", variant_id: "", focal_point: "" }]);
   const removeImage = (iid: string) => setImages(images.filter((i) => i.id !== iid));
   const removeVariant = (vid: string) => setVariants(variants.filter((v) => v.id !== vid));
@@ -207,12 +209,14 @@ export default function EditProductPage() {
     if (!firstVariant?.price) { setError("Variant price is required"); return; }
     setError(""); setSaving(true);
     const basePrice = Number(firstVariant.price) || 0;
+    const baseCostPrice = Number(firstVariant.cost_price) || 0;
     const totalStock = variants.reduce((s, v) => s + (Number(v.stock) || 0), 0);
     try {
       const payload = {
         name: productName.trim(), sku: sku.trim() || firstVariant.sku,
         short_description: shortDesc.trim(), description: fullDesc.trim(),
         price: basePrice, compare_at_price: firstVariant.compare_price ? Number(firstVariant.compare_price) : null,
+        cost_price: baseCostPrice,
         stock_quantity: totalStock, min_stock: Number(firstVariant.min_stock) || 10, max_stock: Number(firstVariant.max_stock) || 100,
         weight: weight.trim() || null, country_of_origin: origin || null,
         tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
@@ -231,6 +235,7 @@ export default function EditProductPage() {
           return {
             name: v.name, type: v.type, value: v.value || v.name,
             hex: v.hex || null, price_adjustment: (Number(v.price) || 0) - basePrice,
+            cost_price_adjustment: (Number(v.cost_price) || 0) - baseCostPrice,
             stock: Number(v.stock) || 0, sku: v.sku,
             image: linkedImg?.url || null, focal_point: linkedImg?.focal_point || null,
           };
@@ -457,6 +462,16 @@ export default function EditProductPage() {
                               <div className="grid sm:grid-cols-2 gap-3">
                                 <Input label="Price (৳) *" placeholder="2500" type="number" value={variant.price} onChange={(e) => updateVariant(variant.id, "price", e.target.value)} />
                                 <Input label="Compare at Price (৳)" placeholder="3200 (optional)" type="number" value={variant.compare_price} onChange={(e) => updateVariant(variant.id, "compare_price", e.target.value)} />
+                              </div>
+                              <div className="grid sm:grid-cols-2 gap-3 mt-3">
+                                <Input label="Cost Price (৳)" placeholder="1200 (optional, for profit tracking)" type="number" value={variant.cost_price} onChange={(e) => updateVariant(variant.id, "cost_price", e.target.value)} />
+                                {variant.price && variant.cost_price && Number(variant.price) > 0 && (
+                                  <div className="flex items-end pb-2">
+                                    <span className="text-xs text-charcoal-lighter">
+                                      Margin: <span className="font-semibold text-secondary">{(((Number(variant.price) - Number(variant.cost_price)) / Number(variant.price)) * 100).toFixed(1)}%</span>
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div>

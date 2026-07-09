@@ -12,7 +12,7 @@ export interface StoreSettings {
   announcement: { text: string; visible: boolean };
   free_delivery_threshold: number;
   free_delivery_enabled: boolean;
-  payment_methods: { id: string; name: string; enabled: boolean; account_number: string; instructions: string; qr_image: string; input_type?: "transaction_id" | "phone_number" }[];
+  payment_methods: { id: string; name: string; enabled: boolean; account_number: string; instructions: string; qr_image: string; icon?: string; input_type?: "transaction_id" | "phone_number" }[];
   footer_config: FooterConfig;
 }
 

@@ -111,7 +111,7 @@ export function useRevenueChartData(period: "7d" | "30d" | "90d" | "1y") {
 }
 
 // ─── Orders Chart ───
-export function useOrdersChartData(period: "7d" | "1y") {
+export function useOrdersChartData(period: "7d" | "30d" | "90d" | "1y") {
   return useQuery({
     queryKey: ["admin-orders-chart", period],
     queryFn: () => fetchApi<{ label: string; orders: number; customers: number }[]>(`/api/analytics/orders?period=${period}`),

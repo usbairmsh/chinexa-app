@@ -5,11 +5,12 @@ import { logActivity } from "@/lib/log-activity";
 import { validate, validationError, dependencyError } from "@/lib/validate";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { ensureSearchIndexes } from "@/lib/migrate-search";
+import { ensureAccountingTables } from "@/lib/migrate-accounting";
 import { pingIndexNowUrl } from "@/lib/indexnow";
 
 interface ProductRow extends RowDataPacket {
   id: string; name: string; slug: string; description: string; short_description: string;
-  sku: string; price: number; compare_at_price: number | null; currency: string;
+  sku: string; price: number; compare_at_price: number | null; cost_price: number | null; currency: string;
   category_id: string; category_name: string; subcategory: string | null;
   tags: string; badges: string; stock_quantity: number; is_active: number;
   is_featured: number; average_rating: number; review_count: number;
@@ -25,7 +26,7 @@ interface ImageRow extends RowDataPacket {
 
 interface VariantRow extends RowDataPacket {
   id: string; product_id: string; name: string; type: string; value: string;
-  hex: string | null; price_adjustment: number; stock: number; sku: string;
+  hex: string | null; price_adjustment: number; cost_price_adjustment: number; stock: number; sku: string;
 }
 
 interface CountRow extends RowDataPacket { total: number; }
@@ -36,6 +37,7 @@ function buildProduct(row: ProductRow, images: ImageRow[], variants: VariantRow[
     description: row.description, short_description: row.short_description,
     sku: row.sku, price: Number(row.price),
     compare_at_price: row.compare_at_price ? Number(row.compare_at_price) : undefined,
+    cost_price: Number(row.cost_price) || 0,
     currency: row.currency,
     images: images.filter((i) => i.product_id === row.id).map((i) => ({ id: i.id, url: i.url, alt: i.alt || "", order: i.order })),
     category_id: row.category_id, category_name: row.category_name,
@@ -45,7 +47,7 @@ function buildProduct(row: ProductRow, images: ImageRow[], variants: VariantRow[
     variants: variants.filter((v) => v.product_id === row.id).map((v) => ({
       id: v.id, name: v.name, type: v.type as "size" | "color" | "shade" | "weight",
       value: v.value, hex: v.hex || undefined,
-      price_adjustment: Number(v.price_adjustment), stock: v.stock, sku: v.sku,
+      price_adjustment: Number(v.price_adjustment), cost_price_adjustment: Number(v.cost_price_adjustment) || 0, stock: v.stock, sku: v.sku,
       image: v.image || undefined,
     })),
     stock_quantity: row.stock_quantity, is_active: !!row.is_active, is_featured: !!row.is_featured,
@@ -85,6 +87,7 @@ function toBooleanFulltextQuery(term: string): string {
 export async function GET(req: NextRequest) {
   try {
     await ensureSearchIndexes();
+    await ensureAccountingTables();
     const { searchParams } = new URL(req.url);
     const page = Number(searchParams.get("page")) || 1;
     const pageSize = Number(searchParams.get("page_size")) || 12;
@@ -242,6 +245,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await ensurePromotionColumns();
+    await ensureAccountingTables();
     const body = await req.json();
 
     // Validate required fields
@@ -268,12 +272,13 @@ export async function POST(req: NextRequest) {
     const sku = body.sku || `PRD-${Date.now().toString(36).toUpperCase()}`;
 
     await query(
-      `INSERT INTO products (id, name, slug, description, short_description, sku, price, compare_at_price, currency, category_id, category_name, subcategory, brand_id, brand_name, tags, badges, trust_badges, stock_quantity, min_stock, max_stock, is_active, is_featured, country_of_origin, weight, ingredients, how_to_use, seo_title, seo_description)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'BDT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO products (id, name, slug, description, short_description, sku, price, compare_at_price, cost_price, currency, category_id, category_name, subcategory, brand_id, brand_name, tags, badges, trust_badges, stock_quantity, min_stock, max_stock, is_active, is_featured, country_of_origin, weight, ingredients, how_to_use, seo_title, seo_description)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'BDT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id, body.name, slug,
         body.description || "", body.short_description || "",
         sku, Number(body.price) || 0, body.compare_at_price ? Number(body.compare_at_price) : null,
+        Number(body.cost_price) || 0,
         body.category_id || null, body.category_name || body.category_id || "",
         body.subcategory || null,
         body.brand_id || null, body.brand_name || null,
@@ -306,8 +311,8 @@ export async function POST(req: NextRequest) {
         const v = body.variants[i];
         if (v.name) {
           await query(
-            "INSERT INTO product_variants (id, product_id, name, type, value, hex, price_adjustment, stock, sku, image, focal_point) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [`v-${id}-${i}`, id, v.name, v.type || "size", v.value || v.name, v.hex || null, Number(v.price_adjustment) || 0, Number(v.stock) || 0, v.sku || `${sku}-${i}`, v.image || null, v.focal_point || null]
+            "INSERT INTO product_variants (id, product_id, name, type, value, hex, price_adjustment, cost_price_adjustment, stock, sku, image, focal_point) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [`v-${id}-${i}`, id, v.name, v.type || "size", v.value || v.name, v.hex || null, Number(v.price_adjustment) || 0, Number(v.cost_price_adjustment) || 0, Number(v.stock) || 0, v.sku || `${sku}-${i}`, v.image || null, v.focal_point || null]
           );
         }
       }

@@ -33,6 +33,7 @@ type VariantRow = {
   hex: string;
   price: string;
   compare_price: string;
+  cost_price: string;
   stock: string;
   min_stock: string;
   max_stock: string;
@@ -177,7 +178,7 @@ export default function AddProductPage() {
   const [isFeatured, setIsFeatured] = useState(false);
   const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
   const [variants, setVariants] = useState<VariantRow[]>([
-    { id: `v-${Date.now()}`, type: "size", name: "", value: "", hex: "", price: "", compare_price: "", stock: "0", min_stock: "10", max_stock: "100", sku: "" },
+    { id: `v-${Date.now()}`, type: "size", name: "", value: "", hex: "", price: "", compare_price: "", cost_price: "", stock: "0", min_stock: "10", max_stock: "100", sku: "" },
   ]);
   const [images, setImages] = useState<ImageRow[]>([]);
 
@@ -190,7 +191,7 @@ export default function AddProductPage() {
   const addVariant = () => {
     setVariants([...variants, {
       id: `v-${Date.now()}`, type: "size", name: "", value: "", hex: "",
-      price: "", compare_price: "", stock: "0", min_stock: "10", max_stock: "100", sku: "",
+      price: "", compare_price: "", cost_price: "", stock: "0", min_stock: "10", max_stock: "100", sku: "",
     }]);
   };
 
@@ -221,6 +222,7 @@ export default function AddProductPage() {
 
     // Derive base product price/stock from first variant
     const basePrice = Number(firstVariant.price) || 0;
+    const baseCostPrice = Number(firstVariant.cost_price) || 0;
     const totalStock = variants.reduce((s, v) => s + (Number(v.stock) || 0), 0);
 
     try {
@@ -231,6 +233,7 @@ export default function AddProductPage() {
         description: fullDesc.trim(),
         price: basePrice,
         compare_at_price: firstVariant.compare_price ? Number(firstVariant.compare_price) : null,
+        cost_price: baseCostPrice,
         stock_quantity: totalStock,
         min_stock: Number(firstVariant.min_stock) || 10,
         max_stock: Number(firstVariant.max_stock) || 100,
@@ -257,6 +260,7 @@ export default function AddProductPage() {
           return {
             name: v.name, type: v.type, value: v.value || v.name,
             hex: v.hex || null, price_adjustment: (Number(v.price) || 0) - basePrice,
+            cost_price_adjustment: (Number(v.cost_price) || 0) - baseCostPrice,
             stock: Number(v.stock) || 0, sku: v.sku,
             image: linkedImg?.url || null, focal_point: linkedImg?.focal_point || null,
           };
@@ -443,6 +447,16 @@ export default function AddProductPage() {
                               <div className="grid sm:grid-cols-2 gap-3">
                                 <Input label="Price (৳) *" placeholder="2500" type="number" value={variant.price} onChange={(e) => updateVariant(variant.id, "price", e.target.value)} />
                                 <Input label="Compare at Price (৳)" placeholder="3200 (optional, for sale badge)" type="number" value={variant.compare_price} onChange={(e) => updateVariant(variant.id, "compare_price", e.target.value)} />
+                              </div>
+                              <div className="grid sm:grid-cols-2 gap-3 mt-3">
+                                <Input label="Cost Price (৳)" placeholder="1200 (optional, for profit tracking)" type="number" value={variant.cost_price} onChange={(e) => updateVariant(variant.id, "cost_price", e.target.value)} />
+                                {variant.price && variant.cost_price && Number(variant.price) > 0 && (
+                                  <div className="flex items-end pb-2">
+                                    <span className="text-xs text-charcoal-lighter">
+                                      Margin: <span className="font-semibold text-secondary">{(((Number(variant.price) - Number(variant.cost_price)) / Number(variant.price)) * 100).toFixed(1)}%</span>
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             </div>
 

@@ -4,14 +4,16 @@ import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { deleteUploadedFile } from "@/lib/delete-upload";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
+import { ensureAccountingTables } from "@/lib/migrate-accounting";
 import { pingIndexNowUrl } from "@/lib/indexnow";
 
 interface ProductRow extends RowDataPacket { [key: string]: unknown; }
 interface ImageRow extends RowDataPacket { id: string; product_id: string; url: string; alt: string; order: number; }
-interface VariantRow extends RowDataPacket { id: string; product_id: string; name: string; type: string; value: string; hex: string | null; price_adjustment: number; stock: number; sku: string; }
+interface VariantRow extends RowDataPacket { id: string; product_id: string; name: string; type: string; value: string; hex: string | null; price_adjustment: number; cost_price_adjustment: number; stock: number; sku: string; }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await ensureAccountingTables();
     const { id } = await params;
     // Try by slug first, then by id
     const products = await query<ProductRow[]>(
@@ -28,13 +30,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       ...product,
       price: Number(product.price),
       compare_at_price: product.compare_at_price ? Number(product.compare_at_price) : undefined,
+      cost_price: Number(product.cost_price) || 0,
       is_active: !!product.is_active,
       is_featured: !!product.is_featured,
       average_rating: Number(product.average_rating),
       tags: typeof product.tags === "string" ? JSON.parse(product.tags || "[]") : product.tags || [],
       badges: typeof product.badges === "string" ? JSON.parse(product.badges || "[]") : product.badges || [],
       images: images.map((i) => ({ id: i.id, url: i.url, alt: i.alt || "", order: i.order })),
-      variants: variants.map((v) => ({ id: v.id, name: v.name, type: v.type, value: v.value, hex: v.hex || undefined, price_adjustment: Number(v.price_adjustment), stock: v.stock, sku: v.sku, image: v.image || undefined, focal_point: v.focal_point || undefined })),
+      variants: variants.map((v) => ({ id: v.id, name: v.name, type: v.type, value: v.value, hex: v.hex || undefined, price_adjustment: Number(v.price_adjustment), cost_price_adjustment: Number(v.cost_price_adjustment) || 0, stock: v.stock, sku: v.sku, image: v.image || undefined, focal_point: v.focal_point || undefined })),
     });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
@@ -44,12 +47,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await ensurePromotionColumns();
+    await ensureAccountingTables();
     const { id } = await params;
     const body = await req.json();
     const fields: string[] = [];
     const values: (string | number | null)[] = [];
     const map: Record<string, string> = {
-      name: "name", price: "price", compare_at_price: "compare_at_price", stock_quantity: "stock_quantity",
+      name: "name", price: "price", compare_at_price: "compare_at_price", cost_price: "cost_price", stock_quantity: "stock_quantity",
       min_stock: "min_stock", max_stock: "max_stock",
       description: "description", short_description: "short_description", sku: "sku",
       category_id: "category_id", category_name: "category_name", subcategory: "subcategory",
@@ -97,8 +101,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         const v = body.variants[i];
         if (v.name) {
           await execute(
-            "INSERT INTO product_variants (id, product_id, name, type, value, hex, price_adjustment, stock, sku, image, focal_point) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [`pv-${id}-${i}`, id, v.name, v.type || "size", v.value || v.name, v.hex || null, Number(v.price_adjustment) || 0, Number(v.stock) || 0, v.sku || `${id}-v${i}`, v.image || null, v.focal_point || null]
+            "INSERT INTO product_variants (id, product_id, name, type, value, hex, price_adjustment, cost_price_adjustment, stock, sku, image, focal_point) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [`pv-${id}-${i}`, id, v.name, v.type || "size", v.value || v.name, v.hex || null, Number(v.price_adjustment) || 0, Number(v.cost_price_adjustment) || 0, Number(v.stock) || 0, v.sku || `${id}-v${i}`, v.image || null, v.focal_point || null]
           );
         }
       }

@@ -12,6 +12,7 @@ export interface ProductVariant {
   value: string;
   hex?: string;
   price_adjustment: number;
+  cost_price_adjustment?: number;
   stock: number;
   sku: string;
   image?: string;
@@ -27,6 +28,7 @@ export interface Product {
   sku: string;
   price: number;
   compare_at_price?: number;
+  cost_price?: number;
   currency: string;
   images: ProductImage[];
   category_id: string;
@@ -80,6 +82,7 @@ export interface CreateProductDTO {
   sku: string;
   price: number;
   compare_at_price?: number;
+  cost_price?: number;
   images: { url: string; alt: string }[];
   category_id: string;
   subcategory?: string;

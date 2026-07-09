@@ -3,6 +3,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import pool, { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { notifyTierUpgrade, notifyAdmin } from "@/lib/notify";
+import { ensureAccountingTables } from "@/lib/migrate-accounting";
 
 // ─── Helper: restore stock for an order's items ───
 async function restoreStock(conn: import("mysql2/promise").PoolConnection, orderId: string) {
@@ -75,6 +76,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await ensureAccountingTables();
     const { id: paramId } = await params;
     const body = await req.json();
 
@@ -321,6 +323,29 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           }
         }
 
+        // Resolve cost_price per product (+ variant adjustment) for the new
+        // line items so an admin-edited order still carries an accurate COGS
+        // snapshot — a plain batch read is fine here since this is an admin
+        // correction path, not a customer-facing stock race.
+        const newProductIds = [...new Set((body.items as Record<string, unknown>[]).map((i) => i.product_id as string).filter(Boolean))];
+        const costByProductId = new Map<string, number>();
+        const costAdjustmentByVariantId = new Map<string, number>();
+        if (newProductIds.length > 0) {
+          const placeholders = newProductIds.map(() => "?").join(",");
+          const [costRows] = await conn.execute<RowDataPacket[]>(
+            `SELECT id, cost_price FROM products WHERE id IN (${placeholders})`, newProductIds
+          );
+          for (const row of costRows) costByProductId.set(row.id as string, Number(row.cost_price) || 0);
+          const newVariantIds = [...new Set((body.items as Record<string, unknown>[]).map((i) => i.variant_id as string).filter(Boolean))];
+          if (newVariantIds.length > 0) {
+            const vPlaceholders = newVariantIds.map(() => "?").join(",");
+            const [variantRows] = await conn.execute<RowDataPacket[]>(
+              `SELECT id, cost_price_adjustment FROM product_variants WHERE id IN (${vPlaceholders})`, newVariantIds
+            );
+            for (const row of variantRows) costAdjustmentByVariantId.set(row.id as string, Number(row.cost_price_adjustment) || 0);
+          }
+        }
+
         // Replace line items
         await conn.execute("DELETE FROM order_items WHERE order_id = ?", [id]);
         let subtotal = 0;
@@ -329,14 +354,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           const unitPrice = Math.max(0, Number(item.unit_price) || 0);
           const totalPrice = quantity * unitPrice;
           subtotal += totalPrice;
+          const productId = (item.product_id as string) || null;
+          const variantId = (item.variant_id as string) || null;
+          const costSnapshot = (productId ? costByProductId.get(productId) || 0 : 0) + (variantId ? costAdjustmentByVariantId.get(variantId) || 0 : 0);
           await conn.execute(
-            "INSERT INTO order_items (id, order_id, product_id, variant_id, product_name, product_image, product_slug, variant, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO order_items (id, order_id, product_id, variant_id, product_name, product_image, product_slug, variant, quantity, unit_price, total_price, cost_price_snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
               `oi-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, id,
-              (item.product_id as string) || null, (item.variant_id as string) || null,
+              productId, variantId,
               (item.product_name as string) || "Item", (item.product_image as string) || null,
               (item.product_slug as string) || null, (item.variant as string) || null,
-              quantity, unitPrice, totalPrice,
+              quantity, unitPrice, totalPrice, costSnapshot,
             ] as (string | number | null)[]
           );
         }

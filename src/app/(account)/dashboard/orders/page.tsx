@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Package, Truck, CheckCircle2, Clock, XCircle, MapPin, PackageCheck, ThumbsDown } from "lucide-react";
+import { Package, Truck, CheckCircle2, Clock, XCircle, MapPin, PackageCheck, ThumbsDown, LocateFixed } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -83,11 +83,18 @@ function OrderCard({ order }: { order: Order }) {
             <span className="text-charcoal-lighter">Total: </span>
             <span className="font-semibold text-charcoal">{formatCurrency(order.total)}</span>
           </p>
-          <Link href={`/dashboard/orders/${displayId}`}>
-            <button className="text-xs text-charcoal-lighter hover:text-charcoal font-medium transition-colors py-2 px-3 -mr-3 rounded-lg">
-              View Details &rarr;
-            </button>
-          </Link>
+          <div className="flex items-center gap-1">
+            <Link href={`/track-order?order=${encodeURIComponent(displayId)}`}>
+              <button className="flex items-center gap-1 text-xs text-secondary hover:text-secondary-dark font-medium transition-colors py-2 px-3 rounded-lg">
+                <LocateFixed className="h-3.5 w-3.5" /> Track Order
+              </button>
+            </Link>
+            <Link href={`/dashboard/orders/${displayId}`}>
+              <button className="text-xs text-charcoal-lighter hover:text-charcoal font-medium transition-colors py-2 px-3 -mr-3 rounded-lg">
+                View Details &rarr;
+              </button>
+            </Link>
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Search, Package, Truck, CheckCircle2, Clock, MapPin, PackageCheck, CreditCard, Loader2, ShoppingBag } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -66,22 +67,28 @@ interface OrderData {
 }
 
 export default function TrackOrderPage() {
+  return (
+    <Suspense fallback={null}>
+      <TrackOrderContent />
+    </Suspense>
+  );
+}
+
+function TrackOrderContent() {
+  const searchParams = useSearchParams();
   const [orderId, setOrderId] = useState("");
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
-  const handleTrack = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const q = orderId.trim();
-    if (!q) return;
-
+  const trackOrder = useCallback(async (q: string) => {
+    if (!q.trim()) return;
     setLoading(true);
     setNotFound(false);
     setOrder(null);
 
     try {
-      const res = await fetch(`/api/orders/${encodeURIComponent(q)}`);
+      const res = await fetch(`/api/orders/${encodeURIComponent(q.trim())}`);
       if (!res.ok) { setNotFound(true); return; }
       const data = await res.json();
       if (!data || !data.order_number) { setNotFound(true); return; }
@@ -91,6 +98,22 @@ export default function TrackOrderPage() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  // Deep-link support: /track-order?order=ORD-123456 auto-fills and searches,
+  // so a "Track Order" button elsewhere in the app can jump straight to results.
+  useEffect(() => {
+    const q = searchParams.get("order");
+    if (q) {
+      setOrderId(q);
+      trackOrder(q);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleTrack = async (e: React.FormEvent) => {
+    e.preventDefault();
+    trackOrder(orderId);
   };
 
   // Build timeline from real data — map each step to completed/pending

@@ -9,7 +9,6 @@ export * from "./banner";
 export * from "./blog";
 export * from "./auth";
 export * from "./api";
-export * from "./analytics";
 export * from "./seo";
 export * from "./admin";
 export * from "./homepage";

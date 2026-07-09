@@ -140,7 +140,7 @@ function DeliveryApplicabilityPicker({
 }
 
 interface PaymentMethod {
-  id: string; name: string; enabled: boolean; account_number: string; instructions: string; qr_image: string;
+  id: string; name: string; enabled: boolean; account_number: string; instructions: string; qr_image: string; icon: string;
   input_type: "transaction_id" | "phone_number";
 }
 
@@ -213,11 +213,11 @@ function AdminSettingsPageInner() {
 
   // ═══ PAYMENT ═══
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
-    { id: "COD", name: "Cash on Delivery", enabled: true, account_number: "", instructions: "Pay when you receive", qr_image: "", input_type: "transaction_id" },
-    { id: "bkash", name: "bKash", enabled: true, account_number: "", instructions: "", qr_image: "", input_type: "transaction_id" },
-    { id: "nagad", name: "Nagad", enabled: true, account_number: "", instructions: "", qr_image: "", input_type: "transaction_id" },
-    { id: "rocket", name: "Rocket", enabled: false, account_number: "", instructions: "", qr_image: "", input_type: "transaction_id" },
-    { id: "card", name: "Card Payment", enabled: false, account_number: "", instructions: "", qr_image: "", input_type: "transaction_id" },
+    { id: "COD", name: "Cash on Delivery", enabled: true, account_number: "", instructions: "Pay when you receive", qr_image: "", icon: "", input_type: "transaction_id" },
+    { id: "bkash", name: "bKash", enabled: true, account_number: "", instructions: "", qr_image: "", icon: "", input_type: "transaction_id" },
+    { id: "nagad", name: "Nagad", enabled: true, account_number: "", instructions: "", qr_image: "", icon: "", input_type: "transaction_id" },
+    { id: "rocket", name: "Rocket", enabled: false, account_number: "", instructions: "", qr_image: "", icon: "", input_type: "transaction_id" },
+    { id: "card", name: "Card Payment", enabled: false, account_number: "", instructions: "", qr_image: "", icon: "", input_type: "transaction_id" },
   ]);
   const [paymentSaving, setPaymentSaving] = useState(false);
   const [paymentSaved, setPaymentSaved] = useState(false);
@@ -290,7 +290,7 @@ function AdminSettingsPageInner() {
         if (data.payment_methods && Array.isArray(data.payment_methods)) {
           setPaymentMethods(data.payment_methods.map((m: Partial<PaymentMethod>) => ({
             id: m.id || randomId(), name: m.name || "", enabled: !!m.enabled,
-            account_number: m.account_number || "", instructions: m.instructions || "", qr_image: m.qr_image || "",
+            account_number: m.account_number || "", instructions: m.instructions || "", qr_image: m.qr_image || "", icon: m.icon || "",
             input_type: m.input_type === "phone_number" ? "phone_number" : "transaction_id",
           })));
         }
@@ -811,7 +811,7 @@ function AdminSettingsPageInner() {
                   onClick={() => {
                     const name = newPaymentName.trim();
                     if (!name) return;
-                    setPaymentMethods((p) => [...p, { id: randomId(), name, enabled: true, account_number: "", instructions: "", qr_image: "", input_type: "transaction_id" }]);
+                    setPaymentMethods((p) => [...p, { id: randomId(), name, enabled: true, account_number: "", instructions: "", qr_image: "", icon: "", input_type: "transaction_id" }]);
                     setNewPaymentName("");
                   }}
                   className="gap-1.5"
@@ -848,27 +848,38 @@ function AdminSettingsPageInner() {
                     </div>
                   </div>
                 </CardHeader>
-                {m.enabled && m.id !== "COD" && (
+                {m.enabled && (
                   <CardContent className="space-y-3">
-                    <Input label="Account / Phone" value={m.account_number} onChange={(e) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, account_number: e.target.value } : pm))} placeholder="01XXXXXXXXX" />
-                    <div>
-                      <label className="block text-sm font-medium text-charcoal-light mb-1.5">Customer confirms payment with</label>
-                      <Select value={m.input_type} onValueChange={(v) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, input_type: v as PaymentMethod["input_type"] } : pm))}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="transaction_id">Transaction ID</SelectItem>
-                          <SelectItem value="phone_number">Last 4 digit of Phone/Account No.</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Textarea label="Instructions" value={m.instructions} onChange={(e) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, instructions: e.target.value } : pm))} placeholder="How should customers pay with this method?" className="min-h-[80px]" />
                     <ImageUpload
-                      label="QR Code (optional)"
-                      value={m.qr_image}
-                      onChange={(url) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, qr_image: url } : pm))}
+                      label="Payment icon (shown in footer We Accept section)"
+                      value={m.icon}
+                      onChange={(url) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, icon: url } : pm))}
                       aspectRatio="square"
-                      folder="payment-qr"
+                      folder="payment-icons"
                     />
+                    {m.id !== "COD" && (
+                      <>
+                        <Input label="Account / Phone" value={m.account_number} onChange={(e) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, account_number: e.target.value } : pm))} placeholder="01XXXXXXXXX" />
+                        <div>
+                          <label className="block text-sm font-medium text-charcoal-light mb-1.5">Customer confirms payment with</label>
+                          <Select value={m.input_type} onValueChange={(v) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, input_type: v as PaymentMethod["input_type"] } : pm))}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="transaction_id">Transaction ID</SelectItem>
+                              <SelectItem value="phone_number">Last 4 digit of Phone/Account No.</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Textarea label="Instructions" value={m.instructions} onChange={(e) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, instructions: e.target.value } : pm))} placeholder="How should customers pay with this method?" className="min-h-[80px]" />
+                        <ImageUpload
+                          label="QR Code (optional)"
+                          value={m.qr_image}
+                          onChange={(url) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, qr_image: url } : pm))}
+                          aspectRatio="square"
+                          folder="payment-qr"
+                        />
+                      </>
+                    )}
                   </CardContent>
                 )}
               </Card>

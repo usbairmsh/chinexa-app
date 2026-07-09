@@ -3,7 +3,6 @@ import { MockCategoryService } from "./mock/category.mock";
 import { MockAuthService } from "./mock/auth.mock";
 import { MockBannerService } from "./mock/banner.mock";
 import { MockBlogService } from "./mock/blog.mock";
-import { MockAnalyticsService } from "./mock/analytics.mock";
 
 import { ApiProductService } from "./api/product.api";
 import { ApiCategoryService } from "./api/category.api";
@@ -15,7 +14,6 @@ import type { ICategoryService } from "./interfaces/category.interface";
 import type { IAuthService } from "./interfaces/auth.interface";
 import type { IBannerService } from "./interfaces/banner.interface";
 import type { IBlogService } from "./interfaces/blog.interface";
-import type { IAnalyticsService } from "./interfaces/analytics.interface";
 
 export interface Services {
   products: IProductService;
@@ -23,7 +21,6 @@ export interface Services {
   auth: IAuthService;
   banners: IBannerService;
   blog: IBlogService;
-  analytics: IAnalyticsService;
 }
 
 // Default to "api" (real DB) so a missing/empty env var can never silently
@@ -40,7 +37,6 @@ function createServices(): Services {
       auth: new MockAuthService(), // Auth stays mock until Django backend
       banners: new ApiBannerService(),
       blog: new ApiBlogService(),
-      analytics: new MockAnalyticsService(), // Analytics stays mock for now
     };
   }
 
@@ -51,7 +47,6 @@ function createServices(): Services {
     auth: new MockAuthService(),
     banners: new MockBannerService(),
     blog: new MockBlogService(),
-    analytics: new MockAnalyticsService(),
   };
 }
 

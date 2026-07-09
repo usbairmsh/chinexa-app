@@ -6,6 +6,7 @@ import { validate, validationError } from "@/lib/validate";
 import { logActivity } from "@/lib/log-activity";
 import { notifyAdmin } from "@/lib/notify";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
+import { ensureAccountingTables } from "@/lib/migrate-accounting";
 
 interface OrderRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -46,6 +47,7 @@ function normalizePhone(phone: string): string {
 export async function GET(req: NextRequest) {
   try {
     await ensureColumns();
+    await ensureAccountingTables();
     const { searchParams } = new URL(req.url);
 
     // Lightweight per-status counts + received/paid revenue for the admin tab
@@ -120,6 +122,7 @@ export async function POST(req: NextRequest) {
   try {
     await ensureColumns();
     await ensurePromotionColumns();
+    await ensureAccountingTables();
     const body = await req.json();
     const err = validate([
       { field: "customer_name", value: body.customer_name, rules: ["required", "string"], label: "Customer name" },
@@ -177,11 +180,13 @@ export async function POST(req: NextRequest) {
       await conn.beginTransaction();
 
       const outOfStock: string[] = [];
-      for (const item of body.items) {
+      const costByItemIndex = new Map<number, number>();
+      for (let idx = 0; idx < body.items.length; idx++) {
+        const item = body.items[idx];
         if (item.product_id) {
           if (item.variant_id) {
             const [rows] = await conn.execute<StockRow[]>(
-              "SELECT pv.stock, p.name FROM product_variants pv JOIN products p ON p.id = pv.product_id WHERE pv.id = ? FOR UPDATE",
+              "SELECT pv.stock, p.name, p.cost_price, pv.cost_price_adjustment FROM product_variants pv JOIN products p ON p.id = pv.product_id WHERE pv.id = ? FOR UPDATE",
               [item.variant_id]
             );
             if (rows.length > 0) {
@@ -189,10 +194,11 @@ export async function POST(req: NextRequest) {
               if (available < item.quantity) {
                 outOfStock.push(`${rows[0].name} (only ${available} left, you requested ${item.quantity})`);
               }
+              costByItemIndex.set(idx, (Number(rows[0].cost_price) || 0) + (Number(rows[0].cost_price_adjustment) || 0));
             }
           } else {
             const [rows] = await conn.execute<StockRow[]>(
-              "SELECT stock_quantity, name FROM products WHERE id = ? FOR UPDATE",
+              "SELECT stock_quantity, name, cost_price FROM products WHERE id = ? FOR UPDATE",
               [item.product_id]
             );
             if (rows.length > 0) {
@@ -200,6 +206,7 @@ export async function POST(req: NextRequest) {
               if (available < item.quantity) {
                 outOfStock.push(`${rows[0].name} (only ${available} left, you requested ${item.quantity})`);
               }
+              costByItemIndex.set(idx, Number(rows[0].cost_price) || 0);
             }
           }
         }
@@ -232,9 +239,10 @@ export async function POST(req: NextRequest) {
       }
 
       // Create the order inside the transaction
+      const source = body.source === "manual" ? "manual" : "website";
       await conn.execute(
-        `INSERT INTO orders (id, order_number, customer_id, customer_name, customer_phone, subtotal, shipping_cost, discount, tax, total, status, payment_method, payment_status, transaction_id, coupon_code, stock_deducted, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?)`,
-        [id, orderNumber, customerId, body.customer_name, body.customer_phone, body.subtotal || 0, body.shipping_cost || 0, body.discount || 0, body.tax || 0, body.total || 0, "pending", (body.payment_method || "COD").toUpperCase(), "pending", body.transaction_id || null, body.coupon_code || null, body.notes || null]
+        `INSERT INTO orders (id, order_number, customer_id, customer_name, customer_phone, subtotal, shipping_cost, discount, tax, total, status, payment_method, payment_status, transaction_id, coupon_code, stock_deducted, notes, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?)`,
+        [id, orderNumber, customerId, body.customer_name, body.customer_phone, body.subtotal || 0, body.shipping_cost || 0, body.discount || 0, body.tax || 0, body.total || 0, "pending", (body.payment_method || "COD").toUpperCase(), "pending", body.transaction_id || null, body.coupon_code || null, body.notes || null, source]
       );
 
       // Order items
@@ -242,8 +250,8 @@ export async function POST(req: NextRequest) {
         for (let i = 0; i < body.items.length; i++) {
           const item = body.items[i];
           await conn.execute(
-            "INSERT INTO order_items (id, order_id, product_id, variant_id, product_name, product_image, product_slug, variant, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [`oi-${id}-${i}`, id, item.product_id || null, item.variant_id || null, item.product_name, item.product_image || null, item.product_slug || null, item.variant || null, item.quantity, item.unit_price, item.total_price || item.unit_price * item.quantity]
+            "INSERT INTO order_items (id, order_id, product_id, variant_id, product_name, product_image, product_slug, variant, quantity, unit_price, total_price, cost_price_snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [`oi-${id}-${i}`, id, item.product_id || null, item.variant_id || null, item.product_name, item.product_image || null, item.product_slug || null, item.variant || null, item.quantity, item.unit_price, item.total_price || item.unit_price * item.quantity, costByItemIndex.get(i) || 0]
           );
         }
       }
