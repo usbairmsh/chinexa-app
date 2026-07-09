@@ -463,6 +463,7 @@ CREATE TABLE IF NOT EXISTS membership_tiers (
   badge_name VARCHAR(100) DEFAULT 'ChineXa General',
   badge_color VARCHAR(20) DEFAULT '#3B82F6',
   badge_opacity DECIMAL(3,2) DEFAULT 1.00,
+  badge_enabled BOOLEAN NOT NULL DEFAULT FALSE,
   benefits JSON,
   sort_order INT DEFAULT 0,
   is_active BOOLEAN DEFAULT TRUE,

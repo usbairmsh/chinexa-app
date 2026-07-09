@@ -24,14 +24,16 @@ export async function GET(req: NextRequest) {
       // fixed "Guest" pseudo-tier instead of a real one.
       const customerIds = rows.map((r) => r.customer_id as string).filter(Boolean);
       let phoneById = new Map<string, string>();
+      let avatarById = new Map<string, string>();
       let pointsById = new Map<string, number>();
       if (customerIds.length > 0) {
         const placeholders = customerIds.map(() => "?").join(",");
         const custRows = await query<RowDataPacket[]>(
-          `SELECT id, phone FROM customers WHERE id IN (${placeholders})`,
+          `SELECT id, phone, avatar FROM customers WHERE id IN (${placeholders})`,
           customerIds
         );
         phoneById = new Map(custRows.map((r) => [r.id as string, r.phone as string]));
+        avatarById = new Map(custRows.filter((r) => r.avatar).map((r) => [r.id as string, r.avatar as string]));
 
         const pointsRows = await query<RowDataPacket[]>(
           `SELECT customer_id, COALESCE(SUM(points), 0) as total_points FROM customer_points WHERE customer_id IN (${placeholders}) GROUP BY customer_id`,
@@ -54,6 +56,7 @@ export async function GET(req: NextRequest) {
         return {
           ...r,
           phone: customerId ? phoneById.get(customerId) || null : null,
+          avatar: customerId ? avatarById.get(customerId) || null : null,
           tier: customerId ? resolveTier(pointsById.get(customerId) || 0) : "Guest",
         };
       }));

@@ -20,6 +20,7 @@ export async function GET() {
       max_points: Number(r.max_points) || 0,
       points_multiplier: Number(r.points_multiplier) || 1,
       badge_opacity: r.badge_opacity != null ? Number(r.badge_opacity) : 1,
+      badge_enabled: !!r.badge_enabled,
       sort_order: Number(r.sort_order) || 0,
       benefits: typeof r.benefits === "string" ? JSON.parse(r.benefits) : r.benefits || [],
     }));
@@ -31,6 +32,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    await ensurePromotionColumns();
     const body = await req.json();
 
     // Validate min < max
@@ -54,7 +56,7 @@ export async function POST(req: NextRequest) {
 
     const id = `tier-${Date.now()}`;
     await execute(
-      "INSERT INTO membership_tiers (id, name, min_points, max_points, points_multiplier, color, badge_name, badge_color, badge_opacity, benefits, sort_order, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO membership_tiers (id, name, min_points, max_points, points_multiplier, color, badge_name, badge_color, badge_opacity, badge_enabled, benefits, sort_order, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [
         id,
         body.name,
@@ -65,6 +67,7 @@ export async function POST(req: NextRequest) {
         body.badge_name ?? "",
         body.badge_color ?? "",
         body.badge_opacity ?? 0,
+        body.badge_enabled ? 1 : 0,
         JSON.stringify(body.benefits || []),
         body.sort_order || 0,
         body.is_active !== false ? 1 : 0,

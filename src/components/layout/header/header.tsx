@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { NotificationBell } from "./notification-bell";
 import { useCustomerBadge } from "@/hooks/use-customer-badge";
 import { useIconPlay } from "@/hooks/use-icon-play";
+import { resolveTierColorStyle } from "@/lib/tier-color";
 
 export function Header() {
   const pathname = usePathname();
@@ -27,10 +28,13 @@ export function Header() {
   const wishlistCount = useWishlistStore((s) => s.items.length);
   const { mobileMenuOpen, setMobileMenuOpen, setSearchOverlayOpen, setCartDrawerOpen } = useUIStore();
   const storeAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const storeUser = useAuthStore((s) => s.user);
   // Persisted store differs from server HTML on hard refresh — rendering it
   // before mount causes a hydration mismatch that wedges the splash loader.
   const isAuthenticated = mounted && storeAuthenticated;
+  const user = mounted ? storeUser : null;
   const badgeData = useCustomerBadge();
+  const tierPillColor = resolveTierColorStyle(badgeData?.tier_color);
   const wishlistIcon = useIconPlay<HTMLSpanElement>();
   const cartIcon = useIconPlay<HTMLButtonElement>();
   const accountPillIcon = useIconPlay<HTMLSpanElement>();
@@ -324,9 +328,13 @@ export function Header() {
                     href="/dashboard"
                     className={cn(
                       "group relative flex items-center gap-1.5 h-9 pl-1 pr-3.5 rounded-full border bg-gradient-to-b from-white/80 to-white/30 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-px",
-                      badgeData.tier_color || "border-border text-charcoal/60 hover:bg-primary-light"
+                      tierPillColor.className
                     )}
-                    style={{ borderColor: "currentColor", boxShadow: "0 1px 6px -1px currentColor" }}
+                    style={{
+                      borderColor: tierPillColor.style?.color ?? "currentColor",
+                      boxShadow: `0 1px 6px -1px ${tierPillColor.style?.color ?? "currentColor"}`,
+                      color: tierPillColor.style?.color,
+                    }}
                     aria-label="Account"
                     title={`${badgeData.tier_name} Member`}
                   >
@@ -334,10 +342,14 @@ export function Header() {
                       ref={accountPillIcon.scope}
                       onHoverStart={() => accountPillIcon.play({ y: [0, -3, 0], scale: [1, 1.08, 1] }, 0.4)}
                       whileTap={{ scale: 0.92 }}
-                      className="flex items-center justify-center h-7 w-7 rounded-full bg-white"
+                      className="flex items-center justify-center h-7 w-7 rounded-full bg-white overflow-hidden"
                       style={{ boxShadow: "inset 0 0 0 1px currentColor" }}
                     >
-                      <User className="h-3.5 w-3.5" />
+                      {user?.avatar ? (
+                        <img src={user.avatar} alt={user.name || "Account"} className="h-full w-full object-cover" />
+                      ) : (
+                        <User className="h-3.5 w-3.5" />
+                      )}
                     </motion.span>
                     <span className="font-heading text-[12px] font-semibold tracking-[0.03em] whitespace-nowrap">{badgeData.tier_name}</span>
                   </Link>
@@ -348,9 +360,13 @@ export function Header() {
                       ref={accountIcon.scope}
                       onHoverStart={() => accountIcon.play({ y: [0, -3, 0], scale: [1, 1.08, 1] }, 0.4)}
                       whileTap={{ scale: 0.92 }}
-                      className="flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors"
+                      className="flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors overflow-hidden"
                     >
-                      <User className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+                      {user?.avatar ? (
+                        <img src={user.avatar} alt={user.name || "Account"} className="h-full w-full object-cover" />
+                      ) : (
+                        <User className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+                      )}
                     </motion.span>
                   </Link>
                 )
@@ -427,15 +443,23 @@ export function Header() {
                     onClick={() => setMobileMenuOpen(false)}
                     className={cn(
                       "flex items-center gap-2 w-fit h-9 pl-1 pr-3.5 rounded-full border bg-gradient-to-b from-white/80 to-white/30 shadow-sm mb-4",
-                      badgeData.tier_color || "border-border text-charcoal/60"
+                      tierPillColor.className
                     )}
-                    style={{ borderColor: "currentColor", boxShadow: "0 1px 6px -1px currentColor" }}
+                    style={{
+                      borderColor: tierPillColor.style?.color ?? "currentColor",
+                      boxShadow: `0 1px 6px -1px ${tierPillColor.style?.color ?? "currentColor"}`,
+                      color: tierPillColor.style?.color,
+                    }}
                   >
                     <span
-                      className="flex items-center justify-center h-7 w-7 rounded-full bg-white"
+                      className="flex items-center justify-center h-7 w-7 rounded-full bg-white overflow-hidden"
                       style={{ boxShadow: "inset 0 0 0 1px currentColor" }}
                     >
-                      <User className="h-3.5 w-3.5" />
+                      {user?.avatar ? (
+                        <img src={user.avatar} alt={user.name || "Account"} className="h-full w-full object-cover" />
+                      ) : (
+                        <User className="h-3.5 w-3.5" />
+                      )}
                     </span>
                     <span className="font-heading text-[13px] font-semibold tracking-[0.02em]">{badgeData.tier_name} Member</span>
                   </Link>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Settings, Store, Truck, CreditCard, Bell, Save, Loader2, Check,
   Plus, Trash2, X, Edit, Globe, FolderTree, ShoppingCart, Award, Users, Search,
@@ -144,7 +145,17 @@ interface PaymentMethod {
 }
 
 export default function AdminSettingsPage() {
-  const [activeTab, setActiveTab] = useState<Tab>("general");
+  return (
+    <Suspense>
+      <AdminSettingsPageInner />
+    </Suspense>
+  );
+}
+
+function AdminSettingsPageInner() {
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams.get("tab") as Tab | null;
+  const [activeTab, setActiveTab] = useState<Tab>(requestedTab && tabList.some((t) => t.id === requestedTab) ? requestedTab : "general");
   const [loading, setLoading] = useState(true);
 
   // ═══ GENERAL ═══

@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AdminButton } from "@/components/admin/shared/admin-button";
+import { resolveTierColorStyle } from "@/lib/tier-color";
 
 type SortKey = "time" | "tier";
 
@@ -47,6 +48,7 @@ interface Conversation {
   last_message_at: string;
   created_at: string;
   phone: string | null;
+  avatar: string | null;
   tier: string;
 }
 
@@ -239,19 +241,17 @@ export default function SupportInboxPage() {
     else { setSortBy(key); setSortDir(key === "time" ? "desc" : "asc"); }
   };
 
-  const tierBadgeClass = (tier: string) => {
-    const color = tierColorMap[tier];
-    if (color) return "";
-    return fallbackTierColors[tier] || "bg-pearl text-charcoal-lighter";
+  const TierBadge = ({ tier }: { tier: string }) => {
+    const tierColor = resolveTierColorStyle(tierColorMap[tier] || fallbackTierColors[tier]);
+    return (
+      <span
+        className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 uppercase tracking-wide", tierColor.className)}
+        style={tierColor.style}
+      >
+        {tier}
+      </span>
+    );
   };
-  const TierBadge = ({ tier }: { tier: string }) => (
-    <span
-      className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 uppercase tracking-wide", tierBadgeClass(tier))}
-      style={tierColorMap[tier] ? { backgroundColor: `${tierColorMap[tier]}1A`, color: tierColorMap[tier] } : undefined}
-    >
-      {tier}
-    </span>
-  );
 
   return (
     <div className="space-y-4">
@@ -326,8 +326,8 @@ export default function SupportInboxPage() {
                   )}
                 >
                   <button onClick={() => setActiveId(c.id)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/10 text-secondary">
-                      <User className="h-4 w-4" />
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/10 text-secondary overflow-hidden">
+                      {c.avatar ? <img src={c.avatar} alt={c.display_name} className="h-full w-full object-cover" /> : <User className="h-4 w-4" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
@@ -370,8 +370,8 @@ export default function SupportInboxPage() {
             <>
               <div className="flex items-center gap-3 px-4 py-3 border-b border-border/20">
                 <button onClick={() => setActiveId(null)} className="sm:hidden text-xs text-secondary">← Back</button>
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary/10 text-secondary">
-                  <User className="h-4 w-4" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary/10 text-secondary overflow-hidden">
+                  {active.avatar ? <img src={active.avatar} alt={active.display_name} className="h-full w-full object-cover" /> : <User className="h-4 w-4" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-charcoal">{active.display_name}</p>

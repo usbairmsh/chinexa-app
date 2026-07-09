@@ -89,7 +89,7 @@ export default function AdminMembershipPage() {
     setFormMaxPoints(tier.max_points);
     setFormMultiplier(tier.points_multiplier);
     setFormColor(tier.color);
-    setFormBadgeEnabled(!!tier.badge_color);
+    setFormBadgeEnabled(!!tier.badge_enabled);
     setFormBadgeColor(tier.badge_color || "#3B82F6");
     setFormBadgeOpacity(tier.badge_opacity ?? 1);
     setFormBenefits(tier.benefits.length > 0 ? tier.benefits : [""]);
@@ -108,9 +108,13 @@ export default function AdminMembershipPage() {
         max_points: formMaxPoints,
         points_multiplier: formMultiplier,
         color: formColor,
-        badge_name: formBadgeEnabled ? formName.trim() : "",
-        badge_color: formBadgeEnabled ? formBadgeColor : "",
-        badge_opacity: formBadgeEnabled ? formBadgeOpacity : 0,
+        // Keep the configured badge_name/color/opacity even while disabled,
+        // so toggling it back on restores the previous look instead of
+        // requiring the admin to reconfigure it from scratch.
+        badge_name: formName.trim(),
+        badge_color: formBadgeColor,
+        badge_opacity: formBadgeOpacity,
+        badge_enabled: formBadgeEnabled,
         benefits: formBenefits.filter((b) => b.trim()),
         sort_order: formSortOrder,
         is_active: formActive,
@@ -271,7 +275,7 @@ export default function AdminMembershipPage() {
                 </div>
 
                 {/* Badge Preview */}
-                {tier.badge_color && (
+                {tier.badge_enabled && tier.badge_color && (
                   <div className="flex items-center gap-1.5 mb-3 p-2 rounded-lg bg-pearl/50">
                     <VerifiedBadge color={tier.badge_color} opacity={tier.badge_opacity ?? 1} size={22} tooltip={tier.name} />
                     <span className="text-[11px] font-medium text-charcoal">Verified Badge</span>

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 interface TierData {
   id: string; name: string; min_points: number; max_points: number;
   points_multiplier: number; color: string;
-  badge_name: string; badge_color: string; badge_opacity: number;
+  badge_name: string; badge_color: string; badge_opacity: number; badge_enabled: boolean;
   benefits: string[]; sort_order: number; is_active: boolean;
 }
 
@@ -47,6 +47,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       badge_name: (t.badge_name as string) || "ChineXa General",
       badge_color: (t.badge_color as string) || "#3B82F6",
       badge_opacity: Number(t.badge_opacity ?? 1),
+      badge_enabled: !!t.badge_enabled,
       benefits: typeof t.benefits === "string" ? JSON.parse(t.benefits) : t.benefits || [],
       sort_order: Number(t.sort_order),
       is_active: !!t.is_active,

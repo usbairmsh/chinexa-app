@@ -100,6 +100,11 @@ export async function ensurePromotionColumns() {
     // toggles, position, animation, overlay, carousel transition + timing)
     await ensureColumn("banners", "settings", "JSON");
 
+    // Membership tiers: explicit badge visibility, independent of badge_color —
+    // previously inferred from `!!badge_color`, which meant disabling the badge
+    // destroyed the configured color instead of just hiding it.
+    await ensureColumn("membership_tiers", "badge_enabled", "BOOLEAN NOT NULL DEFAULT FALSE");
+
     done = true; // only latch once every column is confirmed/created
   } catch (err) {
     // Leave `done` false so the next request retries the migration.

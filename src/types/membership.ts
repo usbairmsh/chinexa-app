@@ -8,6 +8,7 @@ export interface MembershipTier {
   badge_name: string;
   badge_color: string;
   badge_opacity: number;
+  badge_enabled: boolean;
   benefits: string[];
   sort_order: number;
   is_active: boolean;

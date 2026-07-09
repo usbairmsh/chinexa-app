@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowLeft, Loader2, Crown, Check, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2, Crown, Check, Star, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -11,6 +11,7 @@ import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useAuthStore } from "@/stores/auth.store";
 import { cn } from "@/lib/utils";
+import { resolveTierColorStyle } from "@/lib/tier-color";
 import type { MembershipTier } from "@/types/membership";
 
 export default function MembershipBenefitsPage() {
@@ -79,10 +80,15 @@ export default function MembershipBenefitsPage() {
               <div>
                 <p className="text-xs text-charcoal-lighter mb-1">Your current membership</p>
                 <div className="flex items-center gap-2">
-                  <Badge className={cn("text-[10px]", currentTier?.color || "bg-orange-100 text-orange-700")}>
-                    {currentTier?.name || "—"} Member
-                  </Badge>
-                  {currentTier?.badge_color && (
+                  {(() => {
+                    const summaryTierColor = resolveTierColorStyle(currentTier?.color);
+                    return (
+                      <Badge className={cn("text-[10px]", summaryTierColor.className)} style={summaryTierColor.style}>
+                        {currentTier?.name || "—"} Member
+                      </Badge>
+                    );
+                  })()}
+                  {currentTier?.badge_enabled && currentTier.badge_color && (
                     <VerifiedBadge color={currentTier.badge_color} opacity={currentTier.badge_opacity} size={17} tooltip={currentTier.badge_name} />
                   )}
                 </div>
@@ -120,6 +126,7 @@ export default function MembershipBenefitsPage() {
               {tiers.map((tier, i) => {
                 const isCurrent = tier.id === currentTierId;
                 const isExpanded = tier.id === expandedId;
+                const rowTierColor = resolveTierColorStyle(tier.color);
                 return (
                   <motion.div
                     key={tier.id}
@@ -135,13 +142,13 @@ export default function MembershipBenefitsPage() {
                       onClick={() => setExpandedId(isExpanded ? null : tier.id)}
                     >
                       <div className="flex items-center gap-3 p-4">
-                        <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl shrink-0", tier.color || "bg-gray-100 text-gray-600")}>
+                        <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl shrink-0", rowTierColor.className)} style={rowTierColor.style}>
                           <Crown className="h-5 w-5" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-sm font-semibold text-charcoal">{tier.name}</p>
-                            {tier.badge_color && (
+                            {tier.badge_enabled && tier.badge_color && (
                               <VerifiedBadge color={tier.badge_color} opacity={tier.badge_opacity} size={15} tooltip={tier.badge_name} />
                             )}
                             {isCurrent && (
@@ -162,7 +169,11 @@ export default function MembershipBenefitsPage() {
                             <ul className="space-y-1.5 pl-1">
                               {tier.benefits.map((benefit, bi) => (
                                 <li key={bi} className="flex items-start gap-2 text-xs text-charcoal-light">
-                                  <Check className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" />
+                                  {isCurrent ? (
+                                    <Check className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" />
+                                  ) : (
+                                    <Star className="h-3.5 w-3.5 text-gold shrink-0 mt-0.5" />
+                                  )}
                                   <span>{benefit}</span>
                                 </li>
                               ))}

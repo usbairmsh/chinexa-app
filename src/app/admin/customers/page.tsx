@@ -13,13 +13,15 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { AdminButton } from "@/components/admin/shared/admin-button";
+import { VerifiedBadge } from "@/components/shared/verified-badge";
+import { resolveTierColorStyle } from "@/lib/tier-color";
 import { formatCurrency, formatDateShort, getInitials, cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────
@@ -118,7 +120,7 @@ export default function AdminCustomersPage() {
   // Membership state
   const [membershipData, setMembershipData] = useState<{
     total_points: number;
-    tier: { name: string; color: string; min_points: number; max_points: number; points_multiplier: number; benefits: string[] } | null;
+    tier: { name: string; color: string; min_points: number; max_points: number; points_multiplier: number; benefits: string[]; badge_name: string; badge_color: string; badge_opacity: number; badge_enabled: boolean } | null;
     next_tier: { name: string; min_points: number; max_points: number } | null;
     points_to_next_tier: number;
     history: { id: string; points: number; type: string; description: string; created_at: string }[];
@@ -155,7 +157,7 @@ export default function AdminCustomersPage() {
       if (data?.data && Array.isArray(data.data)) {
         setDbCustomers(data.data.map((c: Record<string, unknown>) => ({
           id: c.id as string, name: c.name as string, email: (c.email as string) || "",
-          phone: c.phone as string, division: "", district: "", address: "",
+          phone: c.phone as string, avatar: (c.avatar as string) || undefined, division: "", district: "", address: "",
           totalOrders: Number(c.total_orders) || 0, totalSpent: Number(c.total_spent) || 0,
           totalItems: Number(c.total_items) || 0, avgOrderValue: Number(c.total_orders) > 0 ? Math.round(Number(c.total_spent) / Number(c.total_orders)) : 0,
           lastOrderDate: (c.last_order_at as string) || (c.created_at as string) || "", joinedDate: (c.created_at as string) || "",
@@ -458,7 +460,8 @@ export default function AdminCustomersPage() {
   if (selectedCustomer) {
     const c = selectedCustomer;
     const tierName = membershipData?.tier?.name || c.tier;
-    const tierColor = membershipData?.tier?.color || tierColorMap[c.tier] || fallbackTierColors[c.tier] || "";
+    const tierColor = resolveTierColorStyle(membershipData?.tier?.color || tierColorMap[c.tier] || fallbackTierColors[c.tier]);
+    const tierBadgeShown = membershipData?.tier?.badge_enabled && membershipData.tier.badge_color;
     const totalPoints = membershipData?.total_points || 0;
     const nextTier = membershipData?.next_tier;
     // Guard divide-by-zero when a tier has min_points === max_points
@@ -482,7 +485,8 @@ export default function AdminCustomersPage() {
             {c.accountType === "registered" ? <UserCheck className="h-3 w-3 mr-1" /> : <UserRound className="h-3 w-3 mr-1" />}
             {c.accountType === "registered" ? "Registered" : "Temporary"}
           </Badge>
-          <Badge className={cn("text-[10px]", tierColor)}><Crown className="h-3 w-3 mr-1" />{tierName}</Badge>
+          <Badge className={cn("text-[10px]", tierColor.className)} style={tierColor.style}><Crown className="h-3 w-3 mr-1" />{tierName}</Badge>
+          {tierBadgeShown && <VerifiedBadge color={membershipData!.tier!.badge_color} opacity={membershipData!.tier!.badge_opacity} size={18} tooltip={membershipData!.tier!.badge_name} />}
           <Badge variant={c.isActive ? "success" : "destructive"} className="text-[10px]">{c.isActive ? "Active" : "Inactive"}</Badge>
           {canEditCustomer && (
             <button onClick={openEditCustomer} className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-border text-[11px] font-medium text-charcoal-lighter hover:border-secondary hover:text-secondary transition-all">
@@ -497,9 +501,12 @@ export default function AdminCustomersPage() {
             <Card>
               <CardContent className="p-5">
                 <div className="flex flex-col items-center text-center mb-4">
-                  <Avatar className="h-16 w-16 mb-3 ring-2 ring-primary-light"><AvatarFallback className="text-xl font-semibold bg-secondary text-white">{getInitials(c.name)}</AvatarFallback></Avatar>
-                  <h2 className="font-heading text-lg font-semibold text-charcoal">{c.name}</h2>
-                  <Badge className={cn("text-[9px] mt-1", tierColor)}>{tierName} Member</Badge>
+                  <Avatar className="h-16 w-16 mb-3 ring-2 ring-primary-light">{c.avatar && <AvatarImage src={c.avatar} alt={c.name} />}<AvatarFallback className="text-xl font-semibold bg-secondary text-white">{getInitials(c.name)}</AvatarFallback></Avatar>
+                  <h2 className="font-heading text-lg font-semibold text-charcoal flex items-center gap-1.5">
+                    {c.name}
+                    {tierBadgeShown && <VerifiedBadge color={membershipData!.tier!.badge_color} opacity={membershipData!.tier!.badge_opacity} size={18} tooltip={membershipData!.tier!.badge_name} />}
+                  </h2>
+                  <Badge className={cn("text-[9px] mt-1", tierColor.className)} style={tierColor.style}>{tierName} Member</Badge>
                 </div>
                 <Separator className="my-3" />
                 <div className="space-y-2.5 text-sm">
@@ -855,7 +862,7 @@ export default function AdminCustomersPage() {
                   <tr key={c.id} onClick={() => handleSelectCustomer(c)} className="border-b border-border/10 hover:bg-pearl/50 transition-colors cursor-pointer">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9 shrink-0"><AvatarFallback className="text-[10px] font-semibold">{getInitials(c.name)}</AvatarFallback></Avatar>
+                        <Avatar className="h-9 w-9 shrink-0">{c.avatar && <AvatarImage src={c.avatar} alt={c.name} />}<AvatarFallback className="text-[10px] font-semibold">{getInitials(c.name)}</AvatarFallback></Avatar>
                         <div className="min-w-0">
                           <p className="font-medium text-charcoal text-sm truncate">{c.name}</p>
                           <p className="text-[10px] text-charcoal-lighter">{c.phone}</p>
@@ -876,7 +883,10 @@ export default function AdminCustomersPage() {
                       <p className="text-[9px] text-charcoal-lighter">Avg {formatCurrency(c.avgOrderValue)}</p>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
-                      <Badge className={cn("text-[9px]", tierColorMap[c.tier] || fallbackTierColors[c.tier])}>{c.tier}</Badge>
+                      {(() => {
+                        const rowTierColor = resolveTierColorStyle(tierColorMap[c.tier] || fallbackTierColors[c.tier]);
+                        return <Badge className={cn("text-[9px]", rowTierColor.className)} style={rowTierColor.style}>{c.tier}</Badge>;
+                      })()}
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell text-xs text-charcoal-lighter">
                       {formatDateShort(c.lastOrderDate)}

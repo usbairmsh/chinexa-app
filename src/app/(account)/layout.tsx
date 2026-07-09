@@ -16,7 +16,7 @@ import { useCustomerBadge } from "@/hooks/use-customer-badge";
 import { Footer } from "@/components/layout/footer/footer";
 import { CartDrawer } from "@/components/storefront/cart/cart-drawer";
 import { SearchOverlay } from "@/components/storefront/search/search-overlay";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useAuthStore } from "@/stores/auth.store";
 import { useChatStore } from "@/stores/chat.store";
@@ -116,6 +116,7 @@ export default function AccountLayout({
                 <div className="p-4 sm:p-5 bg-gradient-to-br from-primary-light to-pearl">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10 sm:h-12 sm:w-12 ring-2 ring-white shadow-md">
+                      {user?.avatar && <AvatarImage src={user.avatar} alt={user.name || "Profile"} />}
                       <AvatarFallback className="text-xs sm:text-sm font-semibold bg-secondary text-white">
                         {user?.name ? getInitials(user.name) : "G"}
                       </AvatarFallback>

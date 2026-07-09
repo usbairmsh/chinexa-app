@@ -1,12 +1,95 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { Crown, Check, Star } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { FOOTER_LINKS } from "@/data/constants/navigation";
 import { useStoreSettings } from "@/hooks/use-store-settings";
 import { getPlatform, SocialIconButton } from "@/lib/social-platforms";
 import { useChatStore } from "@/stores/chat.store";
+import { useAuthStore } from "@/stores/auth.store";
+import { resolveTierColorStyle } from "@/lib/tier-color";
+import { cn } from "@/lib/utils";
+import type { MembershipTier } from "@/types/membership";
+
+/**
+ * Membership tier teaser — same tier list + benefits as the dashboard's
+ * Membership Benefits page, so guests can see what joining unlocks and
+ * registered customers see their own tier highlighted the same way. Renders
+ * nothing until tiers actually load (never flashes a placeholder).
+ */
+function FooterMembershipBenefits() {
+  const storeUser = useAuthStore((s) => s.user);
+  const storeAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isAuthenticated = mounted && storeAuthenticated;
+  const userId = mounted ? storeUser?.id : undefined;
+
+  const [tiers, setTiers] = useState<MembershipTier[]>([]);
+  const [currentTierId, setCurrentTierId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!mounted) return;
+    Promise.all([
+      fetch("/api/membership/tiers").then((r) => r.json()),
+      userId ? fetch(`/api/customers/${userId}/points`).then((r) => r.json()) : Promise.resolve(null),
+    ])
+      .then(([tiersData, pointsData]) => {
+        if (Array.isArray(tiersData)) setTiers(tiersData.filter((t: MembershipTier) => t.is_active));
+        setCurrentTierId(pointsData?.tier?.id ?? null);
+      })
+      .catch(() => {});
+  }, [mounted, userId]);
+
+  if (tiers.length === 0) return null;
+
+  return (
+    <div className="col-span-2 md:col-span-4">
+      <h4 className="font-heading text-sm font-semibold text-charcoal mb-4 tracking-wide flex items-center gap-1.5">
+        <Crown className="h-4 w-4 text-gold" /> Membership Benefits
+      </h4>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {tiers.map((tier) => {
+          const isCurrent = isAuthenticated && tier.id === currentTierId;
+          const tierColor = resolveTierColorStyle(tier.color);
+          return (
+            <div key={tier.id} className={cn("rounded-xl border p-3 bg-white/60", isCurrent ? "border-secondary/40" : "border-border/20")}>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Badge className={cn("text-[9px]", tierColor.className)} style={tierColor.style}>{tier.name}</Badge>
+                {isCurrent && <Badge className="text-[9px] bg-secondary/15 text-secondary">Your tier</Badge>}
+              </div>
+              {tier.benefits && tier.benefits.length > 0 ? (
+                <ul className="space-y-1">
+                  {tier.benefits.slice(0, 3).map((benefit, bi) => (
+                    <li key={bi} className="flex items-start gap-1.5 text-[11px] text-charcoal-lighter">
+                      {isCurrent ? (
+                        <Check className="h-3 w-3 text-success shrink-0 mt-0.5" />
+                      ) : (
+                        <Star className="h-3 w-3 text-gold shrink-0 mt-0.5" />
+                      )}
+                      <span className="line-clamp-1">{benefit}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-[11px] text-charcoal-lighter italic">No specific perks listed.</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {!isAuthenticated && (
+        <p className="text-[11px] text-charcoal-lighter mt-3">
+          <Link href="/register" className="text-secondary hover:underline font-medium">Create an account</Link> to start earning points toward these tiers.
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function Footer() {
   const { store_name, social_links, payment_methods, loaded } = useStoreSettings();
@@ -60,6 +143,8 @@ export function Footer() {
               </ul>
             </div>
           ))}
+
+          <FooterMembershipBenefits />
         </div>
 
         <Separator className="my-8" />

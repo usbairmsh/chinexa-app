@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await ensurePromotionColumns();
     const { id } = await params;
     const body = await req.json();
 
@@ -55,6 +57,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (body.is_active !== undefined) {
       fields.push("is_active = ?");
       values.push(body.is_active ? 1 : 0);
+    }
+    if (body.badge_enabled !== undefined) {
+      fields.push("badge_enabled = ?");
+      values.push(body.badge_enabled ? 1 : 0);
     }
     if (fields.length === 0) return NextResponse.json({ error: "No fields" }, { status: 400 });
     values.push(id);

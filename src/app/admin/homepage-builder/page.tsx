@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { GripVertical, ChevronDown, ChevronUp, Save, Loader2, Check, RotateCcw } from "lucide-react";
+import Link from "next/link";
+import { GripVertical, ChevronDown, ChevronUp, Save, Loader2, Check, RotateCcw, ExternalLink } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { AdminButton } from "@/components/admin/shared/admin-button";
@@ -17,6 +18,8 @@ interface SectionConfig {
   description: string;
   visible: boolean;
   order: number;
+  /** Where this section's actual content is set up/edited/deleted — undefined when it's fully configured inline on this page (e.g. trust badges). */
+  link?: string;
 }
 
 interface TrustBadge {
@@ -31,21 +34,21 @@ interface HomepageConfig {
 }
 
 const defaultSections: SectionConfig[] = [
-  { id: "s1", type: "hero", title: "Hero Carousel", subtitle: "", description: "Full-width hero banner slider", visible: true, order: 1 },
-  { id: "s2", type: "categories", title: "Category Showcase", subtitle: "", description: "Grid of product categories", visible: true, order: 2 },
+  { id: "s1", type: "hero", title: "Hero Carousel", subtitle: "", description: "Full-width hero banner slider", visible: true, order: 1, link: "/admin/banners" },
+  { id: "s2", type: "categories", title: "Category Showcase", subtitle: "", description: "Grid of product categories", visible: true, order: 2, link: "/admin/categories" },
   { id: "s3", type: "new_arrivals", title: "New Arrivals", subtitle: "The latest additions to our collection", description: "Latest products added to the store", visible: true, order: 3 },
   { id: "s4", type: "trust_badges", title: "Trust Badges", subtitle: "", description: "Authenticity, shipping, returns, support", visible: true, order: 4 },
   { id: "s5", type: "bestsellers", title: "Best Sellers", subtitle: "Loved by our customers", description: "Most popular products", visible: true, order: 5 },
-  { id: "s6", type: "brand_story", title: "Brand Story", subtitle: "", description: "About ChineXa and our mission", visible: true, order: 6 },
+  { id: "s6", type: "brand_story", title: "Brand Story", subtitle: "", description: "About ChineXa and our mission", visible: true, order: 6, link: "/admin/settings?tab=store" },
   { id: "s7", type: "trending", title: "Trending Now", subtitle: "What everyone is talking about", description: "Currently trending products", visible: true, order: 7 },
   { id: "s8", type: "preorder", title: "Pre-Order", subtitle: "Be the first to own the latest launches", description: "Upcoming product launches", visible: true, order: 8 },
-  { id: "s9", type: "promo_banner", title: "Promo Banners", subtitle: "", description: "Promotional banner cards (set in Banners > position: promo)", visible: true, order: 9 },
-  { id: "s10", type: "category_banner", title: "Category Banner", subtitle: "", description: "Full-width category banner (set in Banners > position: category)", visible: true, order: 10 },
-  { id: "s11", type: "reviews", title: "Customer Reviews", subtitle: "", description: "Scrolling customer reviews", visible: true, order: 11 },
+  { id: "s9", type: "promo_banner", title: "Promo Banners", subtitle: "", description: "Promotional banner cards (set in Banners > position: promo)", visible: true, order: 9, link: "/admin/banners" },
+  { id: "s10", type: "category_banner", title: "Category Banner", subtitle: "", description: "Full-width category banner (set in Banners > position: category)", visible: true, order: 10, link: "/admin/banners" },
+  { id: "s11", type: "reviews", title: "Customer Reviews", subtitle: "", description: "Scrolling customer reviews", visible: true, order: 11, link: "/admin/reviews" },
   { id: "s12", type: "instagram", title: "Instagram Feed", subtitle: "", description: "Social media gallery", visible: true, order: 12 },
-  { id: "s13", type: "brands", title: "Our Brands", subtitle: "", description: "Auto-scrolling brands carousel", visible: true, order: 13 },
+  { id: "s13", type: "brands", title: "Our Brands", subtitle: "", description: "Auto-scrolling brands carousel", visible: true, order: 13, link: "/admin/brands" },
   { id: "s14", type: "faq", title: "FAQ", subtitle: "", description: "Frequently asked questions", visible: false, order: 14 },
-  { id: "s15", type: "popup_banner", title: "Popup Banner", subtitle: "", description: "Welcome popup overlay (set in Banners > position: popup)", visible: true, order: 15 },
+  { id: "s15", type: "popup_banner", title: "Popup Banner", subtitle: "", description: "Welcome popup overlay (set in Banners > position: popup)", visible: true, order: 15, link: "/admin/banners" },
 ];
 
 const defaultTrustBadges: TrustBadge[] = [
@@ -75,11 +78,12 @@ export default function AdminHomepageBuilder() {
           const config = data.value as HomepageConfig;
           if (config.sections?.length) {
             // Merge: keep saved sections + add any new default sections not yet in saved config
-            // Backfill missing description from defaults, and ensure unique IDs
+            // Backfill missing description/link from defaults, and ensure unique IDs
             const defaultByType = new Map(defaultSections.map((s) => [s.type, s]));
             const savedWithDesc = config.sections.map((s) => ({
               ...s,
               description: s.description || defaultByType.get(s.type)?.description || "",
+              link: s.link || defaultByType.get(s.type)?.link,
             }));
             const savedTypes = new Set(config.sections.map((s) => s.type));
             const usedIds = new Set(savedWithDesc.map((s) => s.id));
@@ -277,7 +281,17 @@ export default function AdminHomepageBuilder() {
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 min-w-0">
-                      <h3 className="text-sm font-medium text-charcoal truncate">{section.type === "trust_badges" ? "Trust Badges" : (section.title || section.description)}</h3>
+                      {section.link ? (
+                        <Link
+                          href={section.link}
+                          className="text-sm font-medium text-secondary hover:underline truncate flex items-center gap-1"
+                        >
+                          {section.type === "trust_badges" ? "Trust Badges" : (section.title || section.description)}
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                        </Link>
+                      ) : (
+                        <h3 className="text-sm font-medium text-charcoal truncate">{section.type === "trust_badges" ? "Trust Badges" : (section.title || section.description)}</h3>
+                      )}
                       <Badge variant="outline" className="text-[9px] hidden sm:inline-flex shrink-0">{section.type}</Badge>
                     </div>
                     <p className="text-xs text-charcoal-lighter truncate">{section.description}</p>
@@ -297,7 +311,14 @@ export default function AdminHomepageBuilder() {
                   </div>
                 </div>
 
-                {/* Expanded config for editable sections */}
+                {/* Expanded config for editable sections. Trust badges also has its
+                    always-visible card above — this chevron just scrolls attention
+                    there rather than duplicating another editor inline. */}
+                {isExpanded && isTrustBadge && (
+                  <div className="px-4 pb-4 border-t border-border/20 pt-3">
+                    <p className="text-xs text-charcoal-lighter">Edit the badge titles and descriptions in the <strong>Trust Badges</strong> card above.</p>
+                  </div>
+                )}
                 {isExpanded && isEditable && (
                   <div className="px-4 pb-4 border-t border-border/20 pt-3">
                     <div className="grid sm:grid-cols-2 gap-3">

@@ -6,7 +6,7 @@ import { Check, Shield, Loader2, AlertTriangle, Crown, Lock, Cake } from "lucide
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,7 +14,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useAuthStore } from "@/stores/auth.store";
 import { getInitials, cn } from "@/lib/utils";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
-import { useCustomerBadge } from "@/hooks/use-customer-badge";
+import { useCustomerBadge, invalidateCustomerBadge } from "@/hooks/use-customer-badge";
+import { resolveTierColorStyle } from "@/lib/tier-color";
+import { AvatarUpload } from "@/components/shared/avatar-upload";
 
 const deactivationReasons = [
   "I no longer need this account",
@@ -71,13 +73,10 @@ export default function ProfilePage() {
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [passwordError, setPasswordError] = useState("");
 
-  // Tier data
-  const [tierName, setTierName] = useState<string | null>(null);
-  const [tierColor, setTierColor] = useState("bg-pearl text-charcoal-lighter");
-  // Same source as the "My Account" dashboard badge — using badge_color/name
-  // directly instead of guessing a hex from the Tailwind `tier.color` class
-  // keeps this badge in sync with what the dashboard page shows.
+  // Same source as the "My Account" dashboard badge — one fetch instead of
+  // this page separately re-fetching /points for just the tier name/color.
   const badgeData = useCustomerBadge();
+  const tierColor = resolveTierColorStyle(badgeData?.tier_color);
 
   // Deactivation flow — 3 steps
   const [deactivateOpen, setDeactivateOpen] = useState(false);
@@ -87,19 +86,6 @@ export default function ProfilePage() {
   const [deactivateLoading, setDeactivateLoading] = useState(false);
   const [deactivateError, setDeactivateError] = useState("");
   const [deactivateOtpToken, setDeactivateOtpToken] = useState("");
-
-  useEffect(() => {
-    if (!user?.id) return;
-    fetch(`/api/customers/${user.id}/points`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.tier) {
-          setTierName(data.tier.name);
-          setTierColor(data.tier.color || "bg-orange-100 text-orange-700");
-        }
-      })
-      .catch(() => {});
-  }, [user?.id]);
 
   useEffect(() => {
     if (user) {
@@ -123,6 +109,24 @@ export default function ProfilePage() {
         setTimeout(() => setSaved(false), 2000);
       }
     } catch {} finally { setSaving(false); }
+  };
+
+  const [avatarError, setAvatarError] = useState("");
+  const handleAvatarUploaded = async (url: string) => {
+    if (!user?.id) return;
+    setAvatarError("");
+    try {
+      const res = await fetch(`/api/customers/${user.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatar: url }),
+      });
+      if (!res.ok) throw new Error("Failed to save profile picture");
+      updateUser({ avatar: url });
+      invalidateCustomerBadge(user.id);
+    } catch (err: unknown) {
+      setAvatarError(err instanceof Error ? err.message : "Failed to save profile picture");
+    }
   };
 
   const handleChangePassword = async () => {
@@ -251,11 +255,19 @@ export default function ProfilePage() {
         <Card>
           <CardContent className="p-6">
             <div className="flex flex-col sm:flex-row items-center gap-5">
-              <Avatar className="h-24 w-24 ring-4 ring-primary-light shadow-lg">
-                <AvatarFallback className="text-2xl font-semibold bg-secondary text-white">
-                  {user?.name ? getInitials(user.name) : "G"}
-                </AvatarFallback>
-              </Avatar>
+              <div>
+                <AvatarUpload
+                  currentUrl={user?.avatar}
+                  size={96}
+                  onUploaded={handleAvatarUploaded}
+                  fallback={
+                    <div className="h-full w-full flex items-center justify-center text-2xl font-semibold bg-secondary text-white">
+                      {user?.name ? getInitials(user.name) : "G"}
+                    </div>
+                  }
+                />
+                {avatarError && <p className="text-xs text-destructive mt-1.5 text-center">{avatarError}</p>}
+              </div>
               <div className="text-center sm:text-left">
                 <h3 className="font-heading text-lg font-semibold text-charcoal flex items-center gap-1.5">
                   {user?.name || "Guest User"}
@@ -263,9 +275,9 @@ export default function ProfilePage() {
                 </h3>
                 <p className="text-sm text-charcoal-lighter">{user?.phone || "Not signed in"}</p>
                 <div className="flex items-center gap-2 mt-2 justify-center sm:justify-start">
-                  {tierName && (
-                    <Badge className={cn("text-[10px]", tierColor)}>
-                      <Crown className="h-3 w-3 mr-1" /> {tierName} Member
+                  {badgeData?.tier_name && (
+                    <Badge className={cn("text-[10px]", tierColor.className)} style={tierColor.style}>
+                      <Crown className="h-3 w-3 mr-1" /> {badgeData.tier_name} Member
                     </Badge>
                   )}
                   <Badge variant="outline" className="text-[10px]">
