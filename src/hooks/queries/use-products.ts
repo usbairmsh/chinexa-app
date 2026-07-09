@@ -27,10 +27,10 @@ export function useProductsByCategory(categorySlug: string, params?: ProductList
   });
 }
 
-export function useRelatedProducts(productId: string) {
+export function useRelatedProducts(productId: string, categoryId?: string | null) {
   return useQuery({
-    queryKey: ["products", "related", productId],
-    queryFn: () => services.products.getRelated(productId),
+    queryKey: ["products", "related", productId, categoryId],
+    queryFn: () => services.products.getRelated(productId, categoryId),
     enabled: !!productId,
   });
 }

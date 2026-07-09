@@ -68,7 +68,7 @@ interface ReviewData {
 export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const { data: product, isLoading } = useProduct(slug);
-  const { data: relatedProducts } = useRelatedProducts(product?.id || "");
+  const { data: relatedProducts } = useRelatedProducts(product?.id || "", product?.category_id);
   const addToCart = useCartStore((s) => s.addItem);
   const { toggleItem, isInWishlist } = useWishlistStore();
   const setCartDrawerOpen = useUIStore((s) => s.setCartDrawerOpen);

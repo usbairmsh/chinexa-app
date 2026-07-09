@@ -6,7 +6,7 @@ export interface IProductService {
   getById(id: string): Promise<Product | null>;
   getBySlug(slug: string): Promise<Product | null>;
   getByCategory(categorySlug: string, params?: ProductListParams): Promise<PaginatedResponse<Product>>;
-  getRelated(productId: string, limit?: number): Promise<Product[]>;
+  getRelated(productId: string, categoryId: string | null | undefined, limit?: number): Promise<Product[]>;
   getFeatured(limit?: number): Promise<Product[]>;
   getNewArrivals(limit?: number): Promise<Product[]>;
   getBestsellers(limit?: number): Promise<Product[]>;

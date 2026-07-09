@@ -33,10 +33,12 @@ export class ApiProductService implements IProductService {
     return this.getAll({ ...params, category: categorySlug });
   }
 
-  async getRelated(productId: string, limit = 8): Promise<Product[]> {
-    const product = await this.getById(productId);
-    if (!product) return [];
-    const res = await this.getAll({ category: product.category_id, page_size: limit + 1 });
+  async getRelated(productId: string, categoryId: string | null | undefined, limit = 8): Promise<Product[]> {
+    // Caller (the product detail page) already has the product loaded, so
+    // its category_id is passed straight through — no need to re-fetch the
+    // same product by id just to read one field off it.
+    if (!categoryId) return [];
+    const res = await this.getAll({ category: categoryId, page_size: limit + 1 });
     return res.data.filter((p) => p.id !== productId).slice(0, limit);
   }
 
