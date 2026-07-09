@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Package, FolderTree, ShoppingCart, Users, Star,
   Image as ImageIcon, Tag, Gift, FileText, Search, BarChart3,
-  DollarSign, AlertTriangle, Activity, UserCog, Settings,
+  DollarSign, AlertTriangle, Activity, UserCog, Settings, Layout,
   Menu, ChevronLeft, LogOut, Bell, Warehouse, Key, User, Loader2, Lock, MessageCircle
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
@@ -52,6 +52,8 @@ const navSections = [
       { icon: Star, label: "Reviews", href: "/admin/reviews", perm: "reviews" },
       { icon: FileText, label: "Blog", href: "/admin/blog", perm: "blog" },
       { icon: LayoutDashboard, label: "Homepage", href: "/admin/homepage-builder", perm: "homepage" },
+      { icon: Layout, label: "Footer", href: "/admin/footer", perm: "footer" },
+      { icon: FileText, label: "Policy Pages", href: "/admin/policies", perm: "policies" },
     ],
   },
   {

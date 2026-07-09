@@ -7,7 +7,7 @@ import {
   ChevronRight, Mail, Phone, Edit,
   MapPin, Package, Clock, CheckCircle2, Truck, XCircle, Calendar,
   ArrowLeft, Loader2, Crown, Gift, Plus, Tag, Save, Cake, UserCheck, UserRound,
-  UserPlus, MessageSquare, Lock, X, Check
+  UserPlus, MessageSquare, Lock, X, Check, Eye
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
+import { AvatarViewDialog } from "@/components/shared/avatar-view-dialog";
 import { resolveTierColorStyle } from "@/lib/tier-color";
 import { formatCurrency, formatDateShort, getInitials, cn } from "@/lib/utils";
 
@@ -76,6 +77,7 @@ export default function AdminCustomersPage() {
   const canEditCustomer = adminRole === "superadmin";
 
   // Edit customer dialog
+  const [viewAvatarOpen, setViewAvatarOpen] = useState(false);
   const [editCustomerOpen, setEditCustomerOpen] = useState(false);
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
@@ -501,7 +503,20 @@ export default function AdminCustomersPage() {
             <Card>
               <CardContent className="p-5">
                 <div className="flex flex-col items-center text-center mb-4">
-                  <Avatar className="h-16 w-16 mb-3 ring-2 ring-primary-light">{c.avatar && <AvatarImage src={c.avatar} alt={c.name} />}<AvatarFallback className="text-xl font-semibold bg-secondary text-white">{getInitials(c.name)}</AvatarFallback></Avatar>
+                  <button
+                    type="button"
+                    onClick={() => c.avatar && setViewAvatarOpen(true)}
+                    className={cn("group relative mb-3", c.avatar && "cursor-pointer")}
+                    aria-label={c.avatar ? "View profile picture" : undefined}
+                    disabled={!c.avatar}
+                  >
+                    <Avatar className="h-16 w-16 ring-2 ring-primary-light">{c.avatar && <AvatarImage src={c.avatar} alt={c.name} />}<AvatarFallback className="text-xl font-semibold bg-secondary text-white">{getInitials(c.name)}</AvatarFallback></Avatar>
+                    {c.avatar && (
+                      <span className="absolute inset-0 flex items-center justify-center rounded-full bg-charcoal/0 group-hover:bg-charcoal/40 transition-colors">
+                        <Eye className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </span>
+                    )}
+                  </button>
                   <h2 className="font-heading text-lg font-semibold text-charcoal flex items-center gap-1.5">
                     {c.name}
                     {tierBadgeShown && <VerifiedBadge color={membershipData!.tier!.badge_color} opacity={membershipData!.tier!.badge_opacity} size={18} tooltip={membershipData!.tier!.badge_name} />}
@@ -755,6 +770,8 @@ export default function AdminCustomersPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {c.avatar && <AvatarViewDialog open={viewAvatarOpen} onOpenChange={setViewAvatarOpen} imageUrl={c.avatar} name={c.name} />}
       </div>
     );
   }

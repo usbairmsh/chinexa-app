@@ -77,37 +77,6 @@ export const MAIN_NAV: NavItem[] = [
   },
 ];
 
-export const FOOTER_LINKS = {
-  shop: {
-    title: "Shop",
-    links: [
-      { label: "New Arrivals", href: "/collections/new-arrivals" },
-      { label: "Best Sellers", href: "/collections/bestsellers" },
-      { label: "Skincare", href: "/categories/skincare" },
-      { label: "Bags", href: "/categories/bags" },
-      { label: "Jewels", href: "/categories/jewels" },
-      { label: "Perfumes", href: "/categories/perfumes" },
-      { label: "Pre-Orders", href: "/categories/pre-orders" },
-    ],
-  },
-  help: {
-    title: "Help",
-    links: [
-      { label: "Get Help", href: "#chat" },
-      { label: "FAQ", href: "/faq" },
-      { label: "Shipping", href: "/policies/shipping" },
-      { label: "Returns", href: "/policies/returns" },
-      { label: "Track Order", href: "/track-order" },
-      { label: "Contact Us", href: "/contact" },
-    ],
-  },
-  about: {
-    title: "About",
-    links: [
-      { label: "Our Story", href: "/about" },
-      { label: "Blog", href: "/blog" },
-      { label: "Privacy Policy", href: "/policies/privacy" },
-      { label: "Terms of Service", href: "/policies/terms" },
-    ],
-  },
-};
+// Footer links are admin-managed (see /admin/footer, backed by the
+// `footer_config` setting) — src/types/footer.ts holds the shape and default
+// seed data now that this is no longer a static, code-only list.

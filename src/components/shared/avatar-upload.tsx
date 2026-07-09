@@ -2,14 +2,16 @@
 
 import { useState, useRef, useCallback } from "react";
 import Cropper, { type Area, type Point } from "react-easy-crop";
-import { Camera, Loader2, ZoomIn, ZoomOut, Check } from "lucide-react";
+import { Camera, Loader2, ZoomIn, ZoomOut, Check, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { getCroppedImageBlob } from "@/lib/crop-image";
+import { AvatarViewDialog } from "@/components/shared/avatar-view-dialog";
 import { cn } from "@/lib/utils";
 
 interface AvatarUploadProps {
   currentUrl?: string | null;
+  name?: string;
   fallback: React.ReactNode;
   onUploaded: (url: string) => void;
   size?: number;
@@ -21,10 +23,11 @@ interface AvatarUploadProps {
  * <=5MB JPEG client-side (re-encoding at lower quality if the first pass is
  * still too big) → uploaded via the existing /api/upload avatars folder.
  */
-export function AvatarUpload({ currentUrl, fallback, onUploaded, size = 96 }: AvatarUploadProps) {
+export function AvatarUpload({ currentUrl, name = "Profile", fallback, onUploaded, size = 96 }: AvatarUploadProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [rawImage, setRawImage] = useState<string | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedArea, setCroppedArea] = useState<Area | null>(null);
@@ -78,26 +81,44 @@ export function AvatarUpload({ currentUrl, fallback, onUploaded, size = 96 }: Av
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => fileRef.current?.click()}
-        className="group relative shrink-0 rounded-full"
-        style={{ height: size, width: size }}
-        aria-label="Change profile picture"
-      >
-        <div className={cn("h-full w-full rounded-full overflow-hidden ring-4 ring-primary-light shadow-lg", currentUrl && "bg-pearl")}>
-          {currentUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={currentUrl} alt="Profile" className="h-full w-full object-cover" />
-          ) : (
-            fallback
-          )}
-        </div>
-        <span className="absolute inset-0 flex items-center justify-center rounded-full bg-charcoal/0 group-hover:bg-charcoal/40 transition-colors">
-          <Camera className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-        </span>
-      </button>
+      <div className="relative shrink-0" style={{ height: size, width: size }}>
+        <button
+          type="button"
+          onClick={() => (currentUrl ? setViewOpen(true) : fileRef.current?.click())}
+          className="group relative block h-full w-full rounded-full"
+          aria-label={currentUrl ? "View profile picture" : "Add profile picture"}
+        >
+          <div className={cn("h-full w-full rounded-full overflow-hidden ring-4 ring-primary-light shadow-lg", currentUrl && "bg-pearl")}>
+            {currentUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={currentUrl} alt={name} className="h-full w-full object-cover" />
+            ) : (
+              fallback
+            )}
+          </div>
+          <span className="absolute inset-0 flex items-center justify-center rounded-full bg-charcoal/0 group-hover:bg-charcoal/40 transition-colors">
+            {currentUrl ? (
+              <Eye className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+            ) : (
+              <Camera className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+            )}
+          </span>
+        </button>
+
+        {/* Separate change-photo control — kept distinct from the click-to-view
+            avatar above so the two actions never conflict on the same click target. */}
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          className="absolute -bottom-0.5 -right-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-white ring-2 ring-white shadow-md hover:bg-secondary-dark transition-colors"
+          aria-label="Change profile picture"
+        >
+          <Camera className="h-3.5 w-3.5" />
+        </button>
+      </div>
       <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" onChange={handleFileSelect} className="hidden" />
+
+      <AvatarViewDialog open={viewOpen} onOpenChange={setViewOpen} imageUrl={currentUrl || ""} name={name} />
 
       <Dialog open={cropOpen} onOpenChange={(open) => { if (!saving) { setCropOpen(open); if (!open) setRawImage(null); } }}>
         <DialogContent className="max-w-md">

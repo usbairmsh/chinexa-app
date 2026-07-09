@@ -143,14 +143,15 @@ export default function MembershipBenefitsPage() {
                     >
                       <div className="flex items-center gap-3 p-4">
                         <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl shrink-0", rowTierColor.className)} style={rowTierColor.style}>
-                          <Crown className="h-5 w-5" />
+                          {tier.badge_enabled && tier.badge_color ? (
+                            <VerifiedBadge color={tier.badge_color} opacity={tier.badge_opacity} size={22} tooltip={tier.badge_name} />
+                          ) : (
+                            <Crown className="h-5 w-5" />
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-sm font-semibold text-charcoal">{tier.name}</p>
-                            {tier.badge_enabled && tier.badge_color && (
-                              <VerifiedBadge color={tier.badge_color} opacity={tier.badge_opacity} size={15} tooltip={tier.badge_name} />
-                            )}
                             {isCurrent && (
                               <Badge className="text-[9px] bg-secondary/15 text-secondary">Your tier</Badge>
                             )}

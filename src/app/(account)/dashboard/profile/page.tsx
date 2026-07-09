@@ -258,6 +258,7 @@ export default function ProfilePage() {
               <div>
                 <AvatarUpload
                   currentUrl={user?.avatar}
+                  name={user?.name || "Profile"}
                   size={96}
                   onUploaded={handleAvatarUploaded}
                   fallback={
