@@ -1,8 +1,4 @@
-import { MockProductService } from "./mock/product.mock";
-import { MockCategoryService } from "./mock/category.mock";
 import { MockAuthService } from "./mock/auth.mock";
-import { MockBannerService } from "./mock/banner.mock";
-import { MockBlogService } from "./mock/blog.mock";
 
 import { ApiProductService } from "./api/product.api";
 import { ApiCategoryService } from "./api/category.api";
@@ -23,30 +19,17 @@ export interface Services {
   blog: IBlogService;
 }
 
-// Default to "api" (real DB) so a missing/empty env var can never silently
-// drop production into mock mode. Set NEXT_PUBLIC_API_MODE=mock explicitly for
-// local mock development.
-const API_MODE = process.env.NEXT_PUBLIC_API_MODE || "api";
-
+// Every service is now DB-backed except auth (stays mock until a real auth
+// backend exists). The mock/seed variants of the other services were dead
+// code — nothing sets NEXT_PUBLIC_API_MODE=mock in any real environment —
+// so they were removed instead of kept as an unused branch.
 function createServices(): Services {
-  if (API_MODE === "api") {
-    // Database-backed services via API routes → MySQL
-    return {
-      products: new ApiProductService(),
-      categories: new ApiCategoryService(),
-      auth: new MockAuthService(), // Auth stays mock until Django backend
-      banners: new ApiBannerService(),
-      blog: new ApiBlogService(),
-    };
-  }
-
-  // Mock services (default)
   return {
-    products: new MockProductService(),
-    categories: new MockCategoryService(),
-    auth: new MockAuthService(),
-    banners: new MockBannerService(),
-    blog: new MockBlogService(),
+    products: new ApiProductService(),
+    categories: new ApiCategoryService(),
+    auth: new MockAuthService(), // Auth stays mock until Django backend
+    banners: new ApiBannerService(),
+    blog: new ApiBlogService(),
   };
 }
 
