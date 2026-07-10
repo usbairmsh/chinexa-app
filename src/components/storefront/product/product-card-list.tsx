@@ -70,6 +70,7 @@ export function ProductCardList({ product, index = 0 }: ProductCardListProps) {
     >
       <Link
         href={`/products/${product.slug}`}
+        prefetch={false}
         className="group flex gap-4 sm:gap-6 p-3 rounded-2xl border border-border/20 bg-white hover:shadow-card-hover transition-all duration-200"
       >
         {/* Image */}

@@ -87,6 +87,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
         <Link
           href={`/products/${product.slug}`}
           className="group block"
+          prefetch={false}
         >
           {/* Image — kept clean on phone/tablet; hover actions only on desktop */}
           <div className="relative aspect-[3/4] overflow-hidden rounded-xl sm:rounded-2xl bg-pearl mb-2 sm:mb-3">
