@@ -124,6 +124,7 @@ export function CartDrawer() {
                         <div className="flex-1 min-w-0">
                           <Link
                             href={`/products/${item.product_slug}`}
+                            prefetch={false}
                             className="text-sm font-medium text-charcoal hover:text-secondary transition-colors line-clamp-1"
                             onClick={() => setCartDrawerOpen(false)}
                           >

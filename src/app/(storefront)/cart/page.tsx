@@ -123,6 +123,7 @@ export default function CartPage() {
                   <div className="flex-1 min-w-0">
                     <Link
                       href={`/products/${item.product_slug}`}
+                      prefetch={false}
                       className="text-sm sm:text-base font-medium text-charcoal hover:text-secondary transition-colors line-clamp-2"
                     >
                       {item.product_name}

@@ -222,6 +222,7 @@ export function SearchOverlay() {
                               <Link
                                 data-index={i}
                                 href={`/products/${product.slug}`}
+                                prefetch={false}
                                 onClick={() => { rememberSearch(product.name); closeOverlay(); }}
                                 onMouseEnter={() => setActiveIndex(i)}
                                 className={cn(
