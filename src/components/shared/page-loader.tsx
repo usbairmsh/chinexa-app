@@ -24,6 +24,17 @@ export function PageLoader() {
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
+
+      // Buttons nested inside a <Link> (e.g. "Add to Bag"/wishlist controls on
+      // a product card that's itself a link) call stopPropagation() in their
+      // React onClick handler to prevent navigation — but that only stops
+      // propagation within React's synthetic event tree. The native DOM click
+      // still bubbles to this document-level listener regardless, since
+      // native and synthetic event systems are separate. Bail out here so
+      // clicking such a button doesn't show a full-page loading overlay for a
+      // navigation that was never actually going to happen.
+      if (target.closest("button")) return;
+
       const anchor = target.closest("a");
       if (!anchor) return;
 
