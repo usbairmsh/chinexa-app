@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { cache } from "react";
+import { cache, Suspense } from "react";
 import { query } from "@/lib/db";
 import { type RowDataPacket } from "mysql2/promise";
 import { ProductJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
@@ -74,15 +74,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   }
 }
 
-export default async function ProductLayout({
-  children,
-  params,
-}: {
-  children: React.ReactNode;
-  params: Promise<{ slug: string }>;
-}) {
-  const { slug } = await params;
-
+// Isolated in its own async component (not inlined in the layout body) so it
+// can sit behind a local <Suspense> boundary. JSON-LD is invisible markup for
+// search engines/crawlers — it must never block the visible, interactive
+// page from rendering, and on a client-side navigation (Link click), only
+// this route segment re-renders below the shared storefront layout with no
+// boundary of its own to fall back on — so an unwrapped DB call here would
+// hold up the *entire* navigation, not just the structured-data markup.
+async function ProductStructuredData({ slug }: { slug: string }) {
   let productData = null;
   try {
     const data = await getProductForLayout(slug);
@@ -112,19 +111,35 @@ export default async function ProductLayout({
     }
   } catch {}
 
+  if (!productData) return null;
+
   return (
     <>
-      {productData && (
-        <>
-          <ProductJsonLd {...productData} />
-          <BreadcrumbJsonLd items={[
-            { name: "Home", url: "/" },
-            { name: "Products", url: "/products" },
-            ...(productData.category ? [{ name: productData.category, url: `/products?category=${encodeURIComponent(productData.category)}` }] : []),
-            { name: productData.name, url: `/products/${slug}` },
-          ]} />
-        </>
-      )}
+      <ProductJsonLd {...productData} />
+      <BreadcrumbJsonLd items={[
+        { name: "Home", url: "/" },
+        { name: "Products", url: "/products" },
+        ...(productData.category ? [{ name: productData.category, url: `/products?category=${encodeURIComponent(productData.category)}` }] : []),
+        { name: productData.name, url: `/products/${slug}` },
+      ]} />
+    </>
+  );
+}
+
+export default async function ProductLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+
+  return (
+    <>
+      <Suspense fallback={null}>
+        <ProductStructuredData slug={slug} />
+      </Suspense>
       {children}
     </>
   );
