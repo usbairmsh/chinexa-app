@@ -2,10 +2,11 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   Settings, Store, Truck, CreditCard, Bell, Save, Loader2, Check,
   Plus, Trash2, X, Edit, Globe, FolderTree, ShoppingCart, Award, Users, Search,
-  BookOpen
+  BookOpen, Megaphone
 } from "lucide-react";
 import { SOCIAL_PLATFORMS, getPlatform } from "@/lib/social-platforms";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -22,6 +23,8 @@ import { formatCurrency, cn, randomId } from "@/lib/utils";
 import type { OfferApplicability } from "@/types/offer";
 import { DEFAULT_OUR_STORY, type OurStoryContent, type OurStoryValue, type OurStoryStat } from "@/types/our-story";
 import { OUR_STORY_ICON_MAP, OUR_STORY_ICON_OPTIONS } from "@/lib/our-story-icons";
+import type { InstagramPost } from "@/types/instagram-feed";
+import type { FaqItem } from "@/types/faq";
 
 type Tab = "general" | "store" | "delivery" | "payment" | "notifications";
 
@@ -172,12 +175,13 @@ function AdminSettingsPageInner() {
   // ═══ STORE ═══
   const [storeLogo, setStoreLogo] = useState("");
   const [ourStory, setOurStory] = useState<OurStoryContent>(DEFAULT_OUR_STORY);
+  const [instagramHandle, setInstagramHandle] = useState("");
+  const [instagramPosts, setInstagramPosts] = useState<InstagramPost[]>([]);
+  const [faqItems, setFaqItems] = useState<FaqItem[]>([]);
   const [socialLinks, setSocialLinks] = useState<{ platform: string; url: string }[]>([]);
   const [addSocialOpen, setAddSocialOpen] = useState(false);
   const [newSocialPlatform, setNewSocialPlatform] = useState("");
   const [maintenanceMode, setMaintenanceMode] = useState(false);
-  const [announcementText, setAnnouncementText] = useState("");
-  const [announcementVisible, setAnnouncementVisible] = useState(true);
   const [storeSaving, setStoreSaving] = useState(false);
   const [storeSaved, setStoreSaved] = useState(false);
 
@@ -255,7 +259,7 @@ function AdminSettingsPageInner() {
   // ═══ LOAD ALL ═══
   useEffect(() => {
     setMounted(true);
-    fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,features,store_logo,our_story,social_links,maintenance_mode,announcement,delivery_config,payment_methods,notification_settings")
+    fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,features,store_logo,our_story,instagram_feed,faq_items,social_links,maintenance_mode,delivery_config,payment_methods,notification_settings")
       .then((r) => r.json())
       .then((data) => {
         if (data.store_name) setStoreName(data.store_name);
@@ -265,6 +269,11 @@ function AdminSettingsPageInner() {
         if (data.features) setFeatures((p) => ({ ...p, ...data.features }));
         if (data.store_logo) setStoreLogo(data.store_logo);
         if (data.our_story) setOurStory({ ...DEFAULT_OUR_STORY, ...data.our_story });
+        if (data.instagram_feed) {
+          setInstagramHandle(data.instagram_feed.handle || "");
+          if (Array.isArray(data.instagram_feed.posts)) setInstagramPosts(data.instagram_feed.posts);
+        }
+        if (Array.isArray(data.faq_items)) setFaqItems(data.faq_items);
         if (data.social_links) {
           if (Array.isArray(data.social_links)) {
             setSocialLinks(data.social_links);
@@ -278,7 +287,6 @@ function AdminSettingsPageInner() {
           }
         }
         if (data.maintenance_mode !== undefined) setMaintenanceMode(!!data.maintenance_mode);
-        if (data.announcement) { setAnnouncementText(data.announcement.text || ""); setAnnouncementVisible(data.announcement.visible !== false); }
         if (data.delivery_config) {
           const cfg = data.delivery_config;
           if (cfg.freeDeliveryEnabled !== undefined) delivery.setFreeDelivery(cfg.freeDeliveryEnabled);
@@ -385,13 +393,28 @@ function AdminSettingsPageInner() {
   };
 
   const saveGeneral = () => saveSettings({ store_name: storeName, store_email: storeEmail, store_phone: storePhone, store_address: storeAddress, features }, setGeneralSaving, setGeneralSaved);
-  const saveStoreSettings = () => saveSettings({ store_logo: storeLogo, our_story: ourStory, social_links: socialLinks, maintenance_mode: maintenanceMode, announcement: { text: announcementText, visible: announcementVisible } }, setStoreSaving, setStoreSaved);
+  const saveStoreSettings = () => saveSettings({
+    store_logo: storeLogo, our_story: ourStory,
+    instagram_feed: { handle: instagramHandle, posts: instagramPosts },
+    faq_items: faqItems,
+    social_links: socialLinks, maintenance_mode: maintenanceMode,
+  }, setStoreSaving, setStoreSaved);
 
   // ─── Our Story helpers ───
   const updateStory = (patch: Partial<OurStoryContent>) => setOurStory((s) => ({ ...s, ...patch }));
   const updateParagraph = (i: number, text: string) => setOurStory((s) => ({ ...s, paragraphs: s.paragraphs.map((p, idx) => (idx === i ? text : p)) }));
   const addParagraph = () => setOurStory((s) => ({ ...s, paragraphs: [...s.paragraphs, ""] }));
   const removeParagraph = (i: number) => setOurStory((s) => ({ ...s, paragraphs: s.paragraphs.filter((_, idx) => idx !== i) }));
+
+  // ─── Instagram feed helpers ───
+  const addInstagramPost = () => setInstagramPosts((p) => [...p, { id: randomId(), image: "", link: "" }]);
+  const updateInstagramPost = (i: number, patch: Partial<InstagramPost>) => setInstagramPosts((p) => p.map((post, idx) => (idx === i ? { ...post, ...patch } : post)));
+  const removeInstagramPost = (i: number) => setInstagramPosts((p) => p.filter((_, idx) => idx !== i));
+
+  // ─── FAQ helpers ───
+  const addFaqItem = () => setFaqItems((f) => [...f, { question: "", answer: "" }]);
+  const updateFaqItem = (i: number, patch: Partial<FaqItem>) => setFaqItems((f) => f.map((item, idx) => (idx === i ? { ...item, ...patch } : item)));
+  const removeFaqItem = (i: number) => setFaqItems((f) => f.filter((_, idx) => idx !== i));
 
   const updateValue = (i: number, patch: Partial<OurStoryValue>) => setOurStory((s) => ({ ...s, values: s.values.map((v, idx) => (idx === i ? { ...v, ...patch } : v)) }));
   const addValue = () => setOurStory((s) => ({ ...s, values: [...s.values, { icon: "Sparkles", title: "", description: "" }] }));
@@ -572,13 +595,8 @@ function AdminSettingsPageInner() {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
-              <Card><CardHeader><CardTitle className="text-base">Announcement</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center gap-3"><Switch checked={announcementVisible} onCheckedChange={setAnnouncementVisible} /><span className="text-sm text-charcoal-lighter">{announcementVisible ? "Visible" : "Hidden"}</span></div>
-                  <Input value={announcementText} onChange={(e) => setAnnouncementText(e.target.value)} placeholder="Free delivery on orders over ৳3,000!" />
-                </CardContent>
-              </Card>
               <Card><CardContent className="p-5"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-charcoal">Maintenance Mode</p><p className="text-[10px] text-charcoal-lighter">Take store offline</p></div><Switch checked={maintenanceMode} onCheckedChange={setMaintenanceMode} /></div></CardContent></Card>
+              <Card><CardContent className="p-5"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-charcoal">Announcements</p><p className="text-[10px] text-charcoal-lighter">The top bar shown on every storefront page is now managed on its own page</p></div><Link href="/admin/announcements"><AdminButton variant="outline" size="sm"><Megaphone className="h-3.5 w-3.5" /> Open Announcements</AdminButton></Link></div></CardContent></Card>
             </div>
           </div>
 
@@ -667,6 +685,62 @@ function AdminSettingsPageInner() {
                   ))}
                 </div>
                 <AdminButton size="xs" variant="outline" className="mt-2" onClick={addStat}><Plus className="h-3 w-3" /> Add Stat</AdminButton>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Instagram Feed — powers the homepage "Follow Our Journey" section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Instagram Feed</CardTitle>
+              <CardDescription>Shown on the homepage &ldquo;Follow Our Journey&rdquo; section — hidden entirely if no posts are added</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Input label="Instagram Handle" value={instagramHandle} onChange={(e) => setInstagramHandle(e.target.value)} placeholder="@chinexa.bd" />
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-charcoal-light">Posts</label>
+                  <AdminButton size="xs" variant="outline" onClick={addInstagramPost}><Plus className="h-3 w-3" /> Add Post</AdminButton>
+                </div>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {instagramPosts.map((post, i) => (
+                    <div key={post.id} className="relative p-3 rounded-xl border border-border/30 bg-pearl/20 space-y-2">
+                      <button onClick={() => removeInstagramPost(i)} className="absolute top-2 right-2 z-10 p-1 rounded-md bg-white/90 text-charcoal-lighter/60 hover:text-destructive transition-colors">
+                        <X className="h-3 w-3" />
+                      </button>
+                      <ImageUpload label="Image" value={post.image} onChange={(v) => updateInstagramPost(i, { image: v })} aspectRatio="square" folder="general" />
+                      <Input value={post.link} onChange={(e) => updateInstagramPost(i, { link: e.target.value })} placeholder="Post URL (optional)" className="h-9" />
+                    </div>
+                  ))}
+                  {instagramPosts.length === 0 && <p className="text-xs text-charcoal-lighter text-center py-3 sm:col-span-2 lg:col-span-3">No posts yet — the homepage section stays hidden until you add at least one.</p>}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* FAQ — powers the homepage FAQ section (visibility/order controlled in Homepage Builder) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">FAQ</CardTitle>
+              <CardDescription>Shown on the homepage FAQ section — hidden entirely if no questions are added</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-end">
+                <AdminButton size="xs" variant="outline" onClick={addFaqItem}><Plus className="h-3 w-3" /> Add Question</AdminButton>
+              </div>
+              <div className="space-y-2">
+                {faqItems.map((item, i) => (
+                  <div key={i} className="flex items-start gap-2 p-3 rounded-xl border border-border/30 bg-pearl/20">
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <Input value={item.question} onChange={(e) => updateFaqItem(i, { question: e.target.value })} placeholder="Question" className="h-9" />
+                      <Textarea value={item.answer} onChange={(e) => updateFaqItem(i, { answer: e.target.value })} placeholder="Answer" className="min-h-[70px]" />
+                    </div>
+                    <button onClick={() => removeFaqItem(i)} className="mt-2 p-1.5 rounded-md text-charcoal-lighter/50 hover:text-destructive hover:bg-destructive/5 transition-colors shrink-0">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+                {faqItems.length === 0 && <p className="text-xs text-charcoal-lighter text-center py-3">No questions yet — the homepage FAQ section stays hidden until you add at least one.</p>}
               </div>
             </CardContent>
           </Card>

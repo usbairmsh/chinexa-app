@@ -76,7 +76,3 @@ export const MAIN_NAV: NavItem[] = [
     badge: "New",
   },
 ];
-
-// Footer links are admin-managed (see /admin/footer, backed by the
-// `footer_config` setting) — src/types/footer.ts holds the shape and default
-// seed data now that this is no longer a static, code-only list.

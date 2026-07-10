@@ -29,7 +29,6 @@ interface TrustBadge {
 
 interface HomepageConfig {
   sections: SectionConfig[];
-  announcement: { visible: boolean; text: string; phone: string };
   trust_badges: TrustBadge[];
 }
 
@@ -60,9 +59,6 @@ const defaultTrustBadges: TrustBadge[] = [
 
 export default function AdminHomepageBuilder() {
   const [sections, setSections] = useState<SectionConfig[]>(defaultSections);
-  const [announcementVisible, setAnnouncementVisible] = useState(true);
-  const [announcementText, setAnnouncementText] = useState("Free shipping on orders above ৳3,000 | Use code WELCOME10 for 10% off");
-  const [announcementPhone, setAnnouncementPhone] = useState("+880 1700-000000");
   const [trustBadges, setTrustBadges] = useState<TrustBadge[]>(defaultTrustBadges);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,11 +96,6 @@ export default function AdminHomepageBuilder() {
             ];
             setSections(merged);
           }
-          if (config.announcement) {
-            setAnnouncementVisible(config.announcement.visible);
-            setAnnouncementText(config.announcement.text);
-            if (config.announcement.phone) setAnnouncementPhone(config.announcement.phone);
-          }
           if (config.trust_badges?.length) setTrustBadges(config.trust_badges);
         }
       })
@@ -139,7 +130,6 @@ export default function AdminHomepageBuilder() {
     setSaving(true);
     const config: HomepageConfig = {
       sections,
-      announcement: { visible: announcementVisible, text: announcementText, phone: announcementPhone },
       trust_badges: trustBadges,
     };
     try {
@@ -155,14 +145,11 @@ export default function AdminHomepageBuilder() {
 
   const handleReset = () => {
     // Section layout/order is structural, safe to restore to sensible
-    // defaults. Announcement copy and trust-badge text are NOT — if an admin
-    // resets and saves without editing further, this would publish demo
-    // placeholder copy to every real visitor. Clear those to empty instead,
-    // so the admin has to type their own real copy before it can go live.
+    // defaults. Trust-badge text is NOT — if an admin resets and saves
+    // without editing further, this would publish demo placeholder copy to
+    // every real visitor. Clear those to empty instead, so the admin has to
+    // type their own real copy before it can go live.
     setSections(defaultSections);
-    setAnnouncementVisible(false);
-    setAnnouncementText("");
-    setAnnouncementPhone("");
     setTrustBadges(Array.from({ length: 4 }, () => ({ title: "", description: "" })));
   };
 
@@ -192,39 +179,6 @@ export default function AdminHomepageBuilder() {
           </AdminButton>
         </div>
       </div>
-
-      {/* Announcement Bar */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-charcoal">Announcement Bar</h3>
-            <Switch checked={announcementVisible} onCheckedChange={setAnnouncementVisible} />
-          </div>
-          <div className="grid sm:grid-cols-3 gap-3">
-            <div className="sm:col-span-2">
-              <label className="block text-xs text-charcoal-lighter mb-1">Announcement Text</label>
-              <input
-                type="text"
-                value={announcementText}
-                onChange={(e) => setAnnouncementText(e.target.value)}
-                placeholder="Enter announcement text..."
-                className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-charcoal focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-charcoal-lighter mb-1">Phone Number</label>
-              <input
-                type="text"
-                value={announcementPhone}
-                onChange={(e) => setAnnouncementPhone(e.target.value)}
-                placeholder="+880 1700-000000"
-                className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-charcoal focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-              />
-            </div>
-          </div>
-          <p className="text-[10px] text-charcoal-lighter mt-1.5">This bar appears at the top of the website on every page</p>
-        </CardContent>
-      </Card>
 
       {/* Trust Badges Config */}
       <Card>

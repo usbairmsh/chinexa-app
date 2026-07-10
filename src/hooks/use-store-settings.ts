@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { DEFAULT_FOOTER_CONFIG, type FooterConfig } from "@/types/footer";
 
 export interface StoreSettings {
   store_name: string;
@@ -9,11 +8,9 @@ export interface StoreSettings {
   store_phone: string;
   store_address: string;
   social_links: { platform: string; url: string }[];
-  announcement: { text: string; visible: boolean };
   free_delivery_threshold: number;
   free_delivery_enabled: boolean;
   payment_methods: { id: string; name: string; enabled: boolean; account_number: string; instructions: string; qr_image: string; icon?: string; input_type?: "transaction_id" | "phone_number" }[];
-  footer_config: FooterConfig;
 }
 
 const defaults: StoreSettings = {
@@ -22,11 +19,9 @@ const defaults: StoreSettings = {
   store_phone: "+880 1700-000000",
   store_address: "Dhaka, Bangladesh",
   social_links: [],
-  announcement: { text: "", visible: false },
   free_delivery_threshold: 3000,
   free_delivery_enabled: true,
   payment_methods: [],
-  footer_config: DEFAULT_FOOTER_CONFIG,
 };
 
 let cachedSettings: StoreSettings | null = null;
@@ -36,7 +31,7 @@ async function loadSettings(): Promise<StoreSettings> {
   if (cachedSettings) return cachedSettings;
   if (fetchPromise) return fetchPromise;
 
-  fetchPromise = fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,social_links,announcement,free_delivery_threshold,free_delivery_enabled,payment_methods,footer_config")
+  fetchPromise = fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,social_links,free_delivery_threshold,free_delivery_enabled,payment_methods")
     .then((r) => r.json())
     .then((data) => {
       const s: StoreSettings = {
@@ -51,11 +46,9 @@ async function loadSettings(): Promise<StoreSettings> {
           }
           return defaults.social_links;
         })(),
-        announcement: { ...defaults.announcement, ...(data.announcement || {}) },
         free_delivery_threshold: Number(data.free_delivery_threshold) || defaults.free_delivery_threshold,
         free_delivery_enabled: data.free_delivery_enabled !== undefined ? !!data.free_delivery_enabled : defaults.free_delivery_enabled,
         payment_methods: Array.isArray(data.payment_methods) ? data.payment_methods : defaults.payment_methods,
-        footer_config: data.footer_config?.columns?.length ? data.footer_config : defaults.footer_config,
       };
       cachedSettings = s;
       return s;

@@ -1,6 +1,6 @@
 import { query } from "@/lib/db";
+import { type RowDataPacket } from "mysql2/promise";
 import { markdownResponse, withMarkdownErrorHandling } from "@/lib/markdown-response";
-import { MAIN_NAV } from "@/data/constants/navigation";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
 
@@ -36,9 +36,14 @@ export async function GET() {
 
     lines.push("## Shop by Category");
     lines.push("");
-    for (const item of MAIN_NAV) {
-      lines.push(`- [${item.label}](${siteUrl}${item.href})`);
-    }
+    try {
+      const categories = await query<RowDataPacket[]>(
+        "SELECT name, slug FROM categories WHERE parent_id IS NULL AND is_active = 1 ORDER BY `order` LIMIT 20"
+      );
+      for (const c of categories) {
+        lines.push(`- [${c.name}](${siteUrl}/categories/${c.slug})`);
+      }
+    } catch {}
     lines.push("");
 
     lines.push("## More");

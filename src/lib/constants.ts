@@ -38,16 +38,6 @@ export const DIVISIONS = [
   "Mymensingh",
 ] as const;
 
-export const PRODUCT_CATEGORIES = [
-  { id: "skincare", name: "Premium Skincare", slug: "skincare" },
-  { id: "bags", name: "Bags", slug: "bags" },
-  { id: "jewels", name: "Jewels", slug: "jewels" },
-  { id: "perfumes", name: "Perfumes", slug: "perfumes" },
-  { id: "shoes", name: "Shoes", slug: "shoes" },
-  { id: "imported", name: "Imported Products", slug: "imported" },
-  { id: "preorder", name: "Pre-Orders", slug: "pre-orders" },
-] as const;
-
 export const BREAKPOINTS = {
   sm: 640,
   md: 768,

@@ -16,7 +16,7 @@ export function TrustBadges({ badges }: TrustBadgesProps) {
   const items = badges;
 
   return (
-    <section className="py-16 bg-white border-y border-border/30">
+    <section className="py-8 sm:py-10 lg:py-12 bg-white border-y border-border/30">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
           {items.map((badge, index) => {

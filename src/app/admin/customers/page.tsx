@@ -6,7 +6,7 @@ import {
   Search, Users, DollarSign, ShoppingCart, TrendingUp, ArrowUpDown,
   ChevronRight, Mail, Phone, Edit,
   MapPin, Package, Clock, CheckCircle2, Truck, XCircle, Calendar,
-  ArrowLeft, Loader2, Crown, Gift, Plus, Tag, Save, Cake, UserCheck, UserRound,
+  ArrowLeft, Loader2, Crown, Gift, Plus, Minus, Tag, Save, Cake, UserCheck, UserRound,
   UserPlus, MessageSquare, Lock, X, Check, Eye
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -129,6 +129,10 @@ export default function AdminCustomersPage() {
   } | null>(null);
   const [customerCoupons, setCustomerCoupons] = useState<{ id: string; coupon_code: string; coupon_description: string; discount_type: string; discount_value: number; is_used: boolean; valid_until: string }[]>([]);
   const [pointsDialogOpen, setPointsDialogOpen] = useState(false);
+  // "give" always adds; "deduct" always subtracts — the admin enters a plain
+  // positive number either way, and the sign is applied on submit. Removes
+  // the old error-prone pattern of having to type a leading "-" to deduct.
+  const [pointsMode, setPointsMode] = useState<"give" | "deduct">("give");
   const [pointsAmount, setPointsAmount] = useState(0);
   const [pointsNote, setPointsNote] = useState("");
   const [pointsType, setPointsType] = useState<"bonus" | "admin_adjustment">("bonus");
@@ -189,11 +193,12 @@ export default function AdminCustomersPage() {
 
   const handleGivePoints = async () => {
     if (!selectedCustomer || !pointsAmount) return;
+    const signedPoints = pointsMode === "deduct" ? -Math.abs(pointsAmount) : Math.abs(pointsAmount);
     try {
       await fetch(`/api/customers/${selectedCustomer.id}/points`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ points: pointsAmount, type: pointsType, description: pointsNote || `Admin ${pointsType === "bonus" ? "bonus" : "adjustment"}` }),
+        body: JSON.stringify({ points: signedPoints, type: pointsType, description: pointsNote || `Admin ${pointsMode === "deduct" ? "deduction" : pointsType === "bonus" ? "bonus" : "adjustment"}` }),
       });
       setPointsDialogOpen(false);
       setPointsAmount(0);
@@ -564,13 +569,20 @@ export default function AdminCustomersPage() {
                   </p>
                 )}
                 <div className="flex gap-2">
-                  <button onClick={() => { setPointsType("bonus"); setPointsDialogOpen(true); }} className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-border/30 text-[11px] font-medium text-charcoal hover:bg-pearl transition-colors">
+                  <button onClick={() => { setPointsMode("give"); setPointsType("bonus"); setPointsAmount(0); setPointsNote(""); setPointsDialogOpen(true); }} className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-border/30 text-[11px] font-medium text-charcoal hover:bg-pearl transition-colors">
                     <Plus className="h-3 w-3" /> Give Points
                   </button>
-                  <button onClick={openCouponDialog} className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-border/30 text-[11px] font-medium text-charcoal hover:bg-pearl transition-colors">
-                    <Gift className="h-3 w-3" /> Assign Coupon
+                  <button
+                    onClick={() => { setPointsMode("deduct"); setPointsType("admin_adjustment"); setPointsAmount(0); setPointsNote(""); setPointsDialogOpen(true); }}
+                    disabled={!membershipData?.total_points}
+                    className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-border/30 text-[11px] font-medium text-charcoal hover:bg-pearl disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                  >
+                    <Minus className="h-3 w-3" /> Deduct Points
                   </button>
                 </div>
+                <button onClick={openCouponDialog} className="w-full flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-border/30 text-[11px] font-medium text-charcoal hover:bg-pearl transition-colors">
+                  <Gift className="h-3 w-3" /> Assign Coupon
+                </button>
               </CardContent>
             </Card>
 
@@ -684,25 +696,49 @@ export default function AdminCustomersPage() {
           </div>
         </div>
 
-        {/* Give Points Dialog */}
+        {/* Give/Deduct Points Dialog */}
         <Dialog open={pointsDialogOpen} onOpenChange={setPointsDialogOpen}>
           <DialogContent className="max-w-sm">
             <DialogHeader>
-              <DialogTitle>{pointsType === "bonus" ? "Give Bonus Points" : "Adjust Points"}</DialogTitle>
-              <DialogDescription>Add or deduct points for {c.name}</DialogDescription>
+              <DialogTitle>{pointsMode === "deduct" ? "Deduct Points" : pointsType === "bonus" ? "Give Bonus Points" : "Adjust Points"}</DialogTitle>
+              <DialogDescription>
+                {pointsMode === "deduct"
+                  ? `Remove points from ${c.name}'s balance (currently ${membershipData?.total_points || 0})`
+                  : `Add points to ${c.name}'s balance`}
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setPointsType("bonus")} className={cn("flex-1 py-2 rounded-lg text-xs font-medium border transition-all", pointsType === "bonus" ? "border-secondary bg-secondary/10 text-secondary" : "border-border/30 text-charcoal-lighter")}>Bonus</button>
-                <button type="button" onClick={() => setPointsType("admin_adjustment")} className={cn("flex-1 py-2 rounded-lg text-xs font-medium border transition-all", pointsType === "admin_adjustment" ? "border-secondary bg-secondary/10 text-secondary" : "border-border/30 text-charcoal-lighter")}>Adjustment</button>
-              </div>
-              <Input label="Points *" type="number" value={pointsAmount} onChange={(e) => setPointsAmount(Number(e.target.value))} placeholder="e.g. 100 or -50" />
-              <Input label="Note" value={pointsNote} onChange={(e) => setPointsNote(e.target.value)} placeholder="e.g. Birthday bonus" />
+              {pointsMode === "give" && (
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setPointsType("bonus")} className={cn("flex-1 py-2 rounded-lg text-xs font-medium border transition-all", pointsType === "bonus" ? "border-secondary bg-secondary/10 text-secondary" : "border-border/30 text-charcoal-lighter")}>Bonus</button>
+                  <button type="button" onClick={() => setPointsType("admin_adjustment")} className={cn("flex-1 py-2 rounded-lg text-xs font-medium border transition-all", pointsType === "admin_adjustment" ? "border-secondary bg-secondary/10 text-secondary" : "border-border/30 text-charcoal-lighter")}>Adjustment</button>
+                </div>
+              )}
+              <Input
+                label="Points *"
+                type="number"
+                min={0}
+                max={pointsMode === "deduct" ? (membershipData?.total_points || 0) : undefined}
+                value={pointsAmount || ""}
+                onChange={(e) => setPointsAmount(Math.max(0, Number(e.target.value)))}
+                placeholder="e.g. 100"
+              />
+              {pointsMode === "deduct" && pointsAmount > (membershipData?.total_points || 0) && (
+                <p className="text-[11px] text-destructive">Can&apos;t deduct more than the customer&apos;s current balance ({membershipData?.total_points || 0}).</p>
+              )}
+              <Input label="Reason" value={pointsNote} onChange={(e) => setPointsNote(e.target.value)} placeholder={pointsMode === "deduct" ? "e.g. Return abuse, order cancelled" : "e.g. Birthday bonus"} />
             </div>
             <DialogFooter>
               <button onClick={() => setPointsDialogOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
-              <button onClick={handleGivePoints} disabled={!pointsAmount} className="px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300">
-                {pointsAmount >= 0 ? "Give" : "Deduct"} {Math.abs(pointsAmount)} Points
+              <button
+                onClick={handleGivePoints}
+                disabled={!pointsAmount || (pointsMode === "deduct" && pointsAmount > (membershipData?.total_points || 0))}
+                className={cn(
+                  "px-4 py-2 rounded-full text-white text-xs font-semibold hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 disabled:hover:translate-y-0 transition-all duration-300",
+                  pointsMode === "deduct" ? "bg-destructive hover:bg-destructive/90 hover:shadow-[0_6px_25px_rgba(220,38,38,0.3)]" : "bg-secondary hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)]"
+                )}
+              >
+                {pointsMode === "deduct" ? "Deduct" : "Give"} {Math.abs(pointsAmount)} Points
               </button>
             </DialogFooter>
           </DialogContent>

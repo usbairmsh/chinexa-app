@@ -353,7 +353,7 @@ export default function DeliverySettingsPage() {
             <li>• <span className="font-medium text-charcoal">Zone charges</span> — determine shipping cost based on customer address</li>
             <li>• <span className="font-medium text-charcoal">Delivery time</span> — shown on product pages and checkout</li>
             <li>• <span className="font-medium text-charcoal">Partners</span> — available courier services for order fulfillment</li>
-            <li>• <span className="font-medium text-charcoal">Topbar announcement</span> — update free shipping message in Header → Settings</li>
+            <li>• <span className="font-medium text-charcoal">Topbar announcement</span> — a &ldquo;Free Shipping&rdquo; announcement in Announcements automatically uses this threshold</li>
           </ul>
         </CardContent>
       </Card>

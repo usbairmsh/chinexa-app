@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import { Search, Heart, ShoppingBag, User, Menu, X, ChevronDown, Phone } from "lucide-react";
+import { Search, Heart, ShoppingBag, User, Menu, X, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useCartStore } from "@/stores/cart.store";
@@ -15,6 +15,8 @@ import { useCategoriesStore } from "@/stores/categories.store";
 import { MAIN_NAV, type NavItem } from "@/data/constants/navigation";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "./notification-bell";
+import { AnnouncementBar } from "./announcement-bar";
+import { DesktopSearchBar, MobileSearchBar } from "./search-bar";
 import { useCustomerBadge } from "@/hooks/use-customer-badge";
 import { useIconPlay } from "@/hooks/use-icon-play";
 import { resolveTierColorStyle } from "@/lib/tier-color";
@@ -26,7 +28,7 @@ export function Header() {
   const [mounted, setMounted] = useState(false);
   const cartCount = useCartStore((s) => s.getItemCount());
   const wishlistCount = useWishlistStore((s) => s.items.length);
-  const { mobileMenuOpen, setMobileMenuOpen, setSearchOverlayOpen, setCartDrawerOpen } = useUIStore();
+  const { mobileMenuOpen, setMobileMenuOpen, setCartDrawerOpen } = useUIStore();
   const storeAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const storeUser = useAuthStore((s) => s.user);
   // Persisted store differs from server HTML on hard refresh — rendering it
@@ -41,26 +43,14 @@ export function Header() {
   const accountIcon = useIconPlay<HTMLSpanElement>();
   const mobileSignInIcon = useIconPlay<HTMLSpanElement>();
   const hiddenSeedIds = useCategoriesStore((s) => s.hiddenSeedIds);
-  const [navItems, setNavItems] = useState<NavItem[]>(MAIN_NAV);
-  // Start hidden — showing the bar with placeholder text before /api/settings
-  // resolves would flash fake copy in front of every visitor on every page load.
-  const [announcement, setAnnouncement] = useState<{ visible: boolean; text: string; phone: string }>({ visible: false, text: "", phone: "" });
+  // Start empty, not MAIN_NAV — showing the hardcoded demo category list
+  // before the real /api/categories fetch resolves flashed fake nav items in
+  // front of every visitor on every page load. MAIN_NAV is still used as a
+  // genuine fallback below if the categories fetch actually fails.
+  const [navItems, setNavItems] = useState<NavItem[]>([]);
 
   useEffect(() => {
     setMounted(true);
-    // Fetch announcement bar + store phone from settings
-    fetch("/api/settings?keys=announcement,store_phone,homepage_config")
-      .then((r) => r.json())
-      .then((data) => {
-        // Prefer the direct announcement key from settings page
-        if (data?.announcement) {
-          setAnnouncement({ visible: data.announcement.visible !== false, text: data.announcement.text || "", phone: data.store_phone || announcement.phone });
-        } else if (data?.homepage_config?.announcement) {
-          setAnnouncement({ ...data.homepage_config.announcement, phone: data.store_phone || announcement.phone });
-        }
-        if (data?.store_phone) setAnnouncement((prev) => ({ ...prev, phone: data.store_phone }));
-      })
-      .catch(() => {});
     // Fetch categories from database — this is the single source of truth
     fetch("/api/categories")
       .then((r) => r.json())
@@ -104,22 +94,7 @@ export function Header() {
           moves as a single pinned block instead of the header snapping to top:0 mid-scroll. */}
       <div className="sticky top-0 z-40 w-full">
         {/* ══════ TOP UTILITY BAR ══════ */}
-        {announcement.visible && (
-          <div className="bg-primary-light border-b border-border/20">
-            <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10 flex items-center justify-between h-8">
-              <span className="text-[11px] text-charcoal-lighter hidden sm:flex items-center gap-1.5">
-                <Phone className="h-3 w-3" /> {announcement.phone || "+880 1700-000000"}
-              </span>
-              <p className="text-[10px] sm:text-[11px] text-charcoal-light text-center flex-1 sm:flex-none tracking-[0.03em] truncate px-2 sm:px-0">
-                {announcement.text || "Free shipping above ৳3,000 | Use code WELCOME10 for 10% off"}
-              </p>
-              <div className="hidden sm:flex items-center gap-4 text-[11px] text-charcoal-lighter">
-                <Link href="/track-order" className="hover:text-secondary transition-colors">Track Order</Link>
-                <Link href="/faq" className="hover:text-secondary transition-colors">FAQ</Link>
-              </div>
-            </div>
-          </div>
-        )}
+        <AnnouncementBar />
 
         {/* ══════ MAIN HEADER ══════ */}
         <header
@@ -168,31 +143,10 @@ export function Header() {
                 />
               </Link>
 
-              {/* Search — mobile stays icon-only (lens tilts in as if leaning
-                  closer to look); desktop/tablet gets a pill with a wordmark
-                  and a gold-underline flourish so it reads as a real feature
-                  entry point rather than a bare icon. */}
-              <motion.button
-                onClick={() => setSearchOverlayOpen(true)}
-                whileHover={{ scale: 1.1, rotate: -15 }}
-                whileTap={{ scale: 0.92 }}
-                transition={{ type: "spring", stiffness: 350, damping: 12 }}
-                className="sm:hidden flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors ml-1"
-                aria-label="Search"
-              >
-                <Search className="h-4 w-4" />
-              </motion.button>
-              <button
-                onClick={() => setSearchOverlayOpen(true)}
-                className="group hidden sm:inline-flex items-center gap-2 h-9 pl-3 pr-3.5 rounded-full text-charcoal/70 hover:text-charcoal hover:bg-primary-light transition-colors ml-2 lg:ml-4"
-                aria-label="Search"
-              >
-                <Search className="h-[15px] w-[15px] shrink-0" strokeWidth={2} />
-                <span className="relative font-heading text-[13px] tracking-[0.02em]">
-                  Search
-                  <span className="absolute -bottom-0.5 left-0 h-px w-0 bg-gold transition-all duration-300 group-hover:w-full" />
-                </span>
-              </button>
+              {/* Search — mobile icon takes over the header row when tapped;
+                  desktop expands the trigger itself into an input, with
+                  results anchored below it. */}
+              <MobileSearchBar />
             </div>
 
             {/* ── CENTER: Navigation ── */}
@@ -271,6 +225,8 @@ export function Header() {
 
             {/* ── RIGHT: Action Icons (visible on all screens) ── */}
             <div className="flex items-center gap-1 shrink-0 ml-auto lg:ml-0">
+              <DesktopSearchBar />
+
               {/* Notifications — signed-in customers only */}
               {isAuthenticated && <NotificationBell />}
 

@@ -1,38 +1,25 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
-
-const faqs = [
-  {
-    question: "Are all products authentic?",
-    answer: "Yes, every product sold on ChineXa is 100% authentic. We source directly from authorized distributors and brands. Each imported product comes with verification of authenticity.",
-  },
-  {
-    question: "How long does shipping take?",
-    answer: "Standard shipping within Dhaka takes 1-2 business days. Outside Dhaka, delivery takes 3-5 business days. Pre-order items ship on their announced launch dates.",
-  },
-  {
-    question: "What is your return policy?",
-    answer: "We offer a 7-day hassle-free return policy for unused, unopened products in their original packaging. Skincare and perfume products cannot be returned once opened for hygiene reasons.",
-  },
-  {
-    question: "Do you offer Cash on Delivery?",
-    answer: "Yes! We accept Cash on Delivery (COD), bKash, Nagad, Rocket, and credit/debit cards. A small COD fee may apply for orders under ৳2,000.",
-  },
-  {
-    question: "How does pre-ordering work?",
-    answer: "Pre-order products are upcoming launches that you can reserve before they arrive. You'll receive a notification when your pre-order item ships. Pre-order items are non-refundable.",
-  },
-  {
-    question: "Is there a loyalty program?",
-    answer: "Yes! Every purchase earns you ChineXa Points, which you can redeem for discounts on future orders. Sign up for our newsletter to learn more about exclusive member benefits.",
-  },
-];
+import type { FaqItem } from "@/types/faq";
 
 export function FaqSection() {
+  const [faqs, setFaqs] = useState<FaqItem[] | null>(null);
+
+  useEffect(() => {
+    fetch("/api/settings?key=faq_items")
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data?.value)) setFaqs(data.value); })
+      .catch(() => {});
+  }, []);
+
+  // No hardcoded questions — hide until the admin has saved real FAQ content.
+  if (!faqs || faqs.length === 0) return null;
+
   return (
-    <section className="py-16 bg-white">
+    <section className="py-8 sm:py-10 lg:py-12 bg-white">
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

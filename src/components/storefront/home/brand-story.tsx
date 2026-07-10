@@ -5,25 +5,28 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { DEFAULT_OUR_STORY, type OurStoryContent } from "@/types/our-story";
+import type { OurStoryContent } from "@/types/our-story";
 
 export function BrandStory() {
   const [story, setStory] = useState<OurStoryContent | null>(null);
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     fetch("/api/settings?key=our_story")
       .then((r) => r.json())
-      .then((data) => { if (data?.value) setStory({ ...DEFAULT_OUR_STORY, ...data.value }); })
-      .catch(() => {});
+      .then((data) => { if (data?.value) setStory(data.value); })
+      .catch(() => {})
+      .finally(() => setChecked(true));
   }, []);
 
-  // Render nothing until settings resolve (or genuinely fall back to the
-  // built-in defaults, never a flash of one before the other) — matches the
-  // "no demo content before real data loads" convention used across the app.
-  const content = story || DEFAULT_OUR_STORY;
+  // No fake placeholder content — if the admin hasn't saved a real story yet,
+  // this section simply doesn't render (matches every other homepage section's
+  // "hide until there's real data" convention).
+  if (!checked || !story) return null;
+  const content = story;
 
   return (
-    <section className="py-20 bg-pearl overflow-hidden">
+    <section className="py-8 sm:py-10 lg:py-12 bg-pearl overflow-hidden">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <motion.div

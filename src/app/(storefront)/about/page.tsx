@@ -4,20 +4,32 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
-import { DEFAULT_OUR_STORY, type OurStoryContent } from "@/types/our-story";
+import type { OurStoryContent } from "@/types/our-story";
 import { OUR_STORY_ICON_MAP } from "@/lib/our-story-icons";
 
 export default function AboutPage() {
   const [story, setStory] = useState<OurStoryContent | null>(null);
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     fetch("/api/settings?key=our_story")
       .then((r) => r.json())
-      .then((data) => { if (data?.value) setStory({ ...DEFAULT_OUR_STORY, ...data.value }); })
-      .catch(() => {});
+      .then((data) => { if (data?.value) setStory(data.value); })
+      .catch(() => {})
+      .finally(() => setChecked(true));
   }, []);
 
-  const content = story || DEFAULT_OUR_STORY;
+  if (!checked) return null;
+
+  if (!story) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-24 text-center">
+        <h1 className="font-heading text-2xl font-semibold text-charcoal mb-2">Our Story</h1>
+        <p className="text-charcoal-lighter">This page hasn&apos;t been set up yet. Check back soon.</p>
+      </div>
+    );
+  }
+  const content = story;
 
   return (
     <div className="bg-white">
