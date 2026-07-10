@@ -28,6 +28,43 @@ const TYPE_META: Record<DeductionRuleType, { label: string; description: string;
   return_abuse: { label: "Return/Refund Abuse", description: "High return rate relative to order count", icon: RotateCcw },
 };
 
+/** Returns a list of human-readable problems with a rule, empty if it's valid. */
+function validateRule(rule: DeductionRule): string[] {
+  const errors: string[] = [];
+  if (!rule.name.trim()) errors.push("Rule name is required.");
+  if (!rule.repeatIntervalDays || rule.repeatIntervalDays < 1) errors.push("Repeat interval must be at least 1 day.");
+  if (!rule.notification.title.trim()) errors.push("Notification title is required.");
+  if (!rule.notification.message.trim()) errors.push("Notification message is required.");
+
+  switch (rule.type) {
+    case "inactivity":
+      if (!rule.inactiveDays || rule.inactiveDays < 1) errors.push("Inactive-for days must be at least 1.");
+      if (!rule.deductionAmount || rule.deductionAmount < 1) errors.push("Deduction amount must be at least 1 point.");
+      break;
+    case "points_expiry":
+      if (!rule.expiryDays || rule.expiryDays < 1) errors.push("Expiry age must be at least 1 day.");
+      break;
+    case "low_spend":
+      if (!rule.windowDays || rule.windowDays < 1) errors.push("Spend window must be at least 1 day.");
+      if (rule.minSpendThreshold === undefined || rule.minSpendThreshold === null || rule.minSpendThreshold < 0) errors.push("Minimum spend is required.");
+      if (!rule.deductionAmount || rule.deductionAmount < 1) errors.push("Deduction amount must be at least 1 point.");
+      break;
+    case "flat_decay":
+      if (!rule.deductionAmount || rule.deductionAmount < 1) errors.push("Deduction amount must be at least 1 point.");
+      break;
+    case "tier_based":
+      if (rule.tierIds.length === 0) errors.push("Select at least one tier.");
+      if (!rule.deductionAmount || rule.deductionAmount < 1) errors.push("Deduction amount must be at least 1 point.");
+      break;
+    case "return_abuse":
+      if (!rule.minOrders || rule.minOrders < 1) errors.push("Minimum orders must be at least 1.");
+      if (!rule.returnRateThresholdPct || rule.returnRateThresholdPct <= 0) errors.push("Return rate threshold must be greater than 0%.");
+      if (!rule.deductionAmount || rule.deductionAmount < 1) errors.push("Deduction amount must be at least 1 point.");
+      break;
+  }
+  return errors;
+}
+
 function makeDefault(type: DeductionRuleType): DeductionRule {
   const base = {
     id: randomId(), type, enabled: true, name: "", repeatIntervalDays: 30,
@@ -152,6 +189,8 @@ export default function AdminPointsDeductionRulesPage() {
   const [running, setRunning] = useState(false);
   const [runResult, setRunResult] = useState<string>("");
   const [addType, setAddType] = useState<DeductionRuleType>("inactivity");
+  const [saveError, setSaveError] = useState<string>("");
+  const [ruleErrors, setRuleErrors] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     Promise.all([
@@ -171,13 +210,44 @@ export default function AdminPointsDeductionRulesPage() {
 
   const updateItem = (id: string, patch: Partial<DeductionRule>) => {
     setConfig((c) => ({ ...c, items: c.items.map((i) => (i.id === id ? ({ ...i, ...patch } as DeductionRule) : i)) }));
+    // Re-validate immediately so a fixed field's error clears without
+    // waiting for another Save attempt.
+    setRuleErrors((prev) => {
+      if (!prev[id]) return prev;
+      const { [id]: _removed, ...rest } = prev;
+      void _removed;
+      return rest;
+    });
   };
 
   const removeItem = (id: string) => {
     setConfig((c) => ({ ...c, items: c.items.filter((i) => i.id !== id) }));
+    setRuleErrors((prev) => {
+      if (!prev[id]) return prev;
+      const { [id]: _removed, ...rest } = prev;
+      void _removed;
+      return rest;
+    });
   };
 
   const handleSave = async () => {
+    setSaveError("");
+
+    const errorsByRule: Record<string, string[]> = {};
+    let hasErrors = false;
+    for (const rule of config.items) {
+      const errors = validateRule(rule);
+      if (errors.length > 0) {
+        errorsByRule[rule.id] = errors;
+        hasErrors = true;
+      }
+    }
+    setRuleErrors(errorsByRule);
+    if (hasErrors) {
+      setSaveError("Fix the highlighted fields before saving.");
+      return;
+    }
+
     setSaving(true);
     try {
       await fetch("/api/settings", {
@@ -187,7 +257,9 @@ export default function AdminPointsDeductionRulesPage() {
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
-    } catch {} finally { setSaving(false); }
+    } catch {
+      setSaveError("Save failed — please try again.");
+    } finally { setSaving(false); }
   };
 
   const handleRunNow = async () => {
@@ -218,7 +290,7 @@ export default function AdminPointsDeductionRulesPage() {
             <ShieldMinus className="h-5 w-5 text-secondary" /> Points Deduction Rules
           </h1>
           <p className="text-sm text-charcoal-lighter mt-1">
-            Automatically deducts loyalty points from customer accounts when a rule&apos;s condition is met. Runs on a schedule via your server&apos;s cron — see the setup note below.
+            Automatically deducts loyalty points from customer accounts when a rule&apos;s condition is met — runs on its own, about once an hour, with no setup required. Use &ldquo;Run Now&rdquo; to see a rule&apos;s effect immediately after saving it.
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -233,6 +305,10 @@ export default function AdminPointsDeductionRulesPage() {
         </div>
       </div>
 
+      {saveError && (
+        <Card className="border-destructive/30"><CardContent className="py-3 text-sm text-destructive">{saveError}</CardContent></Card>
+      )}
+
       {runResult && (
         <Card><CardContent className="py-3 text-sm text-charcoal-light">{runResult}</CardContent></Card>
       )}
@@ -241,15 +317,10 @@ export default function AdminPointsDeductionRulesPage() {
         <CardHeader>
           <CardTitle className="text-base">Scheduling</CardTitle>
           <CardDescription>
-            This app has no built-in scheduler — rules are only evaluated when something calls the cron endpoint.
-            Set up an OS-level cron job on your server (e.g. hourly or daily) to call:
+            Rules run automatically about once an hour for as long as the server is running — nothing to configure.
+            Saving a rule doesn&apos;t wait for the next hourly tick to take effect once; use &ldquo;Run Now&rdquo; above to apply it immediately.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <code className="block text-xs bg-pearl rounded-lg p-3 overflow-x-auto whitespace-pre">
-            {`curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://yourdomain.com/api/cron/points-deduction`}
-          </code>
-        </CardContent>
       </Card>
 
       <Card>
@@ -279,8 +350,9 @@ export default function AdminPointsDeductionRulesPage() {
         {config.items.map((item) => {
           const meta = TYPE_META[item.type];
           const Icon = meta.icon;
+          const errors = ruleErrors[item.id] || [];
           return (
-            <Card key={item.id}>
+            <Card key={item.id} className={cn(errors.length > 0 && "border-destructive/40")}>
               <CardHeader className="flex-row items-center justify-between space-y-0">
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-light shrink-0"><Icon className="h-4 w-4 text-secondary" /></div>
@@ -296,7 +368,12 @@ export default function AdminPointsDeductionRulesPage() {
                   </button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
+                {errors.length > 0 && (
+                  <div className="p-2.5 rounded-lg bg-destructive/5 border border-destructive/20 space-y-0.5">
+                    {errors.map((e, i) => <p key={i} className="text-xs text-destructive">{e}</p>)}
+                  </div>
+                )}
                 <RuleEditor rule={item} tiers={tiers} onChange={(patch) => updateItem(item.id, patch)} />
               </CardContent>
             </Card>
