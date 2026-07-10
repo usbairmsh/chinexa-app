@@ -48,7 +48,7 @@ async function dropColumnIfExists(table: string, column: string) {
  * an older schema and already exists, so ensureColumn's "already present" skip
  * would otherwise leave the old, narrower enum in place forever.
  */
-async function ensureEnumValues(table: string, column: string, values: string[]) {
+async function ensureEnumValues(table: string, column: string, values: string[], options?: { default?: string; notNull?: boolean }) {
   const rows = await query<RowDataPacket[]>(
     `SELECT COLUMN_TYPE AS type FROM information_schema.columns
      WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?`,
@@ -59,7 +59,9 @@ async function ensureEnumValues(table: string, column: string, values: string[])
   const missing = values.filter((v) => !currentType.includes(`'${v}'`));
   if (missing.length === 0) return;
   const enumList = values.map((v) => `'${v}'`).join(",");
-  await execute(`ALTER TABLE ${table} MODIFY COLUMN ${column} ENUM(${enumList}) DEFAULT 'store'`);
+  const notNull = options?.notNull ? " NOT NULL" : "";
+  const defaultClause = options?.default ? ` DEFAULT '${options.default}'` : "";
+  await execute(`ALTER TABLE ${table} MODIFY COLUMN ${column} ENUM(${enumList})${notNull}${defaultClause}`);
 }
 
 export async function ensurePromotionColumns() {
@@ -75,8 +77,8 @@ export async function ensurePromotionColumns() {
     await ensureColumn("coupons", "applicability", `ENUM(${applicabilityValues.map((v) => `'${v}'`).join(",")}) DEFAULT 'store'`);
     await ensureColumn("coupons", "applicable_ids", "JSON");
     await ensureColumn("coupons", "per_customer_limit", "INT");
-    await ensureEnumValues("coupons", "applicability", applicabilityValues);
-    await ensureEnumValues("offers", "applicability", applicabilityValues);
+    await ensureEnumValues("coupons", "applicability", applicabilityValues, { default: "store" });
+    await ensureEnumValues("offers", "applicability", applicabilityValues, { default: "store" });
 
     // Products: trust badges shown on the product page (referenced by create/update)
     await ensureColumn("products", "trust_badges", "JSON");
@@ -124,6 +126,28 @@ export async function ensurePromotionColumns() {
     // Unbounded append-only audit log — ORDER BY created_at DESC had no
     // supporting index at all.
     await ensureIndex("activity_log", "idx_activity_log_created", "created_at");
+
+    // Automated points-deduction rule engine: a new ledger entry type for
+    // rule-driven deductions (distinct from admin_adjustment so they can be
+    // filtered/reported on separately), plus a table recording each cron run
+    // for admin visibility (did it run, how many customers were touched).
+    await ensureEnumValues(
+      "customer_points", "type",
+      ["purchase", "bonus", "redemption", "admin_adjustment", "coupon_reward", "refund", "rule_deduction"],
+      { notNull: true }
+    );
+    await execute(`
+      CREATE TABLE IF NOT EXISTS points_deduction_runs (
+        id VARCHAR(50) PRIMARY KEY,
+        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        finished_at TIMESTAMP NULL,
+        rules_evaluated INT DEFAULT 0,
+        customers_affected INT DEFAULT 0,
+        total_points_deducted INT DEFAULT 0,
+        summary JSON,
+        INDEX idx_points_deduction_runs_started (started_at)
+      ) ENGINE=InnoDB
+    `);
 
     done = true; // only latch once every column is confirmed/created
   } catch (err) {

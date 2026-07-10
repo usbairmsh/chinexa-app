@@ -988,16 +988,40 @@ export default function CheckoutPage() {
                   </DialogContent>
                 </Dialog>
 
-                {/* Place order confirmation — non-COD only, asks the customer to
-                    confirm payment was actually completed before submitting */}
+                {/* Place order confirmation — non-COD only. Repeats the actual
+                    payment instructions/QR (not just a bare yes/no) so the
+                    customer can double-check they paid to the right place
+                    before confirming, without reopening the earlier dialog. */}
                 <Dialog open={placeOrderConfirmOpen} onOpenChange={setPlaceOrderConfirmOpen}>
-                  <DialogContent>
+                  <DialogContent className="max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Confirm your payment</DialogTitle>
-                      <DialogDescription>
-                        Have you completed the {selectedMethod?.name || paymentMethod} payment for {confirmFieldLabel.toLowerCase()} <span className="font-semibold text-charcoal">{transactionId}</span>?
-                      </DialogDescription>
+                      <DialogDescription className="whitespace-pre-wrap text-left">{instructionsText}</DialogDescription>
                     </DialogHeader>
+
+                    {qrImage && (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="relative h-[180px] w-[180px] rounded-xl overflow-hidden bg-white border border-border/30">
+                          <Image src={qrImage} alt={`${selectedMethod?.name} QR code`} fill className="object-contain" sizes="180px" unoptimized={qrImage.startsWith("data:") || qrImage.includes("/uploads/")} />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="p-3 rounded-xl bg-pearl/40 border border-border/30 grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wide text-charcoal-lighter">Method</p>
+                        <p className="font-medium text-charcoal">{selectedMethod?.name || paymentMethod}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wide text-charcoal-lighter">{confirmFieldLabel}</p>
+                        <p className="font-medium text-charcoal">{transactionId}</p>
+                      </div>
+                    </div>
+
+                    <p className="text-sm text-charcoal-light">
+                      Have you completed this payment? Confirming without an actual completed payment may delay or cancel your order.
+                    </p>
+
                     <DialogFooter>
                       <Button variant="outline" onClick={() => setPlaceOrderConfirmOpen(false)}>Cancel</Button>
                       <Button
