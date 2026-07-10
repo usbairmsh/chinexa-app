@@ -149,6 +149,35 @@ export async function ensurePromotionColumns() {
       ) ENGINE=InnoDB
     `);
 
+    // Engine Activity Log: one row per customer matched by a rule during a
+    // run (whether or not points were actually taken), with a snapshot of
+    // the criteria that matched — so the admin can see *why* later, not just
+    // the aggregate counts in points_deduction_runs.summary. `points_entry_id`
+    // links to the customer_points ledger row when a deduction actually
+    // happened, so Cancel can look up and reverse the exact entry.
+    await execute(`
+      CREATE TABLE IF NOT EXISTS points_deduction_run_customers (
+        id VARCHAR(50) PRIMARY KEY,
+        run_id VARCHAR(50) NOT NULL,
+        rule_id VARCHAR(50) NOT NULL,
+        rule_name VARCHAR(255) NOT NULL,
+        rule_type VARCHAR(30) NOT NULL,
+        customer_id VARCHAR(50) NOT NULL,
+        outcome ENUM('deducted','skipped_no_balance','error') NOT NULL,
+        points_deducted INT NOT NULL DEFAULT 0,
+        matched_criteria TEXT,
+        error_message TEXT,
+        points_entry_id VARCHAR(50),
+        reversed_at TIMESTAMP NULL,
+        reversal_entry_id VARCHAR(50),
+        disbursed_at TIMESTAMP NULL,
+        disbursement_entry_id VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_pdrc_run (run_id),
+        INDEX idx_pdrc_customer (customer_id)
+      ) ENGINE=InnoDB
+    `);
+
     done = true; // only latch once every column is confirmed/created
   } catch (err) {
     // Leave `done` false so the next request retries the migration.

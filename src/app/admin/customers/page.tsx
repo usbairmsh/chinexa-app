@@ -135,6 +135,8 @@ export default function AdminCustomersPage() {
   const [pointsMode, setPointsMode] = useState<"give" | "deduct">("give");
   const [pointsAmount, setPointsAmount] = useState(0);
   const [pointsNote, setPointsNote] = useState("");
+  const [pointsNotifTitle, setPointsNotifTitle] = useState("");
+  const [pointsNotifMessage, setPointsNotifMessage] = useState("");
   const [pointsType, setPointsType] = useState<"bonus" | "admin_adjustment">("bonus");
   const [couponDialogOpen, setCouponDialogOpen] = useState(false);
   const [availableCoupons, setAvailableCoupons] = useState<{ id: string; code: string; description: string; discount_type: string; discount_value: number }[]>([]);
@@ -198,11 +200,19 @@ export default function AdminCustomersPage() {
       await fetch(`/api/customers/${selectedCustomer.id}/points`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ points: signedPoints, type: pointsType, description: pointsNote || `Admin ${pointsMode === "deduct" ? "deduction" : pointsType === "bonus" ? "bonus" : "adjustment"}` }),
+        body: JSON.stringify({
+          points: signedPoints,
+          type: pointsType,
+          description: pointsNote || `Admin ${pointsMode === "deduct" ? "deduction" : pointsType === "bonus" ? "bonus" : "adjustment"}`,
+          notificationTitle: pointsNotifTitle,
+          notificationMessage: pointsNotifMessage,
+        }),
       });
       setPointsDialogOpen(false);
       setPointsAmount(0);
       setPointsNote("");
+      setPointsNotifTitle("");
+      setPointsNotifMessage("");
       fetchMembershipData(selectedCustomer.id);
     } catch {}
   };
@@ -569,11 +579,11 @@ export default function AdminCustomersPage() {
                   </p>
                 )}
                 <div className="flex gap-2">
-                  <button onClick={() => { setPointsMode("give"); setPointsType("bonus"); setPointsAmount(0); setPointsNote(""); setPointsDialogOpen(true); }} className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-border/30 text-[11px] font-medium text-charcoal hover:bg-pearl transition-colors">
+                  <button onClick={() => { setPointsMode("give"); setPointsType("bonus"); setPointsAmount(0); setPointsNote(""); setPointsNotifTitle(""); setPointsNotifMessage(""); setPointsDialogOpen(true); }} className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-border/30 text-[11px] font-medium text-charcoal hover:bg-pearl transition-colors">
                     <Plus className="h-3 w-3" /> Give Points
                   </button>
                   <button
-                    onClick={() => { setPointsMode("deduct"); setPointsType("admin_adjustment"); setPointsAmount(0); setPointsNote(""); setPointsDialogOpen(true); }}
+                    onClick={() => { setPointsMode("deduct"); setPointsType("admin_adjustment"); setPointsAmount(0); setPointsNote(""); setPointsNotifTitle(""); setPointsNotifMessage(""); setPointsDialogOpen(true); }}
                     disabled={!membershipData?.total_points}
                     className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-border/30 text-[11px] font-medium text-charcoal hover:bg-pearl disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
                   >
@@ -727,6 +737,23 @@ export default function AdminCustomersPage() {
                 <p className="text-[11px] text-destructive">Can&apos;t deduct more than the customer&apos;s current balance ({membershipData?.total_points || 0}).</p>
               )}
               <Input label="Reason" value={pointsNote} onChange={(e) => setPointsNote(e.target.value)} placeholder={pointsMode === "deduct" ? "e.g. Return abuse, order cancelled" : "e.g. Birthday bonus"} />
+              <div className="pt-1 border-t border-border/30 space-y-2">
+                <p className="text-[11px] font-medium text-charcoal-lighter uppercase tracking-wide">Customer Notification</p>
+                <Input
+                  label="Title"
+                  value={pointsNotifTitle}
+                  onChange={(e) => setPointsNotifTitle(e.target.value)}
+                  placeholder={pointsMode === "deduct" ? "Points deducted from your account" : "Points added to your account"}
+                />
+                <Textarea
+                  label="Description"
+                  value={pointsNotifMessage}
+                  onChange={(e) => setPointsNotifMessage(e.target.value)}
+                  placeholder={`${Math.abs(pointsAmount) || "X"} points were ${pointsMode === "deduct" ? "deducted from" : "added to"} your account.`}
+                  className="min-h-[60px]"
+                />
+                <p className="text-[11px] text-charcoal-lighter">Sent to the customer as a notification. Leave blank to use the default text shown above.</p>
+              </div>
             </div>
             <DialogFooter>
               <button onClick={() => setPointsDialogOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
-import { notifyTierUpgrade } from "@/lib/notify";
+import { notifyTierUpgrade, bulkNotify } from "@/lib/notify";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 
 export const dynamic = "force-dynamic";
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const { id } = await params;
     const body = await req.json();
-    const { points, type, description, reference_id } = body;
+    const { points, type, description, reference_id, notificationTitle, notificationMessage } = body;
 
     if (!points || !type) {
       return NextResponse.json({ error: "points and type are required" }, { status: 400 });
@@ -109,6 +109,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       "SELECT COALESCE(SUM(points), 0) as total FROM customer_points WHERE customer_id = ?", [id]
     );
     const prevPoints = Number(prevRows[0]?.total) || 0;
+    const isCredit = Number(points) > 0;
 
     const entryId = `pts-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     await execute(
@@ -116,7 +117,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       [entryId, id, points, type, reference_id || null, description || null]
     );
 
-    await logActivity(`${Number(points) > 0 ? "Added" : "Deducted"} ${Math.abs(Number(points))} points`, "customer", id, description || type);
+    await logActivity(`${isCredit ? "Added" : "Deducted"} ${Math.abs(Number(points))} points`, "customer", id, description || type);
+
+    // Notify the customer with the admin-provided title/message (falling back
+    // to a sensible default) so a manual points change is never silent.
+    const title = (typeof notificationTitle === "string" && notificationTitle.trim())
+      || (isCredit ? "Points added to your account" : "Points deducted from your account");
+    const message = (typeof notificationMessage === "string" && notificationMessage.trim())
+      || description
+      || `${Math.abs(Number(points))} points were ${isCredit ? "added to" : "deducted from"} your account.`;
+    await bulkNotify([id], { type: "loyalty", title, message }).catch(() => {});
 
     // Congratulate the customer if this adjustment pushed them into a higher tier
     await notifyTierUpgrade(id, prevPoints, prevPoints + Number(points)).catch(() => {});

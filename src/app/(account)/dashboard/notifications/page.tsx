@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Bell, Package, Tag, Star, Gift, ArrowRight } from "lucide-react";
+import { Bell, Package, Tag, Star, Gift } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useAuthStore } from "@/stores/auth.store";
 import { formatDateShort, cn } from "@/lib/utils";
 
@@ -131,9 +131,12 @@ export default function NotificationsPage() {
                   className={cn("cursor-pointer", !notif.is_read && "bg-primary-50/50 border-secondary/10")}
                   onClick={() => {
                     if (!notif.is_read) handleMarkRead(notif.id);
-                    // Show in a modal instead of navigating straight to `link` —
-                    // stale/invalid stored links would otherwise 404.
-                    setSelected(notif);
+                    // Navigate straight to what the notification refers to.
+                    // Only fall back to the detail modal when there's no link
+                    // at all — a stale/invalid link is the admin's problem to
+                    // fix, not something worth adding a detour for on every click.
+                    if (notif.link) router.push(notif.link);
+                    else setSelected(notif);
                   }}
                 >
                   <CardContent className="p-4 flex gap-3">
@@ -160,8 +163,8 @@ export default function NotificationsPage() {
         </div>
       )}
 
-      {/* Notification detail modal — replaces the old direct router.push(link),
-          which 404'd whenever a stored link was stale/invalid. */}
+      {/* Fallback for notifications with no link to navigate to — just shows
+          the message in place, since there's nowhere to redirect. */}
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <DialogContent className="max-w-sm">
           {selected && (() => {
@@ -177,16 +180,6 @@ export default function NotificationsPage() {
                   <DialogDescription>{timeAgo(selected.created_at)}</DialogDescription>
                 </DialogHeader>
                 <p className="text-sm text-charcoal-light whitespace-pre-wrap">{selected.message}</p>
-                {selected.link && (
-                  <DialogFooter>
-                    <Button
-                      variant="secondary"
-                      onClick={() => { const link = selected.link!; setSelected(null); router.push(link); }}
-                    >
-                      View <ArrowRight className="h-3.5 w-3.5 ml-1" />
-                    </Button>
-                  </DialogFooter>
-                )}
               </>
             );
           })()}

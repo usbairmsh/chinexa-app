@@ -77,11 +77,16 @@ export interface DeductionRuleConfig {
 
 export const DEFAULT_DEDUCTION_RULE_CONFIG: DeductionRuleConfig = { items: [] };
 
-/** Per-customer result from a single rule during one engine run. */
+/** Per-customer result from a single rule during one engine run, persisted to
+ * points_deduction_run_customers so the Engine Activity Log can show it. */
 export interface RuleCustomerResult {
   customerId: string;
+  outcome: "deducted" | "skipped_no_balance" | "error";
   pointsDeducted: number;
-  skipped?: "no_balance" | "cooldown" | "error";
+  /** Human-readable snapshot of the specific values that matched, e.g.
+   * "No order in 97 days (threshold: 90)" — computed at match time since the
+   * underlying data (last order date, spend, etc.) can change afterward. */
+  matchedCriteria: string;
   error?: string;
 }
 
@@ -103,4 +108,23 @@ export interface EngineRunSummary {
   totalPointsDeducted: number;
   perRule: RuleRunSummary[];
   errors: string[];
+}
+
+/** One row in points_deduction_run_customers, as returned by the activity-log API. */
+export interface ActivityLogCustomerRow {
+  id: string;
+  runId: string;
+  ruleId: string;
+  ruleName: string;
+  ruleType: DeductionRuleType;
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  outcome: "deducted" | "skipped_no_balance" | "error";
+  pointsDeducted: number;
+  matchedCriteria: string;
+  errorMessage: string | null;
+  createdAt: string;
+  reversedAt: string | null;
+  disbursedAt: string | null;
 }

@@ -6,6 +6,12 @@ import type {
   DeductionRule, DeductionRuleConfig, EngineRunSummary, RuleRunSummary,
 } from "@/types/points-deduction-rules";
 
+interface Candidate {
+  id: string;
+  /** Human-readable snapshot of the specific values that matched this rule. */
+  criteria: string;
+}
+
 const SETTINGS_KEY = "points_deduction_rules";
 
 async function loadRules(): Promise<DeductionRule[]> {
@@ -47,13 +53,14 @@ async function getCurrentBalance(customerId: string): Promise<number> {
   return Number(rows[0]?.total) || 0;
 }
 
-/** Candidate customer ids for a rule, before cooldown filtering. Each query is
+/** Candidate customers for a rule, before cooldown filtering, each tagged
+ * with a human-readable snapshot of the values that matched. Each query is
  * self-contained per rule type using only confirmed real columns. */
-async function getCandidates(rule: DeductionRule): Promise<string[]> {
+async function getCandidates(rule: DeductionRule): Promise<Candidate[]> {
   switch (rule.type) {
     case "inactivity": {
       const rows = await query<RowDataPacket[]>(
-        `SELECT id FROM customers
+        `SELECT id, last_order_at, created_at FROM customers
          WHERE is_active = 1
            AND (
              (last_order_at IS NOT NULL AND last_order_at <= DATE_SUB(NOW(), INTERVAL ? DAY))
@@ -61,18 +68,27 @@ async function getCandidates(rule: DeductionRule): Promise<string[]> {
            )`,
         [rule.inactiveDays, rule.inactiveDays]
       );
-      return rows.map((r) => r.id as string);
+      const now = Date.now();
+      return rows.map((r) => {
+        const since = r.last_order_at ? new Date(r.last_order_at as string) : new Date(r.created_at as string);
+        const days = Math.floor((now - since.getTime()) / 86400000);
+        const basis = r.last_order_at ? "last order" : "signup, never ordered";
+        return { id: r.id as string, criteria: `${days} days since ${basis} (threshold: ${rule.inactiveDays})` };
+      });
     }
 
     case "points_expiry": {
       const rows = await query<RowDataPacket[]>(
-        `SELECT customer_id FROM customer_points
+        `SELECT customer_id, SUM(points) AS expiring_points FROM customer_points
          WHERE created_at <= DATE_SUB(NOW(), INTERVAL ? DAY)
          GROUP BY customer_id
          HAVING SUM(points) > 0`,
         [rule.expiryDays]
       );
-      return rows.map((r) => r.customer_id as string);
+      return rows.map((r) => ({
+        id: r.customer_id as string,
+        criteria: `${Number(r.expiring_points) || 0} points earned more than ${rule.expiryDays} days ago`,
+      }));
     }
 
     case "low_spend": {
@@ -101,19 +117,22 @@ async function getCandidates(rule: DeductionRule): Promise<string[]> {
       const minOrders = rule.requireMinLifetimeOrders || 0;
       return rows
         .filter((r) => Number(r.total_orders) >= minOrders)
-        .map((r) => r.id as string);
+        .map((r) => ({
+          id: r.id as string,
+          criteria: `Spent ${Number(r.window_spend) || 0} in last ${rule.windowDays} days (threshold: ${rule.minSpendThreshold})`,
+        }));
     }
 
     case "flat_decay": {
       const rows = await query<RowDataPacket[]>("SELECT id FROM customers WHERE is_active = 1");
-      return rows.map((r) => r.id as string);
+      return rows.map((r) => ({ id: r.id as string, criteria: `Recurring decay applied to every active customer` }));
     }
 
     case "tier_based": {
       if (rule.tierIds.length === 0) return [];
       const placeholders = rule.tierIds.map(() => "?").join(",");
       const tiers = await query<RowDataPacket[]>(
-        `SELECT id, min_points, max_points FROM membership_tiers WHERE id IN (${placeholders}) AND is_active = 1`,
+        `SELECT id, name, min_points, max_points FROM membership_tiers WHERE id IN (${placeholders}) AND is_active = 1`,
         rule.tierIds
       );
       if (tiers.length === 0) return [];
@@ -123,12 +142,11 @@ async function getCandidates(rule: DeductionRule): Promise<string[]> {
          WHERE c.is_active = 1
          GROUP BY c.id`
       );
-      const matches: string[] = [];
+      const matches: Candidate[] = [];
       for (const b of balances) {
         const total = Number(b.total_points) || 0;
-        if (tiers.some((t) => total >= Number(t.min_points) && total <= Number(t.max_points))) {
-          matches.push(b.id as string);
-        }
+        const tier = tiers.find((t) => total >= Number(t.min_points) && total <= Number(t.max_points));
+        if (tier) matches.push({ id: b.id as string, criteria: `In tier "${tier.name}" with ${total} points` });
       }
       return matches;
     }
@@ -152,7 +170,15 @@ async function getCandidates(rule: DeductionRule): Promise<string[]> {
          HAVING order_count >= ? AND (return_count / order_count) * 100 > ?`,
         params
       );
-      return rows.map((r) => r.customer_id as string);
+      return rows.map((r) => {
+        const orderCount = Number(r.order_count) || 0;
+        const returnCount = Number(r.return_count) || 0;
+        const pct = orderCount > 0 ? Math.round((returnCount / orderCount) * 1000) / 10 : 0;
+        return {
+          id: r.customer_id as string,
+          criteria: `${returnCount}/${orderCount} orders returned (${pct}%, threshold: ${rule.returnRateThresholdPct}%)`,
+        };
+      });
     }
   }
 }
@@ -176,13 +202,30 @@ function interpolate(template: string, tokens: Record<string, string | number>):
   return template.replace(/\{(\w+)\}/g, (_, key) => (key in tokens ? String(tokens[key]) : `{${key}}`));
 }
 
-async function runRule(rule: DeductionRule): Promise<RuleRunSummary> {
+/** Persist one Engine Activity Log row. Best-effort — a logging failure
+ * shouldn't undo a deduction that already happened, so it's only reported
+ * into the run's errors, never thrown back up to the caller. */
+async function logCustomerResult(
+  runId: string, rule: DeductionRule, customerId: string, criteria: string,
+  outcome: "deducted" | "skipped_no_balance" | "error",
+  pointsDeducted: number, pointsEntryId: string | null, errorMessage: string | null
+): Promise<void> {
+  const rowId = `pdrc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  await execute(
+    `INSERT INTO points_deduction_run_customers
+     (id, run_id, rule_id, rule_name, rule_type, customer_id, outcome, points_deducted, matched_criteria, error_message, points_entry_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [rowId, runId, rule.id, rule.name, rule.type, customerId, outcome, pointsDeducted, criteria, errorMessage, pointsEntryId]
+  );
+}
+
+async function runRule(runId: string, rule: DeductionRule): Promise<RuleRunSummary> {
   const summary: RuleRunSummary = {
     ruleId: rule.id, ruleName: rule.name, type: rule.type,
     candidates: 0, customersAffected: 0, pointsDeducted: 0, errors: [],
   };
 
-  let candidates: string[] = [];
+  let candidates: Candidate[] = [];
   try {
     candidates = await getCandidates(rule);
   } catch (err) {
@@ -192,22 +235,28 @@ async function runRule(rule: DeductionRule): Promise<RuleRunSummary> {
   summary.candidates = candidates.length;
   if (candidates.length === 0) return summary;
 
-  let eligible: string[];
+  let eligible: Candidate[];
   try {
-    const inCooldown = await getCustomersInCooldown(rule.id, rule.repeatIntervalDays, candidates);
-    eligible = candidates.filter((id) => !inCooldown.has(id));
+    const inCooldown = await getCustomersInCooldown(rule.id, rule.repeatIntervalDays, candidates.map((c) => c.id));
+    eligible = candidates.filter((c) => !inCooldown.has(c.id));
   } catch (err) {
     summary.errors.push(`cooldown check failed: ${err instanceof Error ? err.message : String(err)}`);
     return summary;
   }
 
-  for (const customerId of eligible) {
+  for (const { id: customerId, criteria } of eligible) {
     try {
       const balance = await getCurrentBalance(customerId);
-      if (balance <= 0) continue; // nothing to deduct, not an error
+      if (balance <= 0) {
+        await logCustomerResult(runId, rule, customerId, criteria, "skipped_no_balance", 0, null, null).catch(() => {});
+        continue; // nothing to deduct, not an error
+      }
 
       const amount = await computeDeduction(rule, customerId, balance);
-      if (amount <= 0) continue;
+      if (amount <= 0) {
+        await logCustomerResult(runId, rule, customerId, criteria, "skipped_no_balance", 0, null, null).catch(() => {});
+        continue;
+      }
 
       const entryId = `pts-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       await execute(
@@ -219,10 +268,14 @@ async function runRule(rule: DeductionRule): Promise<RuleRunSummary> {
       const message = interpolate(rule.notification.message, { points: amount, rule: rule.name });
       await bulkNotify([customerId], { type: "loyalty", title, message }).catch(() => {});
 
+      await logCustomerResult(runId, rule, customerId, criteria, "deducted", amount, entryId, null).catch(() => {});
+
       summary.customersAffected += 1;
       summary.pointsDeducted += amount;
     } catch (err) {
-      summary.errors.push(`customer ${customerId}: ${err instanceof Error ? err.message : String(err)}`);
+      const message = err instanceof Error ? err.message : String(err);
+      summary.errors.push(`customer ${customerId}: ${message}`);
+      await logCustomerResult(runId, rule, customerId, criteria, "error", 0, null, message).catch(() => {});
     }
   }
 
@@ -230,26 +283,36 @@ async function runRule(rule: DeductionRule): Promise<RuleRunSummary> {
 }
 
 export async function runPointsDeductionEngine(): Promise<EngineRunSummary> {
-  await ensurePromotionColumns();
+  const runId = `run-${Date.now()}`;
   const startedAt = new Date().toISOString();
+  const setupErrors: string[] = [];
+
+  try {
+    await ensurePromotionColumns();
+  } catch (err) {
+    // Should already be caught inside ensurePromotionColumns, but guard here
+    // too so a schema mismatch is reported instead of aborting the run with
+    // no trace anywhere the admin can see.
+    setupErrors.push(`schema migration failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   const rules = await loadRules();
 
   const perRule: RuleRunSummary[] = [];
   for (const rule of rules) {
-    perRule.push(await runRule(rule));
+    perRule.push(await runRule(runId, rule));
   }
 
   const finishedAt = new Date().toISOString();
   const customersAffected = perRule.reduce((s, r) => s + r.customersAffected, 0);
   const totalPointsDeducted = perRule.reduce((s, r) => s + r.pointsDeducted, 0);
-  const errors = perRule.flatMap((r) => r.errors);
+  const errors = [...setupErrors, ...perRule.flatMap((r) => r.errors)];
 
   const summary: EngineRunSummary = {
     startedAt, finishedAt, rulesEvaluated: rules.length, customersAffected, totalPointsDeducted, perRule, errors,
   };
 
   try {
-    const runId = `run-${Date.now()}`;
     await execute(
       "INSERT INTO points_deduction_runs (id, started_at, finished_at, rules_evaluated, customers_affected, total_points_deducted, summary) VALUES (?, ?, ?, ?, ?, ?, ?)",
       [runId, startedAt, finishedAt, rules.length, customersAffected, totalPointsDeducted, JSON.stringify(summary)]

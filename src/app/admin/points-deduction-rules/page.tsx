@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   ShieldMinus, Clock, Hourglass, TrendingDown, Repeat, Crown, RotateCcw,
-  Plus, Trash2, Save, Loader2, Check, PlayCircle,
+  Plus, Trash2, Save, Loader2, Check, PlayCircle, History, AlertTriangle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,16 @@ import {
 } from "@/types/points-deduction-rules";
 
 interface Tier { id: string; name: string; }
+
+interface RunRecord {
+  id: string;
+  startedAt: string;
+  finishedAt: string | null;
+  rulesEvaluated: number;
+  customersAffected: number;
+  totalPointsDeducted: number;
+  summary: { errors?: string[]; perRule?: { ruleName: string; candidates: number; customersAffected: number; pointsDeducted: number; errors: string[] }[] } | null;
+}
 
 const TYPE_META: Record<DeductionRuleType, { label: string; description: string; icon: typeof Clock }> = {
   inactivity: { label: "Inactivity", description: "No order in a set number of days", icon: Clock },
@@ -181,6 +192,7 @@ function RuleEditor({ rule, tiers, onChange }: { rule: DeductionRule; tiers: Tie
 }
 
 export default function AdminPointsDeductionRulesPage() {
+  const router = useRouter();
   const [config, setConfig] = useState<DeductionRuleConfig>(DEFAULT_DEDUCTION_RULE_CONFIG);
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -191,6 +203,17 @@ export default function AdminPointsDeductionRulesPage() {
   const [addType, setAddType] = useState<DeductionRuleType>("inactivity");
   const [saveError, setSaveError] = useState<string>("");
   const [ruleErrors, setRuleErrors] = useState<Record<string, string[]>>({});
+  const [runs, setRuns] = useState<RunRecord[]>([]);
+  const [runsLoading, setRunsLoading] = useState(true);
+
+  const fetchRuns = () => {
+    setRunsLoading(true);
+    fetch("/api/admin/points-deduction/run-now")
+      .then((r) => r.json())
+      .then((data) => setRuns(Array.isArray(data?.runs) ? data.runs : []))
+      .catch(() => setRuns([]))
+      .finally(() => setRunsLoading(false));
+  };
 
   useEffect(() => {
     Promise.all([
@@ -202,6 +225,7 @@ export default function AdminPointsDeductionRulesPage() {
         if (Array.isArray(tiersData)) setTiers(tiersData.map((t: { id: string; name: string }) => ({ id: t.id, name: t.name })));
       })
       .finally(() => setLoading(false));
+    fetchRuns();
   }, []);
 
   const addItem = () => {
@@ -269,7 +293,11 @@ export default function AdminPointsDeductionRulesPage() {
       const res = await fetch("/api/admin/points-deduction/run-now", { method: "POST" });
       const data = await res.json();
       if (data?.success) {
-        setRunResult(`Evaluated ${data.rulesEvaluated} rule(s) — ${data.customersAffected} customer(s) affected, ${data.totalPointsDeducted} points deducted.`);
+        const errorCount = Array.isArray(data.errors) ? data.errors.length : 0;
+        let text = `Evaluated ${data.rulesEvaluated} rule(s) — ${data.customersAffected} customer(s) affected, ${data.totalPointsDeducted} points deducted.`;
+        if (errorCount > 0) text += ` ${errorCount} error(s) — see Recent Runs below.`;
+        setRunResult(text);
+        fetchRuns();
       } else {
         setRunResult(data?.error || "Run failed.");
       }
@@ -294,6 +322,9 @@ export default function AdminPointsDeductionRulesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <AdminButton variant="outline" onClick={() => router.push("/admin/points-deduction-rules/activity")}>
+            <History className="h-3.5 w-3.5" /> Engine Activity Log
+          </AdminButton>
           <AdminButton variant="outline" onClick={handleRunNow} disabled={running}>
             {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PlayCircle className="h-3.5 w-3.5" />}
             {running ? "Running..." : "Run Now"}
@@ -321,6 +352,53 @@ export default function AdminPointsDeductionRulesPage() {
             Saving a rule doesn&apos;t wait for the next hourly tick to take effect once; use &ldquo;Run Now&rdquo; above to apply it immediately.
           </CardDescription>
         </CardHeader>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <div className="flex items-center gap-2">
+            <History className="h-4 w-4 text-charcoal-lighter" />
+            <CardTitle className="text-base">Recent Runs</CardTitle>
+          </div>
+          <button onClick={fetchRuns} className="text-xs text-secondary hover:underline" disabled={runsLoading}>
+            {runsLoading ? "Loading..." : "Refresh"}
+          </button>
+        </CardHeader>
+        <CardContent>
+          {runsLoading ? (
+            <p className="text-sm text-charcoal-lighter py-2">Loading run history...</p>
+          ) : runs.length === 0 ? (
+            <p className="text-sm text-charcoal-lighter py-2">
+              No runs recorded yet. The automatic scheduler runs its first check about 30 seconds after the server
+              starts, then hourly — if this stays empty after a couple of minutes, use &ldquo;Run Now&rdquo; above to trigger one manually and check for errors.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {runs.map((run) => {
+                const runErrors = run.summary?.errors || [];
+                return (
+                  <div key={run.id} className={cn("p-3 rounded-lg border", runErrors.length > 0 ? "border-destructive/30 bg-destructive/5" : "border-border/30")}>
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <span className="text-xs text-charcoal-lighter">{new Date(run.startedAt).toLocaleString()}</span>
+                      <span className="text-xs text-charcoal-light">
+                        {run.rulesEvaluated} rule(s) · {run.customersAffected} customer(s) · {run.totalPointsDeducted} points
+                      </span>
+                    </div>
+                    {runErrors.length > 0 && (
+                      <div className="mt-2 space-y-0.5">
+                        {runErrors.map((e, i) => (
+                          <p key={i} className="text-xs text-destructive flex items-start gap-1">
+                            <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" /> {e}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
       </Card>
 
       <Card>

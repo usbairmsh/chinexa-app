@@ -7,8 +7,7 @@ import { Bell, Package, Tag, Gift, CheckCheck, ArrowRight, Loader2 } from "lucid
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/stores/auth.store";
 import { formatDateShort, cn } from "@/lib/utils";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useIconPlay } from "@/hooks/use-icon-play";
 
 interface Notification {
@@ -146,11 +145,10 @@ export function NotificationBell() {
       }).catch(() => {});
     }
     setOpen(false);
-    // Show the message in a modal instead of navigating straight to `link` —
-    // some stored links are stale/invalid (admin-typed or from removed
-    // routes) and would 404. The link, when present, becomes an optional
-    // "View" action inside the modal instead of an automatic redirect.
-    setSelected(notif);
+    // Navigate straight to what the notification refers to. Only fall back
+    // to the detail modal when there's no link at all to go to.
+    if (notif.link) router.push(notif.link);
+    else setSelected(notif);
   };
 
   const handleMarkAllRead = async () => {
@@ -292,8 +290,8 @@ export function NotificationBell() {
       </AnimatePresence>
       </MaybePortal>
 
-      {/* Notification detail modal — replaces the old direct router.push(link),
-          which 404'd whenever a stored link was stale/invalid. */}
+      {/* Fallback for notifications with no link to navigate to — just shows
+          the message in place, since there's nowhere to redirect. */}
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <DialogContent className="max-w-sm">
           {selected && (() => {
@@ -309,16 +307,6 @@ export function NotificationBell() {
                   <DialogDescription>{timeAgo(selected.created_at)}</DialogDescription>
                 </DialogHeader>
                 <p className="text-sm text-charcoal-light whitespace-pre-wrap">{selected.message}</p>
-                {selected.link && (
-                  <DialogFooter>
-                    <Button
-                      variant="secondary"
-                      onClick={() => { const link = selected.link!; setSelected(null); router.push(link); }}
-                    >
-                      View <ArrowRight className="h-3.5 w-3.5 ml-1" />
-                    </Button>
-                  </DialogFooter>
-                )}
               </>
             );
           })()}
