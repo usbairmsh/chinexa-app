@@ -16,6 +16,9 @@ export async function GET(req: NextRequest) {
     await ensurePromotionColumns();
     const limit = Math.min(200, Math.max(1, Number(new URL(req.url).searchParams.get("limit")) || 50));
 
+    // LEFT JOIN, not INNER — a customer row whose parent run record failed to
+    // write (e.g. a transient error) should still show up here instead of
+    // silently vanishing just because points_deduction_runs has no match.
     const rows = await query<RowDataPacket[]>(
       `SELECT prc.run_id, prc.rule_id, prc.rule_name, prc.rule_type,
               pr.trigger_source,
@@ -25,7 +28,7 @@ export async function GET(req: NextRequest) {
               SUM(prc.outcome = 'error') AS error_count,
               SUM(CASE WHEN prc.outcome = 'deducted' THEN prc.points_deducted ELSE 0 END) AS points_deducted
        FROM points_deduction_run_customers prc
-       JOIN points_deduction_runs pr ON pr.id = prc.run_id
+       LEFT JOIN points_deduction_runs pr ON pr.id = prc.run_id
        GROUP BY prc.run_id, prc.rule_id, prc.rule_name, prc.rule_type, pr.trigger_source
        ORDER BY ran_at DESC
        LIMIT ${limit}`
@@ -36,7 +39,7 @@ export async function GET(req: NextRequest) {
       ruleId: r.rule_id as string,
       ruleName: r.rule_name as string,
       ruleType: r.rule_type as string,
-      triggerSource: r.trigger_source as string,
+      triggerSource: (r.trigger_source as string) || "scheduled",
       ranAt: r.ran_at as string,
       candidates: Number(r.candidates) || 0,
       customersAffected: Number(r.customers_affected) || 0,

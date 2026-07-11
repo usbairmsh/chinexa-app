@@ -12,6 +12,12 @@ import {
   DEFAULT_RULE_NOTIFICATION_TITLE, DEFAULT_RULE_NOTIFICATION_MESSAGE,
 } from "@/types/points-deduction-rules";
 
+/** MySQL TIMESTAMP columns reject the "T"/"Z" of a JS ISO string — needs the
+ * "YYYY-MM-DD HH:MM:SS" form instead. */
+function toMysqlDatetime(iso: string): string {
+  return iso.slice(0, 19).replace("T", " ");
+}
+
 function ruleIntervalDays(rule: DeductionRule): number {
   return rule.advancedEnabled ? rule.repeatIntervalDays : DEFAULT_RULE_INTERVAL_DAYS;
 }
@@ -338,9 +344,13 @@ async function runRules(rules: DeductionRule[], triggerSource: TriggerSource, on
         `INSERT INTO points_deduction_runs
          (id, started_at, finished_at, trigger_source, rules_evaluated, customers_affected, total_points_deducted, summary)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [runId, startedAt, finishedAt, triggerSource, rules.length, customersAffected, totalPointsDeducted, JSON.stringify(summary)]
+        [runId, toMysqlDatetime(startedAt), toMysqlDatetime(finishedAt), triggerSource, rules.length, customersAffected, totalPointsDeducted, JSON.stringify(summary)]
       );
     } catch (err) {
+      // Surface this instead of only logging it — a silently-failed run
+      // record means this run vanishes from "Last Run" and the Activity Log
+      // even though the underlying deductions/notifications already happened.
+      errors.push(`failed to record run summary: ${err instanceof Error ? err.message : String(err)}`);
       console.error("[points-deduction-engine] failed to record run:", err);
     }
   }
