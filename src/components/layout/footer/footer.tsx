@@ -55,7 +55,7 @@ export function Footer() {
           {/* Brand + contact */}
           <div>
             <Link href="/" className="inline-block mb-3">
-              <Image src="/logo.png" alt={displayName || "Store logo"} width={320} height={124} className="h-[64px] sm:h-[78px] w-auto" />
+              <Image src="/logo.png" alt={displayName || "Store logo"} width={320} height={124} className="h-[166px] sm:h-[203px] w-auto" />
             </Link>
 
             {contactItems.length > 0 && (
