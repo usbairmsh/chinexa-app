@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, ChevronRight, Loader2, AlertTriangle, Undo2, Gift, X, Check, Zap, Clock, PlayCircle,
+  ArrowLeft, ChevronRight, Loader2, AlertTriangle, Undo2, Gift, X, Check, Zap, Clock, PlayCircle, Trash2, Search,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -114,6 +114,9 @@ export default function EngineActivityLogPage() {
   const [disburseTarget, setDisburseTarget] = useState<CustomerRow | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState("");
+  const [deletingKey, setDeletingKey] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
 
   const fetchEntries = () => {
     setLoading(true);
@@ -134,6 +137,7 @@ export default function EngineActivityLogPage() {
     setSelected(entry);
     setCustomers([]);
     setRowActionError("");
+    setCustomerSearch("");
     setCustomersLoading(true);
     fetch(`/api/admin/points-deduction/activity/${entry.runId}/${entry.ruleId}`)
       .then((r) => r.json())
@@ -142,7 +146,37 @@ export default function EngineActivityLogPage() {
       .finally(() => setCustomersLoading(false));
   };
 
+  const closeEntry = () => { setSelected(null); setCustomers([]); setCustomerSearch(""); };
+
   const refreshCustomers = () => { if (selected) openEntry(selected); };
+
+  const filteredCustomers = useMemo(() => {
+    const q = customerSearch.trim().toLowerCase();
+    if (!q) return customers;
+    return customers.filter(
+      (row) => row.customerName.toLowerCase().includes(q) || row.customerPhone.toLowerCase().includes(q)
+    );
+  }, [customers, customerSearch]);
+
+  const handleDelete = async (entry: ActivityEntry) => {
+    const key = `${entry.runId}-${entry.ruleId}`;
+    setDeleteError("");
+    setDeletingKey(key);
+    try {
+      const res = await fetch(
+        `/api/admin/points-deduction/activity?runId=${encodeURIComponent(entry.runId)}&ruleId=${encodeURIComponent(entry.ruleId)}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to delete");
+      setEntries((prev) => prev.filter((e) => !(e.runId === entry.runId && e.ruleId === entry.ruleId)));
+      if (selected?.runId === entry.runId && selected?.ruleId === entry.ruleId) closeEntry();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete");
+    } finally {
+      setDeletingKey(null);
+    }
+  };
 
   const handleCancel = async (row: CustomerRow) => {
     setRowActionError("");
@@ -172,7 +206,7 @@ export default function EngineActivityLogPage() {
         <div>
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Engine Activity Log</h1>
           <p className="text-sm text-charcoal-lighter mt-1">
-            Every rule that has run — scheduled, manual, or instant. Click a row to see which customers matched, why, and to cancel or disburse points.
+            Every rule that has run — scheduled, manual, or instant. Click a row to see which customers matched, why, and to cancel or disburse points. Use the trash icon to remove a log entry.
           </p>
         </div>
       </div>
@@ -191,39 +225,54 @@ export default function EngineActivityLogPage() {
             <p className="text-sm text-charcoal-lighter py-6 text-center">No rule runs recorded yet.</p>
           ) : (
             <div className="space-y-2">
+              {deleteError && <p className="text-xs text-destructive">{deleteError}</p>}
               {entries.map((entry) => {
                 const trigger = TRIGGER_META[entry.triggerSource] || TRIGGER_META.scheduled;
                 const TriggerIcon = trigger.icon;
+                const key = `${entry.runId}-${entry.ruleId}`;
                 return (
-                  <button
-                    key={`${entry.runId}-${entry.ruleId}`}
-                    onClick={() => openEntry(entry)}
+                  <div
+                    key={key}
                     className={cn(
-                      "w-full flex items-center justify-between gap-3 p-3 rounded-lg border text-left transition-colors",
+                      "w-full flex items-center gap-2 rounded-lg border transition-colors",
                       selected?.runId === entry.runId && selected?.ruleId === entry.ruleId
                         ? "border-secondary/40 bg-secondary/5"
                         : "border-border/30 hover:bg-pearl"
                     )}
                   >
-                    <div className="min-w-0 flex items-center gap-2">
-                      <span className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium shrink-0", trigger.className)}>
-                        <TriggerIcon className="h-2.5 w-2.5" /> {trigger.label}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-charcoal truncate">{entry.ruleName}</p>
-                        <p className="text-xs text-charcoal-lighter">{formatDate(entry.ranAt)}</p>
+                    <button onClick={() => openEntry(entry)} className="flex-1 min-w-0 flex items-center justify-between gap-3 p-3 text-left">
+                      <div className="min-w-0 flex items-center gap-2">
+                        <span className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium shrink-0", trigger.className)}>
+                          <TriggerIcon className="h-2.5 w-2.5" /> {trigger.label}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-charcoal truncate">{entry.ruleName}</p>
+                          <p className="text-xs text-charcoal-lighter">{formatDate(entry.ranAt)}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0 text-xs text-charcoal-light">
-                      <span>{entry.candidates} matched</span>
-                      <span>{entry.customersAffected} deducted</span>
-                      <span>{entry.pointsDeducted} pts</span>
-                      {entry.errorCount > 0 && (
-                        <span className="flex items-center gap-1 text-destructive"><AlertTriangle className="h-3 w-3" /> {entry.errorCount}</span>
-                      )}
-                      <ChevronRight className="h-4 w-4 text-charcoal-lighter" />
-                    </div>
-                  </button>
+                      <div className="flex items-center gap-3 shrink-0 text-xs text-charcoal-light">
+                        <span>{entry.candidates} matched</span>
+                        <span>{entry.customersAffected} deducted</span>
+                        <span>{entry.pointsDeducted} pts</span>
+                        {entry.errorCount > 0 && (
+                          <span className="flex items-center gap-1 text-destructive"><AlertTriangle className="h-3 w-3" /> {entry.errorCount}</span>
+                        )}
+                        <ChevronRight className="h-4 w-4 text-charcoal-lighter" />
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Delete this log entry for "${entry.ruleName}"? This only removes it from the activity log — any points already deducted are not affected.`)) {
+                          handleDelete(entry);
+                        }
+                      }}
+                      disabled={deletingKey === key}
+                      className="p-2 mr-2 rounded-md text-charcoal-lighter/60 hover:text-destructive hover:bg-destructive/5 transition-colors shrink-0"
+                      title="Delete this log entry"
+                    >
+                      {deletingKey === key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -232,61 +281,86 @@ export default function EngineActivityLogPage() {
       </Card>
 
       {selected && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{selected.ruleName} — Matched Customers</CardTitle>
-            <CardDescription>{formatDate(selected.ranAt)}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {rowActionError && <p className="text-xs text-destructive mb-3">{rowActionError}</p>}
-            {customersLoading ? (
-              <div className="flex items-center justify-center py-10"><Loader2 className="h-6 w-6 text-secondary animate-spin" /></div>
-            ) : customers.length === 0 ? (
-              <p className="text-sm text-charcoal-lighter py-6 text-center">No customer detail recorded for this run.</p>
-            ) : (
-              <div className="space-y-2">
-                {customers.map((row) => {
-                  const meta = OUTCOME_META[row.outcome];
-                  return (
-                    <div key={row.id} className="p-3 rounded-lg border border-border/30 space-y-2">
-                      <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-charcoal">{row.customerName}</p>
-                          {row.customerPhone && <p className="text-xs text-charcoal-lighter">{row.customerPhone}</p>}
-                        </div>
-                        <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0", meta.className)}>{meta.label}</span>
-                      </div>
-                      <p className="text-xs text-charcoal-light">{row.matchedCriteria}</p>
-                      {row.errorMessage && <p className="text-xs text-destructive">{row.errorMessage}</p>}
-                      {row.outcome === "deducted" && (
-                        <p className="text-xs text-charcoal-lighter">Deducted <span className="font-medium text-charcoal">{row.pointsDeducted} points</span></p>
-                      )}
-                      <div className="flex items-center gap-2 flex-wrap pt-1">
-                        {row.reversedAt && (
-                          <span className="flex items-center gap-1 text-[11px] text-success"><Check className="h-3 w-3" /> Reversed {formatDate(row.reversedAt)}</span>
-                        )}
-                        {row.disbursedAt && (
-                          <span className="flex items-center gap-1 text-[11px] text-success"><Check className="h-3 w-3" /> Disbursed {formatDate(row.disbursedAt)}</span>
-                        )}
-                        {row.outcome === "deducted" && !row.reversedAt && (
-                          <AdminButton size="xs" variant="outline" onClick={() => handleCancel(row)} disabled={cancellingId === row.id}>
-                            {cancellingId === row.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Undo2 className="h-3 w-3" />}
-                            Cancel (Refund)
-                          </AdminButton>
-                        )}
-                        {!row.disbursedAt && (
-                          <AdminButton size="xs" variant="outline" onClick={() => setDisburseTarget(row)}>
-                            <Gift className="h-3 w-3" /> Disburse
-                          </AdminButton>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={closeEntry}>
+          <div
+            className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 p-5 pb-3 shrink-0">
+              <div className="min-w-0">
+                <h3 className="font-heading text-lg font-semibold text-charcoal truncate">{selected.ruleName} — Matched Customers</h3>
+                <p className="text-xs text-charcoal-lighter mt-0.5">{formatDate(selected.ranAt)}</p>
+              </div>
+              <button onClick={closeEntry} className="p-1.5 rounded-md hover:bg-pearl shrink-0"><X className="h-4 w-4 text-charcoal-lighter" /></button>
+            </div>
+
+            {customers.length > 0 && (
+              <div className="px-5 pb-3 shrink-0">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-charcoal-lighter" />
+                  <Input
+                    value={customerSearch}
+                    onChange={(e) => setCustomerSearch(e.target.value)}
+                    placeholder="Search by name or phone..."
+                    className="pl-9"
+                  />
+                </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+
+            <div className="px-5 pb-5 overflow-y-auto flex-1">
+              {rowActionError && <p className="text-xs text-destructive mb-3">{rowActionError}</p>}
+              {customersLoading ? (
+                <div className="flex items-center justify-center py-10"><Loader2 className="h-6 w-6 text-secondary animate-spin" /></div>
+              ) : customers.length === 0 ? (
+                <p className="text-sm text-charcoal-lighter py-6 text-center">No customer detail recorded for this run.</p>
+              ) : filteredCustomers.length === 0 ? (
+                <p className="text-sm text-charcoal-lighter py-6 text-center">No customer matches &ldquo;{customerSearch}&rdquo;.</p>
+              ) : (
+                <div className="space-y-2">
+                  {filteredCustomers.map((row) => {
+                    const meta = OUTCOME_META[row.outcome];
+                    return (
+                      <div key={row.id} className="p-3 rounded-lg border border-border/30 space-y-2">
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-charcoal">{row.customerName}</p>
+                            {row.customerPhone && <p className="text-xs text-charcoal-lighter">{row.customerPhone}</p>}
+                          </div>
+                          <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0", meta.className)}>{meta.label}</span>
+                        </div>
+                        <p className="text-xs text-charcoal-light">{row.matchedCriteria}</p>
+                        {row.errorMessage && <p className="text-xs text-destructive">{row.errorMessage}</p>}
+                        {row.outcome === "deducted" && (
+                          <p className="text-xs text-charcoal-lighter">Deducted <span className="font-medium text-charcoal">{row.pointsDeducted} points</span></p>
+                        )}
+                        <div className="flex items-center gap-2 flex-wrap pt-1">
+                          {row.reversedAt && (
+                            <span className="flex items-center gap-1 text-[11px] text-success"><Check className="h-3 w-3" /> Reversed {formatDate(row.reversedAt)}</span>
+                          )}
+                          {row.disbursedAt && (
+                            <span className="flex items-center gap-1 text-[11px] text-success"><Check className="h-3 w-3" /> Disbursed {formatDate(row.disbursedAt)}</span>
+                          )}
+                          {row.outcome === "deducted" && !row.reversedAt && (
+                            <AdminButton size="xs" variant="outline" onClick={() => handleCancel(row)} disabled={cancellingId === row.id}>
+                              {cancellingId === row.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Undo2 className="h-3 w-3" />}
+                              Cancel (Refund)
+                            </AdminButton>
+                          )}
+                          {!row.disbursedAt && (
+                            <AdminButton size="xs" variant="outline" onClick={() => setDisburseTarget(row)}>
+                              <Gift className="h-3 w-3" /> Disburse
+                            </AdminButton>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {disburseTarget && (

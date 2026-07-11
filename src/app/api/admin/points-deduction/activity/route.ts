@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
-import { query } from "@/lib/db";
+import { query, execute } from "@/lib/db";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
+import { validationError } from "@/lib/validate";
+import { logActivity } from "@/lib/log-activity";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +50,39 @@ export async function GET(req: NextRequest) {
     }));
 
     return NextResponse.json({ entries });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+  }
+}
+
+// DELETE /api/admin/points-deduction/activity?runId=...&ruleId=... — removes
+// one rule-run's log entries (and matched-customer rows) from the Engine
+// Activity Log. This only clears the audit trail — it never touches
+// customer_points, so any deduction already applied is left exactly as-is.
+export async function DELETE(req: NextRequest) {
+  try {
+    const url = new URL(req.url);
+    const runId = url.searchParams.get("runId");
+    const ruleId = url.searchParams.get("ruleId");
+    if (!runId || !ruleId) return validationError("runId and ruleId are required");
+
+    await execute(
+      "DELETE FROM points_deduction_run_customers WHERE run_id = ? AND rule_id = ?",
+      [runId, ruleId]
+    );
+
+    // Only drop the parent run row once no rule's customer rows reference it
+    // anymore — a single run can cover multiple rules, each deletable independently.
+    const remaining = await query<RowDataPacket[]>(
+      "SELECT COUNT(*) AS c FROM points_deduction_run_customers WHERE run_id = ?",
+      [runId]
+    );
+    if (Number(remaining[0]?.c) === 0) {
+      await execute("DELETE FROM points_deduction_runs WHERE id = ?", [runId]);
+    }
+
+    await logActivity("Deleted points deduction activity log entry", "settings", runId, ruleId);
+    return NextResponse.json({ success: true });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
   }
