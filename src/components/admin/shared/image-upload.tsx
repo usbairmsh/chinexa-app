@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, type ReactNode } from "react";
 import Image from "next/image";
 import { Upload, X, Link2, ImagePlus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 interface ImageUploadProps {
   value?: string;
   onChange?: (url: string) => void;
-  label?: string;
+  label?: ReactNode;
   placeholder?: string;
   className?: string;
   aspectRatio?: "square" | "video" | "portrait";

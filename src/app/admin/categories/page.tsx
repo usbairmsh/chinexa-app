@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
+import { FieldLabel } from "@/components/admin/shared/field-label";
 import { BrandMultiSelect } from "@/components/admin/shared/brand-multi-select";
 import { useCategories } from "@/hooks/queries/use-categories";
 import { useCategoriesStore } from "@/stores/categories.store";
@@ -452,8 +453,7 @@ export default function AdminCategoriesPage() {
                   <Globe className="h-4 w-4 text-secondary" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-charcoal">Show in Topbar</p>
-                  <p className="text-[10px] text-charcoal-lighter">Visible in storefront nav</p>
+                  <p className="text-sm font-medium text-charcoal"><FieldLabel label="Show in Topbar" hint="Visible in storefront nav" /></p>
                 </div>
               </div>
               <Switch checked={showInTopbar} onCheckedChange={setShowInTopbar} />

@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Separator } from "@/components/ui/separator";
+import { FieldLabel } from "@/components/admin/shared/field-label";
 import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
 import type { Coupon, CouponApplicability } from "@/types/coupon";
 
@@ -329,7 +330,7 @@ export default function AdminCouponsPage() {
           <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-4 py-2 pr-1">
             {/* Applicability — who/what the coupon can be redeemed on */}
             <div>
-              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Coupon Applicability</label>
+              <label className="block text-sm font-medium text-charcoal-light mb-1.5"><FieldLabel label="Coupon Applicability" hint="Customers must be signed in to redeem this coupon when applicability is set to Specific Customers or Membership Tiers." /></label>
               <Select value={formApplicability} onValueChange={(v) => { setFormApplicability(v as CouponApplicability); setFormSelectedIds([]); setApplSearchQuery(""); setApplSearchResults([]); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -342,9 +343,6 @@ export default function AdminCouponsPage() {
                   <SelectItem value="tiers"><span className="flex items-center gap-2"><Crown className="h-3.5 w-3.5" /> Membership Tiers</span></SelectItem>
                 </SelectContent>
               </Select>
-              {(formApplicability === "customers" || formApplicability === "tiers") && (
-                <p className="text-[10px] text-charcoal-lighter mt-1">Customers must be signed in to redeem this coupon.</p>
-              )}
             </div>
 
             {formApplicability !== "store" && (

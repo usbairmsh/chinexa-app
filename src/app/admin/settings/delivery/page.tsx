@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AdminButton } from "@/components/admin/shared/admin-button";
+import { FieldLabel } from "@/components/admin/shared/field-label";
 import { useDeliveryStore } from "@/stores/delivery.store";
 import { formatCurrency, cn, randomId } from "@/lib/utils";
 
@@ -165,8 +166,7 @@ export default function DeliverySettingsPage() {
                 <Truck className="h-5 w-5 text-success" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-charcoal">Enable Free Delivery</p>
-                <p className="text-[10px] text-charcoal-lighter">Offer free shipping when order total exceeds threshold</p>
+                <p className="text-sm font-semibold text-charcoal"><FieldLabel label="Enable Free Delivery" hint="Offer free shipping when order total exceeds threshold" /></p>
               </div>
             </div>
             <Switch checked={freeDeliveryEnabled} onCheckedChange={(v) => { setFreeDelivery(v); showSaved(); }} />

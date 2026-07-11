@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { AdminButton } from "@/components/admin/shared/admin-button";
+import { FieldLabel } from "@/components/admin/shared/field-label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { MembershipTier } from "@/types/membership";
@@ -204,7 +205,9 @@ export default function AdminMembershipPage() {
             <Separator orientation="vertical" className="h-8 hidden sm:block" />
             <div className="flex items-end gap-2">
               <div>
-                <label className="text-xs text-charcoal-lighter block mb-1">Earn 1 point per</label>
+                <label className="text-xs text-charcoal-lighter block mb-1">
+                  <FieldLabel label="Earn 1 point per" hint="How many BDT a customer must spend to earn 1 point. Lower number = more generous rewards." />
+                </label>
                 <div className="flex items-center gap-1.5">
                   <Input
                     type="number"

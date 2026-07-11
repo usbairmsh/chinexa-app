@@ -21,6 +21,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
+import { FieldLabel } from "@/components/admin/shared/field-label";
 import { AvatarViewDialog } from "@/components/shared/avatar-view-dialog";
 import { resolveTierColorStyle } from "@/lib/tier-color";
 import { formatCurrency, formatDateShort, getInitials, cn } from "@/lib/utils";
@@ -738,7 +739,7 @@ export default function AdminCustomersPage() {
               )}
               <Input label="Reason" value={pointsNote} onChange={(e) => setPointsNote(e.target.value)} placeholder={pointsMode === "deduct" ? "e.g. Return abuse, order cancelled" : "e.g. Birthday bonus"} />
               <div className="pt-1 border-t border-border/30 space-y-2">
-                <p className="text-[11px] font-medium text-charcoal-lighter uppercase tracking-wide">Customer Notification</p>
+                <p className="text-[11px] font-medium text-charcoal-lighter uppercase tracking-wide"><FieldLabel label="Customer Notification" hint="Sent to the customer as a notification. Leave blank to use the default text shown above." /></p>
                 <Input
                   label="Title"
                   value={pointsNotifTitle}
@@ -752,7 +753,6 @@ export default function AdminCustomersPage() {
                   placeholder={`${Math.abs(pointsAmount) || "X"} points were ${pointsMode === "deduct" ? "deducted from" : "added to"} your account.`}
                   className="min-h-[60px]"
                 />
-                <p className="text-[11px] text-charcoal-lighter">Sent to the customer as a notification. Leave blank to use the default text shown above.</p>
               </div>
             </div>
             <DialogFooter>

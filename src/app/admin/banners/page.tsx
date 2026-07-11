@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
-import { Plus, Edit, Trash2, MoreHorizontal, ExternalLink, Loader2, ImageIcon, AlertTriangle, Move, ZoomIn, ZoomOut, Info, RotateCcw, Sparkles } from "lucide-react";
+import { Plus, Edit, Trash2, MoreHorizontal, ExternalLink, Loader2, ImageIcon, AlertTriangle, Move, ZoomIn, ZoomOut, RotateCcw, Sparkles } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
+import { FieldLabel } from "@/components/admin/shared/field-label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Separator } from "@/components/ui/separator";
@@ -92,7 +93,7 @@ function ImagePositionEditor({ imageUrl, crop, onChange }: { imageUrl: string; c
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium text-charcoal-light flex items-center gap-1.5">
-          <Move className="h-3.5 w-3.5 text-secondary" /> Image Position & Zoom
+          <Move className="h-3.5 w-3.5 text-secondary" /> <FieldLabel label="Image Position & Zoom" hint="Drag to pan, scroll to zoom, or use controls. This sets which part of the image is visible in the banner." />
         </label>
         <button type="button" onClick={reset} className="flex items-center gap-1 text-[10px] text-charcoal-lighter hover:text-secondary transition-colors">
           <RotateCcw className="h-3 w-3" /> Reset
@@ -173,8 +174,6 @@ function ImagePositionEditor({ imageUrl, crop, onChange }: { imageUrl: string; c
           pos: {crop.x}%, {crop.y}%
         </span>
       </div>
-
-      <p className="text-[10px] text-charcoal-lighter">Drag to pan, scroll to zoom, or use controls. This sets which part of the image is visible in the banner.</p>
     </div>
   );
 }
@@ -356,8 +355,7 @@ export default function AdminBannersPage() {
               <Input label="Subtitle" placeholder="Discover radiance with our new arrivals" value={formSubtitle} onChange={(e) => setFormSubtitle(e.target.value)} />
             </div>
             <div className="space-y-1">
-              <ImageUpload label="Banner Image *" value={formImage} onChange={setFormImage} aspectRatio="video" placeholder="Upload banner image" folder="banners" />
-              <div className="flex items-start gap-1.5 px-1"><Info className="h-3 w-3 text-charcoal-lighter shrink-0 mt-0.5" /><p className="text-[10px] text-charcoal-lighter leading-tight">Recommended: <span className="font-semibold">1920 x 800px</span>. Larger images can be repositioned below.</p></div>
+              <ImageUpload label={<FieldLabel label="Banner Image *" hint={<>Recommended: <span className="font-semibold">1920 x 800px</span>. Larger images can be repositioned below.</>} />} value={formImage} onChange={setFormImage} aspectRatio="video" placeholder="Upload banner image" folder="banners" />
             </div>
             {formImage && <ImagePositionEditor imageUrl={formImage} crop={formCrop} onChange={setFormCrop} />}
             <div className="grid sm:grid-cols-2 gap-3">

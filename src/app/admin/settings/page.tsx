@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Separator } from "@/components/ui/separator";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
+import { FieldLabel } from "@/components/admin/shared/field-label";
 import { useDeliveryStore } from "@/stores/delivery.store";
 import { formatCurrency, cn, randomId } from "@/lib/utils";
 import type { OfferApplicability } from "@/types/offer";
@@ -502,8 +503,8 @@ function AdminSettingsPageInner() {
             </Card>
             <Card><CardHeader><CardTitle className="text-base">Features</CardTitle><CardDescription>Toggle store features</CardDescription></CardHeader>
               <CardContent className="space-y-4">
-                {[{ key: "product_reviews", label: "Product Reviews", desc: "Allow reviews" }, { key: "wishlist", label: "Wishlist", desc: "Save products" }, { key: "compare_products", label: "Compare", desc: "Side-by-side" }, { key: "preorders", label: "Pre-orders", desc: "Accept pre-orders" }, { key: "guest_checkout", label: "Guest Checkout", desc: "Without account" }].map((f) => (
-                  <div key={f.key} className="flex items-center justify-between"><div><p className="text-sm font-medium text-charcoal">{f.label}</p><p className="text-[10px] text-charcoal-lighter">{f.desc}</p></div><Switch checked={features[f.key] ?? true} onCheckedChange={() => setFeatures((p) => ({ ...p, [f.key]: !p[f.key] }))} /></div>
+                {[{ key: "product_reviews", label: "Product Reviews", desc: "Allow customers to leave reviews on products" }, { key: "wishlist", label: "Wishlist", desc: "Let customers save products for later" }, { key: "compare_products", label: "Compare", desc: "Side-by-side product comparison" }, { key: "preorders", label: "Pre-orders", desc: "Accept orders for out-of-stock products" }, { key: "guest_checkout", label: "Guest Checkout", desc: "Allow checkout without creating an account" }].map((f) => (
+                  <div key={f.key} className="flex items-center justify-between"><p className="text-sm font-medium text-charcoal"><FieldLabel label={f.label} hint={f.desc} /></p><Switch checked={features[f.key] ?? true} onCheckedChange={() => setFeatures((p) => ({ ...p, [f.key]: !p[f.key] }))} /></div>
                 ))}
               </CardContent>
             </Card>
@@ -595,7 +596,7 @@ function AdminSettingsPageInner() {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
-              <Card><CardContent className="p-5"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-charcoal">Maintenance Mode</p><p className="text-[10px] text-charcoal-lighter">Take store offline</p></div><Switch checked={maintenanceMode} onCheckedChange={setMaintenanceMode} /></div></CardContent></Card>
+              <Card><CardContent className="p-5"><div className="flex items-center justify-between"><p className="text-sm font-medium text-charcoal"><FieldLabel label="Maintenance Mode" hint="Takes the storefront offline for all customers." /></p><Switch checked={maintenanceMode} onCheckedChange={setMaintenanceMode} /></div></CardContent></Card>
               <Card><CardContent className="p-5"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-charcoal">Announcements</p><p className="text-[10px] text-charcoal-lighter">The top bar shown on every storefront page is now managed on its own page</p></div><Link href="/admin/announcements"><AdminButton variant="outline" size="sm"><Megaphone className="h-3.5 w-3.5" /> Open Announcements</AdminButton></Link></div></CardContent></Card>
             </div>
           </div>
@@ -783,8 +784,7 @@ function AdminSettingsPageInner() {
                 {delivery.expressEnabled && (
                   <>
                     <Input label="Express Charge (৳)" type="number" value={expressChargeInput} onChange={(e) => setExpressChargeInput(e.target.value)} />
-                    <Input label="Available Division" value={delivery.expressDivision} onChange={(e) => delivery.setExpressDivision(e.target.value)} placeholder="Dhaka" />
-                    <p className="text-[10px] text-charcoal-lighter">Express delivery is only offered within this division; other areas use standard zone shipping.</p>
+                    <Input label={<FieldLabel label="Available Division" hint="Express delivery is only offered within this division; other areas use standard zone shipping." />} value={delivery.expressDivision} onChange={(e) => delivery.setExpressDivision(e.target.value)} placeholder="Dhaka" />
                   </>
                 )}
                 <Separator />
@@ -925,7 +925,7 @@ function AdminSettingsPageInner() {
                 {m.enabled && (
                   <CardContent className="space-y-3">
                     <ImageUpload
-                      label="Payment icon (shown in footer We Accept section)"
+                      label={<FieldLabel label="Payment icon" hint="Shown in the footer's We Accept section." />}
                       value={m.icon}
                       onChange={(url) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, icon: url } : pm))}
                       aspectRatio="square"
@@ -992,13 +992,13 @@ function AdminSettingsPageInner() {
 
           <div className="grid lg:grid-cols-2 gap-5">
             {[
-              { title: "Order Notifications", items: [{ key: "order_placed", label: "Order Placed", desc: "New order" }, { key: "order_confirmed", label: "Confirmed", desc: "Admin confirms" }, { key: "order_shipped", label: "Shipped", desc: "Shipping update" }, { key: "order_delivered", label: "Delivered", desc: "Delivery done" }, { key: "order_cancelled", label: "Cancelled", desc: "Cancellation" }] },
-              { title: "Returns & Alerts", items: [{ key: "return_requested", label: "Return Requested", desc: "Customer request" }, { key: "return_approved", label: "Return Processed", desc: "Approved/rejected" }, { key: "low_stock_alert", label: "Low Stock", desc: "Below minimum" }, { key: "new_review", label: "New Review", desc: "Review posted" }, { key: "new_customer", label: "New Customer", desc: "Registration" }, { key: "points_earned", label: "Points Earned", desc: "Loyalty points" }, { key: "promo_offers", label: "Promotions", desc: "Marketing" }] },
+              { title: "Order Notifications", items: [{ key: "order_placed", label: "Order Placed", desc: "Notify when a new order comes in" }, { key: "order_confirmed", label: "Confirmed", desc: "Notify when an admin confirms an order" }, { key: "order_shipped", label: "Shipped", desc: "Notify on shipping status updates" }, { key: "order_delivered", label: "Delivered", desc: "Notify when a delivery is completed" }, { key: "order_cancelled", label: "Cancelled", desc: "Notify on order cancellations" }] },
+              { title: "Returns & Alerts", items: [{ key: "return_requested", label: "Return Requested", desc: "Notify when a customer requests a return" }, { key: "return_approved", label: "Return Processed", desc: "Notify when a return is approved or rejected" }, { key: "low_stock_alert", label: "Low Stock", desc: "Notify when stock falls below the minimum" }, { key: "new_review", label: "New Review", desc: "Notify when a customer posts a review" }, { key: "new_customer", label: "New Customer", desc: "Notify on new customer registrations" }, { key: "points_earned", label: "Points Earned", desc: "Notify when a customer earns loyalty points" }, { key: "promo_offers", label: "Promotions", desc: "Marketing and promotional notifications" }] },
             ].map((s) => (
               <Card key={s.title}><CardHeader><CardTitle className="text-base flex items-center gap-2"><Bell className="h-4 w-4 text-secondary" /> {s.title}</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   {s.items.map((item) => (
-                    <div key={item.key} className="flex items-center justify-between"><div><p className="text-sm font-medium text-charcoal">{item.label}</p><p className="text-[10px] text-charcoal-lighter">{item.desc}</p></div><Switch checked={notifications[item.key] ?? true} onCheckedChange={() => setNotifications((p) => ({ ...p, [item.key]: !p[item.key] }))} /></div>
+                    <div key={item.key} className="flex items-center justify-between"><p className="text-sm font-medium text-charcoal"><FieldLabel label={item.label} hint={item.desc} /></p><Switch checked={notifications[item.key] ?? true} onCheckedChange={() => setNotifications((p) => ({ ...p, [item.key]: !p[item.key] }))} /></div>
                   ))}
                 </CardContent>
               </Card>

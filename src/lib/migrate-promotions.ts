@@ -127,56 +127,16 @@ export async function ensurePromotionColumns() {
     // supporting index at all.
     await ensureIndex("activity_log", "idx_activity_log_created", "created_at");
 
-    // Automated points-deduction rule engine: a new ledger entry type for
-    // rule-driven deductions (distinct from admin_adjustment so they can be
-    // filtered/reported on separately), plus a table recording each cron run
-    // for admin visibility (did it run, how many customers were touched).
+    // `rule_deduction` is kept in the customer_points type enum (even though
+    // the points-deduction rule engine that produced it has been removed)
+    // since existing ledger rows may already use this value — dropping it
+    // from the enum would corrupt historical data on any DB that ran this
+    // migration while the feature existed.
     await ensureEnumValues(
       "customer_points", "type",
       ["purchase", "bonus", "redemption", "admin_adjustment", "coupon_reward", "refund", "rule_deduction"],
       { notNull: true }
     );
-    await execute(`
-      CREATE TABLE IF NOT EXISTS points_deduction_runs (
-        id VARCHAR(50) PRIMARY KEY,
-        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        finished_at TIMESTAMP NULL,
-        rules_evaluated INT DEFAULT 0,
-        customers_affected INT DEFAULT 0,
-        total_points_deducted INT DEFAULT 0,
-        summary JSON,
-        INDEX idx_points_deduction_runs_started (started_at)
-      ) ENGINE=InnoDB
-    `);
-
-    // Engine Activity Log: one row per customer matched by a rule during a
-    // run (whether or not points were actually taken), with a snapshot of
-    // the criteria that matched — so the admin can see *why* later, not just
-    // the aggregate counts in points_deduction_runs.summary. `points_entry_id`
-    // links to the customer_points ledger row when a deduction actually
-    // happened, so Cancel can look up and reverse the exact entry.
-    await execute(`
-      CREATE TABLE IF NOT EXISTS points_deduction_run_customers (
-        id VARCHAR(50) PRIMARY KEY,
-        run_id VARCHAR(50) NOT NULL,
-        rule_id VARCHAR(50) NOT NULL,
-        rule_name VARCHAR(255) NOT NULL,
-        rule_type VARCHAR(30) NOT NULL,
-        customer_id VARCHAR(50) NOT NULL,
-        outcome ENUM('deducted','skipped_no_balance','error') NOT NULL,
-        points_deducted INT NOT NULL DEFAULT 0,
-        matched_criteria TEXT,
-        error_message TEXT,
-        points_entry_id VARCHAR(50),
-        reversed_at TIMESTAMP NULL,
-        reversal_entry_id VARCHAR(50),
-        disbursed_at TIMESTAMP NULL,
-        disbursement_entry_id VARCHAR(50),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_pdrc_run (run_id),
-        INDEX idx_pdrc_customer (customer_id)
-      ) ENGINE=InnoDB
-    `);
 
     done = true; // only latch once every column is confirmed/created
   } catch (err) {

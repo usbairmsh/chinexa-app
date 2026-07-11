@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { FieldLabel } from "@/components/admin/shared/field-label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -257,7 +258,7 @@ export default function AdminUsersPage() {
             </div>
             {formRole === "admin" && (
               <div>
-                <label className="block text-sm font-medium text-charcoal-light mb-2">Section Access</label>
+                <label className="block text-sm font-medium text-charcoal-light mb-2"><FieldLabel label="Section Access" hint="Dashboard is always accessible. Unchecked sections will be hidden from sidebar." /></label>
                 <div className="space-y-3 p-3 rounded-xl border border-border/30 bg-pearl/20">
                   {Object.entries(permsBySection).map(([section, perms]) => (
                     <div key={section}>
@@ -273,7 +274,6 @@ export default function AdminUsersPage() {
                     </div>
                   ))}
                 </div>
-                <p className="text-[10px] text-charcoal-lighter mt-1.5">Dashboard is always accessible. Unchecked sections will be hidden from sidebar.</p>
               </div>
             )}
           </div>
@@ -290,7 +290,7 @@ export default function AdminUsersPage() {
       <Dialog open={!!accessDialog} onOpenChange={(open) => !open && setAccessDialog(null)}>
         <DialogContent className="w-[95vw] max-w-md max-h-[90vh] flex flex-col overflow-hidden">
           <DialogHeader className="shrink-0">
-            <DialogTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-secondary" /> Manage Access</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-secondary" /> <FieldLabel label="Manage Access" hint="Dashboard is always accessible. Changes take effect on next page load." /></DialogTitle>
             <DialogDescription>Control which sections {accessDialog?.name} can access</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto overflow-x-hidden py-2 pr-1">
@@ -326,7 +326,6 @@ export default function AdminUsersPage() {
                 </div>
               ))}
             </div>
-            <p className="text-[10px] text-charcoal-lighter mt-2">Dashboard is always accessible. Changes take effect on next page load.</p>
           </div>
           <DialogFooter className="shrink-0 pt-2 border-t border-border/20">
             <AdminButton variant="outline" onClick={() => setAccessDialog(null)}>Cancel</AdminButton>

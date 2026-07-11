@@ -20,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
 import { ImagePositionEditor } from "@/components/admin/shared/image-position-editor";
+import { FieldLabel } from "@/components/admin/shared/field-label";
 import { cn } from "@/lib/utils";
 import { CountrySearch } from "@/components/admin/shared/country-search";
 import { BrandSearch } from "@/components/admin/shared/brand-search";
@@ -363,7 +364,7 @@ export default function AddProductPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Input label="Product Name" placeholder="e.g., CosRX Vitamin C Brightening Serum" value={productName} onChange={(e) => handleNameChange(e.target.value)} />
-                  <Input label="SKU (auto-generated)" placeholder="Auto-generated from name" value={sku} onChange={(e) => handleSkuChange(e.target.value)} />
+                  <Input label={<FieldLabel label="SKU" hint="Auto-generated from the product name — edit if you need a specific code." />} placeholder="Auto-generated from name" value={sku} onChange={(e) => handleSkuChange(e.target.value)} />
                   <Textarea label="Short Description" placeholder="Brief 1-2 sentence description..." className="min-h-[80px]" value={shortDesc} onChange={(e) => setShortDesc(e.target.value)} />
                   <Textarea label="Full Description" placeholder="Detailed product description..." className="min-h-[150px]" value={fullDesc} onChange={(e) => setFullDesc(e.target.value)} />
                 </CardContent>
@@ -378,7 +379,7 @@ export default function AddProductPage() {
                 <CardContent className="space-y-4">
                   <div className="grid sm:grid-cols-2 gap-4">
                     <CountrySearch value={origin} onChange={setOrigin} />
-                    <Input label="Tags (comma separated)" placeholder="skincare, serum, vitamin-c" value={tags} onChange={(e) => setTags(e.target.value)} />
+                    <Input label={<FieldLabel label="Tags" hint="Comma separated — used for search and filtering." />} placeholder="skincare, serum, vitamin-c" value={tags} onChange={(e) => setTags(e.target.value)} />
                   </div>
                   <Textarea label="Ingredients" placeholder="Water, Glycerin, Niacinamide..." className="min-h-[80px]" value={ingredients} onChange={(e) => setIngredients(e.target.value)} />
                   <Textarea label="How to Use" placeholder="Apply to cleansed skin morning and evening..." className="min-h-[80px]" value={howToUse} onChange={(e) => setHowToUse(e.target.value)} />
@@ -468,8 +469,8 @@ export default function AddProductPage() {
                                 <Input label="Stock Quantity" placeholder="0" type="number" value={variant.stock} onChange={(e) => updateVariant(variant.id, "stock", e.target.value)} />
                               </div>
                               <div className="grid sm:grid-cols-2 gap-3 mt-3">
-                                <Input label="Min Stock (Low Alert)" placeholder="10" type="number" value={variant.min_stock} onChange={(e) => updateVariant(variant.id, "min_stock", e.target.value)} />
-                                <Input label="Max Stock (Overstock Alert)" placeholder="100" type="number" value={variant.max_stock} onChange={(e) => updateVariant(variant.id, "max_stock", e.target.value)} />
+                                <Input label={<FieldLabel label="Min Stock" hint="Triggers a low-stock alert once inventory falls to or below this number." />} placeholder="10" type="number" value={variant.min_stock} onChange={(e) => updateVariant(variant.id, "min_stock", e.target.value)} />
+                                <Input label={<FieldLabel label="Max Stock" hint="Triggers an overstock alert once inventory exceeds this number." />} placeholder="100" type="number" value={variant.max_stock} onChange={(e) => updateVariant(variant.id, "max_stock", e.target.value)} />
                               </div>
                             </div>
 
@@ -511,7 +512,7 @@ export default function AddProductPage() {
                           <div className="space-y-3">
                             <Input label="Alt Text" placeholder="Describe the image" value={img.alt} onChange={(e) => { const u = [...images]; u[i].alt = e.target.value; setImages(u); }} />
                             <div>
-                              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Link to Variant</label>
+                              <label className="block text-sm font-medium text-charcoal-light mb-1.5"><FieldLabel label="Link to Variant" hint="When a customer selects this variant, this image will be shown." /></label>
                               <Select value={img.variant_id} onValueChange={(v) => { const u = [...images]; u[i].variant_id = v; setImages(u); }}>
                                 <SelectTrigger><SelectValue placeholder="No variant (general image)" /></SelectTrigger>
                                 <SelectContent>
@@ -521,7 +522,6 @@ export default function AddProductPage() {
                                   ))}
                                 </SelectContent>
                               </Select>
-                              <p className="text-[10px] text-charcoal-lighter mt-1">When a customer selects this variant, this image will be shown.</p>
                             </div>
                             {img.url && (
                               <ImagePositionEditor
@@ -556,8 +556,8 @@ export default function AddProductPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4 text-secondary" /> Trust Badges</CardTitle>
-                      <CardDescription>Select up to 3 badges. <a href="/admin/trust-badges" target="_blank" className="text-secondary hover:underline">Manage badges</a></CardDescription>
+                      <CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4 text-secondary" /> <FieldLabel label="Trust Badges" hint="Select up to 3 badges to display on this product's page." /></CardTitle>
+                      <CardDescription><a href="/admin/trust-badges" target="_blank" className="text-secondary hover:underline">Manage badges</a></CardDescription>
                     </div>
                   </div>
                 </CardHeader>
@@ -648,17 +648,11 @@ export default function AddProductPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-charcoal">Active</p>
-                  <p className="text-[10px] text-charcoal-lighter">Visible on storefront</p>
-                </div>
+                <p className="text-sm font-medium text-charcoal"><FieldLabel label="Active" hint="Visible on the storefront." /></p>
                 <Switch checked={isActive} onCheckedChange={setIsActive} />
               </div>
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-charcoal">Featured</p>
-                  <p className="text-[10px] text-charcoal-lighter">Show on homepage</p>
-                </div>
+                <p className="text-sm font-medium text-charcoal"><FieldLabel label="Featured" hint="Shown in featured/homepage product sections." /></p>
                 <Switch checked={isFeatured} onCheckedChange={setIsFeatured} />
               </div>
             </CardContent>

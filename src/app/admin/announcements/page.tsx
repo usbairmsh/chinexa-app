@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AdminButton } from "@/components/admin/shared/admin-button";
+import { FieldLabel } from "@/components/admin/shared/field-label";
 import { cn, randomId } from "@/lib/utils";
 import {
   DEFAULT_ANNOUNCEMENT_CONFIG,
@@ -42,10 +43,12 @@ function AnnouncementEditor({ item, onChange }: { item: Announcement; onChange: 
   }
   if (item.type === "free_shipping") {
     return (
-      <div className="space-y-1.5">
-        <Input value={item.messageTemplate} onChange={(e) => onChange({ messageTemplate: e.target.value } as Partial<Announcement>)} placeholder="Free shipping on orders over {threshold}!" />
-        <p className="text-[11px] text-charcoal-lighter">Use <code className="px-1 py-0.5 rounded bg-pearl">{"{threshold}"}</code> — it&apos;s replaced with your real free-delivery threshold from Delivery settings.</p>
-      </div>
+      <Input
+        label={<FieldLabel label="Message" hint={<>Use <code className="px-1 py-0.5 rounded bg-pearl">{"{threshold}"}</code> — replaced with your real free-delivery threshold from Delivery settings.</>} />}
+        value={item.messageTemplate}
+        onChange={(e) => onChange({ messageTemplate: e.target.value } as Partial<Announcement>)}
+        placeholder="Free shipping on orders over {threshold}!"
+      />
     );
   }
   // countdown
@@ -137,8 +140,7 @@ export default function AdminAnnouncementsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Rotation</CardTitle>
-          <CardDescription>How long each announcement shows before switching to the next one (only matters with 2+ enabled)</CardDescription>
+          <CardTitle className="text-base"><FieldLabel label="Rotation" hint="How long each announcement shows before switching to the next one (only matters with 2+ enabled)." /></CardTitle>
         </CardHeader>
         <CardContent>
           <Input
