@@ -20,8 +20,11 @@ export async function GET() {
 
     let config: DeductionEngineConfig = DEFAULT_DEDUCTION_ENGINE_CONFIG;
     if (settingsRows.length > 0) {
+      // The `settings.value` column is native JSON, so mysql2 already returns
+      // it parsed as an object — only fall back to JSON.parse for a raw string.
+      const raw = settingsRows[0].value;
       try {
-        const parsed = JSON.parse(settingsRows[0].value as string) as Partial<DeductionEngineConfig>;
+        const parsed = (typeof raw === "string" ? JSON.parse(raw) : raw) as Partial<DeductionEngineConfig>;
         config = { ...DEFAULT_DEDUCTION_ENGINE_CONFIG, ...parsed, items: Array.isArray(parsed.items) ? parsed.items : [] };
       } catch { /* fall back to default */ }
     }
@@ -50,14 +53,15 @@ export async function GET() {
 }
 
 function validateConfig(config: DeductionEngineConfig): string | null {
-  if (!Number.isFinite(config.repeatIntervalDays) || config.repeatIntervalDays < 0) {
-    return "Repeat interval must be zero or a positive number of days.";
-  }
-  if (!config.notificationTitle?.trim()) return "Notification title is required.";
-  if (!config.notificationMessage?.trim()) return "Notification message is required.";
-
   for (const rule of config.items) {
     if (!rule.name?.trim()) return `Every rule needs a name.`;
+    if (rule.advancedEnabled) {
+      if (!Number.isFinite(rule.repeatIntervalDays) || rule.repeatIntervalDays < 0) {
+        return `"${rule.name}": repeat interval must be zero or a positive number of days.`;
+      }
+      if (!rule.notificationTitle?.trim()) return `"${rule.name}": notification title is required.`;
+      if (!rule.notificationMessage?.trim()) return `"${rule.name}": notification message is required.`;
+    }
     switch (rule.type) {
       case "inactivity":
         if (!rule.inactiveDays || rule.inactiveDays < 1) return `"${rule.name}": inactive-for days must be at least 1.`;
@@ -91,9 +95,6 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
     const config: DeductionEngineConfig = {
       items: Array.isArray(body?.items) ? body.items as DeductionRule[] : [],
-      repeatIntervalDays: Number(body?.repeatIntervalDays) || 0,
-      notificationTitle: String(body?.notificationTitle || ""),
-      notificationMessage: String(body?.notificationMessage || ""),
     };
 
     const error = validateConfig(config);

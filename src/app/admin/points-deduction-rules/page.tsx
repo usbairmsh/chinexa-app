@@ -10,12 +10,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { FieldLabel } from "@/components/admin/shared/field-label";
 import { cn, randomId } from "@/lib/utils";
 import {
-  DEFAULT_DEDUCTION_ENGINE_CONFIG,
+  DEFAULT_DEDUCTION_ENGINE_CONFIG, DEFAULT_RULE_INTERVAL_DAYS,
+  DEFAULT_RULE_NOTIFICATION_TITLE, DEFAULT_RULE_NOTIFICATION_MESSAGE,
   type DeductionRule, type DeductionEngineConfig, type DeductionRuleType,
 } from "@/types/points-deduction-rules";
 
@@ -38,6 +40,11 @@ const TYPE_META: Record<DeductionRuleType, { label: string; description: string;
 function validateRule(rule: DeductionRule): string[] {
   const errors: string[] = [];
   if (!rule.name.trim()) errors.push("Rule name is required.");
+  if (rule.advancedEnabled) {
+    if (!Number.isFinite(rule.repeatIntervalDays) || rule.repeatIntervalDays < 0) errors.push("Repeat interval must be zero or a positive number of days.");
+    if (!rule.notificationTitle.trim()) errors.push("Notification title is required.");
+    if (!rule.notificationMessage.trim()) errors.push("Notification message is required.");
+  }
   switch (rule.type) {
     case "inactivity":
       if (!rule.inactiveDays || rule.inactiveDays < 1) errors.push("Inactive-for days must be at least 1.");
@@ -65,7 +72,13 @@ function validateRule(rule: DeductionRule): string[] {
 }
 
 function makeDefault(type: DeductionRuleType): DeductionRule {
-  const base = { id: randomId(), type, enabled: true, name: "" };
+  const base = {
+    id: randomId(), type, enabled: true, name: "",
+    advancedEnabled: false,
+    repeatIntervalDays: DEFAULT_RULE_INTERVAL_DAYS,
+    notificationTitle: DEFAULT_RULE_NOTIFICATION_TITLE,
+    notificationMessage: DEFAULT_RULE_NOTIFICATION_MESSAGE,
+  };
   switch (type) {
     case "inactivity": return { ...base, type, inactiveDays: 90, deductionAmount: 50 };
     case "points_expiry": return { ...base, type, expiryDays: 365 };
@@ -85,6 +98,10 @@ function NumField({ label, hint, value, onChange, suffix }: { label: string; hin
       </div>
     </div>
   );
+}
+
+function isInstant(rule: DeductionRule): boolean {
+  return (rule.type === "tier_based" || rule.type === "return_abuse") && rule.instant;
 }
 
 function RuleEditor({ rule, tiers, onChange }: { rule: DeductionRule; tiers: Tier[]; onChange: (patch: Partial<DeductionRule>) => void }) {
@@ -169,6 +186,40 @@ function RuleEditor({ rule, tiers, onChange }: { rule: DeductionRule; tiers: Tie
           <FieldLabel label="No instant option" hint="This rule type is based on drift over time (inactivity/expiry) or a direction that can't newly trigger a violation from a single event, so it's only checked on the hourly schedule." />
         </p>
       )}
+
+      <div className="pt-2 border-t border-border/30 space-y-3">
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <Checkbox checked={rule.advancedEnabled} onCheckedChange={(v) => p({ advancedEnabled: v === true } as Partial<DeductionRule>)} />
+          <span className="text-sm font-medium text-charcoal">
+            <FieldLabel label="Advanced settings" hint="Set a custom repeat cooldown and notification just for this rule. Left unchecked, it uses the default cooldown (30 days) and a generic notification." />
+          </span>
+        </label>
+
+        {rule.advancedEnabled && (
+          <div className="space-y-3 pl-7">
+            {!(isInstant(rule)) && (
+              <NumField
+                label="Repeat Interval"
+                hint="Cooldown before this rule can fire again on the same customer. 0 means no cooldown."
+                value={rule.repeatIntervalDays}
+                onChange={(v) => p({ repeatIntervalDays: Math.max(0, v) } as Partial<DeductionRule>)}
+                suffix="days between deductions for the same customer"
+              />
+            )}
+            <Input
+              label={<FieldLabel label="Notification Title" hint="Headline the customer sees when this rule deducts their points." />}
+              value={rule.notificationTitle}
+              onChange={(e) => p({ notificationTitle: e.target.value } as Partial<DeductionRule>)}
+            />
+            <Textarea
+              label={<FieldLabel label="Notification Message" hint="Body text the customer sees. Supports {points} and {rule} tokens." />}
+              value={rule.notificationMessage}
+              onChange={(e) => p({ notificationMessage: e.target.value } as Partial<DeductionRule>)}
+              className="min-h-[60px]"
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -253,10 +304,6 @@ export default function AdminPointsDeductionRulesPage() {
         for (const id of Object.keys(errorsByRule)) next.delete(id);
         return next;
       });
-      return;
-    }
-    if (!config.notificationTitle.trim() || !config.notificationMessage.trim()) {
-      setSaveError("Notification title and message are required.");
       return;
     }
 
@@ -352,34 +399,6 @@ export default function AdminPointsDeductionRulesPage() {
               )}
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            <FieldLabel label="Shared Settings" hint="Applies to every rule below — one cooldown and one notification template instead of configuring each rule separately." />
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <NumField
-            label="Repeat Interval"
-            hint="Cooldown before ANY rule can fire again on the same customer. 0 means no cooldown — a rule can re-fire the very next time it's checked."
-            value={config.repeatIntervalDays}
-            onChange={(v) => setConfig((c) => ({ ...c, repeatIntervalDays: Math.max(0, v) }))}
-            suffix="days between deductions for the same customer (0 = no cooldown)"
-          />
-          <Input
-            label={<FieldLabel label="Notification Title" hint="Headline the customer sees when any rule deducts their points." />}
-            value={config.notificationTitle}
-            onChange={(e) => setConfig((c) => ({ ...c, notificationTitle: e.target.value }))}
-          />
-          <Textarea
-            label={<FieldLabel label="Notification Message" hint="Body text the customer sees. Supports {points} and {rule} tokens." />}
-            value={config.notificationMessage}
-            onChange={(e) => setConfig((c) => ({ ...c, notificationMessage: e.target.value }))}
-            className="min-h-[60px]"
-          />
         </CardContent>
       </Card>
 

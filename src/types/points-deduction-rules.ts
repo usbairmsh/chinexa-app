@@ -6,6 +6,17 @@ interface DeductionRuleBase {
   enabled: boolean;
   /** Admin-facing label, e.g. "Inactive 90+ days". */
   name: string;
+  /** Whether this rule's own advanced settings (interval/notification) are
+   * expanded and in effect. When false, the rule uses the built-in defaults. */
+  advancedEnabled: boolean;
+  /** Cooldown (days) before THIS rule can fire again on the same customer.
+   * 0 means no cooldown. Not applicable to instant-only Tier-Based/Return-Abuse
+   * rules (they skip the cooldown gate entirely while Instant is on). */
+  repeatIntervalDays: number;
+  /** Notification shown to the customer when THIS rule deducts their points.
+   * Supports {points} and {rule} tokens. */
+  notificationTitle: string;
+  notificationMessage: string;
 }
 
 export interface InactivityRule extends DeductionRuleBase {
@@ -57,21 +68,16 @@ export type DeductionRule =
 
 export interface DeductionEngineConfig {
   items: DeductionRule[];
-  /** Shared cooldown, in days, before ANY rule can fire again on the same
-   * customer — applies to scheduled, manual, and instant firings alike. */
-  repeatIntervalDays: number;
-  /** Shared notification shown to every customer hit by any rule. Supports
-   * {points} and {rule} tokens. */
-  notificationTitle: string;
-  notificationMessage: string;
 }
 
 export const DEFAULT_DEDUCTION_ENGINE_CONFIG: DeductionEngineConfig = {
   items: [],
-  repeatIntervalDays: 30,
-  notificationTitle: "Points deducted",
-  notificationMessage: "{points} points were deducted from your account.",
 };
+
+/** Built-in defaults used by any rule that hasn't opened its own advanced settings. */
+export const DEFAULT_RULE_INTERVAL_DAYS = 30;
+export const DEFAULT_RULE_NOTIFICATION_TITLE = "Points deducted";
+export const DEFAULT_RULE_NOTIFICATION_MESSAGE = "{points} points were deducted from your account.";
 
 export type TriggerSource = "scheduled" | "manual" | "instant";
 

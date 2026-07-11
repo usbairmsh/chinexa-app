@@ -7,7 +7,20 @@ import type {
   DeductionRule, DeductionEngineConfig, EngineRunSummary, RuleRunSummary, TriggerSource,
   TierBasedRule, ReturnAbuseRule,
 } from "@/types/points-deduction-rules";
-import { DEFAULT_DEDUCTION_ENGINE_CONFIG } from "@/types/points-deduction-rules";
+import {
+  DEFAULT_DEDUCTION_ENGINE_CONFIG, DEFAULT_RULE_INTERVAL_DAYS,
+  DEFAULT_RULE_NOTIFICATION_TITLE, DEFAULT_RULE_NOTIFICATION_MESSAGE,
+} from "@/types/points-deduction-rules";
+
+function ruleIntervalDays(rule: DeductionRule): number {
+  return rule.advancedEnabled ? rule.repeatIntervalDays : DEFAULT_RULE_INTERVAL_DAYS;
+}
+function ruleNotificationTitle(rule: DeductionRule): string {
+  return rule.advancedEnabled && rule.notificationTitle.trim() ? rule.notificationTitle : DEFAULT_RULE_NOTIFICATION_TITLE;
+}
+function ruleNotificationMessage(rule: DeductionRule): string {
+  return rule.advancedEnabled && rule.notificationMessage.trim() ? rule.notificationMessage : DEFAULT_RULE_NOTIFICATION_MESSAGE;
+}
 
 const SETTINGS_KEY = "points_deduction_engine";
 
@@ -20,8 +33,11 @@ interface Candidate {
 async function loadConfig(): Promise<DeductionEngineConfig> {
   const rows = await query<RowDataPacket[]>("SELECT value FROM settings WHERE `key` = ?", [SETTINGS_KEY]);
   if (rows.length === 0) return DEFAULT_DEDUCTION_ENGINE_CONFIG;
+  // The `settings.value` column is native JSON, so mysql2 already returns it
+  // parsed as an object — only fall back to JSON.parse for a raw string.
+  const raw = rows[0].value;
   try {
-    const parsed = JSON.parse(rows[0].value as string) as Partial<DeductionEngineConfig>;
+    const parsed = (typeof raw === "string" ? JSON.parse(raw) : raw) as Partial<DeductionEngineConfig>;
     return { ...DEFAULT_DEDUCTION_ENGINE_CONFIG, ...parsed, items: Array.isArray(parsed.items) ? parsed.items : [] };
   } catch {
     return DEFAULT_DEDUCTION_ENGINE_CONFIG;
@@ -217,7 +233,7 @@ async function logCustomerResult(
 }
 
 async function runRule(
-  runId: string, rule: DeductionRule, config: DeductionEngineConfig, onlyCustomerId?: string
+  runId: string, rule: DeductionRule, onlyCustomerId?: string
 ): Promise<RuleRunSummary> {
   const summary: RuleRunSummary = {
     ruleId: rule.id, ruleName: rule.name, type: rule.type,
@@ -236,7 +252,7 @@ async function runRule(
 
   let eligible: Candidate[];
   try {
-    const inCooldown = await getCustomersInCooldown(rule.id, config.repeatIntervalDays, candidates.map((c) => c.id));
+    const inCooldown = await getCustomersInCooldown(rule.id, ruleIntervalDays(rule), candidates.map((c) => c.id));
     eligible = candidates.filter((c) => !inCooldown.has(c.id));
   } catch (err) {
     summary.errors.push(`cooldown check failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -262,8 +278,8 @@ async function runRule(
         description: `Rule deduction: ${rule.name}`,
       });
 
-      const title = interpolate(config.notificationTitle, { points: amount, rule: rule.name });
-      const message = interpolate(config.notificationMessage, { points: amount, rule: rule.name });
+      const title = interpolate(ruleNotificationTitle(rule), { points: amount, rule: rule.name });
+      const message = interpolate(ruleNotificationMessage(rule), { points: amount, rule: rule.name });
       await bulkNotify([customerId], { type: "loyalty", title, message }).catch(() => {});
 
       await logCustomerResult(runId, rule, customerId, criteria, "deducted", amount, entryId, null).catch(() => {});
@@ -280,7 +296,7 @@ async function runRule(
   return summary;
 }
 
-async function runRules(rules: DeductionRule[], config: DeductionEngineConfig, triggerSource: TriggerSource, onlyCustomerId?: string): Promise<EngineRunSummary> {
+async function runRules(rules: DeductionRule[], triggerSource: TriggerSource, onlyCustomerId?: string): Promise<EngineRunSummary> {
   const runId = `run-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
   const startedAt = new Date().toISOString();
   const setupErrors: string[] = [];
@@ -293,7 +309,7 @@ async function runRules(rules: DeductionRule[], config: DeductionEngineConfig, t
 
   const perRule: RuleRunSummary[] = [];
   for (const rule of rules) {
-    perRule.push(await runRule(runId, rule, config, onlyCustomerId));
+    perRule.push(await runRule(runId, rule, onlyCustomerId));
   }
 
   const finishedAt = new Date().toISOString();
@@ -330,7 +346,7 @@ async function runRules(rules: DeductionRule[], config: DeductionEngineConfig, t
 export async function runPointsDeductionEngine(triggerSource: "scheduled" | "manual"): Promise<EngineRunSummary> {
   const config = await loadConfig();
   const rules = config.items.filter((r) => r.enabled);
-  return runRules(rules, config, triggerSource);
+  return runRules(rules, triggerSource);
 }
 
 /** Re-checks only enabled, instant tier-based rules against ONE customer —
@@ -341,7 +357,7 @@ export async function checkInstantTierRules(customerId: string): Promise<EngineR
   const rules = config.items.filter(
     (r): r is TierBasedRule => r.enabled && r.type === "tier_based" && r.instant
   );
-  return runRules(rules, config, "instant", customerId);
+  return runRules(rules, "instant", customerId);
 }
 
 /** Re-checks only enabled, instant return-abuse rules against ONE customer —
@@ -351,5 +367,5 @@ export async function checkInstantReturnAbuseRules(customerId: string): Promise<
   const rules = config.items.filter(
     (r): r is ReturnAbuseRule => r.enabled && r.type === "return_abuse" && r.instant
   );
-  return runRules(rules, config, "instant", customerId);
+  return runRules(rules, "instant", customerId);
 }
