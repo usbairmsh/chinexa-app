@@ -235,17 +235,26 @@ export default function AdminPointsDeductionRulesPage() {
   const [runResult, setRunResult] = useState<string>("");
   const [addType, setAddType] = useState<DeductionRuleType>("inactivity");
   const [saveError, setSaveError] = useState<string>("");
+  const [loadError, setLoadError] = useState<string>("");
   const [ruleErrors, setRuleErrors] = useState<Record<string, string[]>>({});
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const [lastRun, setLastRun] = useState<LastRun | null>(null);
 
   const fetchData = () => {
     setLoading(true);
+    setLoadError("");
     Promise.all([
       fetch("/api/admin/points-deduction").then((r) => r.json()).catch(() => null),
       fetch("/api/membership/tiers").then((r) => r.json()).catch(() => []),
     ])
       .then(([data, tiersData]) => {
+        // A load failure (e.g. a schema mismatch on the server) must never be
+        // treated as "no rules configured" — that would blank the list on
+        // screen even though the saved config is still intact in the database.
+        if (data?.error) {
+          setLoadError(`Couldn't load rules: ${data.error}`);
+          return;
+        }
         if (data?.config) setConfig(data.config);
         if (data?.lastRun) setLastRun(data.lastRun);
         if (Array.isArray(tiersData)) setTiers(tiersData.map((t: { id: string; name: string }) => ({ id: t.id, name: t.name })));
@@ -373,6 +382,9 @@ export default function AdminPointsDeductionRulesPage() {
         </div>
       </div>
 
+      {loadError && (
+        <Card className="border-destructive/30"><CardContent className="py-3 text-sm text-destructive">{loadError} Your saved rules are safe — this is a display error, not data loss. Try refreshing; contact support if it persists.</CardContent></Card>
+      )}
       {saveError && (
         <Card className="border-destructive/30"><CardContent className="py-3 text-sm text-destructive">{saveError}</CardContent></Card>
       )}

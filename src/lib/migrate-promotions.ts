@@ -146,7 +146,6 @@ export async function ensurePromotionColumns() {
         id VARCHAR(50) PRIMARY KEY,
         started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         finished_at TIMESTAMP NULL,
-        trigger_source ENUM('scheduled', 'manual', 'instant') NOT NULL DEFAULT 'scheduled',
         rules_evaluated INT DEFAULT 0,
         customers_affected INT DEFAULT 0,
         total_points_deducted INT DEFAULT 0,
@@ -154,6 +153,11 @@ export async function ensurePromotionColumns() {
         INDEX idx_points_deduction_runs_started (started_at)
       ) ENGINE=InnoDB
     `);
+    // Added after some deployments already had this table from an earlier
+    // iteration — CREATE TABLE IF NOT EXISTS above is a no-op on those, so
+    // this column needs its own idempotent backfill or every query selecting
+    // it throws "Unknown column 'trigger_source'".
+    await ensureColumn("points_deduction_runs", "trigger_source", "ENUM('scheduled', 'manual', 'instant') NOT NULL DEFAULT 'scheduled'");
     await execute(`
       CREATE TABLE IF NOT EXISTS points_deduction_run_customers (
         id VARCHAR(50) PRIMARY KEY,

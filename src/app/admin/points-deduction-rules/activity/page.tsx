@@ -113,13 +113,18 @@ export default function EngineActivityLogPage() {
   const [rowActionError, setRowActionError] = useState("");
   const [disburseTarget, setDisburseTarget] = useState<CustomerRow | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState("");
 
   const fetchEntries = () => {
     setLoading(true);
+    setLoadError("");
     fetch("/api/admin/points-deduction/activity")
       .then((r) => r.json())
-      .then((data) => setEntries(Array.isArray(data?.entries) ? data.entries : []))
-      .catch(() => setEntries([]))
+      .then((data) => {
+        if (data?.error) { setLoadError(`Couldn't load the activity log: ${data.error}`); return; }
+        setEntries(Array.isArray(data?.entries) ? data.entries : []);
+      })
+      .catch(() => setLoadError("Couldn't load the activity log — check your connection and try again."))
       .finally(() => setLoading(false));
   };
 
@@ -180,6 +185,8 @@ export default function EngineActivityLogPage() {
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-10"><Loader2 className="h-6 w-6 text-secondary animate-spin" /></div>
+          ) : loadError ? (
+            <p className="text-sm text-destructive py-6 text-center">{loadError}</p>
           ) : entries.length === 0 ? (
             <p className="text-sm text-charcoal-lighter py-6 text-center">No rule runs recorded yet.</p>
           ) : (

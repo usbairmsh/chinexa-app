@@ -282,7 +282,14 @@ async function runRule(
       const message = interpolate(ruleNotificationMessage(rule), { points: amount, rule: rule.name });
       await bulkNotify([customerId], { type: "loyalty", title, message }).catch(() => {});
 
-      await logCustomerResult(runId, rule, customerId, criteria, "deducted", amount, entryId, null).catch(() => {});
+      try {
+        await logCustomerResult(runId, rule, customerId, criteria, "deducted", amount, entryId, null);
+      } catch (logErr) {
+        // The deduction itself already happened — don't undo it — but surface
+        // the logging failure so it isn't silently invisible in the activity log.
+        const logMessage = logErr instanceof Error ? logErr.message : String(logErr);
+        summary.errors.push(`customer ${customerId}: deducted ${amount} points but failed to log activity row: ${logMessage}`);
+      }
 
       summary.customersAffected += 1;
       summary.pointsDeducted += amount;
