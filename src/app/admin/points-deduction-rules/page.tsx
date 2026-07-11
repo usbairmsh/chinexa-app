@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import {
   ShieldMinus, Clock, Hourglass, TrendingDown, Repeat, Crown, RotateCcw,
   Plus, Trash2, Save, Loader2, Check, PlayCircle, History, AlertTriangle,
+  HelpCircle, ChevronDown,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { cn, randomId } from "@/lib/utils";
 import {
@@ -91,10 +93,30 @@ function makeDefault(type: DeductionRuleType): DeductionRule {
   }
 }
 
-function NumField({ label, value, onChange, suffix }: { label: string; value: number; onChange: (v: number) => void; suffix?: string }) {
+/** Label text plus a "?" icon whose tooltip carries the field's meaning,
+ * instead of cramming an explanation into the visible label itself. */
+function FieldLabel({ label, hint }: { label: string; hint?: string }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      {label}
+      {hint && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button type="button" tabIndex={-1} className="text-charcoal-lighter/60 hover:text-secondary transition-colors">
+              <HelpCircle className="h-3.5 w-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-64">{hint}</TooltipContent>
+        </Tooltip>
+      )}
+    </span>
+  );
+}
+
+function NumField({ label, hint, value, onChange, suffix }: { label: string; hint?: string; value: number; onChange: (v: number) => void; suffix?: string }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-charcoal-light mb-1.5">{label}</label>
+      <label className="block text-sm font-medium text-charcoal-light mb-1.5"><FieldLabel label={label} hint={hint} /></label>
       <div className="flex items-center gap-2">
         <Input type="number" min={0} value={value} onChange={(e) => onChange(Number(e.target.value) || 0)} />
         {suffix && <span className="text-xs text-charcoal-lighter shrink-0">{suffix}</span>}
@@ -109,21 +131,21 @@ function RuleEditor({ rule, tiers, onChange }: { rule: DeductionRule; tiers: Tie
   return (
     <div className="space-y-4">
       <div className="grid sm:grid-cols-2 gap-3">
-        <Input label="Rule Name" value={rule.name} onChange={(e) => p({ name: e.target.value })} placeholder="e.g. Inactive 90+ days" />
-        <NumField label="Repeat Interval" value={rule.repeatIntervalDays} onChange={(v) => p({ repeatIntervalDays: Math.max(1, v) })} suffix="days between deductions for the same customer" />
+        <Input label={<FieldLabel label="Rule Name" hint="Internal label shown in the rules list — not seen by customers." />} value={rule.name} onChange={(e) => p({ name: e.target.value })} placeholder="e.g. Inactive 90+ days" />
+        <NumField label="Repeat Interval" hint="Cooldown before this rule can fire again on the same customer." value={rule.repeatIntervalDays} onChange={(v) => p({ repeatIntervalDays: Math.max(1, v) })} suffix="days between deductions for the same customer" />
       </div>
 
       {rule.type === "inactivity" && (
         <div className="grid sm:grid-cols-2 gap-3">
-          <NumField label="Inactive For" value={rule.inactiveDays} onChange={(v) => p({ inactiveDays: v } as Partial<DeductionRule>)} suffix="days since last order" />
-          <NumField label="Deduct" value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" />
+          <NumField label="Inactive For" hint="Days since their last order, or since signup if they never ordered." value={rule.inactiveDays} onChange={(v) => p({ inactiveDays: v } as Partial<DeductionRule>)} suffix="days since last order" />
+          <NumField label="Deduct" hint="Points taken from a matching customer." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" />
         </div>
       )}
 
       {rule.type === "points_expiry" && (
         <div className="grid sm:grid-cols-2 gap-3">
-          <NumField label="Expire Points Older Than" value={rule.expiryDays} onChange={(v) => p({ expiryDays: v } as Partial<DeductionRule>)} suffix="days" />
-          <NumField label="Cap Per Run (optional)" value={rule.capAmount || 0} onChange={(v) => p({ capAmount: v || undefined } as Partial<DeductionRule>)} suffix="points, 0 = no cap" />
+          <NumField label="Expire Points Older Than" hint="Age at which earned points become eligible to expire." value={rule.expiryDays} onChange={(v) => p({ expiryDays: v } as Partial<DeductionRule>)} suffix="days" />
+          <NumField label="Cap Per Run" hint="Optional upper limit on how many points expire in one run." value={rule.capAmount || 0} onChange={(v) => p({ capAmount: v || undefined } as Partial<DeductionRule>)} suffix="points, 0 = no cap" />
           <p className="sm:col-span-2 text-[11px] text-charcoal-lighter">
             The deducted amount is always computed — whatever qualifies as expired, capped at the customer&apos;s current balance (never goes negative) and the optional cap above.
           </p>
@@ -133,25 +155,27 @@ function RuleEditor({ rule, tiers, onChange }: { rule: DeductionRule; tiers: Tie
       {rule.type === "low_spend" && (
         <div className="space-y-3">
           <div className="grid sm:grid-cols-3 gap-3">
-            <NumField label="Spend Window" value={rule.windowDays} onChange={(v) => p({ windowDays: v } as Partial<DeductionRule>)} suffix="days" />
-            <NumField label="Minimum Spend" value={rule.minSpendThreshold} onChange={(v) => p({ minSpendThreshold: v } as Partial<DeductionRule>)} suffix="৳ in window" />
-            <NumField label="Deduct" value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" />
+            <NumField label="Spend Window" hint="Rolling period their spend is measured over." value={rule.windowDays} onChange={(v) => p({ windowDays: v } as Partial<DeductionRule>)} suffix="days" />
+            <NumField label="Minimum Spend" hint="Threshold below which the rule applies." value={rule.minSpendThreshold} onChange={(v) => p({ minSpendThreshold: v } as Partial<DeductionRule>)} suffix="৳ in window" />
+            <NumField label="Deduct" hint="Points taken from a matching customer." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" />
           </div>
           <p className="text-[11px] font-medium text-charcoal-lighter uppercase tracking-wide">Optional gates (leave at 0 to skip)</p>
           <div className="grid sm:grid-cols-2 gap-3">
-            <NumField label="Minimum Account Age" value={rule.requireMinAccountAgeDays || 0} onChange={(v) => p({ requireMinAccountAgeDays: v || undefined } as Partial<DeductionRule>)} suffix="days — exempts brand-new signups" />
-            <NumField label="Minimum Lifetime Orders" value={rule.requireMinLifetimeOrders || 0} onChange={(v) => p({ requireMinLifetimeOrders: v || undefined } as Partial<DeductionRule>)} suffix="orders — exempts customers who never bought" />
+            <NumField label="Minimum Account Age" hint="Exempts customers newer than this." value={rule.requireMinAccountAgeDays || 0} onChange={(v) => p({ requireMinAccountAgeDays: v || undefined } as Partial<DeductionRule>)} suffix="days — exempts brand-new signups" />
+            <NumField label="Minimum Lifetime Orders" hint="Exempts customers who haven't ordered at least this many times." value={rule.requireMinLifetimeOrders || 0} onChange={(v) => p({ requireMinLifetimeOrders: v || undefined } as Partial<DeductionRule>)} suffix="orders — exempts customers who never bought" />
           </div>
         </div>
       )}
 
       {rule.type === "flat_decay" && (
-        <NumField label="Deduct" value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points from every active customer, every repeat interval" />
+        <NumField label="Deduct" hint="Points taken from every active customer, each time this rule fires." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points from every active customer, every repeat interval" />
       )}
 
       {rule.type === "tier_based" && (
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-charcoal-light mb-1.5">Applies to Tiers</label>
+          <label className="block text-sm font-medium text-charcoal-light mb-1.5">
+            <FieldLabel label="Applies to Tiers" hint="Only customers currently in these tiers are affected." />
+          </label>
           <div className="flex flex-wrap gap-2">
             {tiers.map((t) => {
               const selected = rule.tierIds.includes(t.id);
@@ -168,23 +192,23 @@ function RuleEditor({ rule, tiers, onChange }: { rule: DeductionRule; tiers: Tie
             })}
             {tiers.length === 0 && <p className="text-xs text-charcoal-lighter">No membership tiers found.</p>}
           </div>
-          <NumField label="Deduct" value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" />
+          <NumField label="Deduct" hint="Points taken from a matching customer." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" />
         </div>
       )}
 
       {rule.type === "return_abuse" && (
         <div className="grid sm:grid-cols-2 gap-3">
-          <NumField label="Minimum Orders" value={rule.minOrders} onChange={(v) => p({ minOrders: v } as Partial<DeductionRule>)} suffix="before this rule can apply" />
-          <NumField label="Return Rate Threshold" value={rule.returnRateThresholdPct} onChange={(v) => p({ returnRateThresholdPct: v } as Partial<DeductionRule>)} suffix="% of orders returned" />
-          <NumField label="Lookback (optional)" value={rule.lookbackDays || 0} onChange={(v) => p({ lookbackDays: v || undefined } as Partial<DeductionRule>)} suffix="days, 0 = all-time" />
-          <NumField label="Deduct" value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" />
+          <NumField label="Minimum Orders" hint="Rule only applies once a customer has at least this many orders." value={rule.minOrders} onChange={(v) => p({ minOrders: v } as Partial<DeductionRule>)} suffix="before this rule can apply" />
+          <NumField label="Return Rate Threshold" hint="Percentage of orders returned that triggers this rule." value={rule.returnRateThresholdPct} onChange={(v) => p({ returnRateThresholdPct: v } as Partial<DeductionRule>)} suffix="% of orders returned" />
+          <NumField label="Lookback" hint="Optional — how far back orders/returns are counted, 0 = all-time." value={rule.lookbackDays || 0} onChange={(v) => p({ lookbackDays: v || undefined } as Partial<DeductionRule>)} suffix="days, 0 = all-time" />
+          <NumField label="Deduct" hint="Points taken from a matching customer." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" />
         </div>
       )}
 
       <div className="pt-2 border-t border-border/30 space-y-2">
         <p className="text-[11px] font-medium text-charcoal-lighter uppercase tracking-wide">Customer Notification</p>
-        <Input label="Title" value={rule.notification.title} onChange={(e) => p({ notification: { ...rule.notification, title: e.target.value } })} />
-        <Textarea label="Message" value={rule.notification.message} onChange={(e) => p({ notification: { ...rule.notification, message: e.target.value } })} className="min-h-[60px]" />
+        <Input label={<FieldLabel label="Title" hint="Notification headline the customer sees." />} value={rule.notification.title} onChange={(e) => p({ notification: { ...rule.notification, title: e.target.value } })} />
+        <Textarea label={<FieldLabel label="Message" hint="Notification body the customer sees." />} value={rule.notification.message} onChange={(e) => p({ notification: { ...rule.notification, message: e.target.value } })} className="min-h-[60px]" />
         <p className="text-[11px] text-charcoal-lighter">Use <code className="px-1 py-0.5 rounded bg-pearl">{"{points}"}</code> and <code className="px-1 py-0.5 rounded bg-pearl">{"{rule}"}</code> — replaced with the actual amount deducted and this rule&apos;s name.</p>
       </div>
     </div>
@@ -203,6 +227,7 @@ export default function AdminPointsDeductionRulesPage() {
   const [addType, setAddType] = useState<DeductionRuleType>("inactivity");
   const [saveError, setSaveError] = useState<string>("");
   const [ruleErrors, setRuleErrors] = useState<Record<string, string[]>>({});
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const [runs, setRuns] = useState<RunRecord[]>([]);
   const [runsLoading, setRunsLoading] = useState(true);
 
@@ -232,6 +257,14 @@ export default function AdminPointsDeductionRulesPage() {
     setConfig((c) => ({ ...c, items: [...c.items, makeDefault(addType)] }));
   };
 
+  const toggleCollapsed = (id: string) => {
+    setCollapsedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
   const updateItem = (id: string, patch: Partial<DeductionRule>) => {
     setConfig((c) => ({ ...c, items: c.items.map((i) => (i.id === id ? ({ ...i, ...patch } as DeductionRule) : i)) }));
     // Re-validate immediately so a fixed field's error clears without
@@ -252,6 +285,12 @@ export default function AdminPointsDeductionRulesPage() {
       void _removed;
       return rest;
     });
+    setCollapsedIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
   };
 
   const handleSave = async () => {
@@ -269,6 +308,12 @@ export default function AdminPointsDeductionRulesPage() {
     setRuleErrors(errorsByRule);
     if (hasErrors) {
       setSaveError("Fix the highlighted fields before saving.");
+      // Expand any collapsed rule that has an error so its fields are visible.
+      setCollapsedIds((prev) => {
+        const next = new Set(prev);
+        for (const id of Object.keys(errorsByRule)) next.delete(id);
+        return next;
+      });
       return;
     }
 
@@ -311,6 +356,7 @@ export default function AdminPointsDeductionRulesPage() {
   if (loading) return <div className="flex items-center justify-center py-24"><Loader2 className="h-8 w-8 text-secondary animate-spin" /></div>;
 
   return (
+    <TooltipProvider delayDuration={150}>
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
@@ -429,23 +475,30 @@ export default function AdminPointsDeductionRulesPage() {
           const meta = TYPE_META[item.type];
           const Icon = meta.icon;
           const errors = ruleErrors[item.id] || [];
+          const collapsed = collapsedIds.has(item.id);
           return (
             <Card key={item.id} className={cn(errors.length > 0 && "border-destructive/40")}>
               <CardHeader className="flex-row items-center justify-between space-y-0">
-                <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => toggleCollapsed(item.id)}
+                  className="flex items-center gap-3 min-w-0 text-left flex-1"
+                >
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-light shrink-0"><Icon className="h-4 w-4 text-secondary" /></div>
-                  <div>
+                  <div className="min-w-0">
                     <CardTitle className="text-sm">{item.name || meta.label}</CardTitle>
                     <CardDescription className="text-xs">{meta.description}</CardDescription>
                   </div>
-                </div>
-                <div className="flex items-center gap-1">
+                  <ChevronDown className={cn("h-4 w-4 text-charcoal-lighter shrink-0 ml-auto transition-transform duration-200", collapsed && "-rotate-90")} />
+                </button>
+                <div className="flex items-center gap-1 shrink-0 pl-2">
                   <Switch checked={item.enabled} onCheckedChange={(v) => updateItem(item.id, { enabled: v })} />
                   <button onClick={() => removeItem(item.id)} className="p-1.5 rounded-md text-charcoal-lighter/50 hover:text-destructive hover:bg-destructive/5 transition-colors">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </CardHeader>
+              {!collapsed && (
               <CardContent className="space-y-3">
                 {errors.length > 0 && (
                   <div className="p-2.5 rounded-lg bg-destructive/5 border border-destructive/20 space-y-0.5">
@@ -454,10 +507,12 @@ export default function AdminPointsDeductionRulesPage() {
                 )}
                 <RuleEditor rule={item} tiers={tiers} onChange={(patch) => updateItem(item.id, patch)} />
               </CardContent>
+              )}
             </Card>
           );
         })}
       </div>
     </div>
+    </TooltipProvider>
   );
 }
