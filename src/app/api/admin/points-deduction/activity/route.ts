@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query } from "@/lib/db";
+import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,9 @@ export const dynamic = "force-dynamic";
 // enabled rules.
 export async function GET(req: NextRequest) {
   try {
+    // See points-deduction/route.ts — this query joins on trigger_source
+    // directly and must not assume an engine run has already migrated it.
+    await ensurePromotionColumns();
     const limit = Math.min(200, Math.max(1, Number(new URL(req.url).searchParams.get("limit")) || 50));
 
     const rows = await query<RowDataPacket[]>(

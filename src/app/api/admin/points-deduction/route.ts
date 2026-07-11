@@ -3,6 +3,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { validationError } from "@/lib/validate";
+import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { DEFAULT_DEDUCTION_ENGINE_CONFIG, type DeductionEngineConfig, type DeductionRule } from "@/types/points-deduction-rules";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,12 @@ const SETTINGS_KEY = "points_deduction_engine";
 // GET /api/admin/points-deduction — current rule config + last recorded run
 export async function GET() {
   try {
+    // Needed here too, not just inside the engine's run path — this route
+    // queries points_deduction_runs.trigger_source directly, and a DB that
+    // hasn't run an engine cycle yet (or predates this column) would 500
+    // on that SELECT before ever reaching the migration that adds it.
+    await ensurePromotionColumns();
+
     const [settingsRows, lastRunRows] = await Promise.all([
       query<RowDataPacket[]>("SELECT value FROM settings WHERE `key` = ?", [SETTINGS_KEY]),
       query<RowDataPacket[]>(

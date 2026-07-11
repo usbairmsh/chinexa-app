@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query } from "@/lib/db";
 import { runPointsDeductionEngine } from "@/lib/points-deduction-engine";
+import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,9 @@ export const dynamic = "force-dynamic";
 // engine is actually firing.
 export async function GET() {
   try {
+    // See points-deduction/route.ts — this SELECT touches trigger_source
+    // directly and must not assume an engine run has already migrated it.
+    await ensurePromotionColumns();
     const rows = await query<RowDataPacket[]>(
       `SELECT id, started_at, finished_at, trigger_source, rules_evaluated, customers_affected, total_points_deducted, summary
        FROM points_deduction_runs ORDER BY started_at DESC LIMIT 20`
