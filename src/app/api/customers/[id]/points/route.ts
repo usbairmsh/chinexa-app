@@ -4,6 +4,7 @@ import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { notifyTierUpgrade, bulkNotify } from "@/lib/notify";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
+import { insertCustomerPoints } from "@/lib/points";
 
 export const dynamic = "force-dynamic";
 
@@ -111,11 +112,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const prevPoints = Number(prevRows[0]?.total) || 0;
     const isCredit = Number(points) > 0;
 
-    const entryId = `pts-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    await execute(
-      "INSERT INTO customer_points (id, customer_id, points, type, reference_id, description) VALUES (?, ?, ?, ?, ?, ?)",
-      [entryId, id, points, type, reference_id || null, description || null]
-    );
+    const entryId = await insertCustomerPoints({
+      customerId: id,
+      points,
+      type,
+      referenceId: reference_id,
+      description,
+    });
 
     await logActivity(`${isCredit ? "Added" : "Deducted"} ${Math.abs(Number(points))} points`, "customer", id, description || type);
 

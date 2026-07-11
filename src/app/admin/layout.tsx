@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Package, FolderTree, ShoppingCart, Users, Star,
   Image as ImageIcon, Tag, Gift, FileText, Search, BarChart3,
   DollarSign, AlertTriangle, Activity, UserCog, Settings,
-  Menu, ChevronLeft, LogOut, Bell, Warehouse, Key, User, Loader2, Lock, MessageCircle, Megaphone
+  Menu, ChevronLeft, LogOut, Bell, Warehouse, Key, User, Loader2, Lock, MessageCircle, Megaphone, ShieldMinus
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,7 @@ const navSections = [
       { icon: ShoppingCart, label: "Order Management", href: "/admin/orders", perm: "orders" },
       { icon: Users, label: "Customers", href: "/admin/customers", perm: "customers" },
       { icon: Star, label: "Membership", href: "/admin/membership", perm: "customers" },
+      { icon: ShieldMinus, label: "Points Deduction Rules", href: "/admin/points-deduction-rules", perm: "points_deduction_rules" },
     ],
   },
   {

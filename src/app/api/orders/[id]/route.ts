@@ -4,6 +4,7 @@ import pool, { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { notifyTierUpgrade, notifyAdmin } from "@/lib/notify";
 import { ensureAccountingTables } from "@/lib/migrate-accounting";
+import { insertCustomerPoints } from "@/lib/points";
 
 // ─── Helper: restore stock for an order's items ───
 async function restoreStock(conn: import("mysql2/promise").PoolConnection, orderId: string) {
@@ -240,11 +241,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           const earnedPoints = Math.floor(basePoints * multiplier);
 
           if (earnedPoints > 0) {
-            const pointsId = `pts-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-            await execute(
-              "INSERT INTO customer_points (id, customer_id, points, type, reference_id, description) VALUES (?, ?, ?, 'purchase', ?, ?)",
-              [pointsId, order.customer_id, earnedPoints, id, `Earned from order ${order.order_number} (${multiplier}x multiplier)`]
-            );
+            await insertCustomerPoints({
+              customerId: order.customer_id as string,
+              points: earnedPoints,
+              type: "purchase",
+              referenceId: id,
+              description: `Earned from order ${order.order_number} (${multiplier}x multiplier)`,
+            });
             const pNotifId = `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
             await execute(
               "INSERT INTO customer_notifications (id, customer_id, type, title, message) VALUES (?, ?, 'loyalty', ?, ?)",

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import pool, { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { insertCustomerPoints } from "@/lib/points";
+import { checkInstantReturnAbuseRules } from "@/lib/points-deduction-engine";
 
 // PUT /api/returns/[id] — admin updates return status
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -99,11 +101,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             [ret.customer_id, ret.order_id]
           );
           for (const ep of earnedPoints) {
-            const refundId = `pts-refund-${Date.now()}-${Math.random().toString(36).slice(2, 4)}`;
-            await execute(
-              "INSERT INTO customer_points (id, customer_id, points, type, reference_id, description) VALUES (?, ?, ?, 'refund', ?, ?)",
-              [refundId, ret.customer_id, -Math.abs(Number(ep.points)), ret.order_id, `Points deducted for returned order ${ret.order_number}`]
-            );
+            await insertCustomerPoints({
+              customerId: ret.customer_id as string,
+              points: -Math.abs(Number(ep.points)),
+              type: "refund",
+              referenceId: ret.order_id as string,
+              description: `Points deducted for returned order ${ret.order_number}`,
+            });
           }
         } catch {
           // Don't fail the return if points reversal fails
@@ -115,6 +119,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           "INSERT INTO customer_notifications (id, customer_id, type, title, message) VALUES (?, ?, 'order', ?, ?)",
           [notifId, ret.customer_id, "Return Approved", `Your return for order ${ret.order_number} has been approved. Refund of ৳${Number(ret.refund_amount || body.refund_amount || 0).toLocaleString()} will be processed.`]
         ).catch(() => {});
+
+        // Instant Return-Abuse rules re-check this customer the moment a
+        // return is approved, instead of waiting for the next scheduled tick.
+        await checkInstantReturnAbuseRules(ret.customer_id as string).catch((err) => {
+          console.error("[returns] instant return-abuse check failed:", err);
+        });
       }
     }
 
