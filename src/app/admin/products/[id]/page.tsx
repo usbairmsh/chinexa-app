@@ -85,6 +85,10 @@ export default function EditProductPage() {
       "You are an expert e-commerce SEO specialist. Analyze the following product details and generate:",
       "1. An SEO Title (max 60 characters)",
       "2. A Meta Description (exactly 150-160 characters)",
+      "3. 10-15 SEO Keywords — a mix of:",
+      "   - Purchase-intent keywords (e.g. 'buy [product] in Bangladesh', '[product] price in BD', '[product] online shop')",
+      "   - Product-related keywords (product name, category, key ingredient/material, country of origin, brand)",
+      "   - Long-tail keywords a real buyer would type into Google right before purchasing, not just browsing",
       "",
       "=== PRODUCT DETAILS ===",
       `Product Name: ${productName}`,
@@ -114,10 +118,12 @@ export default function EditProductPage() {
       "- Description must be action-oriented (start with a verb like Shop, Discover, Get, Try)",
       "- Use keywords that Bangladeshi shoppers would actually search for",
       "- Do NOT use generic filler words. Every word must add SEO value.",
+      "- Keywords should prioritize buying intent over pure browsing intent — favor 'buy', 'price', 'order', 'shop online' style phrases",
       "",
       "Respond in this exact format:",
       "SEO Title: [your title here]",
       "Meta Description: [your description here]",
+      "Keywords: [comma-separated list]",
     ];
     return lines.filter(Boolean).join("\n");
   };
@@ -705,7 +711,7 @@ export default function EditProductPage() {
         <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
           <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-secondary" /> AI SEO Prompt</DialogTitle>
-            <DialogDescription>Copy this prompt and paste it in ChatGPT, Gemini, or Claude to generate SEO title &amp; description</DialogDescription>
+            <DialogDescription>Copy this prompt and paste it in ChatGPT, Gemini, or Claude to generate SEO title, description &amp; purchase-intent keywords</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto py-2">
             <pre className="whitespace-pre-wrap text-xs text-charcoal bg-pearl/60 rounded-xl p-4 border border-border/30 font-mono leading-relaxed select-all">

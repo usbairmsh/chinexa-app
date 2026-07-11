@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { cache, Suspense } from "react";
+import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { query } from "@/lib/db";
 import { type RowDataPacket } from "mysql2/promise";
 import { ProductJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { getProductBySlugOrId } from "@/lib/products";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
 
@@ -135,12 +137,27 @@ export default async function ProductLayout({
 }) {
   const { slug } = await params;
 
+  // Server-side prefetch so the price/name/images are present in the
+  // initial HTML response — the page below is a client component that reads
+  // this same query key via useProduct(). Without this, a crawler (or a
+  // user with slow JS) sees only the loading skeleton on first paint, which
+  // is why Google was never picking up a price for these pages: the
+  // JSON-LD said one thing, but the rendered page had no price at all until
+  // client-side JS fetched it.
+  const queryClient = new QueryClient();
+  await queryClient.prefetchQuery({
+    queryKey: ["product", slug],
+    queryFn: () => getProductBySlugOrId(slug),
+  });
+
   return (
     <>
       <Suspense fallback={null}>
         <ProductStructuredData slug={slug} />
       </Suspense>
-      {children}
+      <HydrationBoundary state={dehydrate(queryClient)}>
+        {children}
+      </HydrationBoundary>
     </>
   );
 }
