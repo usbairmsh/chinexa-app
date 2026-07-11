@@ -132,7 +132,18 @@ export function Header() {
                 </AnimatePresence>
               </motion.button>
 
-              <Link href="/" className="flex items-center overflow-hidden">
+              <Link
+                href="/"
+                className="flex items-center overflow-hidden"
+                onClick={(e) => {
+                  // Same-route Link clicks don't trigger navigation, so on the
+                  // homepage itself this would otherwise do nothing at all.
+                  if (pathname === "/") {
+                    e.preventDefault();
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }
+                }}
+              >
                 <Image
                   src="/logo.png"
                   alt="ChineXa"
