@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { publicServerError } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +66,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
     return NextResponse.json(coupons);
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("GET /api/customers/[id]/coupons", error);
   }
 }
 
@@ -89,6 +90,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await logActivity("Assigned coupon to customer", "coupon", coupon_id, `Customer: ${id}`);
     return NextResponse.json({ success: true, id: entryId }, { status: 201 });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("POST /api/customers/[id]/coupons", error);
   }
 }

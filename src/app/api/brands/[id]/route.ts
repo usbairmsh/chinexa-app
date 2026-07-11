@@ -4,6 +4,7 @@ import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { deleteUploadedFile } from "@/lib/delete-upload";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
+import { publicServerError } from "@/lib/validate";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -22,7 +23,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       certifications: typeof r.certifications === "string" ? JSON.parse(r.certifications) : r.certifications || [],
     });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("GET /api/brands/[id]", error);
   }
 }
 
@@ -45,7 +46,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     await logActivity("Updated brand", "brand", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("PUT /api/brands/[id]", error);
   }
 }
 
@@ -59,6 +60,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     await logActivity("Deleted brand", "brand", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("DELETE /api/brands/[id]", error);
   }
 }

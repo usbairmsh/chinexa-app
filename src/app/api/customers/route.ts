@@ -97,6 +97,9 @@ export async function POST(req: NextRequest) {
     if (accountType === "registered" && (!body.password || String(body.password).length < 6)) {
       return NextResponse.json({ error: "Password must be at least 6 characters for a registered customer" }, { status: 400 });
     }
+    if (accountType === "registered" && String(body.password).length > 128) {
+      return NextResponse.json({ error: "Password must be at most 128 characters" }, { status: 400 });
+    }
     const hashedPassword = accountType === "registered" ? await bcrypt.hash(String(body.password), 10) : null;
 
     const id = `cust-${Date.now()}`;

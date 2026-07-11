@@ -7,6 +7,7 @@ import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { ensureAccountingTables } from "@/lib/migrate-accounting";
 import { pingIndexNowUrl } from "@/lib/indexnow";
 import { getProductBySlugOrId } from "@/lib/products";
+import { validate, validationError, dependencyError, publicServerError } from "@/lib/validate";
 
 interface ProductRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(product);
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("GET /api/products/[id]", error);
   }
 }
 
@@ -28,6 +29,51 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     await ensureAccountingTables();
     const { id } = await params;
     const body = await req.json();
+
+    // PUT is a partial update — only validate fields actually present in this
+    // request, but cross-field checks (compare_at_price vs price) need the
+    // CURRENT row for whichever side of the comparison isn't being changed
+    // right now. Previously this route had no validation at all: price could
+    // be set to 0/negative, the name blanked out, or a "discount" compare_at_price
+    // set below the real price, all via a direct PUT call.
+    const currentRows = await query<RowDataPacket[]>("SELECT price, compare_at_price FROM products WHERE id = ? LIMIT 1", [id]);
+    if (currentRows.length === 0) return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    const current = currentRows[0];
+
+    if (body.name !== undefined) {
+      const err = validate([
+        { field: "name", value: body.name, rules: ["required", "string", { minLength: 2 }, { maxLength: 255 }], label: "Product name" },
+      ]);
+      if (err) return validationError(err);
+    }
+    if (body.price !== undefined) {
+      const priceNum = Number(body.price);
+      if (!Number.isFinite(priceNum) || priceNum <= 0) {
+        return validationError("Price must be greater than zero");
+      }
+    }
+    if (body.stock_quantity !== undefined) {
+      const stockNum = Number(body.stock_quantity);
+      if (!Number.isFinite(stockNum) || stockNum < 0 || !Number.isInteger(stockNum)) {
+        return validationError("Stock quantity must be a non-negative whole number");
+      }
+    }
+    if (body.category_id) {
+      const catRows = await query<RowDataPacket[]>("SELECT id FROM categories WHERE id = ?", [body.category_id]);
+      if (catRows.length === 0) return dependencyError("Category", body.category_id);
+    }
+    // Whichever of price/compare_at_price isn't in this request still uses
+    // its current DB value, so e.g. lowering just the price below an existing
+    // compare_at_price (or raising just compare_at_price above the current
+    // price) is caught the same as changing both at once.
+    const effectivePrice = body.price !== undefined ? Number(body.price) : Number(current.price);
+    const effectiveComparePrice = body.compare_at_price !== undefined
+      ? (body.compare_at_price ? Number(body.compare_at_price) : null)
+      : (current.compare_at_price ? Number(current.compare_at_price) : null);
+    if (effectiveComparePrice !== null && effectiveComparePrice <= effectivePrice) {
+      return validationError("Compare-at price must be higher than the selling price");
+    }
+
     const fields: string[] = [];
     const values: (string | number | null)[] = [];
     const map: Record<string, string> = {
@@ -100,7 +146,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("PUT /api/products/[id]", error);
   }
 }
 
@@ -126,6 +172,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     await logActivity("Deleted product", "product", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("DELETE /api/products/[id]", error);
   }
 }

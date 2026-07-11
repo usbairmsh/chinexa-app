@@ -2,17 +2,38 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
+import { publicServerError } from "@/lib/validate";
+
+// Admin credentials guard the whole store — cap login attempts per
+// username+IP so a password can't just be ground through with unlimited
+// guesses.
+const LOGIN_MAX_ATTEMPTS = 10;
+const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { action } = body;
+    // The acting admin's identity must come from the cookie the browser sends
+    // automatically, never from body.requester_id — that field is fully
+    // client-controlled, so trusting it let anyone who merely knew (or
+    // guessed) any superadmin's id perform every privileged action below by
+    // just typing that id into the request body themselves.
+    const requesterId = req.cookies.get("chinexa-admin-id")?.value || null;
 
     // ─── LOGIN ───
     if (action === "login") {
       const { username, password } = body;
       if (!username || !password) return NextResponse.json({ error: "Username and password are required" }, { status: 400 });
+
+      const ip = getClientIp(req);
+      const byUser = checkRateLimit(`admin-login:user:${username}`, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_MS);
+      const byIp = checkRateLimit(`admin-login:ip:${ip}`, LOGIN_MAX_ATTEMPTS * 3, LOGIN_WINDOW_MS);
+      if (byUser.limited || byIp.limited) {
+        return NextResponse.json({ error: "Too many login attempts. Please wait a few minutes and try again." }, { status: 429 });
+      }
 
       const rows = await query<RowDataPacket[]>(
         "SELECT * FROM admin_users WHERE username = ? AND is_active = 1 LIMIT 1", [username]
@@ -42,16 +63,18 @@ export async function POST(req: NextRequest) {
 
     // ─── ADD ADMIN (superadmin only) ───
     if (action === "add_admin") {
-      const { requester_id, username, password, name, email, phone, role } = body;
-      if (!requester_id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      const { username, password, name, email, phone, role } = body;
+      if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
       // Check requester is superadmin
-      const requester = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [requester_id]);
+      const requester = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [requesterId]);
       if (requester.length === 0 || requester[0].role !== "superadmin") {
         return NextResponse.json({ error: "Only super admin can add new admins" }, { status: 403 });
       }
 
       if (!username || !password || !name) return NextResponse.json({ error: "Username, password, and name are required" }, { status: 400 });
+      if (password.length < 6) return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+      if (password.length > 128) return NextResponse.json({ error: "Password must be at most 128 characters" }, { status: 400 });
 
       const hashed = await bcrypt.hash(password, 10);
       const id = `adm-${Date.now()}`;
@@ -60,45 +83,48 @@ export async function POST(req: NextRequest) {
         "INSERT INTO admin_users (id, username, password, name, email, phone, role, permissions) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         [id, username, hashed, name, email || null, phone || null, role === "superadmin" ? "superadmin" : "admin", perms]
       );
-      await logActivity("Added new admin", "admin", id, `${name} (${username})`, requester_id);
+      await logActivity("Added new admin", "admin", id, `${name} (${username})`, requesterId);
 
       return NextResponse.json({ success: true, id }, { status: 201 });
     }
 
     // ─── UPDATE PERMISSIONS (superadmin only) ───
     if (action === "update_permissions") {
-      const { requester_id, admin_id, permissions } = body;
-      const requester = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [requester_id]);
+      const { admin_id, permissions } = body;
+      if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      const requester = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [requesterId]);
       if (requester.length === 0 || requester[0].role !== "superadmin") {
         return NextResponse.json({ error: "Only super admin can update permissions" }, { status: 403 });
       }
       await execute("UPDATE admin_users SET permissions = ? WHERE id = ?", [JSON.stringify(permissions), admin_id]);
-      await logActivity("Updated admin permissions", "admin", admin_id, undefined, requester_id);
+      await logActivity("Updated admin permissions", "admin", admin_id, undefined, requesterId);
       return NextResponse.json({ success: true });
     }
 
     // ─── CHANGE PASSWORD (self only) ───
     if (action === "change_password") {
-      const { admin_id, current_password, new_password } = body;
-      if (!admin_id || !current_password || !new_password) return NextResponse.json({ error: "All fields are required" }, { status: 400 });
+      const { current_password, new_password } = body;
+      if (!requesterId || !current_password || !new_password) return NextResponse.json({ error: "All fields are required" }, { status: 400 });
       if (new_password.length < 6) return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+      if (new_password.length > 128) return NextResponse.json({ error: "Password must be at most 128 characters" }, { status: 400 });
 
-      const rows = await query<RowDataPacket[]>("SELECT password FROM admin_users WHERE id = ?", [admin_id]);
+      const rows = await query<RowDataPacket[]>("SELECT password FROM admin_users WHERE id = ?", [requesterId]);
       if (rows.length === 0) return NextResponse.json({ error: "Admin not found" }, { status: 404 });
 
       const valid = await bcrypt.compare(current_password, rows[0].password as string);
       if (!valid) return NextResponse.json({ error: "Current password is incorrect" }, { status: 401 });
 
       const hashed = await bcrypt.hash(new_password, 10);
-      await execute("UPDATE admin_users SET password = ? WHERE id = ?", [hashed, admin_id]);
-      await logActivity("Changed password", "admin", admin_id, undefined, admin_id);
+      await execute("UPDATE admin_users SET password = ? WHERE id = ?", [hashed, requesterId]);
+      await logActivity("Changed password", "admin", requesterId, undefined, requesterId);
       return NextResponse.json({ success: true });
     }
 
     // ─── UPDATE PROFILE (self only) ───
     if (action === "update_profile") {
-      const { admin_id, name, email, phone } = body;
-      if (!admin_id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      const { name, email, phone } = body;
+      if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      const admin_id = requesterId;
 
       const fields: string[] = [];
       const values: (string | null)[] = [];
@@ -124,26 +150,28 @@ export async function POST(req: NextRequest) {
 
     // ─── DELETE ADMIN (superadmin only) ───
     if (action === "delete_admin") {
-      const { requester_id, admin_id } = body;
-      const requester = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [requester_id]);
+      const { admin_id } = body;
+      if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      const requester = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [requesterId]);
       if (requester.length === 0 || requester[0].role !== "superadmin") {
         return NextResponse.json({ error: "Only super admin can remove admins" }, { status: 403 });
       }
-      if (requester_id === admin_id) return NextResponse.json({ error: "Cannot delete yourself" }, { status: 400 });
+      if (requesterId === admin_id) return NextResponse.json({ error: "Cannot delete yourself" }, { status: 400 });
       await execute("DELETE FROM admin_users WHERE id = ?", [admin_id]);
-      await logActivity("Deleted admin", "admin", admin_id, undefined, requester_id);
+      await logActivity("Deleted admin", "admin", admin_id, undefined, requesterId);
       return NextResponse.json({ success: true });
     }
 
     // ─── TOGGLE ACTIVE (superadmin only) ───
     if (action === "toggle_active") {
-      const { requester_id, admin_id, is_active } = body;
-      const requester = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [requester_id]);
+      const { admin_id, is_active } = body;
+      if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      const requester = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [requesterId]);
       if (requester.length === 0 || requester[0].role !== "superadmin") {
         return NextResponse.json({ error: "Only super admin can manage admins" }, { status: 403 });
       }
       await execute("UPDATE admin_users SET is_active = ? WHERE id = ?", [is_active ? 1 : 0, admin_id]);
-      await logActivity(is_active ? "Activated admin" : "Deactivated admin", "admin", admin_id, undefined, requester_id);
+      await logActivity(is_active ? "Activated admin" : "Deactivated admin", "admin", admin_id, undefined, requesterId);
       return NextResponse.json({ success: true });
     }
 
@@ -151,6 +179,6 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Error";
     if (msg.includes("Duplicate entry")) return NextResponse.json({ error: "Username already exists" }, { status: 409 });
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return publicServerError("POST /api/admin-auth", error);
   }
 }

@@ -289,6 +289,7 @@ export function ChatWidget() {
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
                 placeholder="Type a message..."
                 rows={1}
+                maxLength={5000}
                 className="flex-1 resize-none rounded-xl border border-border/30 bg-pearl/50 px-3 py-2 text-sm text-charcoal placeholder:text-charcoal-lighter focus:outline-none focus:ring-2 focus:ring-secondary/30 max-h-24"
               />
               <button

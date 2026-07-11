@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import pool from "@/lib/db";
 import { type RowDataPacket } from "mysql2/promise";
+import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import { getBlogPostBySlug } from "@/lib/blog";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
 
@@ -46,6 +48,28 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   }
 }
 
-export default function BlogPostLayout({ children }: { children: React.ReactNode }) {
-  return children;
+export default async function BlogPostLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+
+  // Server-side prefetch — same pattern as the product detail and category
+  // pages: the page below is a client component reading this same query key
+  // via useBlogPost(). Without this, the article body is entirely absent
+  // from the initial server-rendered HTML.
+  const queryClient = new QueryClient();
+  await queryClient.prefetchQuery({
+    queryKey: ["blog", slug],
+    queryFn: () => getBlogPostBySlug(slug),
+  });
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      {children}
+    </HydrationBoundary>
+  );
 }

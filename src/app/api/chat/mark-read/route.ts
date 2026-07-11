@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { execute } from "@/lib/db";
 import { ensureChatTables } from "@/lib/chat";
+import { publicServerError } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,6 @@ export async function POST(req: NextRequest) {
     );
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("POST /api/chat/mark-read", error);
   }
 }

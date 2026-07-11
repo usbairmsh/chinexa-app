@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import pool, { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
-import { validate, validationError } from "@/lib/validate";
+import { validate, validationError, publicServerError } from "@/lib/validate";
 import { notifyAdmin } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
       items: typeof r.items === "string" ? JSON.parse(r.items) : r.items || [],
     })));
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("GET /api/returns", error);
   }
 }
 
@@ -130,6 +130,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("POST /api/returns", error);
   }
 }

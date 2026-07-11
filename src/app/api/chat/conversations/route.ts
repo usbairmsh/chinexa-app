@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { ensureChatTables, newConversationId } from "@/lib/chat";
+import { publicServerError } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -93,7 +94,7 @@ export async function GET(req: NextRequest) {
     const created = await query<RowDataPacket[]>("SELECT * FROM chat_conversations WHERE id = ?", [id]);
     return NextResponse.json(created[0]);
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("GET /api/chat/conversations", error);
   }
 }
 
@@ -112,6 +113,6 @@ export async function DELETE(req: NextRequest) {
     }
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("DELETE /api/chat/conversations", error);
   }
 }

@@ -84,7 +84,7 @@ export function CookieConsent() {
                 <p className="text-sm font-semibold text-charcoal">We use cookies</p>
                 <p className="mt-0.5 text-xs leading-relaxed text-charcoal-lighter">
                   We use essential cookies to keep you signed in, plus optional analytics and marketing cookies to improve your experience. See our{" "}
-                  <Link href="/policies/privacy-policy" className="text-secondary hover:underline">Privacy Policy</Link>.
+                  <Link href="/policies/privacy" className="text-secondary hover:underline">Privacy Policy</Link>.
                 </p>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">

@@ -5,6 +5,15 @@ import { logActivity } from "@/lib/log-activity";
 import { notifyTierUpgrade, notifyAdmin } from "@/lib/notify";
 import { ensureAccountingTables } from "@/lib/migrate-accounting";
 import { insertCustomerPoints } from "@/lib/points";
+import { publicServerError } from "@/lib/validate";
+
+function normalizePhone(phone: string): string {
+  const cleaned = phone.replace(/[\s-]/g, "");
+  if (cleaned.startsWith("+880")) return cleaned;
+  if (cleaned.startsWith("880")) return `+${cleaned}`;
+  if (cleaned.startsWith("0")) return `+880${cleaned.slice(1)}`;
+  return cleaned;
+}
 
 // ─── Helper: restore stock for an order's items ───
 async function restoreStock(conn: import("mysql2/promise").PoolConnection, orderId: string) {
@@ -48,12 +57,33 @@ async function deductStock(conn: import("mysql2/promise").PoolConnection, orderI
   }
 }
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const orders = await query<RowDataPacket[]>("SELECT * FROM orders WHERE id = ? OR order_number = ? LIMIT 1", [id, id]);
     if (orders.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const order = orders[0];
+
+    // ─── Ownership check ───
+    // Order numbers are sequential/guessable, and this endpoint returns full
+    // customer PII (name, phone, addresses) — it must not be fetchable by
+    // anyone who can guess an id. Three legitimate callers:
+    //   1. Admin panel (browser sends the chinexa-admin-id cookie automatically)
+    //   2. The logged-in customer's own dashboard (?customer_id=<their id>)
+    //   3. The public Track Order page for guests (?phone=<the phone on the order>)
+    const isAdmin = !!req.cookies.get("chinexa-admin-id")?.value;
+    if (!isAdmin) {
+      const { searchParams } = new URL(req.url);
+      const requestCustomerId = searchParams.get("customer_id");
+      const requestPhone = searchParams.get("phone");
+      const ownsBySelf = !!requestCustomerId && requestCustomerId === order.customer_id;
+      const ownsByPhone = !!requestPhone && order.customer_phone
+        && normalizePhone(requestPhone) === normalizePhone(order.customer_phone as string);
+      if (!ownsBySelf && !ownsByPhone) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+    }
+
     const [items, addresses, timeline] = await Promise.all([
       query<RowDataPacket[]>("SELECT * FROM order_items WHERE order_id = ?", [order.id]),
       query<RowDataPacket[]>("SELECT * FROM order_addresses WHERE order_id = ?", [order.id]),
@@ -73,7 +103,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       timeline,
     });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("GET /api/orders/[id]", error);
   }
 }
 
@@ -428,7 +458,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("PUT /api/orders/[id]", error);
   }
 }
 
@@ -493,6 +523,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     await logActivity("Order deleted", "order", orderId, `Order ${order.order_number}`);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("DELETE /api/orders/[id]", error);
   }
 }

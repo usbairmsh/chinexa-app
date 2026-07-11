@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
-import { validationError } from "@/lib/validate";
+import { validationError, publicServerError } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     }
     return NextResponse.json(result);
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("GET /api/settings", error);
   }
 }
 
@@ -74,6 +74,6 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({ error: "Provide key+value or settings object" }, { status: 400 });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("PUT /api/settings", error);
   }
 }

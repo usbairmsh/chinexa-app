@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
-import { validate, validationError } from "@/lib/validate";
+import { validate, validationError, publicServerError } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
       certifications: typeof r.certifications === "string" ? JSON.parse(r.certifications) : r.certifications || [],
     })));
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("GET /api/brands", error);
   }
 }
 
@@ -48,6 +48,6 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "";
     if (msg.includes("Duplicate entry")) return NextResponse.json({ error: "A brand with this name already exists" }, { status: 409 });
-    return NextResponse.json({ error: msg || "Error" }, { status: 500 });
+    return publicServerError("POST /api/brands", error);
   }
 }

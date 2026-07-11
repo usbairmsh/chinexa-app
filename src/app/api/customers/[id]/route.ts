@@ -3,6 +3,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
+import { validate, validationError, publicServerError } from "@/lib/validate";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -58,7 +59,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       }),
     });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("GET /api/customers/[id]", error);
   }
 }
 
@@ -66,6 +67,24 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const { id } = await params;
     const body = await req.json();
+
+    // Used by both the customer's own profile page and the admin customer
+    // editor — previously neither name, email, nor phone was validated at
+    // all here, so either could blank the name or save a malformed email/
+    // phone straight to the DB.
+    if (body.name !== undefined) {
+      const err = validate([{ field: "name", value: body.name, rules: ["required", "string", { maxLength: 100 }], label: "Name" }]);
+      if (err) return validationError(err);
+    }
+    if (body.email !== undefined && body.email) {
+      const err = validate([{ field: "email", value: body.email, rules: ["email"], label: "Email" }]);
+      if (err) return validationError(err);
+    }
+    if (body.phone !== undefined) {
+      const err = validate([{ field: "phone", value: body.phone, rules: ["required", "phone"], label: "Phone" }]);
+      if (err) return validationError(err);
+    }
+
     const fields: string[] = []; const values: (string | number | null)[] = [];
     for (const [k, col] of Object.entries({ name: "name", email: "email", phone: "phone", birthdate: "birthdate", avatar: "avatar" })) {
       if (body[k] !== undefined) { fields.push(`${col} = ?`); values.push(body[k]); }
@@ -75,7 +94,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     await logActivity("Updated customer", "customer", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("PUT /api/customers/[id]", error);
   }
 }
 
@@ -98,6 +117,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     await logActivity("Deactivated customer", "customer", id, hard ? "Hard delete" : "Soft delete");
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("DELETE /api/customers/[id]", error);
   }
 }

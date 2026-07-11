@@ -2,6 +2,22 @@ import { query } from "@/lib/db";
 import { type RowDataPacket } from "mysql2/promise";
 import type { OfferApplicability, DiscountType } from "@/types/offer";
 
+interface CouponRow extends RowDataPacket {
+  id: string;
+  code: string;
+  discount_type: DiscountType;
+  discount_value: number;
+  min_order_amount: number | null;
+  max_discount_amount: number | null;
+  usage_limit: number | null;
+  per_customer_limit: number | null;
+  used_count: number;
+  valid_from: string | null;
+  valid_until: string | null;
+  applicability: OfferApplicability | null;
+  applicable_ids: string | string[] | null;
+}
+
 export interface PromoCartItem {
   product_id: string;
   variant_id?: string | null;
@@ -167,4 +183,176 @@ export function computeDiscount(
   let amount = discountType === "percentage" ? (base * discountValue) / 100 : discountValue;
   if (maxDiscount != null && maxDiscount > 0) amount = Math.min(amount, maxDiscount);
   return Math.min(Math.round(amount), base);
+}
+
+export interface ActiveOffer {
+  id: string;
+  title: string;
+  applicability: OfferApplicability;
+  applicable_ids: string[];
+  discount_type: DiscountType;
+  discount_value: number;
+  max_discount_amount: number | null;
+}
+
+/** Every currently-active, in-date-window offer, parsed and ready to match against cart lines. */
+export async function getActiveOffers(): Promise<ActiveOffer[]> {
+  const now = new Date().toISOString().slice(0, 10);
+  const offers = await query<RowDataPacket[]>(
+    `SELECT id, title, applicability, applicable_ids, discount_type, discount_value, max_discount_amount
+     FROM offers
+     WHERE is_active = 1
+       AND (start_date IS NULL OR start_date <= ?)
+       AND (end_date IS NULL OR end_date >= ?)`,
+    [now, now]
+  );
+  return offers.map((o) => ({
+    id: o.id as string,
+    title: o.title as string,
+    applicability: o.applicability as OfferApplicability,
+    applicable_ids: typeof o.applicable_ids === "string" ? JSON.parse(o.applicable_ids) : o.applicable_ids || [],
+    discount_type: o.discount_type as DiscountType,
+    discount_value: Number(o.discount_value),
+    max_discount_amount: o.max_discount_amount != null ? Number(o.max_discount_amount) : null,
+  }));
+}
+
+/**
+ * Per cart line, apply whichever active offer yields the largest discount on
+ * that line (never stacked — one offer per line, the best one). Shared by
+ * /api/offers/apply (cart preview) and /api/orders (authoritative re-check at
+ * order-creation time) so the two can never compute a different number for
+ * the same cart.
+ */
+export function bestOfferPerLine(
+  items: PromoCartItem[],
+  offers: ActiveOffer[],
+  ctx: PromoContext
+): { totalDiscount: number; lines: { index: number; discount: number; offerId: string | null }[]; appliedOfferIds: string[] } {
+  const appliedOffers = new Map<string, number>();
+  const lines = items.map((item, idx) => {
+    const lineBase = item.price * item.quantity;
+    let bestDiscount = 0;
+    let bestOfferId: string | null = null;
+
+    for (const offer of offers) {
+      if (offer.discount_value <= 0) continue;
+      if (!itemMatchesApplicability(item, offer.applicability, offer.applicable_ids, ctx)) continue;
+      const d = computeDiscount(lineBase, offer.discount_type, offer.discount_value, offer.max_discount_amount);
+      if (d > bestDiscount) { bestDiscount = d; bestOfferId = offer.id; }
+    }
+
+    if (bestOfferId && bestDiscount > 0) {
+      appliedOffers.set(bestOfferId, (appliedOffers.get(bestOfferId) || 0) + bestDiscount);
+    }
+
+    return { index: idx, discount: bestDiscount, offerId: bestOfferId };
+  });
+
+  return {
+    totalDiscount: lines.reduce((sum, l) => sum + l.discount, 0),
+    lines,
+    appliedOfferIds: [...appliedOffers.keys()],
+  };
+}
+
+export interface CouponValidationResult {
+  valid: boolean;
+  discount: number;
+  message: string;
+  discount_type?: DiscountType;
+  discount_value?: number;
+  max_discount_amount?: number | null;
+  applicability?: OfferApplicability;
+}
+
+/**
+ * Validate a coupon code against a cart + customer, and compute the discount
+ * it yields — the single authoritative implementation shared by
+ * /api/coupons/validate (cart preview) and /api/orders (re-checked at
+ * order-creation time so a client can never just send an arbitrary discount).
+ */
+export async function validateCoupon(
+  code: string,
+  customerId: string | null,
+  items: { product_id: string; variant_id?: string | null; price: number; quantity: number }[],
+  orderTotalHint?: number
+): Promise<CouponValidationResult> {
+  const fail = (message: string): CouponValidationResult => ({ valid: false, discount: 0, message });
+  if (!code) return fail("Enter a coupon code");
+
+  const rows = await query<CouponRow[]>("SELECT * FROM coupons WHERE code = ? AND is_active = 1 LIMIT 1", [code]);
+  if (rows.length === 0) return fail("Invalid coupon code");
+  const coupon = rows[0];
+  const now = new Date();
+
+  if (coupon.valid_from && new Date(coupon.valid_from) > now) return fail("This coupon is not active yet");
+  if (coupon.valid_until && new Date(coupon.valid_until) < now) return fail("Coupon has expired");
+  if (coupon.usage_limit != null && Number(coupon.used_count) >= Number(coupon.usage_limit)) {
+    return fail("Coupon usage limit reached");
+  }
+  // Coupons are a signed-in perk — guests can't redeem any coupon.
+  if (!customerId) return fail("Please sign in to use a coupon");
+
+  const applicability = (coupon.applicability || "store") as OfferApplicability;
+  const applicableIds: string[] =
+    typeof coupon.applicable_ids === "string" ? JSON.parse(coupon.applicable_ids) : coupon.applicable_ids || [];
+
+  const tier = await getCustomerTier(customerId);
+  const ctx: PromoContext = { customerId, tierName: tier?.name ?? null, tierId: tier?.id ?? null };
+
+  if (applicability === "customers" && !applicableIds.includes(customerId)) {
+    return fail("This coupon is not available for your account");
+  }
+  if (
+    applicability === "tiers" &&
+    !(ctx.tierId && applicableIds.includes(ctx.tierId)) &&
+    !(ctx.tierName && applicableIds.includes(ctx.tierName))
+  ) {
+    return fail("This coupon is only for specific membership tiers");
+  }
+
+  if (coupon.per_customer_limit != null && Number(coupon.per_customer_limit) > 0) {
+    const usedRows = await query<RowDataPacket[]>(
+      "SELECT COUNT(*) as cnt FROM orders WHERE customer_id = ? AND coupon_code = ? AND status <> 'cancelled'",
+      [customerId, coupon.code]
+    );
+    if ((Number(usedRows[0]?.cnt) || 0) >= Number(coupon.per_customer_limit)) {
+      return fail("You have already used this coupon the maximum number of times");
+    }
+  }
+
+  let eligibleBase: number;
+  if (items.length > 0 && (applicability === "categories" || applicability === "subcategories" || applicability === "products" || applicability === "brands")) {
+    const enriched = await enrichCartItems(items);
+    eligibleBase = enriched
+      .filter((i) => itemMatchesApplicability(i, applicability, applicableIds, ctx))
+      .reduce((sum, i) => sum + i.price * i.quantity, 0);
+    if (eligibleBase <= 0) return fail("This coupon does not apply to items in your cart");
+  } else {
+    eligibleBase = orderTotalHint ?? items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  }
+
+  const orderTotal = orderTotalHint ?? eligibleBase;
+  if (coupon.min_order_amount && orderTotal < Number(coupon.min_order_amount)) {
+    return fail(`Minimum order ৳${Number(coupon.min_order_amount).toLocaleString("en-BD")} required`);
+  }
+
+  const discount = computeDiscount(
+    eligibleBase,
+    coupon.discount_type,
+    Number(coupon.discount_value),
+    coupon.max_discount_amount != null ? Number(coupon.max_discount_amount) : null
+  );
+  if (discount <= 0) return fail("This coupon does not apply to your cart");
+
+  return {
+    valid: true,
+    discount,
+    message: `Coupon applied! You save ৳${discount.toLocaleString("en-BD")}`,
+    discount_type: coupon.discount_type,
+    discount_value: Number(coupon.discount_value),
+    max_discount_amount: coupon.max_discount_amount != null ? Number(coupon.max_discount_amount) : null,
+    applicability,
+  };
 }

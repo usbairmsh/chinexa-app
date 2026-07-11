@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/auth.store";
+import { authCookieOpts } from "@/lib/auth-cookie";
 
 const RESEND_COOLDOWN_SECONDS = 90;
 
@@ -27,8 +28,10 @@ function VerifyForm() {
   const [resending, setResending] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // "reset" mode: once OTP is verified, show a new-password form before finishing
-  const [otpVerifiedForReset, setOtpVerifiedForReset] = useState(false);
+  // "reset" mode: once OTP is verified, show a new-password form before finishing.
+  // The token+code are kept (not just a boolean) so reset_password can re-prove
+  // the OTP was really verified for this phone, server-side.
+  const [verifiedOtp, setVerifiedOtp] = useState<{ token: string; code: string } | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [resetSaving, setResetSaving] = useState(false);
@@ -103,13 +106,16 @@ function VerifyForm() {
       });
       const verifyData = await verifyRes.json();
       if (!verifyRes.ok) throw new Error(verifyData.error || "Invalid OTP");
-      sessionStorage.removeItem(`otp-token:${phone}:${otpPurpose}`);
 
       if (mode === "reset") {
-        // Don't finish yet — show the new-password form
-        setOtpVerifiedForReset(true);
+        // Don't finish yet — show the new-password form. Keep the token+code
+        // (don't clear sessionStorage) since reset_password needs to re-prove
+        // this exact verification happened, server-side.
+        setVerifiedOtp({ token: otpToken, code });
         return;
       }
+
+      sessionStorage.removeItem(`otp-token:${phone}:${otpPurpose}`);
 
       if (mode === "register") {
         const stored = sessionStorage.getItem(`register-data:${phone}`);
@@ -125,7 +131,7 @@ function VerifyForm() {
         if (!res.ok) throw new Error(data.error || "Registration failed");
         sessionStorage.removeItem(`register-data:${phone}`);
 
-        document.cookie = `chinexa-role=customer; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+        document.cookie = `chinexa-role=customer; ${authCookieOpts(true)}`;
         login({
           user: { id: data.user.id, name: data.user.name, email: data.user.email, phone: data.user.phone, role: "customer" },
           token: `token-${Date.now()}`,
@@ -164,16 +170,24 @@ function VerifyForm() {
       setError("Passwords do not match");
       return;
     }
+    if (!verifiedOtp) {
+      setError("Verification session expired. Please request a new code.");
+      return;
+    }
 
     setResetSaving(true);
     try {
       const res = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "reset_password", phone, password: newPassword }),
+        body: JSON.stringify({
+          action: "reset_password", phone, password: newPassword,
+          otp_token: verifiedOtp.token, otp_code: verifiedOtp.code,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to reset password");
+      sessionStorage.removeItem(`otp-token:${phone}:${otpPurpose}`);
       setSuccess(true);
       setTimeout(() => router.push("/login"), 1500);
     } catch (err: unknown) {
@@ -232,7 +246,7 @@ function VerifyForm() {
     );
   }
 
-  if (otpVerifiedForReset) {
+  if (verifiedOtp) {
     return (
       <Card className="border-0 shadow-luxury-hover">
         <CardHeader className="text-center pb-2">

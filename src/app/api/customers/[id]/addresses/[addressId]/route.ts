@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { execute } from "@/lib/db";
+import { validationError, publicServerError } from "@/lib/validate";
 
 // PUT /api/customers/[id]/addresses/[addressId]
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string; addressId: string }> }) {
   try {
     const { id: customerId, addressId } = await params;
     const body = await req.json();
+
+    // Same required/format rules as POST — only checked when the field is
+    // actually part of this update, since this route also allows a
+    // single-field patch (e.g. just toggling is_default).
+    if (body.name !== undefined && !String(body.name).trim()) return validationError("Recipient name is required");
+    if (body.phone !== undefined && !String(body.phone).trim()) return validationError("Phone number is required");
+    if (body.address_line_1 !== undefined && !String(body.address_line_1).trim()) return validationError("Address is required");
+    if (body.postal_code && !/^\d{4}$/.test(String(body.postal_code).trim())) {
+      return validationError("Postal code must be a 4-digit number");
+    }
 
     // Handle "set as default"
     if (body.is_default) {
@@ -29,7 +40,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("PUT /api/customers/[id]/addresses/[addressId]", error);
   }
 }
 
@@ -40,6 +51,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     await execute("DELETE FROM customer_addresses WHERE id = ?", [addressId]);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("DELETE /api/customers/[id]/addresses/[addressId]", error);
   }
 }

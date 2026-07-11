@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
-import { query, execute, escapeLike } from "@/lib/db";
+import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
-import { validate, validationError, dependencyError } from "@/lib/validate";
+import { validate, validationError, dependencyError, publicServerError } from "@/lib/validate";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { ensureSearchIndexes } from "@/lib/migrate-search";
 import { ensureAccountingTables } from "@/lib/migrate-accounting";
 import { pingIndexNowUrl } from "@/lib/indexnow";
+import { getProductsList } from "@/lib/products";
 
 interface ProductRow extends RowDataPacket {
   id: string; name: string; slug: string; description: string; short_description: string;
@@ -28,8 +29,6 @@ interface VariantRow extends RowDataPacket {
   id: string; product_id: string; name: string; type: string; value: string;
   hex: string | null; price_adjustment: number; cost_price_adjustment: number; stock: number; sku: string;
 }
-
-interface CountRow extends RowDataPacket { total: number; }
 
 function buildProduct(row: ProductRow, images: ImageRow[], variants: VariantRow[]) {
   return {
@@ -59,30 +58,6 @@ function buildProduct(row: ProductRow, images: ImageRow[], variants: VariantRow[
   };
 }
 
-// InnoDB's default minimum indexed word length — words shorter than this are
-// never stored in the FULLTEXT index at all, so marking one `+` (required)
-// makes MATCH...AGAINST return nothing even when every other word matches.
-const FULLTEXT_MIN_WORD_LEN = 3;
-
-/**
- * Builds a FULLTEXT boolean-mode query string from free-text, possibly
- * multi-word user input. Words at/above the FULLTEXT minimum length are
- * marked `+` (required) with a trailing `*` for prefix matching (so "leath"
- * matches "leather" mid-typing); shorter words (e.g. "c", "4k") are left as
- * plain optional terms, since InnoDB never indexes them and marking one
- * `+`-required would silently zero out an otherwise-good multi-word match
- * (e.g. searching "vitamin c serum" must not fail just because "c" alone
- * can't be matched).
- */
-function toBooleanFulltextQuery(term: string): string {
-  return term
-    .split(/\s+/)
-    .map((w) => w.replace(/[+\-<>()~*"@]/g, "")) // strip FULLTEXT boolean-mode operators from user input
-    .filter(Boolean)
-    .map((w) => (w.length >= FULLTEXT_MIN_WORD_LEN ? `+${w}*` : w))
-    .join(" ");
-}
-
 export async function GET(req: NextRequest) {
   try {
     await ensureSearchIndexes();
@@ -107,159 +82,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ data: products.map((p) => buildProduct(p, images, variants)) });
     }
 
-    const page = Number(searchParams.get("page")) || 1;
-    const pageSize = Number(searchParams.get("page_size")) || 12;
-    const category = searchParams.get("category");
-    const subcategory = searchParams.get("subcategory");
-    const brand = searchParams.get("brand");
-    const sortBy = searchParams.get("sort_by") || "featured";
-    const search = searchParams.get("search")?.trim() || "";
-    const badges = searchParams.get("badges");
-    const minPrice = searchParams.get("min_price");
-    const maxPrice = searchParams.get("max_price");
-    const featured = searchParams.get("featured");
-    const limit = searchParams.get("limit");
-
-    const all = searchParams.get("all");
-    let where = all ? "WHERE 1=1" : "WHERE p.is_active = 1";
-    const params: (string | number)[] = [];
-    // Relevance score selected alongside the row when searching, so results
-    // can be ordered by match quality instead of just created_at/featured.
-    let relevanceSelect = "";
-    let relevanceParams: (string | number)[] = [];
-
-    if (category) {
-      // Check if this slug is a subcategory (has a parent_id) or a parent category
-      where += ` AND (
-        CASE
-          WHEN EXISTS (SELECT 1 FROM categories WHERE slug = ? AND parent_id IS NOT NULL)
-          THEN (
-            p.subcategory IN (SELECT name FROM categories WHERE slug = ?)
-            OR p.category_id IN (SELECT id FROM categories WHERE slug = ?)
-          )
-          ELSE (
-            p.category_id = ?
-            OR p.category_id IN (SELECT id FROM categories WHERE slug = ?)
-          )
-        END
-      )`;
-      params.push(category, category, category, category, category);
-    }
-    if (subcategory) {
-      // Support comma-separated subcategories for multi-select
-      const subs = subcategory.split(",").map((s) => s.trim()).filter(Boolean);
-      if (subs.length === 1) {
-        where += " AND (p.subcategory = ? OR p.subcategory IN (SELECT name FROM categories WHERE slug = ?))";
-        params.push(subs[0], subs[0]);
-      } else if (subs.length > 1) {
-        const placeholders = subs.map(() => "?").join(",");
-        where += ` AND (p.subcategory IN (${placeholders}) OR p.subcategory IN (SELECT name FROM categories WHERE slug IN (${placeholders})))`;
-        params.push(...subs, ...subs);
-      }
-    }
-    if (brand) {
-      // Support comma-separated brands for multi-select
-      const brandNames = brand.split(",").map((b) => b.trim()).filter(Boolean);
-      if (brandNames.length === 1) {
-        where += " AND p.brand_name = ?";
-        params.push(brandNames[0]);
-      } else if (brandNames.length > 1) {
-        const placeholders = brandNames.map(() => "?").join(",");
-        where += ` AND p.brand_name IN (${placeholders})`;
-        params.push(...brandNames);
-      }
-    }
-    if (search) {
-      const booleanQuery = toBooleanFulltextQuery(search);
-      const likeTerm = `%${escapeLike(search)}%`;
-      const skuLike = `${escapeLike(search)}%`; // prefix match — SKUs are short codes FULLTEXT handles poorly
-      const matchColumns = "p.name, p.short_description, p.description, p.category_name, p.subcategory, p.brand_name, p.sku, p.ingredients, p.how_to_use, p.seo_title, p.seo_description, p.country_of_origin, p.weight";
-      if (booleanQuery) {
-        // FULLTEXT covers every admin-entered text field on the product for
-        // real relevance-ranked search. A plain LIKE on the raw phrase against
-        // `name`/`tags` fills the gaps FULLTEXT structurally can't: short/
-        // stopword-only queries, hyphenated/compound codes that don't split on
-        // word boundaries the way FULLTEXT expects, and the tags column (JSON,
-        // can't be part of a FULLTEXT index at all). SKU prefix LIKE and a
-        // variant-name/value LIKE cover short exact-ish codes and the separate
-        // variants child table.
-        where += ` AND (
-          MATCH(${matchColumns}) AGAINST (? IN BOOLEAN MODE)
-          OR p.name LIKE ?
-          OR p.tags LIKE ?
-          OR p.sku LIKE ?
-          OR EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND (pv.name LIKE ? OR pv.value LIKE ?))
-        )`;
-        params.push(booleanQuery, likeTerm, likeTerm, skuLike, skuLike, skuLike);
-        relevanceSelect = `, MATCH(${matchColumns}) AGAINST (? IN BOOLEAN MODE) AS relevance`;
-        relevanceParams = [booleanQuery];
-      }
-    }
-    if (badges) { where += " AND p.badges LIKE ?"; params.push(`%${escapeLike(badges)}%`); }
-    if (minPrice) { where += " AND p.price >= ?"; params.push(Number(minPrice)); }
-    if (maxPrice) { where += " AND p.price <= ?"; params.push(Number(maxPrice)); }
-    if (featured === "true") { where += " AND p.is_featured = 1"; }
-
-    // Relevance is the default sort while searching (unless the user picked a
-    // specific sort like price/newest) — best matches first, not just newest.
-    let orderBy = "ORDER BY p.is_featured DESC, p.created_at DESC";
-    if (sortBy === "newest") orderBy = "ORDER BY p.created_at DESC";
-    else if (sortBy === "price_asc") orderBy = "ORDER BY p.price ASC";
-    else if (sortBy === "price_desc") orderBy = "ORDER BY p.price DESC";
-    else if (sortBy === "rating") orderBy = "ORDER BY p.average_rating DESC";
-    else if (sortBy === "name_asc") orderBy = "ORDER BY p.name ASC";
-    else if (relevanceSelect && sortBy === "featured") orderBy = "ORDER BY relevance DESC, p.is_featured DESC";
-
-    // If limit param, use it directly (for featured/new/best/trending queries)
-    const actualLimit = limit ? Number(limit) : pageSize;
-    const offset = limit ? 0 : (page - 1) * pageSize;
-    const safeLimit = Math.max(1, Math.min(Math.floor(actualLimit), 100));
-    const safeOffset = Math.max(0, Math.floor(offset));
-
-    // Count and data share the identical WHERE/params, so they're independent
-    // of each other — one round-trip instead of two sequential ones.
-    const [countRows, products] = await Promise.all([
-      query<CountRow[]>(`SELECT COUNT(*) as total FROM products p ${where}`, params),
-      // relevanceSelect's param must be bound first since it appears earlier
-      // in the SQL string (SELECT clause) than the WHERE clause params.
-      query<ProductRow[]>(
-        `SELECT p.*${relevanceSelect} FROM products p ${where} ${orderBy} LIMIT ${safeLimit} OFFSET ${safeOffset}`,
-        [...relevanceParams, ...params]
-      ),
-    ]);
-    const total = countRows[0]?.total || 0;
-
-    // Fire-and-forget search logging — powers real trending-searches data.
-    // Never awaited into the response path; a logging failure must not affect
-    // search results.
-    if (search) {
-      execute("INSERT INTO search_logs (term, result_count) VALUES (?, ?)", [search.slice(0, 255), total]).catch(() => {});
-    }
-
-    if (products.length === 0) {
-      return NextResponse.json({ data: [], total, page, page_size: pageSize, total_pages: Math.ceil(total / pageSize) });
-    }
-
-    // Batch load images and variants — independent of each other.
-    const productIds = products.map((p) => p.id);
-    const placeholders = productIds.map(() => "?").join(",");
-    const [images, variants] = await Promise.all([
-      query<ImageRow[]>(`SELECT * FROM product_images WHERE product_id IN (${placeholders}) ORDER BY \`order\``, productIds),
-      query<VariantRow[]>(`SELECT * FROM product_variants WHERE product_id IN (${placeholders})`, productIds),
-    ]);
-
-    const data = products.map((p) => buildProduct(p, images, variants));
-
-    return NextResponse.json({
-      data,
-      total,
-      page,
-      page_size: pageSize,
-      total_pages: Math.ceil(total / pageSize),
-    });
+    const result = await getProductsList(searchParams);
+    return NextResponse.json(result);
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return publicServerError("GET /api/products", error);
   }
 }
 
@@ -275,6 +101,16 @@ export async function POST(req: NextRequest) {
       { field: "price", value: Number(body.price), rules: ["required", "number", "positive"], label: "Price" },
     ]);
     if (err) return validationError(err);
+    // "positive" alone allows 0 — a real product must have a price greater than zero.
+    if (!(Number(body.price) > 0)) {
+      return validationError("Price must be greater than zero");
+    }
+    if (body.stock_quantity !== undefined) {
+      const stockNum = Number(body.stock_quantity);
+      if (!Number.isFinite(stockNum) || stockNum < 0 || !Number.isInteger(stockNum)) {
+        return validationError("Stock quantity must be a non-negative whole number");
+      }
+    }
 
     // Validate category exists if provided
     if (body.category_id) {

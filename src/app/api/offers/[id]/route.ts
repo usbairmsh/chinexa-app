@@ -4,6 +4,7 @@ import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { bulkNotify, resolvePromoRecipients } from "@/lib/notify";
+import { validationError } from "@/lib/validate";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -12,8 +13,44 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const body = await req.json();
 
     // Snapshot before the update so we can detect a paused → active transition
-    const beforeRows = await query<RowDataPacket[]>("SELECT is_active FROM offers WHERE id = ? LIMIT 1", [id]);
-    const wasActive = beforeRows.length > 0 && !!beforeRows[0].is_active;
+    // AND so cross-field validation below has the current value for whichever
+    // side isn't part of THIS request (PUT is a partial update) — previously
+    // this route had NO re-validation at all, so a direct PUT could push a
+    // discount over 100%, invert the date range, or clear applicable_ids on a
+    // scoped offer.
+    const beforeRows = await query<RowDataPacket[]>(
+      "SELECT is_active, discount_type, discount_value, start_date, end_date, applicability, applicable_ids FROM offers WHERE id = ? LIMIT 1",
+      [id]
+    );
+    if (beforeRows.length === 0) return NextResponse.json({ error: "Offer not found" }, { status: 404 });
+    const before = beforeRows[0];
+    const wasActive = !!before.is_active;
+
+    if (body.discount_value !== undefined) {
+      const discountNum = Number(body.discount_value);
+      if (!Number.isFinite(discountNum) || discountNum <= 0) {
+        return validationError("Discount value must be greater than zero");
+      }
+    }
+    const effectiveDiscountType = body.discount_type !== undefined ? body.discount_type : before.discount_type;
+    const effectiveDiscountValue = body.discount_value !== undefined ? Number(body.discount_value) : Number(before.discount_value);
+    if (effectiveDiscountType === "percentage" && effectiveDiscountValue > 100) {
+      return validationError("Percentage discount cannot exceed 100%");
+    }
+    const effectiveStartDate = body.start_date !== undefined ? body.start_date : before.start_date;
+    const effectiveEndDate = body.end_date !== undefined ? body.end_date : before.end_date;
+    if (effectiveStartDate && effectiveEndDate && new Date(effectiveStartDate) >= new Date(effectiveEndDate)) {
+      return validationError("Start date must be before end date");
+    }
+    const scopedApplicability = ["products", "categories", "subcategories", "brands", "customers", "tiers"];
+    const effectiveApplicability = body.applicability !== undefined ? body.applicability : before.applicability;
+    const effectiveApplicableIds = body.applicable_ids !== undefined
+      ? body.applicable_ids
+      : (typeof before.applicable_ids === "string" ? JSON.parse(before.applicable_ids) : before.applicable_ids || []);
+    if (scopedApplicability.includes(effectiveApplicability) && (!Array.isArray(effectiveApplicableIds) || effectiveApplicableIds.length === 0)) {
+      return validationError(`Select at least one ${effectiveApplicability === "customers" ? "customer" : effectiveApplicability === "tiers" ? "tier" : String(effectiveApplicability).replace(/s$/, "")} for this offer to apply to`);
+    }
+
     const fields: string[] = [];
     const values: (string | number | null)[] = [];
     for (const [k, col] of Object.entries({ title: "title", description: "description", applicability: "applicability", discount: "discount", discount_type: "discount_type", start_date: "start_date", end_date: "end_date" })) {

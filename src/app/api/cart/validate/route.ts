@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query } from "@/lib/db";
+import { publicServerError } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +67,6 @@ export async function POST(req: NextRequest) {
       items: results,
     });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("POST /api/cart/validate", error);
   }
 }

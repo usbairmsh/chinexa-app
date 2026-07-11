@@ -3,6 +3,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { ensureChatTables, newMessageId } from "@/lib/chat";
 import { notifyAdmin, bulkNotify } from "@/lib/notify";
+import { publicServerError } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +61,7 @@ export async function GET(req: NextRequest) {
     );
     return NextResponse.json(rows);
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("GET /api/chat/messages", error);
   }
 }
 
@@ -79,6 +80,9 @@ export async function POST(req: NextRequest) {
 
     if (!conversation_id || !sender_type || !message?.trim()) {
       return NextResponse.json({ error: "conversation_id, sender_type and message are required" }, { status: 400 });
+    }
+    if (message.length > 5000) {
+      return NextResponse.json({ error: "Message must be at most 5000 characters" }, { status: 400 });
     }
 
     const convRows = await query<RowDataPacket[]>("SELECT * FROM chat_conversations WHERE id = ?", [conversation_id]);
@@ -123,6 +127,6 @@ export async function POST(req: NextRequest) {
     const inserted = await query<RowDataPacket[]>("SELECT * FROM chat_messages WHERE id = ?", [id]);
     return NextResponse.json(inserted[0], { status: 201 });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("POST /api/chat/messages", error);
   }
 }

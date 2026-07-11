@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/log-activity";
 import { notifyTierUpgrade, bulkNotify } from "@/lib/notify";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { insertCustomerPoints } from "@/lib/points";
+import { publicServerError } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -84,7 +85,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       history,
     });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("GET /api/customers/[id]/points", error);
   }
 }
 
@@ -136,6 +137,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     return NextResponse.json({ success: true, id: entryId }, { status: 201 });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("POST /api/customers/[id]/points", error);
   }
 }

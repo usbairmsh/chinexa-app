@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query } from "@/lib/db";
 import { ensureSearchIndexes } from "@/lib/migrate-search";
+import { publicServerError } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,6 @@ export async function GET() {
 
     return NextResponse.json({ terms: fallback.map((r) => r.name as string), source: "bestsellers" });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("GET /api/search/trending", error);
   }
 }

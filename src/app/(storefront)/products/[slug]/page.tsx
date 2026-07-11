@@ -747,6 +747,7 @@ export default function ProductDetailPage() {
                       placeholder="Review title (optional)"
                       value={reviewTitle}
                       onChange={(e) => setReviewTitle(e.target.value)}
+                      maxLength={255}
                       className="w-full h-10 rounded-xl border border-border bg-white px-3 text-sm text-charcoal placeholder:text-charcoal-lighter/50 focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
                     />
 
@@ -754,6 +755,7 @@ export default function ProductDetailPage() {
                       placeholder="Share your experience with this product..."
                       value={reviewComment}
                       onChange={(e) => setReviewComment(e.target.value)}
+                      maxLength={5000}
                       className="min-h-[80px]"
                     />
 

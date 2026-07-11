@@ -4,7 +4,25 @@ import { createHmac, timingSafeEqual } from "crypto";
 // packed into a token the server HMAC-signs and hands to the client; the
 // client returns that same token at verify time so the server can re-derive
 // and check the signature without having stored anything.
-const SECRET = process.env.OTP_SIGNING_SECRET || "dev-only-insecure-otp-secret";
+//
+// This means the ENTIRE security of OTP verification (and everything gated
+// behind it — password reset, registration) rests on this secret being
+// unpredictable. A hardcoded fallback here would be a publicly-known secret
+// baked into every deployment of this repo, letting anyone forge a valid
+// token for any phone/code/expiry — so a missing env var must fail loudly
+// at startup, never silently degrade to a guessable default.
+function requireSecret(): string {
+  const secret = process.env.OTP_SIGNING_SECRET;
+  if (!secret) {
+    throw new Error(
+      "OTP_SIGNING_SECRET is not set. This must be a long random string kept " +
+      "secret in the environment — generate one with `openssl rand -hex 32` " +
+      "and set it in .env.production. Refusing to start with an insecure default."
+    );
+  }
+  return secret;
+}
+const SECRET = requireSecret();
 
 interface OtpTokenPayload {
   phone: string;

@@ -7,6 +7,7 @@ import { Lock, User, Loader2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { authCookieOpts } from "@/lib/auth-cookie";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -38,10 +39,8 @@ export default function AdminLoginPage() {
         return;
       }
 
-      // Remember Me: 30 days. Otherwise: session cookie (no max-age)
-      const cookieOpts = rememberMe
-        ? `path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
-        : `path=/; SameSite=Lax`;
+      // Remember Me: 7 days. Otherwise: session cookie (no max-age)
+      const cookieOpts = authCookieOpts(rememberMe);
       document.cookie = `chinexa-role=${data.user.role}; ${cookieOpts}`;
       document.cookie = `chinexa-admin-id=${data.user.id}; ${cookieOpts}`;
       document.cookie = `chinexa-admin-name=${encodeURIComponent(data.user.name)}; ${cookieOpts}`;

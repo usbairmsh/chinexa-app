@@ -54,6 +54,12 @@ export async function POST(req: NextRequest) {
     if (body.valid_from && body.valid_until && new Date(body.valid_from) >= new Date(body.valid_until)) {
       return validationError("Valid-from date must be before valid-until date");
     }
+    if (body.usage_limit !== undefined && body.usage_limit !== null && body.usage_limit !== "") {
+      const usageLimitNum = Number(body.usage_limit);
+      if (!Number.isFinite(usageLimitNum) || usageLimitNum <= 0) {
+        return validationError("Usage limit must be greater than zero");
+      }
+    }
     const id = `coupon-${Date.now()}`;
     await execute(
       "INSERT INTO coupons (id, code, description, discount_type, discount_value, min_order_amount, max_discount_amount, usage_limit, per_customer_limit, valid_from, valid_until, is_active, applicability, applicable_ids, applicable_categories, applicable_products) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",

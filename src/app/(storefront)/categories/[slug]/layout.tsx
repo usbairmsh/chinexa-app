@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import pool from "@/lib/db";
 import { type RowDataPacket } from "mysql2/promise";
+import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import { getProductsList } from "@/lib/products";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
 
@@ -41,6 +43,34 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   }
 }
 
-export default function CategoryLayout({ children }: { children: React.ReactNode }) {
-  return children;
+export default async function CategoryLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+
+  // Server-side prefetch, same pattern as the product detail page: the page
+  // below is a client component that reads the exact same React Query key
+  // via useProducts() with these same default params on first render. Without
+  // this, the initial HTML has no product grid at all — just a loading
+  // skeleton — which is exactly the gap that made Google never see a price
+  // on product pages before that was fixed; category pages had the same gap
+  // for their product listings.
+  const queryClient = new QueryClient();
+  const initialParams = { page: 1, page_size: 12, sort_by: "featured" as const, category: slug };
+  await queryClient.prefetchQuery({
+    queryKey: ["products", initialParams],
+    queryFn: () => getProductsList(new URLSearchParams({
+      page: "1", page_size: "12", sort_by: "featured", category: slug,
+    })),
+  });
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      {children}
+    </HydrationBoundary>
+  );
 }

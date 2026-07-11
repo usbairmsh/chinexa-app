@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency, cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth.store";
 
 // Admin status → Customer-friendly label
 const customerStatusLabels: Record<string, string> = {
@@ -64,6 +65,7 @@ interface OrderData {
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const user = useAuthStore((s) => s.user);
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -75,7 +77,8 @@ export default function OrderDetailPage() {
   const [existingReturn, setExistingReturn] = useState<{ id: string; status: string; created_at: string } | null>(null);
 
   useEffect(() => {
-    fetch(`/api/orders/${encodeURIComponent(id)}`)
+    if (!user?.id) { setLoading(false); return; }
+    fetch(`/api/orders/${encodeURIComponent(id)}?customer_id=${encodeURIComponent(user.id)}`)
       .then((r) => { if (!r.ok) throw new Error("Not found"); return r.json(); })
       .then(setOrder)
       .catch(() => setOrder(null))
@@ -90,7 +93,7 @@ export default function OrderDetailPage() {
         }
       })
       .catch(() => {});
-  }, [id]);
+  }, [id, user?.id]);
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);

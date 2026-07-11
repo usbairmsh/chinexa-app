@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import pool, { query, execute, escapeLike } from "@/lib/db";
 import { type RowDataPacket as StockRow } from "mysql2/promise";
-import { validate, validationError } from "@/lib/validate";
+import { validate, validationError, publicServerError } from "@/lib/validate";
 import { logActivity } from "@/lib/log-activity";
 import { notifyAdmin } from "@/lib/notify";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { ensureAccountingTables } from "@/lib/migrate-accounting";
+import { enrichCartItems, getActiveOffers, bestOfferPerLine, validateCoupon, getCustomerTier, type PromoContext } from "@/lib/promotions";
 
 interface OrderRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -118,7 +119,7 @@ export async function GET(req: NextRequest) {
       total, page, page_size: safeLimit, total_pages: Math.max(1, Math.ceil(total / safeLimit)),
     });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("GET /api/orders", error);
   }
 }
 
@@ -129,8 +130,8 @@ export async function POST(req: NextRequest) {
     await ensureAccountingTables();
     const body = await req.json();
     const err = validate([
-      { field: "customer_name", value: body.customer_name, rules: ["required", "string"], label: "Customer name" },
-      { field: "customer_phone", value: body.customer_phone, rules: ["required", "string"], label: "Customer phone" },
+      { field: "customer_name", value: body.customer_name, rules: ["required", "string", { maxLength: 100 }], label: "Customer name" },
+      { field: "customer_phone", value: body.customer_phone, rules: ["required", "string", "phone"], label: "Customer phone" },
       { field: "total", value: Number(body.total), rules: ["required", "number", "positive"], label: "Order total" },
     ]);
     if (err) return validationError(err);
@@ -140,6 +141,11 @@ export async function POST(req: NextRequest) {
     for (const item of body.items) {
       if (!item.product_name || !item.quantity || item.quantity < 1) {
         return validationError("Each order item must have a product name and quantity of at least 1");
+      }
+      // Quantity must be a real whole unit count — a fractional or absurdly
+      // large value would otherwise reach stock deduction/order_items math.
+      if (!Number.isInteger(item.quantity) || item.quantity > 1000) {
+        return validationError(`Invalid quantity for "${item.product_name}"`);
       }
       // Guard against NaN money values reaching the DECIMAL NOT NULL columns
       if (!Number.isFinite(Number(item.unit_price)) || Number(item.unit_price) < 0) {
@@ -176,6 +182,110 @@ export async function POST(req: NextRequest) {
           );
         }
       }
+    }
+
+    // ─── AUTHORITATIVE PRICE RE-DERIVATION ───
+    // A real storefront checkout (source !== "manual") must never trust the
+    // client's own unit_price/subtotal/discount/total — those are client cart
+    // state and a request can be sent directly to this endpoint with any
+    // numbers at all. Admin-recorded manual sales (record-sale-dialog.tsx)
+    // are exempt: an admin legitimately enters a custom price for an offline
+    // sale, and that path already goes through admin-only UI.
+    const isManualSale = body.source === "manual";
+    if (!isManualSale) {
+      const rawItems = body.items.map((item: { product_id?: string; variant_id?: string | null; quantity: number }) => ({
+        product_id: item.product_id || "",
+        variant_id: item.variant_id || null,
+        price: 0, // authoritative price is looked up below, client value is ignored
+        quantity: item.quantity,
+      }));
+      const enriched = await enrichCartItems(rawItems);
+      const enrichedByKey = new Map(enriched.map((e) => [`${e.product_id}::${e.variant_id || ""}`, e]));
+
+      for (const item of body.items) {
+        const key = `${item.product_id || ""}::${item.variant_id || ""}`;
+        const real = enrichedByKey.get(key);
+        // No product_id (e.g. a free-text line item) — nothing to verify against, leave as-is.
+        if (!item.product_id || !real) continue;
+        item.unit_price = real.price;
+        item.total_price = real.price * item.quantity;
+      }
+
+      const realSubtotal = body.items.reduce((sum: number, item: { unit_price: number; quantity: number }) => sum + item.unit_price * item.quantity, 0);
+
+      // Re-derive the offer discount the same way /api/offers/apply does.
+      // The resulting offer id list REPLACES body.applied_offer_ids entirely —
+      // a client claiming an offer that didn't actually match must not be able
+      // to inflate that offer's usage_count for an order it had no effect on.
+      let realOfferDiscount = 0;
+      body.applied_offer_ids = [];
+      if (customerId) {
+        const [offers, tier] = await Promise.all([
+          getActiveOffers(),
+          getCustomerTier(customerId),
+        ]);
+        const ctx: PromoContext = { customerId, tierName: tier?.name ?? null, tierId: tier?.id ?? null };
+        const priced = body.items.map((item: { product_id?: string; variant_id?: string | null; unit_price: number; quantity: number }) => ({
+          product_id: item.product_id || "",
+          variant_id: item.variant_id || null,
+          price: item.unit_price,
+          quantity: item.quantity,
+        }));
+        const enrichedForOffers = await enrichCartItems(priced);
+        const offerResult = bestOfferPerLine(enrichedForOffers, offers, ctx);
+        realOfferDiscount = offerResult.totalDiscount;
+        body.applied_offer_ids = offerResult.appliedOfferIds;
+      }
+
+      // Re-derive the coupon discount the same way /api/coupons/validate does.
+      let realCouponDiscount = 0;
+      if (body.coupon_code) {
+        const couponItems = body.items.map((item: { product_id?: string; variant_id?: string | null; unit_price: number; quantity: number }) => ({
+          product_id: item.product_id || "",
+          variant_id: item.variant_id || null,
+          price: item.unit_price,
+          quantity: item.quantity,
+        }));
+        const couponResult = await validateCoupon(body.coupon_code, customerId, couponItems, realSubtotal);
+        if (!couponResult.valid) {
+          return validationError(`Coupon "${body.coupon_code}" is no longer valid: ${couponResult.message}`);
+        }
+        realCouponDiscount = couponResult.discount;
+      }
+
+      const realDiscount = realOfferDiscount + realCouponDiscount;
+
+      // Shipping is a separate zone/rules engine (division, express, targeted
+      // free-delivery rules) that this endpoint does not re-derive — bounds-check
+      // it instead: never negative, and never "free" unless the recomputed
+      // subtotal actually clears the store's free-delivery threshold.
+      const shippingCost = Number(body.shipping_cost) || 0;
+      if (shippingCost < 0) {
+        return validationError("Invalid shipping cost");
+      }
+      if (shippingCost === 0) {
+        const settingRows = await query<RowDataPacket[]>(
+          "SELECT `key`, value FROM settings WHERE `key` = 'free_delivery_threshold'"
+        );
+        const rawThreshold = settingRows[0]?.value;
+        const freeThreshold = rawThreshold != null
+          ? Number(typeof rawThreshold === "string" ? JSON.parse(rawThreshold) : rawThreshold) || 3000
+          : 3000;
+        // A targeted delivery_rules override (express/category/tier-specific
+        // free delivery) can legitimately waive shipping below the site-wide
+        // threshold — that engine isn't replicated here — so only reject the
+        // extreme case where free shipping is claimed on a cart nowhere near
+        // ANY plausible threshold, which no legitimate rule would grant.
+        if (realSubtotal < freeThreshold * 0.5) {
+          return validationError("Invalid shipping cost for this order");
+        }
+      }
+
+      const realTotal = Math.max(0, realSubtotal - realDiscount + shippingCost);
+
+      body.subtotal = realSubtotal;
+      body.discount = realDiscount;
+      body.total = realTotal;
     }
 
     // ─── ATOMIC STOCK VALIDATION + DEDUCTION in single transaction ───
@@ -362,6 +472,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, id, order_number: orderNumber }, { status: 201 });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("POST /api/orders", error);
   }
 }

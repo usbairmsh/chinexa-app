@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
-import { validate, validationError, dependencyError } from "@/lib/validate";
+import { validate, validationError, dependencyError, publicServerError } from "@/lib/validate";
 import { notifyAdmin } from "@/lib/notify";
 
 export async function GET(req: NextRequest) {
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     const rows = await query<RowDataPacket[]>(`SELECT * FROM reviews ${where} ORDER BY created_at DESC LIMIT ${safeLimit}`, params);
     return NextResponse.json(rows.map((r) => ({ ...r, is_verified_purchase: !!r.is_verified_purchase, is_approved: !!r.is_approved })));
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("GET /api/reviews", error);
   }
 }
 
@@ -31,9 +31,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const err = validate([
       { field: "product_id", value: body.product_id, rules: ["required", "string"], label: "Product" },
-      { field: "customer_name", value: body.customer_name, rules: ["required", "string"], label: "Customer name" },
+      { field: "customer_name", value: body.customer_name, rules: ["required", "string", { maxLength: 255 }], label: "Customer name" },
       { field: "rating", value: Number(body.rating), rules: ["required", "number", { range: [1, 5] }], label: "Rating" },
-      { field: "comment", value: body.comment, rules: ["required", "string", { minLength: 3 }], label: "Comment" },
+      { field: "title", value: body.title, rules: [{ maxLength: 255 }], label: "Review title" },
+      { field: "comment", value: body.comment, rules: ["required", "string", { minLength: 3 }, { maxLength: 5000 }], label: "Comment" },
     ]);
     if (err) return validationError(err);
     const productExists = await query<RowDataPacket[]>("SELECT id FROM products WHERE id = ?", [body.product_id]);
@@ -57,6 +58,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("POST /api/reviews", error);
   }
 }

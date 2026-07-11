@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
-import { validate, validationError } from "@/lib/validate";
+import { validate, validationError, publicServerError } from "@/lib/validate";
+import { getBlogPostBySlug } from "@/lib/blog";
 
 interface BlogRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -12,9 +13,9 @@ export async function GET(req: NextRequest) {
     const limit = Number(searchParams.get("limit")) || 20;
     const slug = searchParams.get("slug");
     if (slug) {
-      const rows = await query<BlogRow[]>("SELECT * FROM blog_posts WHERE slug = ? LIMIT 1", [slug]);
-      if (rows.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
-      return NextResponse.json({ ...rows[0], tags: typeof rows[0].tags === "string" ? JSON.parse(rows[0].tags || "[]") : rows[0].tags || [], is_published: !!rows[0].is_published });
+      const post = await getBlogPostBySlug(slug);
+      if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return NextResponse.json(post);
     }
     const all = searchParams.get("all");
     const safeLimit = Math.max(1, Math.min(Math.floor(limit), 100));
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
     const rows = await query<BlogRow[]>(sql);
     return NextResponse.json(rows.map((r) => ({ ...r, tags: typeof r.tags === "string" ? JSON.parse(r.tags || "[]") : r.tags || [], is_published: !!r.is_published })));
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("GET /api/blog", error);
   }
 }
 
@@ -46,6 +47,6 @@ export async function POST(req: NextRequest) {
     if (message.includes("Duplicate entry")) {
       return NextResponse.json({ error: "A blog post with this title already exists" }, { status: 409 });
     }
-    return NextResponse.json({ error: message }, { status: 500 });
+    return publicServerError("POST /api/blog", error);
   }
 }

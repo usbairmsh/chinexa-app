@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
-import { validate, validationError } from "@/lib/validate";
+import { validate, validationError, publicServerError } from "@/lib/validate";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 
 interface BannerRow extends RowDataPacket { [key: string]: unknown; }
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       settings: typeof r.settings === "string" ? JSON.parse(r.settings) : r.settings || null,
     })));
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("GET /api/banners", error);
   }
 }
 
@@ -50,6 +50,6 @@ export async function POST(req: NextRequest) {
     await logActivity("Created banner", "banner", id, body.title);
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("POST /api/banners", error);
   }
 }

@@ -10,9 +10,21 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const body = await req.json();
 
-    // Validate point range if being updated
-    if (body.min_points !== undefined && body.max_points !== undefined) {
-      if (Number(body.min_points) >= Number(body.max_points)) {
+    // Validate point range whenever EITHER bound is being updated — not just
+    // when both arrive together. A PUT sending only min_points (or only
+    // max_points) previously skipped this check entirely, since the old
+    // condition required both fields present in the same request; that let a
+    // single-field update invert or overlap the tier's range unchecked.
+    if (body.min_points !== undefined || body.max_points !== undefined) {
+      const currentRows = await query<RowDataPacket[]>(
+        "SELECT min_points, max_points FROM membership_tiers WHERE id = ? LIMIT 1",
+        [id]
+      );
+      if (currentRows.length === 0) return NextResponse.json({ error: "Tier not found" }, { status: 404 });
+      const nMin = body.min_points !== undefined ? Number(body.min_points) : Number(currentRows[0].min_points);
+      const nMax = body.max_points !== undefined ? Number(body.max_points) : Number(currentRows[0].max_points);
+
+      if (nMin >= nMax) {
         return NextResponse.json({ error: "Min points must be less than max points" }, { status: 400 });
       }
       // Check overlap with other tiers (exclude self)
@@ -23,8 +35,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       for (const tier of existing) {
         const eMin = Number(tier.min_points);
         const eMax = Number(tier.max_points);
-        const nMin = Number(body.min_points);
-        const nMax = Number(body.max_points);
         if (nMin <= eMax && nMax >= eMin) {
           return NextResponse.json({ error: `Point range overlaps with "${tier.name}" (${eMin}–${eMax} points)` }, { status: 400 });
         }

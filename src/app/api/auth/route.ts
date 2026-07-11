@@ -4,6 +4,12 @@ import bcrypt from "bcryptjs";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { notifyAdmin } from "@/lib/notify";
+import { verifyOtpToken } from "@/lib/otp-token";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { publicServerError } from "@/lib/validate";
+
+const LOGIN_MAX_ATTEMPTS = 10;
+const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 
 // Normalize Bangladesh phone: "01712345678" → "+8801712345678"
 function normalizePhone(phone: string): string {
@@ -35,6 +41,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Phone number and password are required" }, { status: 400 });
       }
       const phone = normalizePhone(rawPhone);
+
+      const ip = getClientIp(req);
+      const byPhone = checkRateLimit(`customer-login:phone:${phone}`, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_MS);
+      const byIp = checkRateLimit(`customer-login:ip:${ip}`, LOGIN_MAX_ATTEMPTS * 3, LOGIN_WINDOW_MS);
+      if (byPhone.limited || byIp.limited) {
+        return NextResponse.json({ error: "Too many login attempts. Please wait a few minutes and try again." }, { status: 429 });
+      }
 
       const rows = await query<RowDataPacket[]>(
         "SELECT id, name, email, phone, avatar, password, is_active FROM customers WHERE phone = ? OR phone = ? LIMIT 1",
@@ -120,9 +133,21 @@ export async function POST(req: NextRequest) {
 
       if (!phone) return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
       if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
+      if (name.length > 100) return NextResponse.json({ error: "Name must be at most 100 characters" }, { status: 400 });
       if (!birthdate) return NextResponse.json({ error: "Birthdate is required" }, { status: 400 });
+      {
+        const dob = new Date(birthdate);
+        const now = new Date();
+        const minDob = new Date(now.getFullYear() - 120, now.getMonth(), now.getDate());
+        if (Number.isNaN(dob.getTime()) || dob > now || dob < minDob) {
+          return NextResponse.json({ error: "Please enter a valid birthdate" }, { status: 400 });
+        }
+      }
       if (!password || password.length < 6) {
         return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+      }
+      if (password.length > 128) {
+        return NextResponse.json({ error: "Password must be at most 128 characters" }, { status: 400 });
       }
 
       // Check if already exists (active or inactive)
@@ -205,15 +230,36 @@ export async function POST(req: NextRequest) {
       }, { status: 201 });
     }
 
-    // ─── RESET PASSWORD: set a new password (call after OTP has been verified) ───
+    // ─── RESET PASSWORD: set a new password (requires a token proving OTP was
+    // actually verified for this exact phone — otherwise anyone who knows a
+    // customer's phone number could reset their password with no OTP at all) ───
     if (action === "reset_password") {
       const rawPhone = (body.phone || "").trim();
       const phone = normalizePhone(rawPhone);
       const password = body.password || "";
+      const otpToken = (body.otp_token || "").trim();
+      const otpCode = (body.otp_code || "").trim();
 
       if (!phone) return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
       if (!password || password.length < 6) {
         return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+      }
+      if (password.length > 128) {
+        return NextResponse.json({ error: "Password must be at most 128 characters" }, { status: 400 });
+      }
+      if (!otpToken || !otpCode) {
+        return NextResponse.json({ error: "Verification session expired. Please request a new code." }, { status: 400 });
+      }
+
+      const payload = verifyOtpToken(otpToken);
+      if (!payload || payload.purpose !== "reset" || payload.code !== otpCode) {
+        return NextResponse.json({ error: "Invalid or tampered verification session. Please request a new code." }, { status: 400 });
+      }
+      if (normalizePhone(payload.phone) !== phone) {
+        return NextResponse.json({ error: "Verification session does not match this phone number." }, { status: 400 });
+      }
+      if (payload.exp < Date.now()) {
+        return NextResponse.json({ error: "OTP has expired. Please request a new code." }, { status: 400 });
       }
 
       const rows = await query<RowDataPacket[]>(
@@ -243,6 +289,9 @@ export async function POST(req: NextRequest) {
       }
       if (new_password.length < 6) {
         return NextResponse.json({ error: "New password must be at least 6 characters" }, { status: 400 });
+      }
+      if (new_password.length > 128) {
+        return NextResponse.json({ error: "New password must be at most 128 characters" }, { status: 400 });
       }
 
       const rows = await query<RowDataPacket[]>("SELECT password FROM customers WHERE id = ?", [customer_id]);
@@ -295,6 +344,6 @@ export async function POST(req: NextRequest) {
     if (message.includes("Duplicate entry")) {
       return NextResponse.json({ error: "This phone number is already registered" }, { status: 409 });
     }
-    return NextResponse.json({ error: message }, { status: 500 });
+    return publicServerError("POST /api/auth", error);
   }
 }

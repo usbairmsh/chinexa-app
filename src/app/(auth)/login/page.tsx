@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/auth.store";
+import { authCookieOpts } from "@/lib/auth-cookie";
 
 // Validate Bangladeshi phone: must be 11 digits starting with 01
 function validateBDPhone(digits: string): string | null {
@@ -68,10 +69,7 @@ function LoginForm() {
         return;
       }
 
-      const cookieOpts = rememberMe
-        ? `path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
-        : `path=/; SameSite=Lax`;
-      document.cookie = `chinexa-role=customer; ${cookieOpts}`;
+      document.cookie = `chinexa-role=customer; ${authCookieOpts(rememberMe)}`;
       login({
         user: data.user,
         token: `token-${Date.now()}`,

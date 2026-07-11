@@ -3,6 +3,7 @@ import { writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import crypto from "crypto";
+import { publicServerError } from "@/lib/validate";
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,9 +17,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // Validate file type
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
-    if (!allowedTypes.includes(file.type)) {
+    // Validate file type — and use THIS as the source of the saved file's
+    // extension (never file.name, which is entirely client-controlled). A
+    // request can set file.type to an allowed value while naming the file
+    // e.g. "payload.svg" — /api/uploads/[...path] serves files back with a
+    // Content-Type derived from the on-disk extension, so trusting the
+    // client's filename would let an attacker get an arbitrary extension
+    // (and, for .svg specifically, script-executing content) saved and
+    // served from this app's own origin.
+    const extByMimeType: Record<string, string> = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp",
+      "image/gif": "gif",
+      "image/avif": "avif",
+    };
+    const ext = extByMimeType[file.type];
+    if (!ext) {
       return NextResponse.json({ error: "Invalid file type. Allowed: JPG, PNG, WebP, GIF, AVIF" }, { status: 400 });
     }
 
@@ -29,9 +44,6 @@ export async function POST(req: NextRequest) {
 
     // Sanitize folder name — only allow alphanumeric, dash, underscore
     const safeFolder = folder.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 30) || "general";
-
-    // Generate unique filename
-    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const uniqueId = crypto.randomBytes(8).toString("hex");
     let fileName: string;
 
@@ -66,7 +78,6 @@ export async function POST(req: NextRequest) {
       type: file.type,
     }, { status: 201 });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Upload failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return publicServerError("POST /api/upload", error);
   }
 }

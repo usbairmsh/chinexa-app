@@ -3,6 +3,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query } from "@/lib/db";
 import { enrichCartItems, getCustomerTier, itemMatchesApplicability, type PromoContext } from "@/lib/promotions";
 import type { OfferApplicability } from "@/types/offer";
+import { publicServerError } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -68,6 +69,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("POST /api/delivery-rules/check", error);
   }
 }

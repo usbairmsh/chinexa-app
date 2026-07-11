@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query } from "@/lib/db";
 import { ensureChatTables } from "@/lib/chat";
+import { publicServerError } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,6 @@ export async function GET(req: NextRequest) {
     );
     return NextResponse.json({ unread: rows.length > 0 ? Number(rows[0].customer_unread) || 0 : 0 });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("GET /api/chat/unread-count", error);
   }
 }

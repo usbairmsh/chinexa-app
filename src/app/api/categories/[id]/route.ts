@@ -3,6 +3,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { deleteUploadedFile } from "@/lib/delete-upload";
+import { publicServerError } from "@/lib/validate";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -23,7 +24,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     await logActivity("Updated category", "category", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("PUT /api/categories/[id]", error);
   }
 }
 
@@ -42,6 +43,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     await logActivity("Deleted category", "category", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("DELETE /api/categories/[id]", error);
   }
 }

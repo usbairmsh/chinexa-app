@@ -59,6 +59,14 @@ export async function POST(req: NextRequest) {
     if (body.start_date && body.end_date && new Date(body.start_date) >= new Date(body.end_date)) {
       return validationError("Start date must be before end date");
     }
+    // A scoped offer with no ids in scope applies to nothing — this is
+    // almost always a mistake (the admin picked a scope but forgot to
+    // actually select which products/categories/etc it targets), not an
+    // intentional "affects nobody" offer.
+    const scopedApplicability = ["products", "categories", "subcategories", "brands", "customers", "tiers"];
+    if (scopedApplicability.includes(body.applicability) && (!Array.isArray(body.applicable_ids) || body.applicable_ids.length === 0)) {
+      return validationError(`Select at least one ${body.applicability === "customers" ? "customer" : body.applicability === "tiers" ? "tier" : body.applicability.replace(/s$/, "")} for this offer to apply to`);
+    }
 
     const id = `offer-${Date.now()}`;
     const label = body.discount || discountLabel(discountType, discountValue);

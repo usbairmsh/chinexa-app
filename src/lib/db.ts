@@ -13,7 +13,19 @@ const pool: Pool =
     database: process.env.DB_NAME || "chinexa",
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0,
+    // Bounded, not 0 (unbounded) — a burst of concurrent requests past the
+    // connection limit now fails fast with a clear error past 50 queued
+    // requests instead of piling up in memory indefinitely under load.
+    queueLimit: 50,
+    // Neither was previously set: a connection can silently go stale (VPS/
+    // Docker NAT dropping an idle TCP socket) while the pool still thinks
+    // it's live, surfacing as an ECONNRESET/PROTOCOL_CONNECTION_LOST on the
+    // next query. keepAlive pings the connection so idle-reap is far less
+    // likely; connectTimeout stops a genuinely wedged connection attempt
+    // from hanging a request indefinitely instead of failing within 10s.
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10000,
+    connectTimeout: 10000,
   });
 
 if (process.env.NODE_ENV !== "production") {

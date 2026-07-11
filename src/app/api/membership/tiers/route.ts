@@ -3,6 +3,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
+import { validate, validationError, publicServerError } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ export async function GET() {
     }));
     return NextResponse.json(tiers);
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("GET /api/membership/tiers", error);
   }
 }
 
@@ -34,6 +35,11 @@ export async function POST(req: NextRequest) {
   try {
     await ensurePromotionColumns();
     const body = await req.json();
+
+    const nameErr = validate([
+      { field: "name", value: body.name, rules: ["required", "string", { minLength: 2 }, { maxLength: 100 }], label: "Tier name" },
+    ]);
+    if (nameErr) return validationError(nameErr);
 
     // Validate min < max
     if (Number(body.min_points) >= Number(body.max_points)) {
@@ -76,6 +82,6 @@ export async function POST(req: NextRequest) {
     await logActivity("Created membership tier", "membership", id, body.name);
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("POST /api/membership/tiers", error);
   }
 }

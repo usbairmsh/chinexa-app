@@ -90,3 +90,17 @@ export function dependencyError(entity: string, id?: string) {
     { status: 400 }
   );
 }
+
+/**
+ * Return a generic 500 for a caught error on a PUBLIC route (reachable by an
+ * anonymous storefront visitor or logged-in customer) — logs the real
+ * error.message server-side for debugging, but never echoes it to the
+ * client. A raw MySQL error can contain table/column names and query
+ * fragments that are useful to an attacker probing for schema details; admin
+ * routes are unaffected by this and may keep returning error.message since
+ * only an already-authenticated admin sees those.
+ */
+export function publicServerError(context: string, error: unknown) {
+  console.error(`[${context}]`, error);
+  return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+}

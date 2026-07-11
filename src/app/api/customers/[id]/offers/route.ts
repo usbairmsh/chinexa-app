@@ -3,6 +3,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query } from "@/lib/db";
 import { getCustomerTier, resolveApplicableNames } from "@/lib/promotions";
 import type { OfferApplicability } from "@/types/offer";
+import { publicServerError } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
     return NextResponse.json(offers);
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("GET /api/customers/[id]/offers", error);
   }
 }

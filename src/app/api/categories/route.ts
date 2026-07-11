@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
-import { validate, validationError, dependencyError } from "@/lib/validate";
+import { validate, validationError, dependencyError, publicServerError } from "@/lib/validate";
 
 interface CategoryRow extends RowDataPacket {
   id: string; name: string; slug: string; description: string | null;
@@ -53,7 +53,7 @@ export async function GET() {
     }));
     return NextResponse.json(parents);
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("GET /api/categories", error);
   }
 }
 
@@ -70,7 +70,7 @@ export async function PUT(req: NextRequest) {
     }
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+    return publicServerError("PUT /api/categories", error);
   }
 }
 
@@ -98,6 +98,6 @@ export async function POST(req: NextRequest) {
     if (message.includes("Duplicate entry")) {
       return NextResponse.json({ error: "A category with this slug already exists" }, { status: 409 });
     }
-    return NextResponse.json({ error: message }, { status: 500 });
+    return publicServerError("POST /api/categories", error);
   }
 }
