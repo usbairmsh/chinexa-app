@@ -166,7 +166,7 @@ export default function AccountLayout({
                     <button
                       key={item.href}
                       onClick={() => openChat("help_and_support")}
-                      className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-xl text-charcoal/70 hover:bg-pearl hover:text-charcoal transition-colors"
+                      className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-md text-charcoal/70 hover:bg-pearl hover:text-charcoal transition-colors"
                     >
                       <item.icon className="h-5 w-5" />
                       <span className="text-[10px] font-medium leading-none text-center">{item.label}</span>
@@ -176,7 +176,7 @@ export default function AccountLayout({
                       key={item.href}
                       href={item.href}
                       className={cn(
-                        "flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-xl transition-colors",
+                        "flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-md transition-colors",
                         isActive(item.href)
                           ? "bg-secondary/10 text-secondary"
                           : "text-charcoal/70 hover:bg-pearl hover:text-charcoal"
@@ -190,7 +190,7 @@ export default function AccountLayout({
                 {isAuthenticated ? (
                   <button
                     onClick={handleLogout}
-                    className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-xl text-charcoal/70 hover:bg-destructive/5 hover:text-destructive transition-colors"
+                    className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-md text-charcoal/70 hover:bg-destructive/5 hover:text-destructive transition-colors"
                   >
                     <LogOut className="h-5 w-5" />
                     <span className="text-[10px] font-medium leading-none">Sign Out</span>
@@ -198,7 +198,7 @@ export default function AccountLayout({
                 ) : (
                   <Link
                     href="/login"
-                    className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-xl text-secondary transition-colors"
+                    className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-md text-secondary transition-colors"
                   >
                     <LogOut className="h-5 w-5 rotate-180" />
                     <span className="text-[10px] font-medium leading-none">Sign In</span>
