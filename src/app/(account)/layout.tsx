@@ -114,31 +114,40 @@ export default function AccountLayout({
               quick-nav, replacing the full sidebar so real page content starts
               almost immediately instead of after a screen of chrome. ── */}
           <div className="lg:hidden -mx-4 sm:-mx-6 mb-4">
-            <Link
-              href="/dashboard/profile"
-              className={cn("mx-4 sm:mx-6 flex items-center gap-3 rounded-2xl px-4 py-3 shadow-card", tierColor.className)}
+            {/* Same tier-tinted card used in the desktop sidebar — big centered
+                avatar, name + tier pill inline, phone below, View Profile button. */}
+            <div
+              className={cn("mx-4 sm:mx-6 rounded-2xl p-5 flex flex-col items-center text-center shadow-card", tierColor.className)}
               style={tierColor.style}
             >
-              <Avatar className="h-11 w-11 ring-2 ring-white/70 shadow-sm shrink-0">
+              <Avatar className="h-16 w-16 ring-2 ring-white/70 shadow-md">
                 {user?.avatar && <AvatarImage src={user.avatar} alt={user.name || "Profile"} />}
-                <AvatarFallback className="text-sm font-semibold bg-secondary text-white">
+                <AvatarFallback className="text-lg font-semibold bg-secondary text-white">
                   {user?.name ? getInitials(user.name) : "G"}
                 </AvatarFallback>
               </Avatar>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-heading font-semibold text-sm truncate">{user?.name || "Guest User"}</span>
-                  {badge?.badge_color && <VerifiedBadge color={badge.badge_color} opacity={badge.badge_opacity} size={14} tooltip={badge.badge_name} />}
-                  {badge?.tier_name && (
-                    <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-white/70">
-                      {badge.tier_name}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs opacity-80 truncate">{user?.phone || "Not signed in"}</p>
+
+              <div className="mt-3 flex items-center gap-1.5 min-w-0 max-w-full">
+                <span className="font-heading font-semibold text-base truncate">{user?.name || "Guest User"}</span>
+                {badge?.badge_color && <VerifiedBadge color={badge.badge_color} opacity={badge.badge_opacity} size={17} tooltip={badge.badge_name} />}
+                {badge?.tier_name && (
+                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-white/70">
+                    {badge.tier_name}
+                  </span>
+                )}
               </div>
-              <ChevronRight className="h-4 w-4 opacity-70 shrink-0" />
-            </Link>
+
+              <p className="mt-0.5 text-xs opacity-80 truncate max-w-full">
+                {user?.phone || "Not signed in"}
+              </p>
+
+              <Link
+                href="/dashboard/profile"
+                className="mt-4 w-full py-2 rounded-xl bg-white/90 text-charcoal text-sm font-medium hover:bg-white transition-colors"
+              >
+                View Profile
+              </Link>
+            </div>
 
             <nav className="mt-3 flex items-center gap-2 overflow-x-auto px-4 sm:px-6 pb-1 scrollbar-none">
               {accountNav.map((item) =>
