@@ -4,7 +4,6 @@ import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
-import { publicServerError } from "@/lib/validate";
 import { normalizePermissions } from "@/lib/admin-permissions";
 
 // Admin credentials guard the whole store — cap login attempts per
@@ -208,6 +207,12 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Error";
     if (msg.includes("Duplicate entry")) return NextResponse.json({ error: "Username already exists" }, { status: 409 });
-    return publicServerError("POST /api/admin-auth", error);
+    // Every action in this route other than "login" is gated on the
+    // requester's admin_users.role being "superadmin" (checked inline above,
+    // predating the shared requirePermission/requireSuperadmin helpers) — an
+    // admin-only route, so surface the real error like other admin CRUD
+    // routes instead of hiding which constraint/field actually failed.
+    console.error("[POST /api/admin-auth]", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to process admin request" }, { status: 500 });
   }
 }

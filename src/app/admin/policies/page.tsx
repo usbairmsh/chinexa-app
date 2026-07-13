@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AdminButton } from "@/components/admin/shared/admin-button";
-import { randomId } from "@/lib/utils";
+import { randomId, collectMissingFields } from "@/lib/utils";
 import type { PolicyPage, PolicySection } from "@/types/policy";
 import { DEFAULT_POLICY_PAGES } from "@/types/policy";
 import { useAdmin } from "@/contexts/admin-context";
@@ -27,6 +27,7 @@ export default function AdminPoliciesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PolicyPage | null>(null);
+  const [formError, setFormError] = useState("");
 
   // Form
   const [formTitle, setFormTitle] = useState("");
@@ -64,7 +65,7 @@ export default function AdminPoliciesPage() {
     setEditingSlug(null);
   };
 
-  const openCreate = () => { resetForm(); setDialogOpen(true); };
+  const openCreate = () => { resetForm(); setFormError(""); setDialogOpen(true); };
 
   const openEdit = (policy: PolicyPage) => {
     setEditingSlug(policy.slug);
@@ -73,6 +74,7 @@ export default function AdminPoliciesPage() {
     setFormIntro(policy.intro);
     setFormSections(policy.sections.length > 0 ? policy.sections : [{ heading: "", body: [""] }]);
     setSlugManuallyEdited(true);
+    setFormError("");
     setDialogOpen(true);
   };
 
@@ -92,7 +94,12 @@ export default function AdminPoliciesPage() {
   const removeSection = (i: number) => setFormSections((prev) => prev.filter((_, idx) => idx !== i));
 
   const handleSave = async () => {
-    if (!formTitle.trim()) return;
+    const missing = collectMissingFields([
+      { label: "Page Title", value: formTitle },
+      { label: "URL Slug", value: formSlug },
+    ]);
+    if (missing) { setFormError(missing); return; }
+    setFormError("");
     const slug = editingSlug || slugify(formSlug || formTitle);
     const cleanedSections = formSections
       .map((s) => ({ heading: s.heading.trim(), body: s.body.map((b) => b.trim()).filter(Boolean) }))
@@ -252,6 +259,9 @@ export default function AdminPoliciesPage() {
             </div>
           </div>
 
+          {formError && (
+            <p className="shrink-0 text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">{formError}</p>
+          )}
           <DialogFooter className="shrink-0">
             <button onClick={() => { setDialogOpen(false); resetForm(); }} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
             <button

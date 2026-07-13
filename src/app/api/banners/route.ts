@@ -53,6 +53,9 @@ export async function POST(req: NextRequest) {
     await logActivity("Created banner", "banner", id, body.title);
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {
-    return publicServerError("POST /api/banners", error);
+    // Admin-only route — surface the real error instead of a generic message
+    // that hides which field/constraint actually failed.
+    console.error("[POST /api/banners]", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to create banner" }, { status: 500 });
   }
 }

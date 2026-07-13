@@ -149,7 +149,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return publicServerError("PUT /api/products/[id]", error);
+    // Admin-only route — surface the real error (see POST /api/products for
+    // the same reasoning) instead of publicServerError's generic message.
+    console.error("[PUT /api/products/[id]]", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to update product" }, { status: 500 });
   }
 }
 
@@ -177,6 +180,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     await logActivity("Deleted product", "product", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return publicServerError("DELETE /api/products/[id]", error);
+    console.error("[DELETE /api/products/[id]]", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to delete product" }, { status: 500 });
   }
 }

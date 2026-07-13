@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDateShort, cn } from "@/lib/utils";
+import { formatDateShort, cn, collectMissingFields } from "@/lib/utils";
 
 type Audience = "all" | "tiers" | "customers";
 type NotifType = "promo" | "loyalty" | "order" | "system";
@@ -102,7 +102,13 @@ export default function AdminNotificationsPage() {
       (audience === "customers" && selectedCustomers.length > 0));
 
   const handleSend = async () => {
-    if (!canSend || sending) return;
+    if (sending) return;
+    const missing = collectMissingFields([
+      { label: "Title", value: title },
+      { label: "Message", value: message },
+    ]);
+    if (missing) { setError(missing); return; }
+    if (!canSend) return;
     setSending(true);
     setError("");
     setSentMessage("");

@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ImageUpload } from "@/components/admin/shared/image-upload";
 import { ImagePositionEditor } from "@/components/admin/shared/image-position-editor";
 import { FieldLabel } from "@/components/admin/shared/field-label";
-import { cn } from "@/lib/utils";
+import { cn, collectMissingFields } from "@/lib/utils";
 import { CountrySearch } from "@/components/admin/shared/country-search";
 import { BrandSearch } from "@/components/admin/shared/brand-search";
 import { getIconById, type TrustBadge } from "@/lib/trust-badges";
@@ -223,11 +223,14 @@ export default function AddProductPage() {
   };
 
   const handleSave = async () => {
-    if (!productName.trim()) { setError("Product name is required"); return; }
     const firstVariant = variants[0];
-    if (!firstVariant?.name.trim()) { setError("At least one variant with a name is required"); return; }
-    if (!firstVariant?.price) { setError("Variant price is required"); return; }
-    if (!images.some((img) => img.url)) { setError("At least 1 product image is required"); return; }
+    const missing = collectMissingFields([
+      { label: "Product Name", value: productName },
+      { label: "Variant Name", value: firstVariant?.name },
+      { label: "Variant Price", value: firstVariant?.price },
+      { label: "Product Image", value: images.some((img) => img.url) },
+    ]);
+    if (missing) { setError(missing); return; }
     setError("");
     setSaving(true);
 

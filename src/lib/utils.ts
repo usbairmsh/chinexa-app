@@ -5,6 +5,22 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Checks a list of { label, value } pairs and returns a single message
+ * listing every empty one, e.g. "Please fill in: Name, Price, Image" —
+ * or null if all are present. `value` counts as empty when it's a blank/
+ * whitespace-only string, false/0-as-"unset" is NOT treated as empty (only
+ * strings are trim-checked; pass a boolean expression directly for
+ * non-string requirements like "at least one image uploaded").
+ */
+export function collectMissingFields(fields: { label: string; value: unknown }[]): string | null {
+  const missing = fields
+    .filter(({ value }) => (typeof value === "string" ? !value.trim() : !value))
+    .map(({ label }) => label);
+  if (missing.length === 0) return null;
+  return `Please fill in: ${missing.join(", ")}`;
+}
+
 export function formatCurrency(amount: number): string {
   return `৳${amount.toLocaleString("en-BD")}`;
 }

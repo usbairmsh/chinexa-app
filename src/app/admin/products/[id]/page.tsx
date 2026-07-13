@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ImageUpload } from "@/components/admin/shared/image-upload";
 import { ImagePositionEditor } from "@/components/admin/shared/image-position-editor";
 import { FieldLabel } from "@/components/admin/shared/field-label";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, collectMissingFields } from "@/lib/utils";
 import { CountrySearch } from "@/components/admin/shared/country-search";
 import { BrandSearch } from "@/components/admin/shared/brand-search";
 import { getIconById, type TrustBadge } from "@/lib/trust-badges";
@@ -228,10 +228,13 @@ export default function EditProductPage() {
   const updateVariant = (vid: string, field: keyof VariantRow, value: string) => setVariants(variants.map((v) => v.id === vid ? { ...v, [field]: value } : v));
 
   const handleSave = async () => {
-    if (!productName.trim()) { setError("Product name is required"); return; }
     const firstVariant = variants[0];
-    if (!firstVariant?.name.trim()) { setError("At least one variant with a name is required"); return; }
-    if (!firstVariant?.price) { setError("Variant price is required"); return; }
+    const missing = collectMissingFields([
+      { label: "Product Name", value: productName },
+      { label: "Variant Name", value: firstVariant?.name },
+      { label: "Variant Price", value: firstVariant?.price },
+    ]);
+    if (missing) { setError(missing); return; }
     setError(""); setSaving(true);
     const basePrice = Number(firstVariant.price) || 0;
     const baseCostPrice = Number(firstVariant.cost_price) || 0;

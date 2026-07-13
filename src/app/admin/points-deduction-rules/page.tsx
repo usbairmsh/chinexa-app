@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { FieldLabel } from "@/components/admin/shared/field-label";
-import { cn, randomId } from "@/lib/utils";
+import { cn, randomId, collectMissingFields } from "@/lib/utils";
 import { useAdmin } from "@/contexts/admin-context";
 import {
   DEFAULT_DEDUCTION_ENGINE_CONFIG, DEFAULT_RULE_INTERVAL_DAYS,
@@ -40,33 +40,70 @@ const TYPE_META: Record<DeductionRuleType, { label: string; description: string;
 
 function validateRule(rule: DeductionRule): string[] {
   const errors: string[] = [];
-  if (!rule.name.trim()) errors.push("Rule name is required.");
+
+  // Missing-field checks — collected into one combined message instead of
+  // reporting only the first blank field.
+  const missingFields: { label: string; value: unknown }[] = [
+    { label: "Rule Name", value: rule.name },
+  ];
   if (rule.advancedEnabled) {
-    if (!Number.isFinite(rule.repeatIntervalDays) || rule.repeatIntervalDays < 0) errors.push("Repeat interval must be zero or a positive number of days.");
-    if (!rule.notificationTitle.trim()) errors.push("Notification title is required.");
-    if (!rule.notificationMessage.trim()) errors.push("Notification message is required.");
+    missingFields.push(
+      { label: "Notification Title", value: rule.notificationTitle },
+      { label: "Notification Message", value: rule.notificationMessage },
+    );
   }
   switch (rule.type) {
     case "inactivity":
-      if (!rule.inactiveDays || rule.inactiveDays < 1) errors.push("Inactive-for days must be at least 1.");
-      if (!rule.deductionAmount || rule.deductionAmount < 1) errors.push("Deduction amount must be at least 1 point.");
+      missingFields.push({ label: "Inactive For", value: rule.inactiveDays }, { label: "Deduct", value: rule.deductionAmount });
       break;
     case "points_expiry":
-      if (!rule.expiryDays || rule.expiryDays < 1) errors.push("Expiry age must be at least 1 day.");
+      missingFields.push({ label: "Expire Points Older Than", value: rule.expiryDays });
       break;
     case "low_spend":
-      if (!rule.windowDays || rule.windowDays < 1) errors.push("Spend window must be at least 1 day.");
-      if (rule.minSpendThreshold === undefined || rule.minSpendThreshold === null || rule.minSpendThreshold < 0) errors.push("Minimum spend is required.");
-      if (!rule.deductionAmount || rule.deductionAmount < 1) errors.push("Deduction amount must be at least 1 point.");
+      missingFields.push(
+        { label: "Spend Window", value: rule.windowDays },
+        { label: "Minimum Spend", value: rule.minSpendThreshold },
+        { label: "Deduct", value: rule.deductionAmount },
+      );
       break;
     case "tier_based":
-      if (rule.tierIds.length === 0) errors.push("Select at least one tier.");
-      if (!rule.deductionAmount || rule.deductionAmount < 1) errors.push("Deduction amount must be at least 1 point.");
+      missingFields.push({ label: "Applies to Tiers", value: rule.tierIds.length > 0 }, { label: "Deduct", value: rule.deductionAmount });
       break;
     case "return_abuse":
-      if (!rule.minOrders || rule.minOrders < 1) errors.push("Minimum orders must be at least 1.");
-      if (!rule.returnRateThresholdPct || rule.returnRateThresholdPct <= 0) errors.push("Return rate threshold must be greater than 0%.");
-      if (!rule.deductionAmount || rule.deductionAmount < 1) errors.push("Deduction amount must be at least 1 point.");
+      missingFields.push(
+        { label: "Minimum Orders", value: rule.minOrders },
+        { label: "Return Rate Threshold", value: rule.returnRateThresholdPct },
+        { label: "Deduct", value: rule.deductionAmount },
+      );
+      break;
+  }
+  const missing = collectMissingFields(missingFields);
+  if (missing) errors.push(missing);
+
+  // Value-constraint checks (already present and non-zero, but out of range) — kept separate.
+  if (rule.advancedEnabled) {
+    if (!Number.isFinite(rule.repeatIntervalDays) || rule.repeatIntervalDays < 0) errors.push("Repeat interval must be zero or a positive number of days.");
+  }
+  switch (rule.type) {
+    case "inactivity":
+      if (rule.inactiveDays && rule.inactiveDays < 1) errors.push("Inactive-for days must be at least 1.");
+      if (rule.deductionAmount && rule.deductionAmount < 1) errors.push("Deduction amount must be at least 1 point.");
+      break;
+    case "points_expiry":
+      if (rule.expiryDays && rule.expiryDays < 1) errors.push("Expiry age must be at least 1 day.");
+      break;
+    case "low_spend":
+      if (rule.windowDays && rule.windowDays < 1) errors.push("Spend window must be at least 1 day.");
+      if (rule.minSpendThreshold !== undefined && rule.minSpendThreshold !== null && rule.minSpendThreshold < 0) errors.push("Minimum spend cannot be negative.");
+      if (rule.deductionAmount && rule.deductionAmount < 1) errors.push("Deduction amount must be at least 1 point.");
+      break;
+    case "tier_based":
+      if (rule.deductionAmount && rule.deductionAmount < 1) errors.push("Deduction amount must be at least 1 point.");
+      break;
+    case "return_abuse":
+      if (rule.minOrders && rule.minOrders < 1) errors.push("Minimum orders must be at least 1.");
+      if (rule.returnRateThresholdPct && rule.returnRateThresholdPct <= 0) errors.push("Return rate threshold must be greater than 0%.");
+      if (rule.deductionAmount && rule.deductionAmount < 1) errors.push("Deduction amount must be at least 1 point.");
       break;
   }
   return errors;

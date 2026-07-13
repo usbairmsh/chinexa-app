@@ -480,7 +480,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return publicServerError("PUT /api/orders/[id]", error);
+    console.error("[PUT /api/orders/[id]]", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to update order" }, { status: 500 });
   }
 }
 
@@ -545,6 +546,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     await logActivity("Order deleted", "order", orderId, `Order ${order.order_number}`);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return publicServerError("DELETE /api/orders/[id]", error);
+    console.error("[DELETE /api/orders/[id]]", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to delete order" }, { status: 500 });
   }
 }

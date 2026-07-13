@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, cn, collectMissingFields } from "@/lib/utils";
 import { useAdmin } from "@/contexts/admin-context";
 
 interface Loan {
@@ -86,9 +86,13 @@ export function LoansTab() {
   };
 
   const handleSaveLoan = async () => {
-    if (!lenderName.trim()) { setFormError("Lender name is required"); return; }
-    if (!principal || Number(principal) <= 0) { setFormError("Principal must be a positive amount"); return; }
-    if (!startDate) { setFormError("Start date is required"); return; }
+    const missing = collectMissingFields([
+      { label: "Lender Name", value: lenderName },
+      { label: "Principal", value: principal },
+      { label: "Start Date", value: startDate },
+    ]);
+    if (missing) { setFormError(missing); return; }
+    if (Number(principal) <= 0) { setFormError("Principal must be a positive amount"); return; }
     setFormError("");
     setSaving(true);
     try {
@@ -119,9 +123,13 @@ export function LoansTab() {
   };
 
   const handleSaveRepayment = async () => {
-    if (!repayLoanId) { setRepayError("Select a loan"); return; }
-    if (!repayAmount || Number(repayAmount) <= 0) { setRepayError("Amount must be positive"); return; }
-    if (!repayDate) { setRepayError("Repayment date is required"); return; }
+    const missing = collectMissingFields([
+      { label: "Loan", value: repayLoanId },
+      { label: "Amount", value: repayAmount },
+      { label: "Date", value: repayDate },
+    ]);
+    if (missing) { setRepayError(missing); return; }
+    if (Number(repayAmount) <= 0) { setRepayError("Amount must be positive"); return; }
     setRepayError("");
     setRepaySaving(true);
     try {

@@ -73,7 +73,8 @@ export async function PUT(req: NextRequest) {
     }
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return publicServerError("PUT /api/categories", error);
+    console.error("[PUT /api/categories]", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to reorder categories" }, { status: 500 });
   }
 }
 
@@ -103,6 +104,7 @@ export async function POST(req: NextRequest) {
     if (message.includes("Duplicate entry")) {
       return NextResponse.json({ error: "A category with this slug already exists" }, { status: 409 });
     }
-    return publicServerError("POST /api/categories", error);
+    console.error("[POST /api/categories]", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to create category" }, { status: 500 });
   }
 }

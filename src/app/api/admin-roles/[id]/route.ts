@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
-import { publicServerError, validationError } from "@/lib/validate";
+import { validationError } from "@/lib/validate";
 import { requireSuperadmin } from "@/lib/admin-permissions-server";
 import { ensureRolesTable } from "@/lib/migrate-roles";
 
@@ -22,7 +22,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     await logActivity("Updated role", "role", id, String(body.name).trim());
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return publicServerError("PUT /api/admin-roles/[id]", error);
+    // Superadmin-gated (requireSuperadmin above) — surface the real error.
+    console.error("[PUT /api/admin-roles/[id]]", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to update role" }, { status: 500 });
   }
 }
 
@@ -40,6 +42,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     await logActivity("Deleted role", "role", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return publicServerError("DELETE /api/admin-roles/[id]", error);
+    // Superadmin-gated (requireSuperadmin above) — surface the real error.
+    console.error("[DELETE /api/admin-roles/[id]]", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to delete role" }, { status: 500 });
   }
 }

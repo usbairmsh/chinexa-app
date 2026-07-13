@@ -108,6 +108,11 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({ error: "Provide key+value or settings object" }, { status: 400 });
   } catch (error: unknown) {
-    return publicServerError("PUT /api/settings", error);
+    // Every write path above requires an admin permission via requirePermission
+    // before reaching here (see permissionForKey / SETTINGS_KEY_PERMISSIONS) —
+    // unlike GET, this route is never called by public/storefront code, so it's
+    // safe to surface the real error instead of a generic message.
+    console.error("[PUT /api/settings]", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to update settings" }, { status: 500 });
   }
 }

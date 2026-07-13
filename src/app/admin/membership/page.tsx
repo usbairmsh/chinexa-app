@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { FieldLabel } from "@/components/admin/shared/field-label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, collectMissingFields } from "@/lib/utils";
 import type { MembershipTier } from "@/types/membership";
 
 /** Convert hex to light bg + dark text color pair for tier name badges */
@@ -26,6 +26,7 @@ export default function AdminMembershipPage() {
   const [tiers, setTiers] = useState<MembershipTier[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
   const [pointsPerTaka, setPointsPerTaka] = useState(10);
   const [pointsEnabled, setPointsEnabled] = useState(true);
   const [settingsLoading, setSettingsLoading] = useState(false);
@@ -75,6 +76,7 @@ export default function AdminMembershipPage() {
     setFormBadgeEnabled(false); setFormBadgeColor("#3B82F6"); setFormBadgeOpacity(1);
     setFormBenefits([""]); setFormSortOrder(0); setFormActive(true);
     setEditTier(null);
+    setFormError("");
   };
 
   const openCreate = () => {
@@ -96,11 +98,14 @@ export default function AdminMembershipPage() {
     setFormBenefits(tier.benefits.length > 0 ? tier.benefits : [""]);
     setFormSortOrder(tier.sort_order);
     setFormActive(tier.is_active);
+    setFormError("");
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
-    if (!formName.trim()) return;
+    const missing = collectMissingFields([{ label: "Tier Name", value: formName }]);
+    if (missing) { setFormError(missing); return; }
+    setFormError("");
     setSaving(true);
     try {
       const payload = {
@@ -439,6 +444,7 @@ export default function AdminMembershipPage() {
               <Switch checked={formActive} onCheckedChange={setFormActive} />
               <label className="text-sm text-charcoal-lighter">Active</label>
             </div>
+            {formError && <p className="text-xs text-destructive">{formError}</p>}
           </div>
           <DialogFooter className="shrink-0 pt-3">
             <AdminButton variant="outline" size="sm" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</AdminButton>

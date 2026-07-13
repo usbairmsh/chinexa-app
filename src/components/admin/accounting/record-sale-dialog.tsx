@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AdminButton } from "@/components/admin/shared/admin-button";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, collectMissingFields } from "@/lib/utils";
 
 interface ProductOption { id: string; name: string; price: number; variants: { id: string; name: string; value: string; price_adjustment: number }[]; }
 interface LineItem {
@@ -97,7 +97,11 @@ export function RecordSaleDialog({ open, onOpenChange, onRecorded }: RecordSaleD
   const productOptionsByKey = (key: string): ProductOption[] => productOptions[key] || [];
 
   const handleSave = async () => {
-    if (!customerName.trim() || !customerPhone.trim()) { setError("Customer name and phone are required"); return; }
+    const missing = collectMissingFields([
+      { label: "Customer Name", value: customerName },
+      { label: "Customer Phone", value: customerPhone },
+    ]);
+    if (missing) { setError(missing); return; }
     const validItems = items.filter((it) => it.product && Number(it.quantity) > 0 && Number(it.unit_price) >= 0);
     if (validItems.length === 0) { setError("Add at least one valid product line"); return; }
     setError("");

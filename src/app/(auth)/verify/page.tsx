@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/auth.store";
 import { authCookieOpts } from "@/lib/auth-cookie";
+import { collectMissingFields } from "@/lib/utils";
 
 const RESEND_COOLDOWN_SECONDS = 90;
 
@@ -162,7 +163,12 @@ function VerifyForm() {
   const handleSetNewPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!newPassword || newPassword.length < 6) {
+    const missing = collectMissingFields([
+      { label: "New Password", value: newPassword },
+      { label: "Confirm New Password", value: confirmNewPassword },
+    ]);
+    if (missing) { setError(missing); return; }
+    if (newPassword.length < 6) {
       setError("Password must be at least 6 characters");
       return;
     }

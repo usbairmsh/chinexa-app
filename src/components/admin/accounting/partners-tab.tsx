@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, collectMissingFields } from "@/lib/utils";
 import { useAdmin } from "@/contexts/admin-context";
 
 interface Partner {
@@ -84,10 +84,14 @@ export function PartnersTab() {
   };
 
   const handleSavePartner = async () => {
-    if (!name.trim()) { setFormError("Partner name is required"); return; }
+    const missing = collectMissingFields([
+      { label: "Partner Name", value: name },
+      { label: "Share Percentage", value: sharePercentage },
+      { label: "Join Date", value: joinDate },
+    ]);
+    if (missing) { setFormError(missing); return; }
     const pct = Number(sharePercentage);
     if (!Number.isFinite(pct) || pct < 0 || pct > 100) { setFormError("Share percentage must be between 0 and 100"); return; }
-    if (!joinDate) { setFormError("Join date is required"); return; }
     setFormError("");
     setSaving(true);
     try {
@@ -118,9 +122,13 @@ export function PartnersTab() {
   };
 
   const handleSaveTransaction = async () => {
-    if (!txnPartnerId) { setTxnError("Select a partner"); return; }
-    if (!txnAmount || Number(txnAmount) <= 0) { setTxnError("Amount must be positive"); return; }
-    if (!txnDate) { setTxnError("Transaction date is required"); return; }
+    const missing = collectMissingFields([
+      { label: "Partner", value: txnPartnerId },
+      { label: "Amount", value: txnAmount },
+      { label: "Date", value: txnDate },
+    ]);
+    if (missing) { setTxnError(missing); return; }
+    if (Number(txnAmount) <= 0) { setTxnError("Amount must be positive"); return; }
     setTxnError("");
     setTxnSaving(true);
     try {

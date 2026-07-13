@@ -34,7 +34,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "";
     if (message.includes("Duplicate entry")) return NextResponse.json({ error: "A category with this name already exists" }, { status: 409 });
-    return NextResponse.json({ error: "Failed to update category" }, { status: 500 });
+    console.error("[PATCH /api/accounting/expense-categories/[id]]", error);
+    return NextResponse.json({ error: message || "Failed to update category" }, { status: 500 });
   }
 }
 

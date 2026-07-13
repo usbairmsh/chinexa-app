@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DIVISIONS } from "@/lib/constants";
 import { useAuthStore } from "@/stores/auth.store";
-import { cn } from "@/lib/utils";
+import { cn, collectMissingFields } from "@/lib/utils";
 
 interface Address {
   id: string; label: string; name: string; phone: string;
@@ -31,6 +31,7 @@ export default function AddressesPage() {
   const [editAddr, setEditAddr] = useState<Address | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<Address | null>(null);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   // Form
   const [fLabel, setFLabel] = useState("Home");
@@ -58,7 +59,7 @@ export default function AddressesPage() {
   const resetForm = () => {
     setFLabel("Home"); setFName(user?.name || ""); setFPhone(user?.phone || "");
     setFAddr1(""); setFAddr2(""); setFCity(""); setFDistrict(""); setFDivision(""); setFPostal("");
-    setFDefault(false); setEditAddr(null);
+    setFDefault(false); setEditAddr(null); setError("");
   };
 
   const openCreate = () => { resetForm(); setFDefault(addresses.length === 0); setDialogOpen(true); };
@@ -74,7 +75,13 @@ export default function AddressesPage() {
   };
 
   const handleSave = async () => {
-    if (!user?.id || !fName.trim() || !fAddr1.trim()) return;
+    if (!user?.id) return;
+    const missing = collectMissingFields([
+      { label: "Full Name", value: fName },
+      { label: "Address Line 1", value: fAddr1 },
+    ]);
+    if (missing) { setError(missing); return; }
+    setError("");
     setSaving(true);
     try {
       const payload = {
@@ -84,17 +91,19 @@ export default function AddressesPage() {
         division: fDivision || null, postal_code: fPostal.trim() || null,
         is_default: fDefault || addresses.length === 0,
       };
-      if (editAddr) {
-        await fetch(`/api/customers/${user.id}/addresses/${editAddr.id}`, {
-          method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-        });
-      } else {
-        await fetch(`/api/customers/${user.id}/addresses`, {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-        });
-      }
+      const res = editAddr
+        ? await fetch(`/api/customers/${user.id}/addresses/${editAddr.id}`, {
+            method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+          })
+        : await fetch(`/api/customers/${user.id}/addresses`, {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+          });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save address");
       setDialogOpen(false); resetForm(); fetchAddresses();
-    } catch {} finally { setSaving(false); }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to save address");
+    } finally { setSaving(false); }
   };
 
   const handleDelete = async () => {
@@ -232,6 +241,7 @@ export default function AddressesPage() {
               <Input label="City" value={fCity} onChange={(e) => setFCity(e.target.value)} placeholder="City" />
               <Input label="Postal Code" value={fPostal} onChange={(e) => setFPostal(e.target.value)} placeholder="1212" />
             </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
           <DialogFooter className="shrink-0 pt-2">
             <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</Button>

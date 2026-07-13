@@ -16,7 +16,7 @@ import { FieldLabel } from "@/components/admin/shared/field-label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
+import { cn, collectMissingFields } from "@/lib/utils";
 import type { Banner, BannerCrop, BannerSettings } from "@/types/banner";
 import { DEFAULT_BANNER_SETTINGS } from "@/types/banner";
 import { useAdmin } from "@/contexts/admin-context";
@@ -191,6 +191,7 @@ export default function AdminBannersPage() {
   const [editBanner, setEditBanner] = useState<Banner | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<Banner | null>(null);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
 
   // Form
   const [formTitle, setFormTitle] = useState("");
@@ -220,7 +221,7 @@ export default function AdminBannersPage() {
     setFormCrop({ x: 50, y: 50, zoom: 1 }); setFormSettings(DEFAULT_BANNER_SETTINGS); setEditBanner(null);
   };
 
-  const openCreate = () => { resetForm(); setDialogOpen(true); };
+  const openCreate = () => { resetForm(); setFormError(""); setDialogOpen(true); };
 
   const openEdit = (banner: Banner) => {
     setEditBanner(banner);
@@ -241,11 +242,17 @@ export default function AdminBannersPage() {
       merged.stayDuration = Math.max(500, existingSettings.transitionDuration - merged.inDuration - merged.outDuration);
     }
     setFormSettings(merged);
+    setFormError("");
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
-    if (!formTitle.trim() || !formImage.trim()) return;
+    const missing = collectMissingFields([
+      { label: "Title", value: formTitle },
+      { label: "Banner Image", value: formImage },
+    ]);
+    if (missing) { setFormError(missing); return; }
+    setFormError("");
     setSaving(true);
     try {
       const payload = {
@@ -554,6 +561,9 @@ export default function AdminBannersPage() {
               </>
             )}
           </div>
+          {formError && (
+            <p className="shrink-0 text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">{formError}</p>
+          )}
           <DialogFooter className="shrink-0 pt-2 border-t border-border/20">
             <AdminButton variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</AdminButton>
             <AdminButton onClick={handleSave} disabled={saving || !formTitle.trim() || !formImage.trim()}>

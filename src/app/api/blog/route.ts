@@ -50,6 +50,9 @@ export async function POST(req: NextRequest) {
     if (message.includes("Duplicate entry")) {
       return NextResponse.json({ error: "A blog post with this title already exists" }, { status: 409 });
     }
-    return publicServerError("POST /api/blog", error);
+    // Admin-only route — surface the real error instead of a generic message
+    // that hides which field/constraint actually failed.
+    console.error("[POST /api/blog]", error);
+    return NextResponse.json({ error: message || "Failed to create blog post" }, { status: 500 });
   }
 }

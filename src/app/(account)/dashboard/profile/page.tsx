@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useAuthStore } from "@/stores/auth.store";
-import { getInitials, cn } from "@/lib/utils";
+import { getInitials, cn, collectMissingFields } from "@/lib/utils";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { useCustomerBadge, invalidateCustomerBadge } from "@/hooks/use-customer-badge";
 import { resolveTierColorStyle } from "@/lib/tier-color";
@@ -131,10 +131,12 @@ export default function ProfilePage() {
 
   const handleChangePassword = async () => {
     setPasswordError("");
-    if (!currentPassword || !newPassword) {
-      setPasswordError("Please fill in all password fields");
-      return;
-    }
+    const missing = collectMissingFields([
+      { label: "Current Password", value: currentPassword },
+      { label: "New Password", value: newPassword },
+      { label: "Confirm New Password", value: confirmNewPassword },
+    ]);
+    if (missing) { setPasswordError(missing); return; }
     if (newPassword.length < 6) {
       setPasswordError("New password must be at least 6 characters");
       return;

@@ -3,7 +3,6 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { deleteUploadedFile } from "@/lib/delete-upload";
-import { publicServerError } from "@/lib/validate";
 import { requirePermission } from "@/lib/admin-permissions-server";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -27,7 +26,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     await logActivity("Updated category", "category", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return publicServerError("PUT /api/categories/[id]", error);
+    console.error("[PUT /api/categories/[id]]", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to update category" }, { status: 500 });
   }
 }
 
@@ -48,6 +48,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     await logActivity("Deleted category", "category", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return publicServerError("DELETE /api/categories/[id]", error);
+    console.error("[DELETE /api/categories/[id]]", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to delete category" }, { status: 500 });
   }
 }

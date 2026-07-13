@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
-import { cn } from "@/lib/utils";
+import { cn, collectMissingFields } from "@/lib/utils";
 import { ALL_PERMISSIONS } from "../layout";
 import { normalizePermissions, type PermissionAction, type PermissionsMap } from "@/lib/admin-permissions";
 
@@ -82,7 +82,8 @@ export default function AdminRolesPage() {
   };
 
   const handleSave = async () => {
-    if (!formName.trim()) { setError("Role name is required"); return; }
+    const missing = collectMissingFields([{ label: "Role Name", value: formName }]);
+    if (missing) { setError(missing); return; }
     setSaving(true);
     setError("");
     try {

@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { formatDateShort, slugify } from "@/lib/utils";
+import { formatDateShort, slugify, collectMissingFields } from "@/lib/utils";
 import type { BlogPost } from "@/types/blog";
 import { useAdmin } from "@/contexts/admin-context";
 
@@ -29,6 +29,7 @@ export default function AdminBlogPage() {
   const [editPost, setEditPost] = useState<BlogPost | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<BlogPost | null>(null);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
 
   // Form
   const [formTitle, setFormTitle] = useState("");
@@ -59,7 +60,7 @@ export default function AdminBlogPage() {
     setFormReadingTime("5"); setFormPublished(false); setAutoSlug(true); setEditPost(null);
   };
 
-  const openCreate = () => { resetForm(); setDialogOpen(true); };
+  const openCreate = () => { resetForm(); setFormError(""); setDialogOpen(true); };
 
   const openEdit = (post: BlogPost) => {
     setEditPost(post);
@@ -74,6 +75,7 @@ export default function AdminBlogPage() {
     setFormReadingTime(String(post.reading_time || 5));
     setFormPublished(post.is_published);
     setAutoSlug(false);
+    setFormError("");
     setDialogOpen(true);
   };
 
@@ -83,7 +85,11 @@ export default function AdminBlogPage() {
   };
 
   const handleSave = async () => {
-    if (!formTitle.trim()) return;
+    const missing = collectMissingFields([
+      { label: "Title", value: formTitle },
+    ]);
+    if (missing) { setFormError(missing); return; }
+    setFormError("");
     setSaving(true);
     try {
       const tags = formTags.split(",").map((t) => t.trim()).filter(Boolean);
@@ -224,6 +230,9 @@ export default function AdminBlogPage() {
               </div>
             </div>
           </div>
+          {formError && (
+            <p className="shrink-0 text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">{formError}</p>
+          )}
           <DialogFooter className="shrink-0 pt-2 border-t border-border/20">
             <AdminButton variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</AdminButton>
             <AdminButton onClick={handleSave} disabled={saving || !formTitle.trim()}>

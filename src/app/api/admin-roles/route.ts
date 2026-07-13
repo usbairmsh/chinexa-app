@@ -37,6 +37,8 @@ export async function POST(req: NextRequest) {
     await logActivity("Created role", "role", id, String(body.name).trim());
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {
-    return publicServerError("POST /api/admin-roles", error);
+    // Superadmin-gated (requireSuperadmin above) — surface the real error.
+    console.error("[POST /api/admin-roles]", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to create role" }, { status: 500 });
   }
 }

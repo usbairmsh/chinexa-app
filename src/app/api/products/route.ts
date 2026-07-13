@@ -198,6 +198,10 @@ export async function POST(req: NextRequest) {
     const message = error instanceof Error ? error.message : "";
     if (message.includes("Duplicate entry") && message.includes("slug")) return NextResponse.json({ error: "A product with this name already exists" }, { status: 409 });
     if (message.includes("Duplicate entry") && message.includes("sku")) return NextResponse.json({ error: "A product with this SKU already exists" }, { status: 409 });
-    return NextResponse.json({ error: "Failed to create product. Please check all fields and try again." }, { status: 500 });
+    // Admin-only route — surface the real error (matches the pattern used by
+    // every other admin CRUD route, e.g. categories/coupons/banners) instead
+    // of a generic message that hides which field/constraint actually failed.
+    console.error("[POST /api/products]", error);
+    return NextResponse.json({ error: message || "Failed to create product" }, { status: 500 });
   }
 }

@@ -8,6 +8,7 @@ import { User, Phone, Mail, Cake, Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { collectMissingFields } from "@/lib/utils";
 
 function RegisterForm() {
   const router = useRouter();
@@ -25,10 +26,15 @@ function RegisterForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) { setError("Please enter your name"); return; }
-    if (!phone) { setError("Phone number is missing. Please go back and enter your phone number."); return; }
-    if (!birthdate) { setError("Please enter your birthdate"); return; }
-    if (!password || password.length < 6) { setError("Password must be at least 6 characters"); return; }
+    const missing = collectMissingFields([
+      { label: "Full Name", value: name },
+      { label: "Phone Number", value: phone },
+      { label: "Birthdate", value: birthdate },
+      { label: "Password", value: password },
+      { label: "Confirm Password", value: confirmPassword },
+    ]);
+    if (missing) { setError(missing); return; }
+    if (password.length < 6) { setError("Password must be at least 6 characters"); return; }
     if (password !== confirmPassword) { setError("Passwords do not match"); return; }
 
     setLoading(true);

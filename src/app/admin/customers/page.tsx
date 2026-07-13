@@ -24,7 +24,7 @@ import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { FieldLabel } from "@/components/admin/shared/field-label";
 import { AvatarViewDialog } from "@/components/shared/avatar-view-dialog";
 import { resolveTierColorStyle } from "@/lib/tier-color";
-import { formatCurrency, formatDateShort, getInitials, cn } from "@/lib/utils";
+import { formatCurrency, formatDateShort, getInitials, cn, collectMissingFields } from "@/lib/utils";
 import { useAdmin } from "@/contexts/admin-context";
 
 // ─── Types ────────────────────────────────────────
@@ -277,6 +277,11 @@ export default function AdminCustomersPage() {
   const handleSaveCustomer = async () => {
     if (!selectedCustomer) return;
     setEditError("");
+    const missing = collectMissingFields([
+      { label: "Full Name", value: editName },
+      { label: "Phone", value: editPhone },
+    ]);
+    if (missing) { setEditError(missing); return; }
     if (editResetPassword && editNewPassword.length < 6) {
       setEditError("New password must be at least 6 characters");
       return;
@@ -327,7 +332,12 @@ export default function AdminCustomersPage() {
 
   const handleAddCustomer = async () => {
     setNewError("");
-    if (!newName.trim() || !newPhone.trim()) { setNewError("Name and phone are required"); return; }
+    const missing = collectMissingFields([
+      { label: "Full Name", value: newName },
+      { label: "Phone", value: newPhone },
+      { label: "Password", value: newPassword },
+    ]);
+    if (missing) { setNewError(missing); return; }
     // Admin-created customers must always be "registered" (a real password),
     // never "temporary" — a temporary/guest-style record has no password and
     // can't sign in at all, so an admin creating one here would just be

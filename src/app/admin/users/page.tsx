@@ -17,7 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { getInitials, formatDateShort, cn } from "@/lib/utils";
+import { getInitials, formatDateShort, cn, collectMissingFields } from "@/lib/utils";
 import { ALL_PERMISSIONS } from "../layout";
 import { normalizePermissions, type PermissionAction, type PermissionsMap } from "@/lib/admin-permissions";
 
@@ -56,6 +56,7 @@ export default function AdminUsersPage() {
   const [deleteDialog, setDeleteDialog] = useState<AdminUser | null>(null);
   const [accessDialog, setAccessDialog] = useState<AdminUser | null>(null);
   const [saving, setSaving] = useState(false);
+  const [addError, setAddError] = useState("");
   const [editError, setEditError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -108,7 +109,13 @@ export default function AdminUsersPage() {
   };
 
   const handleAddAdmin = async () => {
-    if (!formUsername.trim() || !formPassword || !formName.trim()) return;
+    const missing = collectMissingFields([
+      { label: "Full Name", value: formName },
+      { label: "Username", value: formUsername },
+      { label: "Password", value: formPassword },
+    ]);
+    if (missing) { setAddError(missing); return; }
+    setAddError("");
     setSaving(true);
     try {
       const res = await fetch("/api/admin-auth", {
@@ -116,7 +123,7 @@ export default function AdminUsersPage() {
         body: JSON.stringify({ action: "add_admin", requester_id: currentAdminId, username: formUsername.trim(), password: formPassword, name: formName.trim(), email: formEmail.trim() || null, phone: formPhone.trim() || null, role: formRole, permissions: formRole === "superadmin" ? null : formPerms }),
       });
       const data = await res.json();
-      if (!res.ok) { alert(data.error); return; }
+      if (!res.ok) { setAddError(data.error || "Something went wrong"); return; }
       setAddDialog(false);
       setFormUsername(""); setFormPassword(""); setFormName(""); setFormEmail(""); setFormPhone(""); setFormRole("admin"); setFormPerms({}); setSelectedRoleId("");
       fetchAdmins();
@@ -138,7 +145,11 @@ export default function AdminUsersPage() {
   const handleSaveEdit = async () => {
     if (!editDialog) return;
     setEditError("");
-    if (!editName.trim() || !editUsername.trim()) { setEditError("Name and username are required"); return; }
+    const missing = collectMissingFields([
+      { label: "Full Name", value: editName },
+      { label: "Username", value: editUsername },
+    ]);
+    if (missing) { setEditError(missing); return; }
     setSaving(true);
     try {
       const res = await fetch("/api/admin-auth", {
@@ -242,7 +253,7 @@ export default function AdminUsersPage() {
         </div>
         <div className="flex gap-2">
           {isSuperAdmin && <AdminButton variant="outline" onClick={() => router.push("/admin/roles")}><Shield className="h-4 w-4 mr-1" /> Manage Roles</AdminButton>}
-          {isSuperAdmin && <AdminButton onClick={() => setAddDialog(true)}><Plus className="h-4 w-4 mr-1" /> Add Admin</AdminButton>}
+          {isSuperAdmin && <AdminButton onClick={() => { setAddError(""); setAddDialog(true); }}><Plus className="h-4 w-4 mr-1" /> Add Admin</AdminButton>}
         </div>
       </div>
 
@@ -387,6 +398,7 @@ export default function AdminUsersPage() {
                 </div>
               </div>
             )}
+            {addError && <p className="text-xs text-destructive">{addError}</p>}
           </div>
           <DialogFooter className="shrink-0 pt-2 border-t border-border/20">
             <AdminButton variant="outline" onClick={() => setAddDialog(false)}>Cancel</AdminButton>

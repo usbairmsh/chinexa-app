@@ -15,7 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Separator } from "@/components/ui/separator";
 import { FieldLabel } from "@/components/admin/shared/field-label";
-import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
+import { formatCurrency, formatDateShort, cn, collectMissingFields } from "@/lib/utils";
 import type { Coupon, CouponApplicability } from "@/types/coupon";
 import { useAdmin } from "@/contexts/admin-context";
 
@@ -30,6 +30,7 @@ export default function AdminCouponsPage() {
   const [editCoupon, setEditCoupon] = useState<Coupon | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<Coupon | null>(null);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
   const [copied, setCopied] = useState("");
 
   // Assign state
@@ -123,7 +124,7 @@ export default function AdminCouponsPage() {
     setFormApplicability("store"); setFormSelectedIds([]); setApplSearchQuery(""); setApplSearchResults([]);
   };
 
-  const openCreate = () => { resetForm(); setDialogOpen(true); };
+  const openCreate = () => { resetForm(); setFormError(""); setDialogOpen(true); };
 
   const openEdit = (coupon: Coupon) => {
     setEditCoupon(coupon);
@@ -140,11 +141,17 @@ export default function AdminCouponsPage() {
     setFormActive(coupon.is_active);
     setFormApplicability(coupon.applicability || "store");
     setFormSelectedIds((coupon.applicable_ids || []).map((id, i) => ({ id, name: coupon.applicable_names?.[i] || id })));
+    setFormError("");
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
-    if (!formCode.trim() || !formValue) return;
+    const missing = collectMissingFields([
+      { label: "Coupon Code", value: formCode },
+      { label: formType === "percentage" ? "Discount %" : "Discount Amount", value: formValue },
+    ]);
+    if (missing) { setFormError(missing); return; }
+    setFormError("");
     setSaving(true);
     try {
       const payload = {
@@ -458,6 +465,9 @@ export default function AdminCouponsPage() {
               <span className="text-sm font-medium text-charcoal-light">{formActive ? "Active" : "Paused"}</span>
             </div>
           </div>
+          {formError && (
+            <p className="shrink-0 text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">{formError}</p>
+          )}
           <DialogFooter className="shrink-0 pt-2 border-t border-border/20">
             <AdminButton variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</AdminButton>
             <AdminButton onClick={handleSave} disabled={saving || !formCode.trim() || !formValue}>

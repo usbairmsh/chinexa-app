@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "";
     if (message.includes("Duplicate entry")) return NextResponse.json({ error: "A category with this name already exists" }, { status: 409 });
-    return NextResponse.json({ error: "Failed to create category" }, { status: 500 });
+    console.error("[POST /api/accounting/expense-categories]", error);
+    return NextResponse.json({ error: message || "Failed to create category" }, { status: 500 });
   }
 }

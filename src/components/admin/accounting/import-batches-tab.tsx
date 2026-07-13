@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, collectMissingFields } from "@/lib/utils";
 import { toCsv, downloadCsv } from "@/lib/csv";
 import { useAdmin } from "@/contexts/admin-context";
 
@@ -93,10 +93,15 @@ export function ImportBatchesTab() {
   };
 
   const handleSave = async () => {
-    if (!selectedProduct) { setFormError("Select a product"); return; }
-    if (!quantity || Number(quantity) < 1) { setFormError("Quantity must be at least 1"); return; }
-    if (!importCost || Number(importCost) <= 0) { setFormError("Import cost is required"); return; }
-    if (!batchDate) { setFormError("Batch date is required"); return; }
+    const missing = collectMissingFields([
+      { label: "Product", value: selectedProduct },
+      { label: "Quantity", value: quantity },
+      { label: "Batch Date", value: batchDate },
+      { label: "Import Cost", value: importCost },
+    ]);
+    if (missing || !selectedProduct) { setFormError(missing || "Select a product"); return; }
+    if (Number(quantity) < 1) { setFormError("Quantity must be at least 1"); return; }
+    if (Number(importCost) <= 0) { setFormError("Import cost must be greater than zero"); return; }
     setFormError("");
     setSaving(true);
     try {

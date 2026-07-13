@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, collectMissingFields } from "@/lib/utils";
 import { toCsv, downloadCsv } from "@/lib/csv";
 import { useAdmin } from "@/contexts/admin-context";
 
@@ -100,7 +100,14 @@ export function ExpensesTab({ year }: { year: number }) {
   };
 
   const handleSave = async () => {
-    if (!formCategoryId || !formAmount || Number(formAmount) <= 0 || !formDate) return;
+    const missing = collectMissingFields([
+      { label: "Category", value: formCategoryId },
+      { label: "Amount", value: formAmount },
+      { label: "Date", value: formDate },
+    ]);
+    if (missing) { setError(missing); return; }
+    if (Number(formAmount) <= 0) { setError("Amount must be greater than zero"); return; }
+    setError("");
     setSaving(true);
     try {
       const payload = {

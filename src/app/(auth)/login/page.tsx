@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/auth.store";
 import { authCookieOpts } from "@/lib/auth-cookie";
+import { collectMissingFields } from "@/lib/utils";
 
 // Validate Bangladeshi phone: must be 11 digits starting with 01
 function validateBDPhone(digits: string): string | null {
@@ -41,13 +42,15 @@ function LoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const missing = collectMissingFields([
+      { label: "Phone Number", value: phone },
+      { label: "Password", value: password },
+    ]);
+    if (missing) { setError(missing); return; }
+
     const validationError = validateBDPhone(phone);
     if (validationError) {
       setError(validationError);
-      return;
-    }
-    if (!password) {
-      setError("Please enter your password");
       return;
     }
 
