@@ -20,6 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { useAuthStore } from "@/stores/auth.store";
 import { useChatStore } from "@/stores/chat.store";
 import { cn, getInitials } from "@/lib/utils";
+import { resolveTierColorStyle } from "@/lib/tier-color";
 
 // Notifications intentionally omitted — they live in the header bell popup now
 const accountNav = [
@@ -62,6 +63,8 @@ export default function AccountLayout({
       router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
     }
   }, [mounted, storeAuthenticated, pathname, router]);
+
+  const tierColor = resolveTierColorStyle(badge?.tier_color);
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -110,25 +113,42 @@ export default function AccountLayout({
             {/* ── Sidebar ── */}
             <aside className="w-full lg:w-[280px] shrink-0">
               <div className="bg-white rounded-2xl shadow-card border border-border/20">
-                {/* User Card */}
-                <div className="p-4 sm:p-5 bg-gradient-to-br from-primary-light to-pearl">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10 sm:h-12 sm:w-12 ring-2 ring-white shadow-md">
-                      {user?.avatar && <AvatarImage src={user.avatar} alt={user.name || "Profile"} />}
-                      <AvatarFallback className="text-xs sm:text-sm font-semibold bg-secondary text-white">
-                        {user?.name ? getInitials(user.name) : "G"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-charcoal flex items-center gap-1 text-sm sm:text-base">
-                        <span className="truncate">{user?.name || "Guest User"}</span>
-                        {badge?.badge_color && <VerifiedBadge color={badge.badge_color} opacity={badge.badge_opacity} size={17} tooltip={badge.badge_name} />}
-                      </p>
-                      <p className="text-xs text-charcoal-lighter truncate">
-                        {user?.phone || "Not signed in"}
-                      </p>
-                    </div>
+                {/* User Card — dark rounded card, avatar on top, name + tier badge
+                    beside it, phone below, View Profile button at the bottom.
+                    Background is the customer's own tier color (same fill the
+                    header's account pill uses), so the card itself reads as
+                    the member's tier rather than a neutral panel. */}
+                <div
+                  className={cn("rounded-2xl m-2 p-5 flex flex-col items-center text-center", tierColor.className)}
+                  style={tierColor.style}
+                >
+                  <Avatar className="h-16 w-16 sm:h-[72px] sm:w-[72px] ring-2 ring-white/70 shadow-md">
+                    {user?.avatar && <AvatarImage src={user.avatar} alt={user.name || "Profile"} />}
+                    <AvatarFallback className="text-lg font-semibold bg-secondary text-white">
+                      {user?.name ? getInitials(user.name) : "G"}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  <div className="mt-3 flex items-center gap-1.5 min-w-0 max-w-full">
+                    <span className="font-heading font-semibold text-base truncate">{user?.name || "Guest User"}</span>
+                    {badge?.badge_color && <VerifiedBadge color={badge.badge_color} opacity={badge.badge_opacity} size={17} tooltip={badge.badge_name} />}
+                    {badge?.tier_name && (
+                      <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-white/70">
+                        {badge.tier_name}
+                      </span>
+                    )}
                   </div>
+
+                  <p className="mt-0.5 text-xs opacity-80 truncate max-w-full">
+                    {user?.phone || "Not signed in"}
+                  </p>
+
+                  <Link
+                    href="/dashboard/profile"
+                    className="mt-4 w-full py-2 rounded-xl bg-white/90 text-charcoal text-sm font-medium hover:bg-white transition-colors"
+                  >
+                    View Profile
+                  </Link>
                 </div>
 
                 {/* ── Vertical list — same style at every breakpoint, phone/tablet
