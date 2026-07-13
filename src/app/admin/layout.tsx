@@ -134,6 +134,18 @@ export default function AdminLayout({
   const [pwSuccess, setPwSuccess] = useState(false);
 
   useEffect(() => {
+    // This layout wraps /admin/login too (it just hides its own chrome there
+    // — see the `pathname === "/admin/login"` early return below — rather
+    // than unmounting), so it was already mounted BEFORE login with no
+    // cookie yet. Login sets the cookie and does a client-side router.push,
+    // which never remounts this component, so a one-shot `useEffect(..., [])`
+    // ran once too early, found no cookie, and never tried again — the admin
+    // name/role in the header stayed blank until a full page reload
+    // recreated everything from scratch. Depending on `pathname` re-runs this
+    // right after the login→/admin transition lands, and `adminName` in the
+    // guard skips redundant refetches on ordinary in-app navigation once the
+    // profile is already loaded.
+    if (adminName) return;
     const adminId = getCookie("chinexa-admin-id");
     if (!adminId) return;
     fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "list" }) })
@@ -156,7 +168,7 @@ export default function AdminLayout({
           }
         }
       }).catch(() => {});
-  }, []);
+  }, [pathname, adminName]);
 
   const handleSaveProfile = async () => {
     setProfileSaving(true);

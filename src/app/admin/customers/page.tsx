@@ -86,13 +86,25 @@ export default function AdminCustomersPage() {
   const [editBirthdate, setEditBirthdate] = useState("");
   const [editActive, setEditActive] = useState(true);
   const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+  // Superadmin-only: setting a brand new password for this customer —
+  // separate field from the rest of the form so it's never sent unless the
+  // superadmin actually typed something (an empty new_password would fail
+  // the server's own length check anyway, but keeping it opt-in avoids ever
+  // building a request that even mentions the password field otherwise).
+  const [editResetPassword, setEditResetPassword] = useState(false);
+  const [editNewPassword, setEditNewPassword] = useState("");
+
+  // Delete customer (superadmin only)
+  const [deleteCustomerDialog, setDeleteCustomerDialog] = useState<"deactivate" | "hard" | null>(null);
+  const [deleteCustomerSaving, setDeleteCustomerSaving] = useState(false);
+  const [deleteCustomerError, setDeleteCustomerError] = useState("");
 
   // Add customer dialog
   const [addCustomerOpen, setAddCustomerOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newPhone, setNewPhone] = useState("");
-  const [newRegistered, setNewRegistered] = useState(true);
   const [newPassword, setNewPassword] = useState("");
   const [newSaving, setNewSaving] = useState(false);
   const [newError, setNewError] = useState("");
@@ -248,37 +260,71 @@ export default function AdminCustomersPage() {
     setEditPhone(selectedCustomer.phone);
     setEditBirthdate(selectedCustomer.birthdate ? selectedCustomer.birthdate.slice(0, 10) : "");
     setEditActive(selectedCustomer.isActive);
+    setEditError("");
+    setEditResetPassword(false);
+    setEditNewPassword("");
     setEditCustomerOpen(true);
   };
 
   const handleSaveCustomer = async () => {
     if (!selectedCustomer) return;
+    setEditError("");
+    if (editResetPassword && editNewPassword.length < 6) {
+      setEditError("New password must be at least 6 characters");
+      return;
+    }
     setEditSaving(true);
     try {
-      await fetch(`/api/customers/${selectedCustomer.id}`, {
+      const res = await fetch(`/api/customers/${selectedCustomer.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: editName.trim(), email: editEmail.trim() || null, phone: editPhone.trim(),
           birthdate: editBirthdate || null, is_active: editActive,
+          ...(editResetPassword ? { new_password: editNewPassword } : {}),
         }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Failed to save changes");
       setEditCustomerOpen(false);
       // Update local state
       setSelectedCustomer({ ...selectedCustomer, name: editName.trim(), email: editEmail.trim(), phone: editPhone.trim(), birthdate: editBirthdate, isActive: editActive });
       fetchCustomers();
-    } catch {} finally { setEditSaving(false); }
+    } catch (err: unknown) {
+      setEditError(err instanceof Error ? err.message : "Failed to save changes");
+    } finally { setEditSaving(false); }
+  };
+
+  const handleDeleteCustomer = async () => {
+    if (!selectedCustomer || !deleteCustomerDialog) return;
+    setDeleteCustomerError("");
+    setDeleteCustomerSaving(true);
+    try {
+      const hard = deleteCustomerDialog === "hard";
+      const res = await fetch(`/api/customers/${selectedCustomer.id}${hard ? "?hard=true" : ""}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Failed to delete customer");
+      setDeleteCustomerDialog(null);
+      setSelectedCustomer(null);
+      fetchCustomers();
+    } catch (err: unknown) {
+      setDeleteCustomerError(err instanceof Error ? err.message : "Failed to delete customer");
+    } finally { setDeleteCustomerSaving(false); }
   };
 
   const openAddCustomer = () => {
-    setNewName(""); setNewEmail(""); setNewPhone(""); setNewRegistered(true); setNewPassword("");
+    setNewName(""); setNewEmail(""); setNewPhone(""); setNewPassword("");
     setNewError(""); setAddCustomerOpen(true);
   };
 
   const handleAddCustomer = async () => {
     setNewError("");
     if (!newName.trim() || !newPhone.trim()) { setNewError("Name and phone are required"); return; }
-    if (newRegistered && newPassword.length < 6) { setNewError("Password must be at least 6 characters"); return; }
+    // Admin-created customers must always be "registered" (a real password),
+    // never "temporary" — a temporary/guest-style record has no password and
+    // can't sign in at all, so an admin creating one here would just be
+    // creating an account the customer could never actually use.
+    if (newPassword.length < 6) { setNewError("Password must be at least 6 characters"); return; }
 
     setNewSaving(true);
     try {
@@ -287,8 +333,8 @@ export default function AdminCustomersPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: newName.trim(), email: newEmail.trim() || null, phone: newPhone.trim(),
-          account_type: newRegistered ? "registered" : "temporary",
-          password: newRegistered ? newPassword : undefined,
+          account_type: "registered",
+          password: newPassword,
         }),
       });
       const data = await res.json();
@@ -507,9 +553,14 @@ export default function AdminCustomersPage() {
           {tierBadgeShown && <VerifiedBadge color={membershipData!.tier!.badge_color} opacity={membershipData!.tier!.badge_opacity} size={18} tooltip={membershipData!.tier!.badge_name} />}
           <Badge variant={c.isActive ? "success" : "destructive"} className="text-[10px]">{c.isActive ? "Active" : "Inactive"}</Badge>
           {canEditCustomer && (
-            <button onClick={openEditCustomer} className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-border text-[11px] font-medium text-charcoal-lighter hover:border-secondary hover:text-secondary transition-all">
-              <Edit className="h-3 w-3" /> Edit
-            </button>
+            <>
+              <button onClick={openEditCustomer} className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-border text-[11px] font-medium text-charcoal-lighter hover:border-secondary hover:text-secondary transition-all">
+                <Edit className="h-3 w-3" /> Edit
+              </button>
+              <button onClick={() => { setDeleteCustomerError(""); setDeleteCustomerDialog("deactivate"); }} className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-border text-[11px] font-medium text-charcoal-lighter hover:border-destructive hover:text-destructive transition-all">
+                <XCircle className="h-3 w-3" /> Delete
+              </button>
+            </>
           )}
         </div>
 
@@ -824,11 +875,73 @@ export default function AdminCustomersPage() {
                 <Switch checked={editActive} onCheckedChange={setEditActive} />
                 <span className="text-sm text-charcoal-lighter">{editActive ? "Active" : "Inactive"}</span>
               </div>
+
+              <div className="pt-2 border-t border-border/30 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <Switch checked={editResetPassword} onCheckedChange={(v) => { setEditResetPassword(v); if (!v) setEditNewPassword(""); }} />
+                  <span className="text-sm text-charcoal-lighter">Set a new password for this customer</span>
+                </label>
+                {editResetPassword && (
+                  <Input
+                    label="New Password"
+                    type="password"
+                    value={editNewPassword}
+                    onChange={(e) => setEditNewPassword(e.target.value)}
+                    placeholder="At least 6 characters"
+                    icon={<Lock className="h-4 w-4" />}
+                  />
+                )}
+              </div>
+
+              {editError && <p className="text-xs text-destructive">{editError}</p>}
             </div>
             <DialogFooter>
               <button onClick={() => setEditCustomerOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
-              <button onClick={handleSaveCustomer} disabled={editSaving || !editName.trim()} className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300">
+              <button onClick={handleSaveCustomer} disabled={editSaving || !editName.trim() || (editResetPassword && editNewPassword.length < 6)} className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300">
                 {editSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Customer Dialog — superadmin only, offers a choice between
+            reversible deactivation and permanent removal. */}
+        <Dialog open={deleteCustomerDialog !== null} onOpenChange={(open) => !open && setDeleteCustomerDialog(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive"><XCircle className="h-5 w-5" /> Delete Customer</DialogTitle>
+              <DialogDescription>
+                {deleteCustomerDialog === "hard"
+                  ? "This permanently removes the customer and cannot be undone. Their order history stays on record, but the account itself is gone."
+                  : "Deactivating disables the account (reversible) without deleting any data. Choose \"Delete Permanently\" instead if you want to remove the account entirely."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2 space-y-3">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setDeleteCustomerDialog("deactivate")}
+                  className={cn("flex-1 px-3 py-2 rounded-xl border text-xs font-medium transition-all", deleteCustomerDialog === "deactivate" ? "border-secondary bg-secondary/5 text-secondary" : "border-border/40 text-charcoal-lighter")}
+                >
+                  Deactivate (reversible)
+                </button>
+                <button
+                  onClick={() => setDeleteCustomerDialog("hard")}
+                  className={cn("flex-1 px-3 py-2 rounded-xl border text-xs font-medium transition-all", deleteCustomerDialog === "hard" ? "border-destructive bg-destructive/5 text-destructive" : "border-border/40 text-charcoal-lighter")}
+                >
+                  Delete Permanently
+                </button>
+              </div>
+              {deleteCustomerError && <p className="text-xs text-destructive">{deleteCustomerError}</p>}
+            </div>
+            <DialogFooter>
+              <button onClick={() => setDeleteCustomerDialog(null)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
+              <button
+                onClick={handleDeleteCustomer}
+                disabled={deleteCustomerSaving}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-destructive text-white text-xs font-semibold hover:bg-destructive/90 active:scale-[0.96] disabled:opacity-40 transition-all duration-300"
+              >
+                {deleteCustomerSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
+                {deleteCustomerDialog === "hard" ? "Delete Permanently" : "Deactivate"}
               </button>
             </DialogFooter>
           </DialogContent>
@@ -999,27 +1112,21 @@ export default function AdminCustomersPage() {
             <Input label="Full Name *" value={newName} onChange={(e) => setNewName(e.target.value)} />
             <Input label="Phone *" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+8801XXXXXXXXX" />
             <Input label="Email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
-            <div className="flex items-center gap-3">
-              <Switch checked={newRegistered} onCheckedChange={setNewRegistered} />
-              <span className="text-sm text-charcoal-lighter">{newRegistered ? "Registered account" : "Temporary (guest-style) record"}</span>
-            </div>
-            {newRegistered && (
-              <Input
-                label="Password *"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="At least 6 characters"
-                icon={<Lock className="h-4 w-4" />}
-              />
-            )}
+            <Input
+              label="Password *"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="At least 6 characters"
+              icon={<Lock className="h-4 w-4" />}
+            />
             {newError && <p className="text-xs text-destructive">{newError}</p>}
           </div>
           <DialogFooter>
             <button onClick={() => setAddCustomerOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
             <button
               onClick={handleAddCustomer}
-              disabled={newSaving || !newName.trim() || !newPhone.trim()}
+              disabled={newSaving || !newName.trim() || !newPhone.trim() || newPassword.length < 6}
               className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300"
             >
               {newSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />} Create

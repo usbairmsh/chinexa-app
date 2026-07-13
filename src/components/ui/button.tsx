@@ -8,25 +8,31 @@ const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-body text-sm font-semibold tracking-wide transition-all duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 cursor-pointer active:scale-[0.97]",
   {
     variants: {
+      // Every filled (colored-background) variant forces its text color with
+      // !text-white / hover:!text-white rather than the plain utility — this
+      // matches src/components/admin/shared/admin-button.tsx's existing
+      // pattern, added after white button text was found rendering dark on
+      // the live site despite the plain class being correct here in code
+      // (some other rule was winning the cascade on the deployed build).
       variant: {
         default:
-          "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_8px_28px_rgba(122,79,160,0.35)] hover:-translate-y-px",
+          "bg-secondary !text-white hover:bg-secondary-dark hover:!text-white hover:shadow-[0_8px_28px_rgba(122,79,160,0.35)] hover:-translate-y-px",
         primary:
-          "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_8px_28px_rgba(122,79,160,0.35)] hover:-translate-y-px",
+          "bg-secondary !text-white hover:bg-secondary-dark hover:!text-white hover:shadow-[0_8px_28px_rgba(122,79,160,0.35)] hover:-translate-y-px",
         secondary:
-          "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_8px_28px_rgba(122,79,160,0.35)] hover:-translate-y-px",
+          "bg-secondary !text-white hover:bg-secondary-dark hover:!text-white hover:shadow-[0_8px_28px_rgba(122,79,160,0.35)] hover:-translate-y-px",
         outline:
-          "border border-secondary/25 bg-white text-secondary hover:bg-secondary hover:text-white hover:border-secondary hover:shadow-[0_8px_24px_rgba(122,79,160,0.22)] hover:-translate-y-px",
+          "border border-secondary/25 bg-white !text-secondary hover:bg-secondary hover:!text-white hover:border-secondary hover:shadow-[0_8px_24px_rgba(122,79,160,0.22)] hover:-translate-y-px",
         ghost:
-          "text-charcoal-light hover:bg-pearl hover:text-charcoal",
+          "!text-charcoal-light hover:bg-pearl hover:!text-charcoal",
         link:
-          "text-secondary underline-offset-4 hover:underline hover:text-secondary-dark",
+          "!text-secondary underline-offset-4 hover:underline hover:!text-secondary-dark",
         luxury:
-          "bg-gradient-to-r from-secondary to-coral text-white hover:shadow-[0_8px_28px_rgba(122,79,160,0.35)] hover:brightness-[1.08] hover:-translate-y-px",
+          "bg-gradient-to-r from-secondary to-coral !text-white hover:shadow-[0_8px_28px_rgba(122,79,160,0.35)] hover:brightness-[1.08] hover:-translate-y-px",
         destructive:
-          "bg-destructive text-white hover:bg-destructive/90 hover:shadow-[0_8px_24px_rgba(239,68,68,0.28)] hover:-translate-y-px",
+          "bg-destructive !text-white hover:bg-destructive/90 hover:shadow-[0_8px_24px_rgba(239,68,68,0.28)] hover:-translate-y-px",
         gold:
-          "bg-gold text-white hover:bg-gold-light hover:shadow-[0_8px_24px_rgba(224,185,108,0.35)] hover:-translate-y-px",
+          "bg-gold !text-white hover:bg-gold-light hover:shadow-[0_8px_24px_rgba(224,185,108,0.35)] hover:-translate-y-px",
       },
       size: {
         default: "h-10 px-6 py-2.5 text-[13px]",
