@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Save, Upload, X, Plus, Trash2, GripVertical,
@@ -53,6 +54,7 @@ type ImageRow = {
 
 export default function AddProductPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { can } = useAdmin();
   const canAddProduct = can("products", "add");
   const [activeTab, setActiveTab] = useState<"basic" | "media" | "variants" | "seo">("basic");
@@ -294,6 +296,12 @@ export default function AddProductPage() {
 
       setSaving(false);
       setSaved(true);
+
+      // The products list page's query is cached for 5 minutes (see
+      // query-provider.tsx) — without invalidating it here, redirecting back
+      // right after a create/edit serves the stale pre-creation list until
+      // that cache expires or the page is hard-refreshed.
+      queryClient.invalidateQueries({ queryKey: ["products"] });
 
       // Redirect after showing success
       setTimeout(() => {

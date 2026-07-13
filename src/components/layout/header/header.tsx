@@ -300,13 +300,15 @@ export function Header() {
 
               {/* Account — profile icon + the customer's own name in one rounded-border
                   pill, filled with the tier's own color as its background (not just an
-                  outline tint), so the container itself reads as the member's tier. */}
+                  outline tint), so the container itself reads as the member's tier.
+                  Desktop only — on phone/tablet the profile now lives in the account
+                  section's own left sidebar instead of the header. */}
               {isAuthenticated ? (
                 badgeData?.tier_name ? (
                   <Link
                     href="/dashboard"
                     className={cn(
-                      "group relative flex items-center gap-1.5 h-9 pl-1 pr-3.5 rounded-full border shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-px",
+                      "hidden lg:flex group relative items-center gap-1.5 h-9 pl-1 pr-3.5 rounded-full border shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-px",
                       tierPillColor.className
                     )}
                     style={{
@@ -333,7 +335,7 @@ export function Header() {
                     <span className="font-heading text-[12px] font-semibold tracking-[0.03em] whitespace-nowrap">{user?.name || "Account"}</span>
                   </Link>
                 ) : (
-                  <Link href="/dashboard" aria-label="Account">
+                  <Link href="/dashboard" aria-label="Account" className="hidden lg:block">
                     {/* Account — a small nod (like acknowledging you), not a rotate */}
                     <motion.span
                       ref={accountIcon.scope}

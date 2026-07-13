@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Save, Eye, X, Plus, Trash2,
@@ -41,6 +42,7 @@ type ImageRow = { id: string; url: string; alt: string; variant_id: string; foca
 export default function EditProductPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
   const { can } = useAdmin();
   const canEditProduct = can("products", "edit");
   const [activeTab, setActiveTab] = useState<"basic" | "media" | "variants" | "seo">("basic");
@@ -271,6 +273,11 @@ export default function EditProductPage() {
       };
       const res = await fetch(`/api/products/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       if (!res.ok) { const data = await res.json(); throw new Error(data.error || "Failed"); }
+      // Same 5-minute cache issue as the create page — without this, the
+      // admin list (and the storefront product page, once it navigates back)
+      // keeps serving pre-edit data until the cache expires.
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["product"] });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err: unknown) {

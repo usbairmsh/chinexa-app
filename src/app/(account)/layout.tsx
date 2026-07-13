@@ -131,56 +131,10 @@ export default function AccountLayout({
                   </div>
                 </div>
 
-                {/* ── Phone/Tablet: fully-visible grid of icon tiles, no scrolling ── */}
-                <nav className="grid grid-cols-4 sm:grid-cols-5 gap-1 p-2 lg:hidden">
-                  {accountNav.map((item) =>
-                    item.href === "#chat" ? (
-                      <button
-                        key={item.href}
-                        onClick={() => openChat("help_and_support")}
-                        className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2.5 text-center transition-all duration-150 text-charcoal/70 hover:bg-pearl hover:text-charcoal"
-                      >
-                        <item.icon className="h-5 w-5 shrink-0" />
-                        <span className="text-[10px] font-medium leading-tight line-clamp-1">{item.label}</span>
-                      </button>
-                    ) : (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={cn(
-                          "flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2.5 text-center transition-all duration-150",
-                          isActive(item.href)
-                            ? "bg-secondary/10 text-secondary"
-                            : "text-charcoal/70 hover:bg-pearl hover:text-charcoal"
-                        )}
-                      >
-                        <item.icon className="h-5 w-5 shrink-0" />
-                        <span className="text-[10px] font-medium leading-tight line-clamp-1">{item.label}</span>
-                      </Link>
-                    )
-                  )}
-
-                  {isAuthenticated ? (
-                    <button
-                      onClick={handleLogout}
-                      className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2.5 text-center text-charcoal/70 hover:bg-destructive/5 hover:text-destructive transition-all duration-150"
-                    >
-                      <LogOut className="h-5 w-5 shrink-0" />
-                      <span className="text-[10px] font-medium leading-tight">Sign Out</span>
-                    </button>
-                  ) : (
-                    <Link
-                      href="/login"
-                      className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2.5 text-center text-secondary transition-all duration-150"
-                    >
-                      <LogOut className="h-5 w-5 shrink-0 rotate-180" />
-                      <span className="text-[10px] font-medium leading-tight">Sign In</span>
-                    </Link>
-                  )}
-                </nav>
-
-                {/* ── Desktop: vertical list ── */}
-                <nav className="hidden lg:flex lg:flex-col p-2">
+                {/* ── Vertical list — same style at every breakpoint, phone/tablet
+                    included, so the profile section reads as a real left
+                    sidebar everywhere, not just on desktop. ── */}
+                <nav className="flex flex-col p-2">
                   {accountNav.map((item) =>
                     item.href === "#chat" ? (
                       <button
