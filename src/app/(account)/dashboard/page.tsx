@@ -17,6 +17,7 @@ import { useChatStore } from "@/stores/chat.store";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { useWishlistStore } from "@/stores/wishlist.store";
 import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
+import { resolveTierColorStyle } from "@/lib/tier-color";
 
 // Customer-friendly labels
 const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
@@ -42,7 +43,8 @@ export default function AccountDashboard() {
 
   const [loyaltyPoints, setLoyaltyPoints] = useState(0);
   const [loyaltyTier, setLoyaltyTier] = useState<string | null>(null);
-  const [tierColor, setTierColor] = useState("bg-pearl text-charcoal-lighter");
+  const [tierColorRaw, setTierColorRaw] = useState<string | undefined>(undefined);
+  const tierColor = resolveTierColorStyle(tierColorRaw);
   const [nextTierName, setNextTierName] = useState<string | null>(null);
   const [nextTierAt, setNextTierAt] = useState(0);
   const [pointsToNext, setPointsToNext] = useState(0);
@@ -67,7 +69,7 @@ export default function AccountDashboard() {
           setLoyaltyPoints(data.total_points || 0);
           if (data.tier) {
             setLoyaltyTier(data.tier.name);
-            setTierColor(data.tier.color || "bg-orange-100 text-orange-700");
+            setTierColorRaw(data.tier.color);
           }
           if (data.next_tier) {
             setNextTierName(data.next_tier.name);
@@ -107,17 +109,19 @@ export default function AccountDashboard() {
       {/* Welcome Banner */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <Card className="bg-gradient-to-r from-secondary/10 via-primary-light to-coral-light border-0 overflow-hidden relative">
-          <CardContent className="p-6 sm:p-8">
+          <CardContent className="p-4 sm:p-6 lg:p-8">
             <div className="relative z-10">
               {loyaltyTier && (
                 <p className="text-xs font-medium text-secondary uppercase tracking-widest mb-1">
-                  <Badge className={cn("text-[10px]", tierColor)}>{loyaltyTier} Member</Badge>
+                  <Badge className={cn("text-[10px] border-0", tierColor.className)} style={tierColor.style}>
+                    {loyaltyTier} Member
+                  </Badge>
                 </p>
               )}
-              <h2 className="font-heading text-xl sm:text-2xl font-semibold text-charcoal mb-2 flex items-center gap-1.5 flex-wrap">
+              <h2 className="font-heading text-lg sm:text-xl lg:text-2xl font-semibold text-charcoal mb-2 flex items-center gap-1.5 flex-wrap">
                 {/* Gate on `mounted` — the persisted store differs from server HTML on refresh */}
                 Welcome back, {mounted && user?.name ? user.name : "Beautiful"}!
-                {badgeData?.badge_color && <VerifiedBadge color={badgeData.badge_color} opacity={badgeData.badge_opacity} size={26} tooltip={badgeData.badge_name} />}
+                {badgeData?.badge_color && <VerifiedBadge color={badgeData.badge_color} opacity={badgeData.badge_opacity} size={22} tooltip={badgeData.badge_name} />}
                 &#10024;
               </h2>
               <p className="text-sm text-charcoal-lighter max-w-md mb-4 flex items-center gap-2 flex-wrap">

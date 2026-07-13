@@ -94,9 +94,10 @@ export default function AccountLayout({
       <Suspense><PageLoader /></Suspense>
       <Header />
       <main className="flex-1 bg-pearl/40">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
-          {/* Page Header */}
-          <div className="mb-6 lg:mb-8">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 lg:py-10">
+          {/* Page Header — desktop only. On phone/tablet this is redundant with
+              the compact profile strip below, which already carries the name. */}
+          <div className="hidden lg:block mb-6 lg:mb-8">
             <motion.h1
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -109,9 +110,86 @@ export default function AccountLayout({
             </p>
           </div>
 
+          {/* ── Phone/tablet — compact profile strip + horizontally scrollable
+              quick-nav, replacing the full sidebar so real page content starts
+              almost immediately instead of after a screen of chrome. ── */}
+          <div className="lg:hidden -mx-4 sm:-mx-6 mb-4">
+            <Link
+              href="/dashboard/profile"
+              className={cn("mx-4 sm:mx-6 flex items-center gap-3 rounded-2xl px-4 py-3 shadow-card", tierColor.className)}
+              style={tierColor.style}
+            >
+              <Avatar className="h-11 w-11 ring-2 ring-white/70 shadow-sm shrink-0">
+                {user?.avatar && <AvatarImage src={user.avatar} alt={user.name || "Profile"} />}
+                <AvatarFallback className="text-sm font-semibold bg-secondary text-white">
+                  {user?.name ? getInitials(user.name) : "G"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-heading font-semibold text-sm truncate">{user?.name || "Guest User"}</span>
+                  {badge?.badge_color && <VerifiedBadge color={badge.badge_color} opacity={badge.badge_opacity} size={14} tooltip={badge.badge_name} />}
+                  {badge?.tier_name && (
+                    <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-white/70">
+                      {badge.tier_name}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs opacity-80 truncate">{user?.phone || "Not signed in"}</p>
+              </div>
+              <ChevronRight className="h-4 w-4 opacity-70 shrink-0" />
+            </Link>
+
+            <nav className="mt-3 flex items-center gap-2 overflow-x-auto px-4 sm:px-6 pb-1 scrollbar-none">
+              {accountNav.map((item) =>
+                item.href === "#chat" ? (
+                  <button
+                    key={item.href}
+                    onClick={() => openChat("help_and_support")}
+                    className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-xl text-charcoal/70 hover:bg-pearl hover:text-charcoal transition-colors"
+                  >
+                    <item.icon className="h-5 w-5" />
+                    <span className="text-[10px] font-medium leading-none text-center">{item.label}</span>
+                  </button>
+                ) : (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-xl transition-colors",
+                      isActive(item.href)
+                        ? "bg-secondary/10 text-secondary"
+                        : "text-charcoal/70 hover:bg-pearl hover:text-charcoal"
+                    )}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    <span className="text-[10px] font-medium leading-none text-center">{item.label}</span>
+                  </Link>
+                )
+              )}
+              {isAuthenticated ? (
+                <button
+                  onClick={handleLogout}
+                  className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-xl text-charcoal/70 hover:bg-destructive/5 hover:text-destructive transition-colors"
+                >
+                  <LogOut className="h-5 w-5" />
+                  <span className="text-[10px] font-medium leading-none">Sign Out</span>
+                </button>
+              ) : (
+                <Link
+                  href="/login"
+                  className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-xl text-secondary transition-colors"
+                >
+                  <LogOut className="h-5 w-5 rotate-180" />
+                  <span className="text-[10px] font-medium leading-none">Sign In</span>
+                </Link>
+              )}
+            </nav>
+          </div>
+
           <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
-            {/* ── Sidebar ── */}
-            <aside className="w-full lg:w-[280px] shrink-0">
+            {/* ── Sidebar — desktop only ── */}
+            <aside className="hidden lg:block w-full lg:w-[280px] shrink-0">
               <div className="bg-white rounded-2xl shadow-card border border-border/20">
                 {/* User Card — dark rounded card, avatar on top, name + tier badge
                     beside it, phone below, View Profile button at the bottom.
@@ -151,9 +229,6 @@ export default function AccountLayout({
                   </Link>
                 </div>
 
-                {/* ── Vertical list — same style at every breakpoint, phone/tablet
-                    included, so the profile section reads as a real left
-                    sidebar everywhere, not just on desktop. ── */}
                 <nav className="flex flex-col p-2">
                   {accountNav.map((item) =>
                     item.href === "#chat" ? (
