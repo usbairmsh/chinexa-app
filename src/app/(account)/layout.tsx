@@ -128,8 +128,8 @@ export default function AccountLayout({
               quick-nav, replacing the full sidebar so real page content starts
               almost immediately instead of after a screen of chrome. ── */}
           <div className="lg:hidden -mx-4 sm:-mx-6 mb-4">
-            {/* Same tier-tinted card used in the desktop sidebar — big centered
-                avatar, name + tier pill inline, phone below, View Profile button. */}
+            {/* Same tier-tinted card used in the desktop sidebar — centered
+                avatar, name + tier pill inline, phone below. */}
             <div
               className={cn("mx-4 sm:mx-6 rounded-2xl p-5 flex flex-col items-center text-center shadow-card", tierColor.className)}
               style={tierColor.style}
@@ -154,60 +154,59 @@ export default function AccountLayout({
               <p className="mt-0.5 text-xs text-charcoal/70 truncate max-w-full">
                 {user?.phone || "Not signed in"}
               </p>
-
-              <Link
-                href="/dashboard/profile"
-                className="mt-4 w-full py-2 rounded-xl bg-white/90 text-charcoal text-sm font-medium hover:bg-white transition-colors"
-              >
-                View Profile
-              </Link>
             </div>
 
-            <nav className="mt-3 flex items-center gap-2 overflow-x-auto px-4 sm:px-6 pb-1 scrollbar-none">
-              {accountNav.map((item) =>
-                item.href === "#chat" ? (
+            {/* relative wrapper + edge fades hint that this row scrolls
+                sideways — the fade masks the last visible icon mid-cut-off
+                and disappears once the user has scrolled it into view. */}
+            <div className="relative mt-3">
+              <nav className="flex items-center gap-2 overflow-x-auto px-4 sm:px-6 pb-1 scrollbar-none">
+                {accountNav.map((item) =>
+                  item.href === "#chat" ? (
+                    <button
+                      key={item.href}
+                      onClick={() => openChat("help_and_support")}
+                      className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-xl text-charcoal/70 hover:bg-pearl hover:text-charcoal transition-colors"
+                    >
+                      <item.icon className="h-5 w-5" />
+                      <span className="text-[10px] font-medium leading-none text-center">{item.label}</span>
+                    </button>
+                  ) : (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-xl transition-colors",
+                        isActive(item.href)
+                          ? "bg-secondary/10 text-secondary"
+                          : "text-charcoal/70 hover:bg-pearl hover:text-charcoal"
+                      )}
+                    >
+                      <item.icon className="h-5 w-5" />
+                      <span className="text-[10px] font-medium leading-none text-center">{item.label}</span>
+                    </Link>
+                  )
+                )}
+                {isAuthenticated ? (
                   <button
-                    key={item.href}
-                    onClick={() => openChat("help_and_support")}
-                    className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-xl text-charcoal/70 hover:bg-pearl hover:text-charcoal transition-colors"
+                    onClick={handleLogout}
+                    className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-xl text-charcoal/70 hover:bg-destructive/5 hover:text-destructive transition-colors"
                   >
-                    <item.icon className="h-5 w-5" />
-                    <span className="text-[10px] font-medium leading-none text-center">{item.label}</span>
+                    <LogOut className="h-5 w-5" />
+                    <span className="text-[10px] font-medium leading-none">Sign Out</span>
                   </button>
                 ) : (
                   <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      "flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-xl transition-colors",
-                      isActive(item.href)
-                        ? "bg-secondary/10 text-secondary"
-                        : "text-charcoal/70 hover:bg-pearl hover:text-charcoal"
-                    )}
+                    href="/login"
+                    className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-xl text-secondary transition-colors"
                   >
-                    <item.icon className="h-5 w-5" />
-                    <span className="text-[10px] font-medium leading-none text-center">{item.label}</span>
+                    <LogOut className="h-5 w-5 rotate-180" />
+                    <span className="text-[10px] font-medium leading-none">Sign In</span>
                   </Link>
-                )
-              )}
-              {isAuthenticated ? (
-                <button
-                  onClick={handleLogout}
-                  className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-xl text-charcoal/70 hover:bg-destructive/5 hover:text-destructive transition-colors"
-                >
-                  <LogOut className="h-5 w-5" />
-                  <span className="text-[10px] font-medium leading-none">Sign Out</span>
-                </button>
-              ) : (
-                <Link
-                  href="/login"
-                  className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-xl text-secondary transition-colors"
-                >
-                  <LogOut className="h-5 w-5 rotate-180" />
-                  <span className="text-[10px] font-medium leading-none">Sign In</span>
-                </Link>
-              )}
-            </nav>
+                )}
+              </nav>
+              <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-pearl/40 to-transparent" />
+            </div>
           </div>
 
           <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
