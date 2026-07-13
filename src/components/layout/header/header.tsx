@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
-import { Search, Heart, ShoppingBag, User, Menu, X, ChevronDown } from "lucide-react";
+import { Search, Heart, ShoppingBag, User, Menu, X, ChevronDown, UserCircle, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useCartStore } from "@/stores/cart.store";
@@ -23,14 +23,18 @@ import { resolveTierColorStyle } from "@/lib/tier-color";
 
 export function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const cartCount = useCartStore((s) => s.getItemCount());
   const wishlistCount = useWishlistStore((s) => s.items.length);
   const { mobileMenuOpen, setMobileMenuOpen, setCartDrawerOpen } = useUIStore();
   const storeAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const storeUser = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
   // Persisted store differs from server HTML on hard refresh — rendering it
   // before mount causes a hydration mismatch that wedges the splash loader.
   const isAuthenticated = mounted && storeAuthenticated;
@@ -85,6 +89,23 @@ export function Header() {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target as Node)) {
+        setAccountMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [accountMenuOpen]);
+
+  const handleLogout = () => {
+    setAccountMenuOpen(false);
+    logout();
+    router.push("/");
+  };
 
   return (
     <>
@@ -301,56 +322,127 @@ export function Header() {
               {/* Account — profile icon + the customer's own name in one rounded-border
                   pill, filled with the tier's own color as its background (not just an
                   outline tint), so the container itself reads as the member's tier.
+                  Clicking opens a small profile dropdown (avatar, View Profile, Sign Out)
+                  in the same tier color, instead of navigating straight to /dashboard.
                   Desktop only — on phone/tablet the profile now lives in the account
                   section's own left sidebar instead of the header. */}
               {isAuthenticated ? (
-                badgeData?.tier_name ? (
-                  <Link
-                    href="/dashboard"
-                    className={cn(
-                      "hidden lg:flex group relative items-center gap-1.5 h-9 pl-1 pr-3.5 rounded-full border shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-px",
-                      tierPillColor.className
+                <div className="relative hidden lg:block" ref={accountMenuRef}>
+                  {badgeData?.tier_name ? (
+                    <motion.button
+                      type="button"
+                      onClick={() => setAccountMenuOpen((v) => !v)}
+                      className={cn(
+                        "group relative flex items-center gap-1.5 h-9 pl-1 pr-3.5 rounded-full border shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-px",
+                        tierPillColor.className
+                      )}
+                      style={{
+                        ...tierPillColor.style,
+                        borderColor: tierPillColor.style?.color ?? "currentColor",
+                        boxShadow: `0 1px 6px -1px ${tierPillColor.style?.color ?? "currentColor"}`,
+                      }}
+                      aria-label="Account menu"
+                      aria-expanded={accountMenuOpen}
+                      title={`${user?.name || "Account"} — ${badgeData.tier_name} Member`}
+                    >
+                      <motion.span
+                        ref={accountPillIcon.scope}
+                        onHoverStart={() => accountPillIcon.play({ y: [0, -3, 0], scale: [1, 1.08, 1] }, 0.4)}
+                        whileTap={{ scale: 0.92 }}
+                        className="flex items-center justify-center h-7 w-7 rounded-full bg-white overflow-hidden"
+                        style={{ boxShadow: "inset 0 0 0 1px currentColor" }}
+                      >
+                        {user?.avatar ? (
+                          <img src={user.avatar} alt={user.name || "Account"} className="h-full w-full object-cover" />
+                        ) : (
+                          <User className="h-3.5 w-3.5" />
+                        )}
+                      </motion.span>
+                      <span className="font-heading text-[12px] font-semibold tracking-[0.03em] whitespace-nowrap">{user?.name || "Account"}</span>
+                      <ChevronDown className={cn("h-3 w-3 transition-transform duration-200", accountMenuOpen && "rotate-180")} />
+                    </motion.button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setAccountMenuOpen((v) => !v)}
+                      aria-label="Account menu"
+                      aria-expanded={accountMenuOpen}
+                    >
+                      {/* Account — a small nod (like acknowledging you), not a rotate */}
+                      <motion.span
+                        ref={accountIcon.scope}
+                        onHoverStart={() => accountIcon.play({ y: [0, -3, 0], scale: [1, 1.08, 1] }, 0.4)}
+                        whileTap={{ scale: 0.92 }}
+                        className="flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors overflow-hidden"
+                      >
+                        {user?.avatar ? (
+                          <img src={user.avatar} alt={user.name || "Account"} className="h-full w-full object-cover" />
+                        ) : (
+                          <User className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+                        )}
+                      </motion.span>
+                    </button>
+                  )}
+
+                  {/* Dropdown panel — same tier color as the trigger, avatar + name up top,
+                      View Profile in the middle, Sign Out pinned at the bottom. */}
+                  <AnimatePresence>
+                    {accountMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8, scale: 0.97 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 6, scale: 0.97 }}
+                        transition={{ duration: 0.16, ease: "easeOut" }}
+                        className="absolute right-0 top-full mt-2.5 w-64 rounded-2xl bg-white shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-border/20 overflow-hidden z-50"
+                      >
+                        {/* Header block — filled with the tier color, like the pill itself */}
+                        <div
+                          className={cn("flex items-center gap-3 px-4 py-4", tierPillColor.className)}
+                          style={tierPillColor.style}
+                        >
+                          <span
+                            className="flex items-center justify-center h-11 w-11 rounded-full bg-white overflow-hidden shrink-0"
+                            style={{ boxShadow: "inset 0 0 0 1px currentColor" }}
+                          >
+                            {user?.avatar ? (
+                              <img src={user.avatar} alt={user.name || "Account"} className="h-full w-full object-cover" />
+                            ) : (
+                              <User className="h-5 w-5" />
+                            )}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="font-heading text-[14px] font-semibold truncate">{user?.name || "Account"}</p>
+                            {badgeData?.tier_name && (
+                              <p className="text-[11px] font-medium opacity-80 truncate">{badgeData.tier_name} Member</p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="p-2">
+                          <Link
+                            href="/dashboard/profile"
+                            onClick={() => setAccountMenuOpen(false)}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-charcoal/80 hover:bg-pearl hover:text-charcoal transition-colors"
+                          >
+                            <UserCircle className="h-[18px] w-[18px] shrink-0" />
+                            View Profile
+                          </Link>
+
+                          <div className="my-1.5 h-px bg-border/20" />
+
+                          <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-charcoal/80 hover:bg-destructive/5 hover:text-destructive transition-colors"
+                          >
+                            <LogOut className="h-[18px] w-[18px] shrink-0" />
+                            Sign Out
+                          </button>
+                        </div>
+                      </motion.div>
                     )}
-                    style={{
-                      ...tierPillColor.style,
-                      borderColor: tierPillColor.style?.color ?? "currentColor",
-                      boxShadow: `0 1px 6px -1px ${tierPillColor.style?.color ?? "currentColor"}`,
-                    }}
-                    aria-label="Account"
-                    title={`${user?.name || "Account"} — ${badgeData.tier_name} Member`}
-                  >
-                    <motion.span
-                      ref={accountPillIcon.scope}
-                      onHoverStart={() => accountPillIcon.play({ y: [0, -3, 0], scale: [1, 1.08, 1] }, 0.4)}
-                      whileTap={{ scale: 0.92 }}
-                      className="flex items-center justify-center h-7 w-7 rounded-full bg-white overflow-hidden"
-                      style={{ boxShadow: "inset 0 0 0 1px currentColor" }}
-                    >
-                      {user?.avatar ? (
-                        <img src={user.avatar} alt={user.name || "Account"} className="h-full w-full object-cover" />
-                      ) : (
-                        <User className="h-3.5 w-3.5" />
-                      )}
-                    </motion.span>
-                    <span className="font-heading text-[12px] font-semibold tracking-[0.03em] whitespace-nowrap">{user?.name || "Account"}</span>
-                  </Link>
-                ) : (
-                  <Link href="/dashboard" aria-label="Account" className="hidden lg:block">
-                    {/* Account — a small nod (like acknowledging you), not a rotate */}
-                    <motion.span
-                      ref={accountIcon.scope}
-                      onHoverStart={() => accountIcon.play({ y: [0, -3, 0], scale: [1, 1.08, 1] }, 0.4)}
-                      whileTap={{ scale: 0.92 }}
-                      className="flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors overflow-hidden"
-                    >
-                      {user?.avatar ? (
-                        <img src={user.avatar} alt={user.name || "Account"} className="h-full w-full object-cover" />
-                      ) : (
-                        <User className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
-                      )}
-                    </motion.span>
-                  </Link>
-                )
+                  </AnimatePresence>
+                </div>
               ) : (
                 <>
                   {/* Mobile — icon */}
