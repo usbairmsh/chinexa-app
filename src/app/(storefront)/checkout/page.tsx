@@ -627,11 +627,11 @@ export default function CheckoutPage() {
                 <h2 className="font-heading text-xl font-semibold text-charcoal">Contact Information</h2>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
-                    <Input label="Full Name *" placeholder="Fatima Akter" value={customerName} onChange={(e) => { setCustomerName(e.target.value); setFieldErrors((p) => ({ ...p, customerName: "" })); }} className={fieldErrors.customerName ? "border-destructive" : ""} />
+                    <Input label="Full Name" required placeholder="Fatima Akter" value={customerName} onChange={(e) => { setCustomerName(e.target.value); setFieldErrors((p) => ({ ...p, customerName: "" })); }} className={fieldErrors.customerName ? "border-destructive" : ""} />
                     <FieldError field="customerName" />
                   </div>
                   <div>
-                    <Input label="Phone Number *" placeholder="01XXXXXXXXX" type="tel" value={customerPhone} onChange={(e) => { setCustomerPhone(e.target.value); setFieldErrors((p) => ({ ...p, customerPhone: "" })); }} className={fieldErrors.customerPhone ? "border-destructive" : ""} />
+                    <Input label="Phone Number" required placeholder="01XXXXXXXXX" type="tel" value={customerPhone} onChange={(e) => { setCustomerPhone(e.target.value); setFieldErrors((p) => ({ ...p, customerPhone: "" })); }} className={fieldErrors.customerPhone ? "border-destructive" : ""} />
                     <FieldError field="customerPhone" />
                   </div>
                   <div className="sm:col-span-2">
@@ -643,12 +643,12 @@ export default function CheckoutPage() {
                 <h2 className="font-heading text-xl font-semibold text-charcoal pt-4">Billing Address</h2>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
-                    <Input label="Address Line 1 *" placeholder="House/Flat, Road" value={billingAddress} onChange={(e) => { setBillingAddress(e.target.value); setFieldErrors((p) => ({ ...p, billingAddress: "" })); }} className={fieldErrors.billingAddress ? "border-destructive" : ""} />
+                    <Input label="Address Line 1" required placeholder="House/Flat, Road" value={billingAddress} onChange={(e) => { setBillingAddress(e.target.value); setFieldErrors((p) => ({ ...p, billingAddress: "" })); }} className={fieldErrors.billingAddress ? "border-destructive" : ""} />
                     <FieldError field="billingAddress" />
                   </div>
                   <Input label="Address Line 2 (Optional)" placeholder="Area, Landmark" className="sm:col-span-2" value={billingAddress2} onChange={(e) => setBillingAddress2(e.target.value)} />
                   <div>
-                    <label className="block text-sm font-medium text-charcoal-light mb-1.5">Division *</label>
+                    <label className="block text-sm font-medium text-charcoal-light mb-1.5">Division<span className="text-destructive"> *</span></label>
                     <Select value={billingDivision} onValueChange={(v) => { setBillingDivision(v); setBillingDistrict(""); setFieldErrors((p) => ({ ...p, billingDivision: "", billingDistrict: "" })); }}>
                       <SelectTrigger className={fieldErrors.billingDivision ? "border-destructive" : ""}><SelectValue placeholder="Select Division" /></SelectTrigger>
                       <SelectContent>
@@ -658,7 +658,7 @@ export default function CheckoutPage() {
                     <FieldError field="billingDivision" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-charcoal-light mb-1.5">District *</label>
+                    <label className="block text-sm font-medium text-charcoal-light mb-1.5">District<span className="text-destructive"> *</span></label>
                     <Select value={billingDistrict} onValueChange={(v) => { setBillingDistrict(v); setFieldErrors((p) => ({ ...p, billingDistrict: "" })); }} disabled={!billingDivision}>
                       <SelectTrigger className={fieldErrors.billingDistrict ? "border-destructive" : ""}><SelectValue placeholder={billingDivision ? "Select District" : "Select division first"} /></SelectTrigger>
                       <SelectContent>
@@ -668,7 +668,7 @@ export default function CheckoutPage() {
                     <FieldError field="billingDistrict" />
                   </div>
                   <div>
-                    <Input label="City / Area *" placeholder="Gulshan-2" value={billingCity} onChange={(e) => { setBillingCity(e.target.value); setFieldErrors((p) => ({ ...p, billingCity: "" })); }} className={fieldErrors.billingCity ? "border-destructive" : ""} />
+                    <Input label="City / Area" required placeholder="Gulshan-2" value={billingCity} onChange={(e) => { setBillingCity(e.target.value); setFieldErrors((p) => ({ ...p, billingCity: "" })); }} className={fieldErrors.billingCity ? "border-destructive" : ""} />
                     <FieldError field="billingCity" />
                   </div>
                   <Input label="Postal Code (Optional)" placeholder="1212" value={billingPostal} onChange={(e) => setBillingPostal(e.target.value)} />
@@ -692,20 +692,20 @@ export default function CheckoutPage() {
                     </h2>
                     <div className="grid sm:grid-cols-2 gap-4">
                       <div>
-                        <Input label="Recipient Name *" placeholder="Full name" value={shippingName} onChange={(e) => { setShippingName(e.target.value); setFieldErrors((p) => ({ ...p, shippingName: "" })); }} className={fieldErrors.shippingName ? "border-destructive" : ""} />
+                        <Input label="Recipient Name" required placeholder="Full name" value={shippingName} onChange={(e) => { setShippingName(e.target.value); setFieldErrors((p) => ({ ...p, shippingName: "" })); }} className={fieldErrors.shippingName ? "border-destructive" : ""} />
                         <FieldError field="shippingName" />
                       </div>
                       <div>
-                        <Input label="Phone Number *" placeholder="01XXXXXXXXX" type="tel" value={shippingPhone} onChange={(e) => { setShippingPhone(e.target.value); setFieldErrors((p) => ({ ...p, shippingPhone: "" })); }} className={fieldErrors.shippingPhone ? "border-destructive" : ""} />
+                        <Input label="Phone Number" required placeholder="01XXXXXXXXX" type="tel" value={shippingPhone} onChange={(e) => { setShippingPhone(e.target.value); setFieldErrors((p) => ({ ...p, shippingPhone: "" })); }} className={fieldErrors.shippingPhone ? "border-destructive" : ""} />
                         <FieldError field="shippingPhone" />
                       </div>
                       <div className="sm:col-span-2">
-                        <Input label="Address Line 1 *" placeholder="House/Flat, Road" value={shippingAddress} onChange={(e) => { setShippingAddress(e.target.value); setFieldErrors((p) => ({ ...p, shippingAddress: "" })); }} className={fieldErrors.shippingAddress ? "border-destructive" : ""} />
+                        <Input label="Address Line 1" required placeholder="House/Flat, Road" value={shippingAddress} onChange={(e) => { setShippingAddress(e.target.value); setFieldErrors((p) => ({ ...p, shippingAddress: "" })); }} className={fieldErrors.shippingAddress ? "border-destructive" : ""} />
                         <FieldError field="shippingAddress" />
                       </div>
                       <Input label="Address Line 2 (Optional)" placeholder="Area, Landmark" className="sm:col-span-2" value={shippingAddress2} onChange={(e) => setShippingAddress2(e.target.value)} />
                       <div>
-                        <label className="block text-sm font-medium text-charcoal-light mb-1.5">Division *</label>
+                        <label className="block text-sm font-medium text-charcoal-light mb-1.5">Division<span className="text-destructive"> *</span></label>
                         <Select value={shippingDivision} onValueChange={(v) => { setShippingDivision(v); setShippingDistrict(""); setFieldErrors((p) => ({ ...p, shippingDivision: "", shippingDistrict: "" })); }}>
                           <SelectTrigger className={fieldErrors.shippingDivision ? "border-destructive" : ""}><SelectValue placeholder="Select Division" /></SelectTrigger>
                           <SelectContent>
@@ -715,7 +715,7 @@ export default function CheckoutPage() {
                         <FieldError field="shippingDivision" />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-charcoal-light mb-1.5">District *</label>
+                        <label className="block text-sm font-medium text-charcoal-light mb-1.5">District<span className="text-destructive"> *</span></label>
                         <Select value={shippingDistrict} onValueChange={(v) => { setShippingDistrict(v); setFieldErrors((p) => ({ ...p, shippingDistrict: "" })); }} disabled={!shippingDivision}>
                           <SelectTrigger className={fieldErrors.shippingDistrict ? "border-destructive" : ""}><SelectValue placeholder={shippingDivision ? "Select District" : "Select division first"} /></SelectTrigger>
                           <SelectContent>
@@ -725,7 +725,7 @@ export default function CheckoutPage() {
                         <FieldError field="shippingDistrict" />
                       </div>
                       <div>
-                        <Input label="City / Area *" placeholder="Area name" value={shippingCity} onChange={(e) => { setShippingCity(e.target.value); setFieldErrors((p) => ({ ...p, shippingCity: "" })); }} className={fieldErrors.shippingCity ? "border-destructive" : ""} />
+                        <Input label="City / Area" required placeholder="Area name" value={shippingCity} onChange={(e) => { setShippingCity(e.target.value); setFieldErrors((p) => ({ ...p, shippingCity: "" })); }} className={fieldErrors.shippingCity ? "border-destructive" : ""} />
                         <FieldError field="shippingCity" />
                       </div>
                       <Input label="Postal Code (Optional)" placeholder="1205" value={shippingPostal} onChange={(e) => setShippingPostal(e.target.value)} />
@@ -884,7 +884,7 @@ export default function CheckoutPage() {
                   <div className="h-11 rounded-xl bg-pearl animate-pulse" />
                 ) : (
                   <div>
-                    <label className="block text-sm font-medium text-charcoal-light mb-1.5">Select payment method *</label>
+                    <label className="block text-sm font-medium text-charcoal-light mb-1.5">Select payment method<span className="text-destructive"> *</span></label>
                     <Select value={paymentMethod} onValueChange={handlePaymentMethodChange}>
                       <SelectTrigger><SelectValue placeholder="Choose a payment method" /></SelectTrigger>
                       <SelectContent>
@@ -962,7 +962,8 @@ export default function CheckoutPage() {
 
                     <div>
                       <Input
-                        label={`${confirmFieldLabel} *`}
+                        label={confirmFieldLabel}
+                        required
                         placeholder={confirmFieldPlaceholder}
                         type={confirmInputType === "phone_number" ? "tel" : "text"}
                         maxLength={confirmInputType === "phone_number" ? 4 : undefined}

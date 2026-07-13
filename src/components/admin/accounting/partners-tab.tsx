@@ -229,16 +229,16 @@ export function PartnersTab() {
         <DialogContent>
           <DialogHeader><DialogTitle>Add Partner</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <Input label="Partner Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />
+            <Input label="Partner Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" required />
             <div className="grid grid-cols-2 gap-3">
               <Input label="Email (optional)" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
               <Input label="Phone (optional)" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Input label="Initial Investment (৳)" type="number" value={initialInvestment} onChange={(e) => setInitialInvestment(e.target.value)} placeholder="100000" />
-              <Input label="Share Percentage (%)" type="number" value={sharePercentage} onChange={(e) => setSharePercentage(e.target.value)} placeholder="25" />
+              <Input label="Share Percentage (%)" type="number" value={sharePercentage} onChange={(e) => setSharePercentage(e.target.value)} placeholder="25" required />
             </div>
-            <Input label="Join Date" type="date" value={joinDate} onChange={(e) => setJoinDate(e.target.value)} />
+            <Input label="Join Date" type="date" value={joinDate} onChange={(e) => setJoinDate(e.target.value)} required />
             <Textarea label="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-[60px]" />
             {formError && <p className="text-sm text-destructive">{formError}</p>}
           </div>
@@ -255,7 +255,7 @@ export function PartnersTab() {
           <DialogHeader><DialogTitle>Record Partner Transaction</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Partner</label>
+              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Partner<span className="text-destructive"> *</span></label>
               <Select value={txnPartnerId} onValueChange={setTxnPartnerId}>
                 <SelectTrigger><SelectValue placeholder="Select partner" /></SelectTrigger>
                 <SelectContent>
@@ -275,8 +275,8 @@ export function PartnersTab() {
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Amount (৳)" type="number" value={txnAmount} onChange={(e) => setTxnAmount(e.target.value)} placeholder="50000" />
-              <Input label="Date" type="date" value={txnDate} onChange={(e) => setTxnDate(e.target.value)} />
+              <Input label="Amount (৳)" type="number" value={txnAmount} onChange={(e) => setTxnAmount(e.target.value)} placeholder="50000" required />
+              <Input label="Date" type="date" value={txnDate} onChange={(e) => setTxnDate(e.target.value)} required />
             </div>
             <Textarea label="Note (optional)" value={txnNote} onChange={(e) => setTxnNote(e.target.value)} className="min-h-[60px]" />
             {txnError && <p className="text-sm text-destructive">{txnError}</p>}

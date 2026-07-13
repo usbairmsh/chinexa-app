@@ -99,7 +99,7 @@ function LoginForm() {
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Phone input with +880 prefix */}
             <div>
-              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Phone Number</label>
+              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Phone Number<span className="text-destructive"> *</span></label>
               <div className="flex">
                 <div className="flex items-center gap-1.5 px-3 rounded-l-luxury border-2 border-r-0 border-border bg-pearl/60 text-sm font-semibold text-charcoal select-none">
                   <Phone className="h-3.5 w-3.5 text-charcoal-lighter" />
@@ -124,6 +124,7 @@ function LoginForm() {
 
             <Input
               label="Password"
+              required
               type="password"
               placeholder="Enter your password"
               value={password}

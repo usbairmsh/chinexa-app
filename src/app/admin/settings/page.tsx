@@ -837,7 +837,7 @@ function AdminSettingsPageInner() {
             <DialogContent className="max-w-sm">
               <DialogHeader><DialogTitle>{editZoneId ? "Edit Delivery Zone" : "Add Delivery Zone"}</DialogTitle></DialogHeader>
               <div className="space-y-3 py-2">
-                <Input label="Zone Name" value={zoneName} onChange={(e) => setZoneName(e.target.value)} placeholder="Dhaka City" />
+                <Input label="Zone Name" required value={zoneName} onChange={(e) => setZoneName(e.target.value)} placeholder="Dhaka City" />
                 <Input label="Areas" value={zoneAreas} onChange={(e) => setZoneAreas(e.target.value)} placeholder="Gulshan, Banani" />
                 <div className="grid grid-cols-2 gap-3"><Input label="Charge (৳)" type="number" value={zoneCharge} onChange={(e) => setZoneCharge(e.target.value)} /><Input label="Days" value={zoneDays} onChange={(e) => setZoneDays(e.target.value)} placeholder="1-2" /></div>
               </div>
@@ -873,6 +873,7 @@ function AdminSettingsPageInner() {
               <div className="flex-1">
                 <Input
                   label="New payment method name"
+                  required
                   value={newPaymentName}
                   onChange={(e) => setNewPaymentName(e.target.value)}
                   placeholder="e.g. Upay, SSLCommerz"

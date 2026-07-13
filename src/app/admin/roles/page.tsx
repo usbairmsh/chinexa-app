@@ -201,7 +201,7 @@ export default function AdminRolesPage() {
             <DialogDescription>A named permission preset you can select when adding a new admin.</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-3 py-2 pr-1">
-            <Input label="Role Name *" placeholder="Support Staff" value={formName} onChange={(e) => setFormName(e.target.value)} />
+            <Input label="Role Name" required placeholder="Support Staff" value={formName} onChange={(e) => setFormName(e.target.value)} />
             <Textarea label="Description" placeholder="What this role is for" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} />
             <div>
               <label className="block text-sm font-medium text-charcoal-light mb-2"><FieldLabel label="Section Access" hint="This is copied into an admin's own permissions when this role is selected as a preset — editing the role later does not affect admins who already picked it." /></label>

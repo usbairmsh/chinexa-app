@@ -211,10 +211,10 @@ export default function AddressesPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <Input label="Full Name *" value={fName} onChange={(e) => setFName(e.target.value)} placeholder="Your name" />
+              <Input label="Full Name" required value={fName} onChange={(e) => setFName(e.target.value)} placeholder="Your name" />
             </div>
-            <Input label="Phone Number" value={fPhone} onChange={(e) => setFPhone(e.target.value)} placeholder="+880 1XXXXXXXXX" type="tel" />
-            <Input label="Address Line 1 *" value={fAddr1} onChange={(e) => setFAddr1(e.target.value)} placeholder="House/Flat, Road" />
+            <Input label="Phone Number" required value={fPhone} onChange={(e) => setFPhone(e.target.value)} placeholder="+880 1XXXXXXXXX" type="tel" />
+            <Input label="Address Line 1" required value={fAddr1} onChange={(e) => setFAddr1(e.target.value)} placeholder="House/Flat, Road" />
             <Input label="Address Line 2 (Area)" value={fAddr2} onChange={(e) => setFAddr2(e.target.value)} placeholder="Area, Landmark" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>

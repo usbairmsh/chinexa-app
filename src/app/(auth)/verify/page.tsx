@@ -256,7 +256,8 @@ function VerifyForm() {
         <CardContent className="pt-4">
           <form onSubmit={handleSetNewPassword} className="space-y-4">
             <Input
-              label="New Password *"
+              label="New Password"
+              required
               type="password"
               placeholder="At least 6 characters"
               value={newPassword}
@@ -264,7 +265,8 @@ function VerifyForm() {
               icon={<Lock className="h-4 w-4" />}
             />
             <Input
-              label="Confirm New Password *"
+              label="Confirm New Password"
+              required
               type="password"
               placeholder="Re-enter your new password"
               value={confirmNewPassword}

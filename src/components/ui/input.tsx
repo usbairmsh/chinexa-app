@@ -10,7 +10,7 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, label, error, icon, id, ...props }, ref) => {
+  ({ className, type, label, error, icon, id, required, ...props }, ref) => {
     const inputId = id || (typeof label === "string" ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
 
     return (
@@ -21,6 +21,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             className="block text-sm font-medium text-charcoal-light"
           >
             {label}
+            {required && <span className="text-destructive"> *</span>}
           </label>
         )}
         <div className="relative">
@@ -32,6 +33,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           <input
             type={type}
             id={inputId}
+            required={required}
             className={cn(
               "flex h-11 w-full rounded-luxury bg-beige-dark/70 px-4 py-2.5 text-sm text-charcoal transition-colors duration-200 ease-out caret-secondary shadow-[inset_0_0_0_1px_rgba(58,36,56,0.06)]",
               "placeholder:text-charcoal-lighter/70",

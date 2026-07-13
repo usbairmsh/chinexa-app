@@ -320,11 +320,11 @@ export default function AdminMembershipPage() {
             <DialogDescription>{editTier ? "Update tier settings" : "Create a new membership tier"}</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
-            <Input label="Tier Name *" placeholder="e.g. Diamond" value={formName} onChange={(e) => setFormName(e.target.value)} />
+            <Input label="Tier Name" required placeholder="e.g. Diamond" value={formName} onChange={(e) => setFormName(e.target.value)} />
 
             <div className="grid grid-cols-2 gap-2 sm:gap-3">
-              <Input label="Min Points *" type="number" value={formMinPoints} onChange={(e) => setFormMinPoints(Number(e.target.value))} min={0} />
-              <Input label="Max Points *" type="number" value={formMaxPoints} onChange={(e) => setFormMaxPoints(Number(e.target.value))} min={0} />
+              <Input label="Min Points" type="number" value={formMinPoints} onChange={(e) => setFormMinPoints(Number(e.target.value))} min={0} />
+              <Input label="Max Points" type="number" value={formMaxPoints} onChange={(e) => setFormMaxPoints(Number(e.target.value))} min={0} />
             </div>
 
             <div className="grid grid-cols-2 gap-2 sm:gap-3">

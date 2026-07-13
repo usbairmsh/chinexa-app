@@ -183,7 +183,7 @@ export function ImportBatchesTab() {
           <DialogHeader><DialogTitle>Record Import Batch</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Product</label>
+              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Product<span className="text-destructive"> *</span></label>
               {selectedProduct ? (
                 <div className="flex items-center justify-between px-3 py-2 rounded-lg border border-border/30 bg-pearl/30">
                   <span className="text-sm text-charcoal">{selectedProduct.name}</span>
@@ -214,11 +214,11 @@ export function ImportBatchesTab() {
               )}
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Quantity Imported" type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="100" />
-              <Input label="Batch Date" type="date" value={batchDate} onChange={(e) => setBatchDate(e.target.value)} />
+              <Input label="Quantity Imported" type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="100" required />
+              <Input label="Batch Date" type="date" value={batchDate} onChange={(e) => setBatchDate(e.target.value)} required />
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <Input label="Import Cost (৳)" type="number" value={importCost} onChange={(e) => setImportCost(e.target.value)} placeholder="50000" />
+              <Input label="Import Cost (৳)" type="number" value={importCost} onChange={(e) => setImportCost(e.target.value)} placeholder="50000" required />
               <Input label="Shipping (৳)" type="number" value={shippingCost} onChange={(e) => setShippingCost(e.target.value)} placeholder="5000" />
               <Input label="Customs (৳)" type="number" value={customsCost} onChange={(e) => setCustomsCost(e.target.value)} placeholder="3000" />
             </div>

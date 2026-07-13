@@ -152,8 +152,8 @@ export default function AdminNotificationsPage() {
             <CardDescription>Delivered instantly to the customer&apos;s notification inbox</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Input label="Title *" placeholder="e.g., Flash Sale — 24 hours only!" value={title} onChange={(e) => setTitle(e.target.value)} />
-            <Textarea label="Message *" placeholder="Write the notification message..." value={message} onChange={(e) => setMessage(e.target.value)} className="min-h-[80px]" />
+            <Input label="Title" required placeholder="e.g., Flash Sale — 24 hours only!" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <Textarea label="Message" required placeholder="Write the notification message..." value={message} onChange={(e) => setMessage(e.target.value)} className="min-h-[80px]" />
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-charcoal-light mb-1.5">Type</label>

@@ -198,7 +198,7 @@ export default function AdminBlogPage() {
             <DialogDescription>{editPost ? "Update blog post" : "Write and publish a new blog post"}</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-4 py-2 pr-1">
-            <Input label="Title *" placeholder="The Ultimate Guide to..." value={formTitle} onChange={(e) => handleTitleChange(e.target.value)} />
+            <Input label="Title" required placeholder="The Ultimate Guide to..." value={formTitle} onChange={(e) => handleTitleChange(e.target.value)} />
             <div>
               <label className="block text-sm font-medium text-charcoal-light mb-1.5">Slug</label>
               <div className="flex items-center rounded-xl border border-border overflow-hidden focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20">

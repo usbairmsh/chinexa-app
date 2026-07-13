@@ -440,7 +440,7 @@ export default function AdminCategoriesPage() {
               {formParentId && <p className="text-[10px] text-charcoal-lighter mt-1">This will be a subcategory under {allCategories.find((c) => c.id === formParentId)?.name}</p>}
             </div>
 
-            <Input label={formParentId ? "Subcategory Name" : "Category Name"} placeholder="e.g., Hair Care, Wellness" value={formName} onChange={(e) => handleNameChange(e.target.value)} />
+            <Input label={formParentId ? "Subcategory Name" : "Category Name"} required placeholder="e.g., Hair Care, Wellness" value={formName} onChange={(e) => handleNameChange(e.target.value)} />
 
             <div>
               <label className="block text-sm font-medium text-charcoal-light mb-1.5">URL Slug</label>

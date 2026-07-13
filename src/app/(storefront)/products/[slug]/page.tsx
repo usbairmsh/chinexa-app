@@ -752,6 +752,8 @@ export default function ProductDetailPage() {
                     />
 
                     <Textarea
+                      label="Your Review"
+                      required
                       placeholder="Share your experience with this product..."
                       value={reviewComment}
                       onChange={(e) => setReviewComment(e.target.value)}

@@ -360,11 +360,11 @@ export default function AdminBannersPage() {
           </DialogHeader>
           <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-4 py-2 pr-1">
             <div className="grid sm:grid-cols-2 gap-3">
-              <Input label="Title *" placeholder="Summer Glow Collection" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
+              <Input label="Title" required placeholder="Summer Glow Collection" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
               <Input label="Subtitle" placeholder="Discover radiance with our new arrivals" value={formSubtitle} onChange={(e) => setFormSubtitle(e.target.value)} />
             </div>
             <div className="space-y-1">
-              <ImageUpload label={<FieldLabel label="Banner Image *" hint={<>Recommended: <span className="font-semibold">1920 x 800px</span>. Larger images can be repositioned below.</>} />} value={formImage} onChange={setFormImage} aspectRatio="video" placeholder="Upload banner image" folder="banners" />
+              <ImageUpload label={<FieldLabel label="Banner Image" required hint={<>Recommended: <span className="font-semibold">1920 x 800px</span>. Larger images can be repositioned below.</>} />} value={formImage} onChange={setFormImage} aspectRatio="video" placeholder="Upload banner image" folder="banners" />
             </div>
             {formImage && <ImagePositionEditor imageUrl={formImage} crop={formCrop} onChange={setFormCrop} />}
             <div className="grid sm:grid-cols-2 gap-3">

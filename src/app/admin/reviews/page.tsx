@@ -186,7 +186,7 @@ export default function AdminReviewsPage() {
               <p className="text-[10px] text-charcoal-lighter mt-1">— {replyDialog.customer_name}</p>
             </div>
           )}
-          <Textarea placeholder="Write your reply..." className="min-h-[100px]" value={replyText} onChange={(e) => setReplyText(e.target.value)} />
+          <Textarea placeholder="Write your reply..." className="min-h-[100px]" value={replyText} onChange={(e) => setReplyText(e.target.value)} required />
           <DialogFooter>
             <AdminButton variant="outline" onClick={() => { setReplyDialog(null); setReplyText(""); }}>Cancel</AdminButton>
             <AdminButton onClick={handleReply} disabled={replySaving || !replyText.trim()}>

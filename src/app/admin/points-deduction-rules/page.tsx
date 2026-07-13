@@ -89,12 +89,12 @@ function makeDefault(type: DeductionRuleType): DeductionRule {
   }
 }
 
-function NumField({ label, hint, value, onChange, suffix, disabled }: { label: string; hint?: string; value: number; onChange: (v: number) => void; suffix?: string; disabled?: boolean }) {
+function NumField({ label, hint, value, onChange, suffix, disabled, required }: { label: string; hint?: string; value: number; onChange: (v: number) => void; suffix?: string; disabled?: boolean; required?: boolean }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-charcoal-light mb-1.5"><FieldLabel label={label} hint={hint} /></label>
+      <label className="block text-sm font-medium text-charcoal-light mb-1.5"><FieldLabel label={label} hint={hint} required={required} /></label>
       <div className="flex items-center gap-2">
-        <Input type="number" min={0} value={value} onChange={(e) => onChange(Number(e.target.value) || 0)} disabled={disabled} />
+        <Input type="number" min={0} value={value} onChange={(e) => onChange(Number(e.target.value) || 0)} disabled={disabled} required={required} />
         {suffix && <span className="text-xs text-charcoal-lighter shrink-0">{suffix}</span>}
       </div>
     </div>
@@ -111,24 +111,24 @@ function RuleEditor({ rule, tiers, onChange, canEdit }: { rule: DeductionRule; t
 
   return (
     <div className="space-y-4">
-      <Input label="Rule Name" value={rule.name} onChange={(e) => p({ name: e.target.value })} placeholder="e.g. Inactive 90+ days" disabled={!canEdit} />
+      <Input label="Rule Name" value={rule.name} onChange={(e) => p({ name: e.target.value })} placeholder="e.g. Inactive 90+ days" disabled={!canEdit} required />
 
       {rule.type === "inactivity" && (
         <div className="grid sm:grid-cols-2 gap-3">
-          <NumField label="Inactive For" hint="Days since their last order (or since signup if they never ordered)." value={rule.inactiveDays} onChange={(v) => p({ inactiveDays: v } as Partial<DeductionRule>)} suffix="days since last order" disabled={!canEdit} />
-          <NumField label="Deduct" hint="Points taken from a matching customer." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" disabled={!canEdit} />
+          <NumField label="Inactive For" hint="Days since their last order (or since signup if they never ordered)." value={rule.inactiveDays} onChange={(v) => p({ inactiveDays: v } as Partial<DeductionRule>)} suffix="days since last order" disabled={!canEdit} required />
+          <NumField label="Deduct" hint="Points taken from a matching customer." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" disabled={!canEdit} required />
         </div>
       )}
 
       {rule.type === "points_expiry" && (
-        <NumField label="Expire Points Older Than" hint="Age at which earned points become eligible to expire. The amount expired is always computed live — whatever qualifies, capped at the customer's current balance." value={rule.expiryDays} onChange={(v) => p({ expiryDays: v } as Partial<DeductionRule>)} suffix="days" disabled={!canEdit} />
+        <NumField label="Expire Points Older Than" hint="Age at which earned points become eligible to expire. The amount expired is always computed live — whatever qualifies, capped at the customer's current balance." value={rule.expiryDays} onChange={(v) => p({ expiryDays: v } as Partial<DeductionRule>)} suffix="days" disabled={!canEdit} required />
       )}
 
       {rule.type === "low_spend" && (
         <div className="grid sm:grid-cols-3 gap-3">
-          <NumField label="Spend Window" hint="Rolling period their spend is measured over." value={rule.windowDays} onChange={(v) => p({ windowDays: v } as Partial<DeductionRule>)} suffix="days" disabled={!canEdit} />
-          <NumField label="Minimum Spend" hint="Threshold below which the rule applies." value={rule.minSpendThreshold} onChange={(v) => p({ minSpendThreshold: v } as Partial<DeductionRule>)} suffix="৳ in window" disabled={!canEdit} />
-          <NumField label="Deduct" hint="Points taken from a matching customer." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" disabled={!canEdit} />
+          <NumField label="Spend Window" hint="Rolling period their spend is measured over." value={rule.windowDays} onChange={(v) => p({ windowDays: v } as Partial<DeductionRule>)} suffix="days" disabled={!canEdit} required />
+          <NumField label="Minimum Spend" hint="Threshold below which the rule applies." value={rule.minSpendThreshold} onChange={(v) => p({ minSpendThreshold: v } as Partial<DeductionRule>)} suffix="৳ in window" disabled={!canEdit} required />
+          <NumField label="Deduct" hint="Points taken from a matching customer." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" disabled={!canEdit} required />
         </div>
       )}
 
@@ -136,7 +136,7 @@ function RuleEditor({ rule, tiers, onChange, canEdit }: { rule: DeductionRule; t
         <div className="space-y-3">
           <div>
             <label className="block text-sm font-medium text-charcoal-light mb-1.5">
-              <FieldLabel label="Applies to Tiers" hint="Only customers currently in these tiers are affected." />
+              <FieldLabel label="Applies to Tiers" hint="Only customers currently in these tiers are affected." required />
             </label>
             <div className="flex flex-wrap gap-2">
               {tiers.map((t) => {
@@ -156,15 +156,15 @@ function RuleEditor({ rule, tiers, onChange, canEdit }: { rule: DeductionRule; t
               {tiers.length === 0 && <p className="text-xs text-charcoal-lighter">No membership tiers found.</p>}
             </div>
           </div>
-          <NumField label="Deduct" hint="Points taken from a matching customer." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" disabled={!canEdit} />
+          <NumField label="Deduct" hint="Points taken from a matching customer." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" disabled={!canEdit} required />
         </div>
       )}
 
       {rule.type === "return_abuse" && (
         <div className="grid sm:grid-cols-2 gap-3">
-          <NumField label="Minimum Orders" hint="Rule only applies once a customer has at least this many orders." value={rule.minOrders} onChange={(v) => p({ minOrders: v } as Partial<DeductionRule>)} suffix="before this rule can apply" disabled={!canEdit} />
-          <NumField label="Return Rate Threshold" hint="Percentage of orders returned that triggers this rule." value={rule.returnRateThresholdPct} onChange={(v) => p({ returnRateThresholdPct: v } as Partial<DeductionRule>)} suffix="% of orders returned" disabled={!canEdit} />
-          <NumField label="Deduct" hint="Points taken from a matching customer." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" disabled={!canEdit} />
+          <NumField label="Minimum Orders" hint="Rule only applies once a customer has at least this many orders." value={rule.minOrders} onChange={(v) => p({ minOrders: v } as Partial<DeductionRule>)} suffix="before this rule can apply" disabled={!canEdit} required />
+          <NumField label="Return Rate Threshold" hint="Percentage of orders returned that triggers this rule." value={rule.returnRateThresholdPct} onChange={(v) => p({ returnRateThresholdPct: v } as Partial<DeductionRule>)} suffix="% of orders returned" disabled={!canEdit} required />
+          <NumField label="Deduct" hint="Points taken from a matching customer." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" disabled={!canEdit} required />
         </div>
       )}
 
@@ -207,20 +207,23 @@ function RuleEditor({ rule, tiers, onChange, canEdit }: { rule: DeductionRule; t
                 onChange={(v) => p({ repeatIntervalDays: Math.max(0, v) } as Partial<DeductionRule>)}
                 suffix="days between deductions for the same customer"
                 disabled={!canEdit}
+                required
               />
             )}
             <Input
-              label={<FieldLabel label="Notification Title" hint="Headline the customer sees when this rule deducts their points." />}
+              label={<FieldLabel label="Notification Title" hint="Headline the customer sees when this rule deducts their points." required />}
               value={rule.notificationTitle}
               onChange={(e) => p({ notificationTitle: e.target.value } as Partial<DeductionRule>)}
               disabled={!canEdit}
+              required
             />
             <Textarea
-              label={<FieldLabel label="Notification Message" hint="Body text the customer sees. Supports {points} and {rule} tokens." />}
+              label={<FieldLabel label="Notification Message" hint="Body text the customer sees. Supports {points} and {rule} tokens." required />}
               value={rule.notificationMessage}
               onChange={(e) => p({ notificationMessage: e.target.value } as Partial<DeductionRule>)}
               className="min-h-[60px]"
               disabled={!canEdit}
+              required
             />
           </div>
         )}

@@ -423,7 +423,7 @@ export default function EditProductPage() {
               <Card>
                 <CardHeader><CardTitle className="text-base">Product Information</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
-                  <Input label="Product Name" placeholder="Product name" value={productName} onChange={(e) => setProductName(e.target.value)} />
+                  <Input label="Product Name" required placeholder="Product name" value={productName} onChange={(e) => setProductName(e.target.value)} />
                   <Input label="SKU" placeholder="SK-0001" value={sku} onChange={(e) => setSku(e.target.value)} />
                   <Textarea label="Short Description" placeholder="Brief summary..." className="min-h-[80px]" value={shortDesc} onChange={(e) => setShortDesc(e.target.value)} />
                   <Textarea label="Full Description" placeholder="Detailed description..." className="min-h-[150px]" value={fullDesc} onChange={(e) => setFullDesc(e.target.value)} />
@@ -472,7 +472,7 @@ export default function EditProductPage() {
                                     <SelectItem value="shade">Shade</SelectItem><SelectItem value="weight">Weight</SelectItem>
                                   </SelectContent>
                                 </Select>
-                                <Input placeholder="Name * (e.g., 50ml)" value={variant.name} onChange={(e) => updateVariant(variant.id, "name", e.target.value)} />
+                                <Input required placeholder="Name * (e.g., 50ml)" value={variant.name} onChange={(e) => updateVariant(variant.id, "name", e.target.value)} />
                                 <Input placeholder="Display Value" value={variant.value} onChange={(e) => updateVariant(variant.id, "value", e.target.value)} />
                               </div>
                               {variant.type === "color" && (
@@ -485,7 +485,7 @@ export default function EditProductPage() {
                             <div>
                               <p className="text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider mb-2">Pricing</p>
                               <div className="grid sm:grid-cols-2 gap-3">
-                                <Input label="Price (৳) *" placeholder="2500" type="number" value={variant.price} onChange={(e) => updateVariant(variant.id, "price", e.target.value)} />
+                                <Input label="Price (৳)" required placeholder="2500" type="number" value={variant.price} onChange={(e) => updateVariant(variant.id, "price", e.target.value)} />
                                 <Input label="Compare at Price (৳)" placeholder="3200 (optional)" type="number" value={variant.compare_price} onChange={(e) => updateVariant(variant.id, "compare_price", e.target.value)} />
                               </div>
                               <div className="grid sm:grid-cols-2 gap-3 mt-3">

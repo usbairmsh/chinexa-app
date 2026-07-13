@@ -424,7 +424,7 @@ export default function AdminCouponsPage() {
             <Separator />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input label="Coupon Code *" placeholder="e.g., SUMMER25" value={formCode} onChange={(e) => setFormCode(e.target.value.toUpperCase())} />
+              <Input label="Coupon Code" required placeholder="e.g., SUMMER25" value={formCode} onChange={(e) => setFormCode(e.target.value.toUpperCase())} />
               <Input label="Description" placeholder="25% off summer collection" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -438,7 +438,7 @@ export default function AdminCouponsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <Input label={formType === "percentage" ? "Discount %" : "Discount Amount (৳)"} placeholder={formType === "percentage" ? "25" : "500"} type="number" value={formValue} onChange={(e) => setFormValue(e.target.value)} />
+              <Input label={formType === "percentage" ? "Discount %" : "Discount Amount (৳)"} required placeholder={formType === "percentage" ? "25" : "500"} type="number" value={formValue} onChange={(e) => setFormValue(e.target.value)} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="Min. Order (৳)" placeholder="1500" type="number" value={formMinOrder} onChange={(e) => setFormMinOrder(e.target.value)} />

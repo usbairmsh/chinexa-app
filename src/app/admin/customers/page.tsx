@@ -785,7 +785,8 @@ export default function AdminCustomersPage() {
                 </div>
               )}
               <Input
-                label="Points *"
+                label="Points"
+                required
                 type="number"
                 min={0}
                 max={pointsMode === "deduct" ? (membershipData?.total_points || 0) : undefined}
@@ -875,9 +876,9 @@ export default function AdminCustomersPage() {
               <DialogDescription>Update customer profile details</DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
-              <Input label="Full Name" value={editName} onChange={(e) => setEditName(e.target.value)} />
+              <Input label="Full Name" required value={editName} onChange={(e) => setEditName(e.target.value)} />
               <Input label="Email" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
-              <Input label="Phone" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
+              <Input label="Phone" required value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
               <Input label="Birthdate" type="date" value={editBirthdate} onChange={(e) => setEditBirthdate(e.target.value)} />
               <div className="flex items-center gap-3">
                 <Switch checked={editActive} onCheckedChange={setEditActive} />
@@ -1121,11 +1122,12 @@ export default function AdminCustomersPage() {
             <DialogDescription>Create a new customer account</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <Input label="Full Name *" value={newName} onChange={(e) => setNewName(e.target.value)} />
-            <Input label="Phone *" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+8801XXXXXXXXX" />
+            <Input label="Full Name" required value={newName} onChange={(e) => setNewName(e.target.value)} />
+            <Input label="Phone" required value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+8801XXXXXXXXX" />
             <Input label="Email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
             <Input
-              label="Password *"
+              label="Password"
+              required
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}

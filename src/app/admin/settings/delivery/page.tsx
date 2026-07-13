@@ -363,7 +363,7 @@ export default function DeliverySettingsPage() {
         <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader><DialogTitle>Add Delivery Zone</DialogTitle><DialogDescription>Create a new shipping zone</DialogDescription></DialogHeader>
           <div className="space-y-3 py-2">
-            <Input label="Zone Name" placeholder="e.g., Dhaka City" value={zoneName} onChange={(e) => setZoneName(e.target.value)} />
+            <Input label="Zone Name" required placeholder="e.g., Dhaka City" value={zoneName} onChange={(e) => setZoneName(e.target.value)} />
             <Input label="Areas Covered" placeholder="e.g., Gulshan, Banani, Dhanmondi..." value={zoneAreas} onChange={(e) => setZoneAreas(e.target.value)} />
             <div className="grid grid-cols-2 gap-3">
               <Input label="Charge (৳)" placeholder="60" type="number" value={zoneCharge} onChange={(e) => setZoneCharge(e.target.value)} />
@@ -382,7 +382,7 @@ export default function DeliverySettingsPage() {
         <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader><DialogTitle>Add Delivery Partner</DialogTitle><DialogDescription>Add a new courier service</DialogDescription></DialogHeader>
           <div className="space-y-3 py-2">
-            <Input label="Company Name" placeholder="e.g., Steadfast Courier" value={partnerName} onChange={(e) => setPartnerName(e.target.value)} />
+            <Input label="Company Name" required placeholder="e.g., Steadfast Courier" value={partnerName} onChange={(e) => setPartnerName(e.target.value)} />
             <Input label="Tracking URL (Optional)" placeholder="https://company.com/track" value={partnerUrl} onChange={(e) => setPartnerUrl(e.target.value)} />
           </div>
           <DialogFooter>

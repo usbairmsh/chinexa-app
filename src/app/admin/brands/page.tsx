@@ -174,7 +174,7 @@ export default function AdminBrandsPage() {
             <DialogDescription>{editBrand ? "Update brand details" : "Add a new brand to your store"}</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
-            <Input label="Brand Name *" value={fName} onChange={(e) => { setFName(e.target.value); if (autoSlug) setFSlug(slugify(e.target.value)); }} placeholder="e.g., CosRX" />
+            <Input label="Brand Name" required value={fName} onChange={(e) => { setFName(e.target.value); if (autoSlug) setFSlug(slugify(e.target.value)); }} placeholder="e.g., CosRX" />
             <Input label="URL Slug" value={fSlug} onChange={(e) => { setFSlug(e.target.value); setAutoSlug(false); }} placeholder="cosrx" />
             <ImageUpload label="Brand Logo" value={fLogo} onChange={setFLogo} aspectRatio="square" folder="brands" />
             <CountrySearch value={fCountry} onChange={setFCountry} />

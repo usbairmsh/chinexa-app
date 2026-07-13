@@ -149,8 +149,8 @@ export function RecordSaleDialog({ open, onOpenChange, onRecorded }: RecordSaleD
         <DialogHeader><DialogTitle>Record Sale (Facebook / Manual Order)</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Customer Name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Full name" />
-            <Input label="Customer Phone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="01XXXXXXXXX" />
+            <Input label="Customer Name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Full name" required />
+            <Input label="Customer Phone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="01XXXXXXXXX" required />
           </div>
 
           <div className="space-y-3">
@@ -205,7 +205,7 @@ export function RecordSaleDialog({ open, onOpenChange, onRecorded }: RecordSaleD
                 )}
 
                 <div className="grid grid-cols-2 gap-2">
-                  <Input label="Quantity" type="number" value={it.quantity} onChange={(e) => updateItem(it.key, "quantity", e.target.value)} />
+                  <Input label="Quantity" type="number" value={it.quantity} onChange={(e) => updateItem(it.key, "quantity", e.target.value)} required />
                   <Input label="Unit Price (৳)" type="number" value={it.unit_price} onChange={(e) => updateItem(it.key, "unit_price", e.target.value)} />
                 </div>
                 <p className="text-xs text-charcoal-lighter text-right">Line total: {formatCurrency((Number(it.quantity) || 0) * (Number(it.unit_price) || 0))}</p>

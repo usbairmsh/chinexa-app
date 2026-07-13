@@ -242,7 +242,7 @@ export function LoansTab() {
         <DialogContent>
           <DialogHeader><DialogTitle>Add Loan</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <Input label="Lender Name" value={lenderName} onChange={(e) => setLenderName(e.target.value)} placeholder="e.g. City Bank, John Doe" />
+            <Input label="Lender Name" value={lenderName} onChange={(e) => setLenderName(e.target.value)} placeholder="e.g. City Bank, John Doe" required />
             <div>
               <label className="block text-sm font-medium text-charcoal-light mb-1.5">Lender Type</label>
               <Select value={lenderType} onValueChange={(v) => setLenderType(v as Loan["lender_type"])}>
@@ -255,7 +255,7 @@ export function LoansTab() {
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Principal (৳)" type="number" value={principal} onChange={(e) => setPrincipal(e.target.value)} placeholder="500000" />
+              <Input label="Principal (৳)" type="number" value={principal} onChange={(e) => setPrincipal(e.target.value)} placeholder="500000" required />
               <Input label="Interest Rate (%)" type="number" value={interestRate} onChange={(e) => setInterestRate(e.target.value)} placeholder="12" />
             </div>
             <div>
@@ -269,7 +269,7 @@ export function LoansTab() {
                 </SelectContent>
               </Select>
             </div>
-            <Input label="Start Date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            <Input label="Start Date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
             <Textarea label="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-[60px]" />
             {formError && <p className="text-sm text-destructive">{formError}</p>}
           </div>
@@ -286,7 +286,7 @@ export function LoansTab() {
           <DialogHeader><DialogTitle>Record Loan Repayment</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Loan</label>
+              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Loan<span className="text-destructive"> *</span></label>
               <Select value={repayLoanId} onValueChange={setRepayLoanId}>
                 <SelectTrigger><SelectValue placeholder="Select loan" /></SelectTrigger>
                 <SelectContent>
@@ -305,8 +305,8 @@ export function LoansTab() {
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Amount (৳)" type="number" value={repayAmount} onChange={(e) => setRepayAmount(e.target.value)} placeholder="10000" />
-              <Input label="Date" type="date" value={repayDate} onChange={(e) => setRepayDate(e.target.value)} />
+              <Input label="Amount (৳)" type="number" value={repayAmount} onChange={(e) => setRepayAmount(e.target.value)} placeholder="10000" required />
+              <Input label="Date" type="date" value={repayDate} onChange={(e) => setRepayDate(e.target.value)} required />
             </div>
             <Textarea label="Note (optional)" value={repayNote} onChange={(e) => setRepayNote(e.target.value)} className="min-h-[60px]" />
             {repayError && <p className="text-sm text-destructive">{repayError}</p>}

@@ -233,7 +233,7 @@ export function ExpensesTab({ year }: { year: number }) {
           <DialogHeader><DialogTitle>{editing ? "Edit Expense" : "Add Expense"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Category</label>
+              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Category<span className="text-destructive"> *</span></label>
               <Select value={formCategoryId} onValueChange={setFormCategoryId}>
                 <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                 <SelectContent>
@@ -242,8 +242,8 @@ export function ExpensesTab({ year }: { year: number }) {
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Amount (৳)" type="number" value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="1500" />
-              <Input label="Date" type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
+              <Input label="Amount (৳)" type="number" value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="1500" required />
+              <Input label="Date" type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} required />
             </div>
             <Input label="Payment Method (optional)" value={formPaymentMethod} onChange={(e) => setFormPaymentMethod(e.target.value)} placeholder="Cash, bKash, Bank..." />
             <Textarea label="Description (optional)" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder="What was this expense for?" className="min-h-[70px]" />

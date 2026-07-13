@@ -410,13 +410,13 @@ export default function AdminOffersPage() {
 
             <Separator />
 
-            <Input label="Offer Title *" placeholder="Summer Sale — 30% Off" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
+            <Input label="Offer Title" required placeholder="Summer Sale — 30% Off" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
             <Textarea label="Description" placeholder="Describe the offer details..." value={formDesc} onChange={(e) => setFormDesc(e.target.value)} className="min-h-[60px]" />
 
             {/* Structured discount */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-charcoal-light mb-1.5">Discount Type *</label>
+                <label className="block text-sm font-medium text-charcoal-light mb-1.5">Discount Type<span className="text-destructive"> *</span></label>
                 <Select value={formDiscountType} onValueChange={(v) => setFormDiscountType(v as DiscountType)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -426,7 +426,8 @@ export default function AdminOffersPage() {
                 </Select>
               </div>
               <Input
-                label={formDiscountType === "percentage" ? "Discount % *" : "Discount ৳ *"}
+                label={formDiscountType === "percentage" ? "Discount %" : "Discount ৳"}
+                required
                 type="number"
                 min="0"
                 max={formDiscountType === "percentage" ? "100" : undefined}

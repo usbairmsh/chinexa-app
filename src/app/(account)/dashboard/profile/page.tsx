@@ -299,7 +299,7 @@ export default function ProfilePage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
-            <Input label="Full Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" />
+            <Input label="Full Name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" />
             <Input label="Phone Number" value={user?.phone || ""} placeholder="+880 1XXXXXXXXX" disabled />
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
@@ -327,6 +327,7 @@ export default function ProfilePage() {
         <CardContent className="space-y-4">
           <Input
             label="Current Password"
+            required
             type="password"
             value={currentPassword}
             onChange={(e) => { setCurrentPassword(e.target.value); setPasswordError(""); }}
@@ -336,6 +337,7 @@ export default function ProfilePage() {
           <div className="grid sm:grid-cols-2 gap-4">
             <Input
               label="New Password"
+              required
               type="password"
               value={newPassword}
               onChange={(e) => { setNewPassword(e.target.value); setPasswordError(""); }}
@@ -344,6 +346,7 @@ export default function ProfilePage() {
             />
             <Input
               label="Confirm New Password"
+              required
               type="password"
               value={confirmNewPassword}
               onChange={(e) => { setConfirmNewPassword(e.target.value); setPasswordError(""); }}
@@ -414,7 +417,7 @@ export default function ProfilePage() {
                   </ul>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-charcoal mb-1.5">Reason for leaving</label>
+                  <label className="block text-sm font-medium text-charcoal mb-1.5">Reason for leaving<span className="text-destructive"> *</span></label>
                   <Select value={deactivateReason} onValueChange={setDeactivateReason}>
                     <SelectTrigger><SelectValue placeholder="Select a reason..." /></SelectTrigger>
                     <SelectContent>
@@ -449,6 +452,7 @@ export default function ProfilePage() {
               <div className="space-y-4 py-2">
                 <Input
                   label="Verification Code"
+                  required
                   value={deactivateOtp}
                   onChange={(e) => {
                     const val = e.target.value.replace(/\D/g, "").slice(0, 6);

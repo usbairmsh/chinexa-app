@@ -348,10 +348,10 @@ export default function AdminUsersPage() {
             <DialogDescription>Create a new admin account with specific access</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-3 py-2 pr-1">
-            <Input label="Full Name *" placeholder="Fahim Ahmed" value={formName} onChange={(e) => setFormName(e.target.value)} />
+            <Input label="Full Name" required placeholder="Fahim Ahmed" value={formName} onChange={(e) => setFormName(e.target.value)} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input label="Username *" placeholder="fahim" value={formUsername} onChange={(e) => setFormUsername(e.target.value.toLowerCase().replace(/\s/g, ""))} />
-              <Input label="Password *" placeholder="Min 6 characters" type="password" value={formPassword} onChange={(e) => setFormPassword(e.target.value)} />
+              <Input label="Username" required placeholder="fahim" value={formUsername} onChange={(e) => setFormUsername(e.target.value.toLowerCase().replace(/\s/g, ""))} />
+              <Input label="Password" required placeholder="Min 6 characters" type="password" value={formPassword} onChange={(e) => setFormPassword(e.target.value)} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="Email" placeholder="fahim@chinexa.com" type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
@@ -405,9 +405,9 @@ export default function AdminUsersPage() {
             <DialogDescription>Update {editDialog?.name}&apos;s account details</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-3 py-2 pr-1">
-            <Input label="Full Name *" value={editName} onChange={(e) => setEditName(e.target.value)} />
+            <Input label="Full Name" required value={editName} onChange={(e) => setEditName(e.target.value)} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input label="Username *" value={editUsername} onChange={(e) => setEditUsername(e.target.value.toLowerCase().replace(/\s/g, ""))} />
+              <Input label="Username" required value={editUsername} onChange={(e) => setEditUsername(e.target.value.toLowerCase().replace(/\s/g, ""))} />
               <div>
                 <label className="block text-sm font-medium text-charcoal-light mb-1.5">Role</label>
                 <Select value={editRole} onValueChange={(v) => setEditRole(v as "admin" | "superadmin")} disabled={editDialog?.id === currentAdminId}>

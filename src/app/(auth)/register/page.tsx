@@ -86,7 +86,8 @@ function RegisterForm() {
       <CardContent className="pt-4">
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
-            label="Full Name *"
+            label="Full Name"
+            required
             type="text"
             placeholder="Enter your name"
             value={name}
@@ -95,7 +96,8 @@ function RegisterForm() {
           />
 
           <Input
-            label="Phone Number *"
+            label="Phone Number"
+            required
             type="tel"
             placeholder="+88 01XXXXXXXXX"
             value={phone}
@@ -104,7 +106,8 @@ function RegisterForm() {
           />
 
           <Input
-            label="Birthdate *"
+            label="Birthdate"
+            required
             type="date"
             value={birthdate}
             onChange={(e) => setBirthdate(e.target.value)}
@@ -121,7 +124,8 @@ function RegisterForm() {
           />
 
           <Input
-            label="Password *"
+            label="Password"
+            required
             type="password"
             placeholder="At least 6 characters"
             value={password}
@@ -130,7 +134,8 @@ function RegisterForm() {
           />
 
           <Input
-            label="Confirm Password *"
+            label="Confirm Password"
+            required
             type="password"
             placeholder="Re-enter your password"
             value={confirmPassword}

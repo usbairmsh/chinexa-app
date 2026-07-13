@@ -415,7 +415,7 @@ export default function OrderDetailPage() {
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div>
-              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Reason *</label>
+              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Reason<span className="text-destructive"> *</span></label>
               <Select value={returnReason} onValueChange={setReturnReason}>
                 <SelectTrigger><SelectValue placeholder="Select reason..." /></SelectTrigger>
                 <SelectContent>

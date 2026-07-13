@@ -180,7 +180,8 @@ export default function AdminPoliciesPage() {
           <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
             <div className="grid sm:grid-cols-2 gap-3">
               <Input
-                label="Page Title *"
+                label="Page Title"
+                required
                 value={formTitle}
                 onChange={(e) => {
                   setFormTitle(e.target.value);
@@ -190,7 +191,8 @@ export default function AdminPoliciesPage() {
               />
               <div>
                 <Input
-                  label="URL Slug *"
+                  label="URL Slug"
+                  required
                   value={formSlug}
                   onChange={(e) => { setFormSlug(e.target.value); setSlugManuallyEdited(true); }}
                   placeholder="warranty"

@@ -11,10 +11,11 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
  * TooltipProvider so it works when dropped into any admin page without
  * that page needing to set one up.
  */
-export function FieldLabel({ label, hint }: { label: React.ReactNode; hint?: React.ReactNode }) {
+export function FieldLabel({ label, hint, required }: { label: React.ReactNode; hint?: React.ReactNode; required?: boolean }) {
   return (
     <span className="inline-flex items-center gap-1">
       {label}
+      {required && <span className="text-destructive">*</span>}
       {hint && (
         <TooltipProvider delayDuration={150}>
           <Tooltip>
