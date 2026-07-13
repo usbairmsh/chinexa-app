@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/utils";
 import { toCsv, downloadCsv } from "@/lib/csv";
+import { useAdmin } from "@/contexts/admin-context";
 
 interface ExpenseCategory { id: string; name: string; is_active: boolean; sort_order: number; }
 interface Expense {
@@ -25,6 +26,10 @@ function formatDate(value: string): string {
 }
 
 export function ExpensesTab({ year }: { year: number }) {
+  const { can } = useAdmin();
+  const canAdd = can("accounting", "add");
+  const canEdit = can("accounting", "edit");
+  const canDelete = can("accounting", "delete");
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [totalAmount, setTotalAmount] = useState(0);
@@ -160,9 +165,11 @@ export function ExpensesTab({ year }: { year: number }) {
           <AdminButton variant="outline" onClick={handleExport} disabled={expenses.length === 0}>
             <Download className="h-4 w-4 mr-1" /> Export
           </AdminButton>
-          <AdminButton onClick={openAddDialog}>
-            <Plus className="h-4 w-4 mr-1" /> Add Expense
-          </AdminButton>
+          {canAdd && (
+            <AdminButton onClick={openAddDialog}>
+              <Plus className="h-4 w-4 mr-1" /> Add Expense
+            </AdminButton>
+          )}
         </div>
       </div>
 
@@ -199,12 +206,16 @@ export function ExpensesTab({ year }: { year: number }) {
                       <td className="px-4 py-3 text-right font-medium text-charcoal">{formatCurrency(exp.amount)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => openEditDialog(exp)} className="p-1.5 rounded-full hover:bg-secondary/10 text-charcoal-lighter hover:text-secondary transition-colors">
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button onClick={() => setDeleteTarget(exp)} className="p-1.5 rounded-full hover:bg-destructive/10 text-charcoal-lighter hover:text-destructive transition-colors">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          {canEdit && (
+                            <button onClick={() => openEditDialog(exp)} className="p-1.5 rounded-full hover:bg-secondary/10 text-charcoal-lighter hover:text-secondary transition-colors">
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button onClick={() => setDeleteTarget(exp)} className="p-1.5 rounded-full hover:bg-destructive/10 text-charcoal-lighter hover:text-destructive transition-colors">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -265,20 +276,24 @@ export function ExpensesTab({ year }: { year: number }) {
         <DialogContent>
           <DialogHeader><DialogTitle>Manage Expense Categories</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="flex gap-2">
-              <Input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="New category name" />
-              <AdminButton onClick={handleAddCategory} disabled={!newCategoryName.trim()}><Plus className="h-4 w-4" /></AdminButton>
-            </div>
+            {canAdd && (
+              <div className="flex gap-2">
+                <Input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="New category name" />
+                <AdminButton onClick={handleAddCategory} disabled={!newCategoryName.trim()}><Plus className="h-4 w-4" /></AdminButton>
+              </div>
+            )}
             <div className="space-y-1.5 max-h-64 overflow-y-auto">
               {categories.map((c) => (
                 <div key={c.id} className="flex items-center justify-between px-3 py-2 rounded-lg border border-border/30">
                   <span className={c.is_active ? "text-charcoal" : "text-charcoal-lighter line-through"}>{c.name}</span>
-                  <button
-                    onClick={() => handleToggleCategory(c)}
-                    className="text-xs font-medium px-2 py-1 rounded-full hover:bg-pearl transition-colors"
-                  >
-                    {c.is_active ? <span className="text-destructive flex items-center gap-1"><X className="h-3 w-3" /> Deactivate</span> : <span className="text-success">Activate</span>}
-                  </button>
+                  {canEdit && (
+                    <button
+                      onClick={() => handleToggleCategory(c)}
+                      className="text-xs font-medium px-2 py-1 rounded-full hover:bg-pearl transition-colors"
+                    >
+                      {c.is_active ? <span className="text-destructive flex items-center gap-1"><X className="h-3 w-3" /> Deactivate</span> : <span className="text-success">Activate</span>}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

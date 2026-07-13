@@ -19,6 +19,7 @@ import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
+import { useAdmin } from "@/contexts/admin-context";
 
 interface EditableItem {
   product_id: string | null; variant_id: string | null;
@@ -31,16 +32,12 @@ const statusIcons: Record<string, typeof Clock> = {
   shipped: Truck, on_delivery: MapPin, received: CheckCircle2, not_received: XCircle, returned: RotateCcw, cancelled: XCircle,
 };
 
-function getCookie(name: string): string {
-  if (typeof document === "undefined") return "";
-  const match = document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`));
-  return match ? match[2] : "";
-}
-
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const adminRole = getCookie("chinexa-role");
-  const canEditOrder = adminRole === "superadmin";
+  const { can } = useAdmin();
+  const canEditOrder = can("orders", "edit");
+  const canHandleOrders = can("orders", "handle_orders");
+  const canApproveReturns = can("orders", "approve");
 
   const [order, setOrder] = useState<Record<string, unknown> | null>(null);
 
@@ -333,7 +330,7 @@ export default function OrderDetailPage() {
             <CardContent className="p-4 space-y-2">
               <AdminButton variant="outline" className="w-full" size="sm" onClick={() => window.open(`/invoice?id=${encodeURIComponent(id)}`, "_blank")}><Printer className="h-3.5 w-3.5" /> Print Invoice</AdminButton>
               <AdminButton variant="outline" className="w-full" size="sm" onClick={() => window.open(`/invoice?id=${encodeURIComponent(id)}`, "_blank")}><Download className="h-3.5 w-3.5" /> Download Receipt</AdminButton>
-              {!["received", "not_received"].includes(order.status as string) && (
+              {canHandleOrders && !["received", "not_received"].includes(order.status as string) && (
                 <><Separator /><AdminButton variant="danger" className="w-full" size="sm" onClick={() => handleStatusUpdate("not_received")}><XCircle className="h-3.5 w-3.5" /> Mark Not Received</AdminButton></>
               )}
             </CardContent>
@@ -353,7 +350,7 @@ export default function OrderDetailPage() {
                     <p className="text-xs text-charcoal"><span className="font-medium">Reason:</span> {String(ret.reason).replace("_", " ")}</p>
                     {ret.description ? <p className="text-xs text-charcoal-lighter">{String(ret.description)}</p> : null}
                     <p className="text-xs text-charcoal"><span className="font-medium">Refund:</span> {formatCurrency(Number(ret.refund_amount))}</p>
-                    {ret.status === "requested" && canEditOrder && (
+                    {ret.status === "requested" && canApproveReturns && (
                       <div className="flex gap-2 pt-1">
                         <AdminButton size="xs" onClick={() => handleReturnAction(ret.id as string, "approved")} disabled={returnActionLoading === ret.id}>
                           {returnActionLoading === ret.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />} Approve
@@ -363,7 +360,7 @@ export default function OrderDetailPage() {
                         </AdminButton>
                       </div>
                     )}
-                    {ret.status === "approved" && canEditOrder && (
+                    {ret.status === "approved" && canApproveReturns && (
                       <AdminButton size="xs" variant="outline" onClick={() => handleReturnAction(ret.id as string, "refunded")} disabled={returnActionLoading === ret.id}>
                         {returnActionLoading === ret.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CreditCard className="h-3 w-3" />} Mark Refunded
                       </AdminButton>
@@ -387,7 +384,7 @@ export default function OrderDetailPage() {
             <div className="grid sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-charcoal-light mb-1.5">Order Status</label>
-                <Select value={editStatus} onValueChange={setEditStatus}>
+                <Select value={editStatus} onValueChange={setEditStatus} disabled={!canHandleOrders}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {["pending", "confirmed", "processing", "shipped", "on_delivery", "received", "not_received"].map((s) => (
@@ -492,9 +489,11 @@ export default function OrderDetailPage() {
           </div>
           <DialogFooter>
             <button onClick={() => setEditOrderOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
-            <button onClick={handleSaveOrder} disabled={editSaving} className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300">
-              {editSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save
-            </button>
+            {can("orders", "edit") && (
+              <button onClick={handleSaveOrder} disabled={editSaving} className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary !text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300">
+                {editSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save
+              </button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

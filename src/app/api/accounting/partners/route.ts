@@ -4,6 +4,7 @@ import { query, execute } from "@/lib/db";
 import { validate, validationError } from "@/lib/validate";
 import { logActivity } from "@/lib/log-activity";
 import { ensureAccountingTables } from "@/lib/migrate-accounting";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export async function GET() {
   try {
@@ -43,6 +44,8 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "accounting", "add");
+    if (denied) return denied;
     await ensureAccountingTables();
     const body = await req.json();
     const err = validate([

@@ -131,7 +131,7 @@ export function CategoryBanner() {
               <h3 className="text-white font-heading text-2xl sm:text-3xl font-bold">{banner.title}</h3>
               {banner.subtitle && <p className="text-white/80 text-sm mt-1 max-w-md">{banner.subtitle}</p>}
               {banner.cta_text && (
-                <span className="inline-block mt-4 px-6 py-2 rounded-full bg-white text-charcoal text-sm font-semibold hover:bg-secondary hover:text-white hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 shadow-lg">
+                <span className="inline-block mt-4 px-6 py-2 rounded-full bg-white text-charcoal text-sm font-semibold hover:bg-secondary hover:!text-white hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 shadow-lg">
                   {banner.cta_text}
                 </span>
               )}
@@ -181,7 +181,7 @@ export function PopupBanner() {
         className="relative max-w-lg w-full rounded-2xl overflow-hidden shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <button onClick={handleDismiss} className="absolute top-3 right-3 z-10 h-10 w-10 flex items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors">
+        <button onClick={handleDismiss} className="absolute top-3 right-3 z-10 h-10 w-10 flex items-center justify-center rounded-full bg-black/40 !text-white hover:bg-black/60 transition-colors">
           <X className="h-4 w-4" />
         </button>
         <div className="relative aspect-[4/3]">
@@ -200,7 +200,7 @@ export function PopupBanner() {
             {banner.subtitle && <p className="text-white/80 text-sm mt-1">{banner.subtitle}</p>}
             {banner.cta_text && banner.link && (
               <Link href={banner.link} onClick={handleDismiss}>
-                <span className="inline-block mt-3 px-6 py-2 rounded-full bg-white text-charcoal text-sm font-semibold hover:bg-secondary hover:text-white transition-all">
+                <span className="inline-block mt-3 px-6 py-2 rounded-full bg-white text-charcoal text-sm font-semibold hover:bg-secondary hover:!text-white transition-all">
                   {banner.cta_text}
                 </span>
               </Link>

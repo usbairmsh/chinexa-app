@@ -110,7 +110,7 @@ export function AvatarUpload({ currentUrl, name = "Profile", fallback, onUploade
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          className="absolute -bottom-0.5 -right-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-white ring-2 ring-white shadow-md hover:bg-secondary-dark transition-colors"
+          className="absolute -bottom-0.5 -right-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-secondary !text-white ring-2 ring-white shadow-md hover:bg-secondary-dark transition-colors"
           aria-label="Change profile picture"
         >
           <Camera className="h-3.5 w-3.5" />

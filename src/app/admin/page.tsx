@@ -169,12 +169,12 @@ export default function AdminDashboard() {
             {refreshing ? "Refreshing..." : "Refresh"}
           </button>
           <Link href="/admin/analytics">
-            <span className="inline-flex items-center gap-1.5 h-9 px-3 sm:px-5 rounded-full border border-border text-charcoal text-[12px] font-body font-medium tracking-wide hover:bg-charcoal hover:text-white hover:border-charcoal transition-all duration-200 cursor-pointer">
+            <span className="inline-flex items-center gap-1.5 h-9 px-3 sm:px-5 rounded-full border border-border text-charcoal text-[12px] font-body font-medium tracking-wide hover:bg-charcoal hover:!text-white hover:border-charcoal transition-all duration-200 cursor-pointer">
               <BarChart3 className="h-3.5 w-3.5" /> Analytics
             </span>
           </Link>
           <Link href="/admin/products/new">
-            <span className="inline-flex items-center gap-1.5 h-9 px-3 sm:px-5 rounded-full bg-secondary text-white text-[12px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 cursor-pointer">
+            <span className="inline-flex items-center gap-1.5 h-9 px-3 sm:px-5 rounded-full bg-secondary !text-white text-[12px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 cursor-pointer">
               <Package className="h-3.5 w-3.5" /> Add Product
             </span>
           </Link>

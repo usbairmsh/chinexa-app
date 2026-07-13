@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/log-activity";
 import { validationError } from "@/lib/validate";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { DEFAULT_DEDUCTION_ENGINE_CONFIG, type DeductionEngineConfig, type DeductionRule } from "@/types/points-deduction-rules";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export const dynamic = "force-dynamic";
 const SETTINGS_KEY = "points_deduction_engine";
@@ -99,6 +100,9 @@ function validateConfig(config: DeductionEngineConfig): string | null {
 // PUT /api/admin/points-deduction — save rule config
 export async function PUT(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "points_deduction_rules", "edit");
+    if (denied) return denied;
+
     const body = await req.json();
     const config: DeductionEngineConfig = {
       items: Array.isArray(body?.items) ? body.items as DeductionRule[] : [],

@@ -4,6 +4,7 @@ import { query, execute } from "@/lib/db";
 import { validate, validationError, dependencyError } from "@/lib/validate";
 import { logActivity } from "@/lib/log-activity";
 import { ensureAccountingTables } from "@/lib/migrate-accounting";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 // Financial event history — corrections happen via a new offsetting
 // transaction (standard accounting practice), not by editing/deleting past
@@ -34,6 +35,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "accounting", "add");
+    if (denied) return denied;
     await ensureAccountingTables();
     const body = await req.json();
     const err = validate([

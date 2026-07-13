@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Trash2, MoreHorizontal, Shield, Key, Loader2, AlertTriangle, Lock, UserCog, ShieldCheck } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, Trash2, MoreHorizontal, Shield, Key, Loader2, AlertTriangle, Lock, UserCog, ShieldCheck, Pencil } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,11 +19,24 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { getInitials, formatDateShort, cn } from "@/lib/utils";
 import { ALL_PERMISSIONS } from "../layout";
+import { normalizePermissions, type PermissionAction, type PermissionsMap } from "@/lib/admin-permissions";
 
 interface AdminUser {
   id: string; username: string; name: string; email: string; phone: string;
-  role: "superadmin" | "admin"; permissions: string[] | null; is_active: boolean;
+  role: "superadmin" | "admin"; permissions: PermissionsMap | null; is_active: boolean;
   last_login: string | null; created_at: string;
+}
+
+const ACTION_LABELS: Record<PermissionAction, string> = {
+  view: "View", add: "Add", edit: "Edit", delete: "Delete",
+  handle_orders: "Handle Orders", approve: "Approve/Reject",
+};
+
+interface AdminRole {
+  id: string;
+  name: string;
+  description: string | null;
+  permissions: PermissionsMap;
 }
 
 function getCookie(name: string): string {
@@ -32,12 +46,17 @@ function getCookie(name: string): string {
 }
 
 export default function AdminUsersPage() {
+  const router = useRouter();
   const [admins, setAdmins] = useState<AdminUser[]>([]);
+  const [roles, setRoles] = useState<AdminRole[]>([]);
+  const [selectedRoleId, setSelectedRoleId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [addDialog, setAddDialog] = useState(false);
+  const [editDialog, setEditDialog] = useState<AdminUser | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<AdminUser | null>(null);
   const [accessDialog, setAccessDialog] = useState<AdminUser | null>(null);
   const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState("");
   const [success, setSuccess] = useState("");
 
   const currentAdminId = getCookie("chinexa-admin-id");
@@ -51,12 +70,17 @@ export default function AdminUsersPage() {
   const [formEmail, setFormEmail] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formRole, setFormRole] = useState<"admin" | "superadmin">("admin");
-  const [formPerms, setFormPerms] = useState<string[]>([]);
+  const [formPerms, setFormPerms] = useState<PermissionsMap>({});
+
+  // Edit Admin form
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editUsername, setEditUsername] = useState("");
+  const [editRole, setEditRole] = useState<"admin" | "superadmin">("admin");
 
   // Access edit
-  const [editPerms, setEditPerms] = useState<string[]>([]);
-
-
+  const [editPerms, setEditPerms] = useState<PermissionsMap>({});
 
   const fetchAdmins = async () => {
     try {
@@ -66,7 +90,22 @@ export default function AdminUsersPage() {
     } catch {} finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchAdmins(); }, []);
+  const fetchRoles = async () => {
+    try {
+      const res = await fetch("/api/admin-roles");
+      const data = await res.json();
+      setRoles(Array.isArray(data) ? data : []);
+    } catch {}
+  };
+
+  useEffect(() => { fetchAdmins(); fetchRoles(); }, []);
+
+  const handleSelectRolePreset = (roleId: string) => {
+    setSelectedRoleId(roleId);
+    if (!roleId) return;
+    const role = roles.find((r) => r.id === roleId);
+    if (role) setFormPerms(normalizePermissions(role.permissions));
+  };
 
   const handleAddAdmin = async () => {
     if (!formUsername.trim() || !formPassword || !formName.trim()) return;
@@ -79,9 +118,38 @@ export default function AdminUsersPage() {
       const data = await res.json();
       if (!res.ok) { alert(data.error); return; }
       setAddDialog(false);
-      setFormUsername(""); setFormPassword(""); setFormName(""); setFormEmail(""); setFormPhone(""); setFormRole("admin"); setFormPerms([]);
+      setFormUsername(""); setFormPassword(""); setFormName(""); setFormEmail(""); setFormPhone(""); setFormRole("admin"); setFormPerms({}); setSelectedRoleId("");
       fetchAdmins();
       setSuccess("Admin added successfully");
+      setTimeout(() => setSuccess(""), 3000);
+    } catch {} finally { setSaving(false); }
+  };
+
+  const openEditDialog = (admin: AdminUser) => {
+    setEditDialog(admin);
+    setEditError("");
+    setEditName(admin.name);
+    setEditEmail(admin.email || "");
+    setEditPhone(admin.phone || "");
+    setEditUsername(admin.username);
+    setEditRole(admin.role);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editDialog) return;
+    setEditError("");
+    if (!editName.trim() || !editUsername.trim()) { setEditError("Name and username are required"); return; }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin-auth", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update_admin", requester_id: currentAdminId, admin_id: editDialog.id, name: editName.trim(), email: editEmail.trim() || null, phone: editPhone.trim() || null, username: editUsername.trim(), role: editRole }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setEditError(data.error || "Something went wrong"); return; }
+      setAdmins((prev) => prev.map((a) => a.id === editDialog.id ? { ...a, name: editName.trim(), email: editEmail.trim(), phone: editPhone.trim(), username: editUsername.trim(), role: editRole } : a));
+      setEditDialog(null);
+      setSuccess("Admin updated successfully");
       setTimeout(() => setSuccess(""), 3000);
     } catch {} finally { setSaving(false); }
   };
@@ -100,7 +168,7 @@ export default function AdminUsersPage() {
 
   const openAccessDialog = (admin: AdminUser) => {
     setAccessDialog(admin);
-    setEditPerms(Array.isArray(admin.permissions) ? [...admin.permissions] : []);
+    setEditPerms(normalizePermissions(admin.permissions));
   };
 
   const handleSaveAccess = async () => {
@@ -115,22 +183,55 @@ export default function AdminUsersPage() {
     } catch {} finally { setSaving(false); }
   };
 
-  const togglePerm = (perm: string, checked: boolean) => {
-    setEditPerms((prev) => checked ? [...prev, perm] : prev.filter((p) => p !== perm));
+  const toggleAction = (
+    setPerms: React.Dispatch<React.SetStateAction<PermissionsMap>>,
+    sectionKey: string,
+    action: PermissionAction,
+    checked: boolean
+  ) => {
+    setPerms((prev) => {
+      const current = prev[sectionKey] || [];
+      const next = checked ? [...new Set([...current, action])] : current.filter((a) => a !== action);
+      return { ...prev, [sectionKey]: next };
+    });
   };
 
-  const toggleFormPerm = (perm: string, checked: boolean) => {
-    setFormPerms((prev) => checked ? [...prev, perm] : prev.filter((p) => p !== perm));
-  };
-
-  // Group permissions by section for the checklist UI
-  const permsBySection = ALL_PERMISSIONS.reduce((acc, p) => {
-    if (!acc[p.section]) acc[p.section] = [];
-    acc[p.section].push(p);
+  // Group permission sections by nav grouping for the checklist UI
+  const permsBySection = ALL_PERMISSIONS.filter((p) => p.key !== "dashboard").reduce((acc, p) => {
+    if (!acc[p.navSection]) acc[p.navSection] = [];
+    acc[p.navSection].push(p);
     return acc;
   }, {} as Record<string, typeof ALL_PERMISSIONS>);
 
   if (loading) return <div className="flex items-center justify-center py-24"><Loader2 className="h-8 w-8 text-secondary animate-spin" /></div>;
+
+  const renderPermGrid = (perms: PermissionsMap, setPerms: React.Dispatch<React.SetStateAction<PermissionsMap>>) => (
+    <div className="space-y-4 p-3 rounded-xl border border-border/30 bg-pearl/20">
+      {Object.entries(permsBySection).map(([navSection, sections]) => (
+        <div key={navSection}>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-charcoal-lighter mb-1.5">{navSection}</p>
+          <div className="space-y-1.5">
+            {sections.map((section) => (
+              <div key={section.key} className="flex items-center justify-between gap-2 flex-wrap py-0.5">
+                <span className="text-sm text-charcoal">{section.label}</span>
+                <div className="flex items-center gap-3">
+                  {section.actions.map((action) => (
+                    <label key={action} className="flex items-center gap-1.5 cursor-pointer text-xs text-charcoal-light">
+                      <Checkbox
+                        checked={(perms[section.key] || []).includes(action)}
+                        onCheckedChange={(v) => toggleAction(setPerms, section.key, action, !!v)}
+                      />
+                      {ACTION_LABELS[action]}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -140,6 +241,7 @@ export default function AdminUsersPage() {
           <p className="text-sm text-charcoal-lighter">{admins.length} admin{admins.length !== 1 ? "s" : ""}</p>
         </div>
         <div className="flex gap-2">
+          {isSuperAdmin && <AdminButton variant="outline" onClick={() => router.push("/admin/roles")}><Shield className="h-4 w-4 mr-1" /> Manage Roles</AdminButton>}
           {isSuperAdmin && <AdminButton onClick={() => setAddDialog(true)}><Plus className="h-4 w-4 mr-1" /> Add Admin</AdminButton>}
         </div>
       </div>
@@ -163,7 +265,10 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {admins.map((admin) => (
+                {admins.map((admin) => {
+                  const normPerms = normalizePermissions(admin.permissions);
+                  const grantedSections = Object.entries(normPerms).filter(([, actions]) => actions.length > 0);
+                  return (
                   <tr key={admin.id} className={cn("border-b border-border/20 hover:bg-pearl/50 transition-colors", admin.id === currentAdminId && "bg-primary-light/30")}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3 min-w-0">
@@ -183,13 +288,13 @@ export default function AdminUsersPage() {
                       {admin.role === "superadmin" ? (
                         <span className="text-[10px] text-charcoal-lighter">Full Access</span>
                       ) : (
-                        <div className="flex flex-wrap gap-1 max-w-[200px]">
-                          {Array.isArray(admin.permissions) && admin.permissions.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 max-w-[220px]">
+                          {grantedSections.length > 0 ? (
                             <>
-                              {admin.permissions.slice(0, 3).map((p) => (
-                                <span key={p} className="text-[9px] bg-pearl px-1.5 py-0.5 rounded text-charcoal-lighter capitalize">{p.replace(/_/g, " ")}</span>
+                              {grantedSections.slice(0, 3).map(([key, actions]) => (
+                                <span key={key} className="text-[9px] bg-pearl px-1.5 py-0.5 rounded text-charcoal-lighter capitalize">{key.replace(/_/g, " ")} ({actions.length})</span>
                               ))}
-                              {admin.permissions.length > 3 && <span className="text-[9px] text-charcoal-lighter">+{admin.permissions.length - 3}</span>}
+                              {grantedSections.length > 3 && <span className="text-[9px] text-charcoal-lighter">+{grantedSections.length - 3}</span>}
                             </>
                           ) : (
                             <span className="text-[10px] text-warning">No access set</span>
@@ -208,21 +313,27 @@ export default function AdminUsersPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {isSuperAdmin && admin.id !== currentAdminId && (
+                      {isSuperAdmin && (
                         <DropdownMenu>
                           <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            {admin.role !== "superadmin" && (
+                            <DropdownMenuItem onClick={() => openEditDialog(admin)}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit Admin</DropdownMenuItem>
+                            {admin.role !== "superadmin" && admin.id !== currentAdminId && (
                               <DropdownMenuItem onClick={() => openAccessDialog(admin)}><ShieldCheck className="h-3.5 w-3.5 mr-2" /> Manage Access</DropdownMenuItem>
                             )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDialog(admin)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Remove</DropdownMenuItem>
+                            {admin.id !== currentAdminId && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDialog(admin)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Remove</DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </CardContent>
@@ -257,22 +368,22 @@ export default function AdminUsersPage() {
               </Select>
             </div>
             {formRole === "admin" && (
-              <div>
-                <label className="block text-sm font-medium text-charcoal-light mb-2"><FieldLabel label="Section Access" hint="Dashboard is always accessible. Unchecked sections will be hidden from sidebar." /></label>
-                <div className="space-y-3 p-3 rounded-xl border border-border/30 bg-pearl/20">
-                  {Object.entries(permsBySection).map(([section, perms]) => (
-                    <div key={section}>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-charcoal-lighter mb-1.5">{section}</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                        {perms.filter((p) => p.key !== "dashboard").map((p) => (
-                          <label key={p.key} className="flex items-center gap-2 cursor-pointer text-sm text-charcoal">
-                            <Checkbox checked={formPerms.includes(p.key)} onCheckedChange={(v) => toggleFormPerm(p.key, !!v)} />
-                            {p.label}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+              <div className="space-y-3">
+                {roles.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-charcoal-light mb-1.5"><FieldLabel label="Preset Role (optional)" hint="Copies that role's permissions into the grid below as a starting point — you can still change anything before saving. Editing the role later won't affect this admin." /></label>
+                    <Select value={selectedRoleId || "__custom"} onValueChange={(v) => handleSelectRolePreset(v === "__custom" ? "" : v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__custom">Custom (no preset)</SelectItem>
+                        {roles.map((r) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-charcoal-light mb-2"><FieldLabel label="Section Access" hint="Dashboard is always accessible. Grant View to show a section in the sidebar; grant Add/Edit/Delete to allow those specific actions." /></label>
+                  {renderPermGrid(formPerms, setFormPerms)}
                 </div>
               </div>
             )}
@@ -286,46 +397,53 @@ export default function AdminUsersPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Admin Dialog */}
+      <Dialog open={!!editDialog} onOpenChange={(open) => !open && setEditDialog(null)}>
+        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="flex items-center gap-2"><Pencil className="h-5 w-5 text-secondary" /> Edit Admin</DialogTitle>
+            <DialogDescription>Update {editDialog?.name}&apos;s account details</DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-3 py-2 pr-1">
+            <Input label="Full Name *" value={editName} onChange={(e) => setEditName(e.target.value)} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input label="Username *" value={editUsername} onChange={(e) => setEditUsername(e.target.value.toLowerCase().replace(/\s/g, ""))} />
+              <div>
+                <label className="block text-sm font-medium text-charcoal-light mb-1.5">Role</label>
+                <Select value={editRole} onValueChange={(v) => setEditRole(v as "admin" | "superadmin")} disabled={editDialog?.id === currentAdminId}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin (restricted access)</SelectItem>
+                    <SelectItem value="superadmin">Super Admin (full access)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {editDialog?.id === currentAdminId && <p className="text-[10px] text-charcoal-lighter mt-1">You can&apos;t change your own role.</p>}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input label="Email" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
+              <Input label="Phone" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
+            </div>
+            {editError && <p className="text-xs text-destructive">{editError}</p>}
+          </div>
+          <DialogFooter className="shrink-0 pt-2 border-t border-border/20">
+            <AdminButton variant="outline" onClick={() => setEditDialog(null)}>Cancel</AdminButton>
+            <AdminButton onClick={handleSaveEdit} disabled={saving || !editName.trim() || !editUsername.trim()}>
+              {saving && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />} Save Changes
+            </AdminButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Manage Access Dialog */}
       <Dialog open={!!accessDialog} onOpenChange={(open) => !open && setAccessDialog(null)}>
         <DialogContent className="w-[95vw] max-w-md max-h-[90vh] flex flex-col overflow-hidden">
           <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-secondary" /> <FieldLabel label="Manage Access" hint="Dashboard is always accessible. Changes take effect on next page load." /></DialogTitle>
-            <DialogDescription>Control which sections {accessDialog?.name} can access</DialogDescription>
+            <DialogDescription>Control which sections and actions {accessDialog?.name} can access</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto overflow-x-hidden py-2 pr-1">
-            <div className="space-y-4 p-3 rounded-xl border border-border/30 bg-pearl/20">
-              {Object.entries(permsBySection).map(([section, perms]) => (
-                <div key={section}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-charcoal-lighter">{section}</p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const sectionKeys = perms.filter((p) => p.key !== "dashboard").map((p) => p.key);
-                        const allChecked = sectionKeys.every((k) => editPerms.includes(k));
-                        if (allChecked) {
-                          setEditPerms((prev) => prev.filter((p) => !sectionKeys.includes(p)));
-                        } else {
-                          setEditPerms((prev) => [...new Set([...prev, ...sectionKeys])]);
-                        }
-                      }}
-                      className="text-[9px] text-secondary hover:text-secondary-dark font-medium"
-                    >
-                      Toggle all
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                    {perms.filter((p) => p.key !== "dashboard").map((p) => (
-                      <label key={p.key} className="flex items-center gap-2 cursor-pointer text-sm text-charcoal">
-                        <Checkbox checked={editPerms.includes(p.key)} onCheckedChange={(v) => togglePerm(p.key, !!v)} />
-                        {p.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+            {renderPermGrid(editPerms, setEditPerms)}
           </div>
           <DialogFooter className="shrink-0 pt-2 border-t border-border/20">
             <AdminButton variant="outline" onClick={() => setAccessDialog(null)}>Cancel</AdminButton>

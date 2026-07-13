@@ -17,8 +17,13 @@ import { Separator } from "@/components/ui/separator";
 import { FieldLabel } from "@/components/admin/shared/field-label";
 import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
 import type { Coupon, CouponApplicability } from "@/types/coupon";
+import { useAdmin } from "@/contexts/admin-context";
 
 export default function AdminCouponsPage() {
+  const { can } = useAdmin();
+  const canAddCoupon = can("coupons", "add");
+  const canEditCoupon = can("coupons", "edit");
+  const canDeleteCoupon = can("coupons", "delete");
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -240,7 +245,7 @@ export default function AdminCouponsPage() {
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Coupons</h1>
           <p className="text-sm text-charcoal-lighter">{coupons.length} coupon{coupons.length !== 1 ? "s" : ""} · {activeCount} active</p>
         </div>
-        <AdminButton onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Add Coupon</AdminButton>
+        {canAddCoupon && <AdminButton onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Add Coupon</AdminButton>}
       </div>
 
       {loading ? (
@@ -248,7 +253,7 @@ export default function AdminCouponsPage() {
           {Array.from({ length: 3 }).map((_, i) => <Card key={i}><CardContent className="p-5"><Skeleton className="h-40 w-full" /></CardContent></Card>)}
         </div>
       ) : coupons.length === 0 ? (
-        <EmptyState icon={Tag} title="No coupons yet" description="Create your first discount coupon." actionLabel="Add Coupon" onAction={openCreate} />
+        <EmptyState icon={Tag} title="No coupons yet" description="Create your first discount coupon." actionLabel={canAddCoupon ? "Add Coupon" : undefined} onAction={canAddCoupon ? openCreate : undefined} />
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {coupons.map((coupon) => {
@@ -277,10 +282,14 @@ export default function AdminCouponsPage() {
                     <DropdownMenu>
                       <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEdit(coupon)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
+                        {canEditCoupon && (
+                          <DropdownMenuItem onClick={() => openEdit(coupon)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => openAssign(coupon)}><Users className="h-3.5 w-3.5 mr-2" /> Assign</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDialog(coupon)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>
+                        {canDeleteCoupon && <DropdownMenuSeparator />}
+                        {canDeleteCoupon && (
+                          <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDialog(coupon)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>

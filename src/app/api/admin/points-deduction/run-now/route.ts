@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query } from "@/lib/db";
 import { runPointsDeductionEngine } from "@/lib/points-deduction-engine";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export const dynamic = "force-dynamic";
 
@@ -40,12 +41,11 @@ export async function GET() {
 
 // POST /api/admin/points-deduction/run-now — lets an admin trigger a full
 // rule evaluation immediately, instead of waiting for the next hourly tick.
-//
-// Note: like every other /api/admin/* route in this codebase, this has no
-// server-side session check — the admin panel's client-side layout is what
-// gates access today, not the API layer itself.
-export async function POST() {
+export async function POST(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "points_deduction_rules", "edit");
+    if (denied) return denied;
+
     const summary = await runPointsDeductionEngine("manual");
     return NextResponse.json({ success: true, ...summary });
   } catch (error: unknown) {

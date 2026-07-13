@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import type { Banner, BannerCrop, BannerSettings } from "@/types/banner";
 import { DEFAULT_BANNER_SETTINGS } from "@/types/banner";
+import { useAdmin } from "@/contexts/admin-context";
 
 // ─── Helpers ──────────────────────────────────────────────
 function parseCrop(val?: string): BannerCrop {
@@ -180,6 +181,10 @@ function ImagePositionEditor({ imageUrl, crop, onChange }: { imageUrl: string; c
 
 // ─── Main Page ────────────────────────────────────────────
 export default function AdminBannersPage() {
+  const { can } = useAdmin();
+  const canAddBanner = can("banners", "add");
+  const canEditBanner = can("banners", "edit");
+  const canDeleteBanner = can("banners", "delete");
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -285,14 +290,14 @@ export default function AdminBannersPage() {
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Banners</h1>
           <p className="text-sm text-charcoal-lighter">{banners.length} banner{banners.length !== 1 ? "s" : ""} · {activeBanners.length} active · {heroBanners.length} hero</p>
         </div>
-        <AdminButton onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Add Banner</AdminButton>
+        {canAddBanner && <AdminButton onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Add Banner</AdminButton>}
       </div>
 
       {/* Grid */}
       {loading ? (
         <div className="grid sm:grid-cols-2 gap-4">{Array.from({ length: 4 }).map((_, i) => (<Card key={i}><CardContent className="p-0"><Skeleton className="aspect-[16/7] rounded-t-luxury" /><div className="p-3"><Skeleton className="h-4 w-32" /></div></CardContent></Card>))}</div>
       ) : banners.length === 0 ? (
-        <EmptyState icon={ImageIcon} title="No banners yet" description="Create your first banner to display on the storefront." actionLabel="Add Banner" onAction={openCreate} />
+        <EmptyState icon={ImageIcon} title="No banners yet" description="Create your first banner to display on the storefront." actionLabel={canAddBanner ? "Add Banner" : undefined} onAction={canAddBanner ? openCreate : undefined} />
       ) : (
         <div className="grid sm:grid-cols-2 gap-4">
           {banners.map((banner) => {
@@ -328,9 +333,13 @@ export default function AdminBannersPage() {
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="z-[100]">
-                          <DropdownMenuItem onSelect={() => openEdit(banner)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive" onSelect={() => setDeleteDialog(banner)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>
+                          {canEditBanner && (
+                            <DropdownMenuItem onSelect={() => openEdit(banner)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
+                          )}
+                          {canEditBanner && canDeleteBanner && <DropdownMenuSeparator />}
+                          {canDeleteBanner && (
+                            <DropdownMenuItem className="text-destructive" onSelect={() => setDeleteDialog(banner)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>

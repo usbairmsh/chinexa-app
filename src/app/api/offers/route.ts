@@ -7,6 +7,7 @@ import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { resolveApplicableNames } from "@/lib/promotions";
 import { bulkNotify, resolvePromoRecipients } from "@/lib/notify";
 import type { OfferApplicability } from "@/types/offer";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 interface OfferRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -41,6 +42,8 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "offers", "add");
+    if (denied) return denied;
     await ensurePromotionColumns();
     const body = await req.json();
     const err = validate([

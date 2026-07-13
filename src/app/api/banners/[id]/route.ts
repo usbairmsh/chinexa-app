@@ -3,9 +3,12 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { deleteUploadedFile } from "@/lib/delete-upload";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const denied = await requirePermission(req, "banners", "edit");
+    if (denied) return denied;
     const { id } = await params;
     const body = await req.json();
     const fields: string[] = []; const values: (string | number | null)[] = [];
@@ -24,8 +27,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const denied = await requirePermission(req, "banners", "delete");
+    if (denied) return denied;
     const { id } = await params;
     const rows = await query<RowDataPacket[]>("SELECT image, mobile_image FROM banners WHERE id = ?", [id]);
     await execute("DELETE FROM banners WHERE id = ?", [id]);

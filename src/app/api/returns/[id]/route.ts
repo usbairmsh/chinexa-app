@@ -4,6 +4,7 @@ import pool, { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { insertCustomerPoints } from "@/lib/points";
 import { checkInstantReturnAbuseRules } from "@/lib/points-deduction-engine";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 // PUT /api/returns/[id] — admin updates return status
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -22,6 +23,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       if (!["requested", "approved", "rejected", "received", "refunded"].includes(body.status)) {
         return NextResponse.json({ error: "Invalid return status" }, { status: 400 });
       }
+      // Approve/reject/refund is the return-adjacent "approve" workflow;
+      // any other status transition falls back to the general order-handling
+      // permission.
+      const action = ["approved", "rejected", "refunded"].includes(body.status) ? "approve" : "handle_orders";
+      const denied = await requirePermission(req, "orders", action);
+      if (denied) return denied;
       fields.push("status = ?"); values.push(body.status);
     }
     if (body.admin_note !== undefined) { fields.push("admin_note = ?"); values.push(body.admin_note); }

@@ -4,6 +4,7 @@ import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { validate, validationError, publicServerError } from "@/lib/validate";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 interface BannerRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -29,6 +30,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "banners", "add");
+    if (denied) return denied;
     await ensurePromotionColumns();
     const body = await req.json();
     const err = validate([

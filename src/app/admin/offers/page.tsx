@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Separator } from "@/components/ui/separator";
 import { formatDateShort, cn } from "@/lib/utils";
 import type { Offer, OfferApplicability, DiscountType } from "@/types/offer";
+import { useAdmin } from "@/contexts/admin-context";
 
 /** Pluralized noun for the "N {noun}" count line under an applicability-scoped offer/coupon card. */
 function applicableItemNoun(applicability: string, count: number): string {
@@ -40,6 +41,10 @@ const applicabilityConfig: Record<string, { label: string; icon: typeof Globe; c
 };
 
 export default function AdminOffersPage() {
+  const { can } = useAdmin();
+  const canAddOffer = can("offers", "add");
+  const canEditOffer = can("offers", "edit");
+  const canDeleteOffer = can("offers", "delete");
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -232,7 +237,7 @@ export default function AdminOffersPage() {
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Offers & Promotions</h1>
           <p className="text-sm text-charcoal-lighter">{offers.length} offer{offers.length !== 1 ? "s" : ""} · {activeCount} active</p>
         </div>
-        <AdminButton onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Create Offer</AdminButton>
+        {canAddOffer && <AdminButton onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Create Offer</AdminButton>}
       </div>
 
       {listError && (
@@ -246,7 +251,7 @@ export default function AdminOffersPage() {
           {Array.from({ length: 3 }).map((_, i) => <Card key={i}><CardContent className="p-5"><Skeleton className="h-44 w-full" /></CardContent></Card>)}
         </div>
       ) : offers.length === 0 ? (
-        <EmptyState icon={Tag} title="No offers yet" description="Create your first promotional offer." actionLabel="Create Offer" onAction={openCreate} />
+        <EmptyState icon={Tag} title="No offers yet" description="Create your first promotional offer." actionLabel={canAddOffer ? "Create Offer" : undefined} onAction={canAddOffer ? openCreate : undefined} />
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {offers.map((offer) => {
@@ -264,9 +269,13 @@ export default function AdminOffersPage() {
                     <DropdownMenu>
                       <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEdit(offer)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDialog(offer)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>
+                        {canEditOffer && (
+                          <DropdownMenuItem onClick={() => openEdit(offer)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
+                        )}
+                        {canEditOffer && canDeleteOffer && <DropdownMenuSeparator />}
+                        {canDeleteOffer && (
+                          <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDialog(offer)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>

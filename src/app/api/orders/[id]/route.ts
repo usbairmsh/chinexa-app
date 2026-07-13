@@ -6,6 +6,7 @@ import { notifyTierUpgrade, notifyAdmin } from "@/lib/notify";
 import { ensureAccountingTables } from "@/lib/migrate-accounting";
 import { insertCustomerPoints } from "@/lib/points";
 import { publicServerError } from "@/lib/validate";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 function normalizePhone(phone: string): string {
   const cleaned = phone.replace(/[\s-]/g, "");
@@ -118,6 +119,27 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const order = orderRows[0];
     const id = order.id as string;
     const prevStatus = order.status as string;
+
+    // Status/fulfillment changes (including cancellation) need "handle_orders";
+    // a full item/pricing/address edit needs "edit" — these are deliberately
+    // separate grants so an admin can be given order-fulfillment duties
+    // without also being able to alter what's actually on the order. The
+    // Edit Order dialog always resubmits the current status alongside any
+    // item/address changes, so only require handle_orders when the status
+    // is ACTUALLY changing (matches the status-change branch below), not
+    // merely present in the body.
+    if (body.status && body.status !== prevStatus) {
+      const denied = await requirePermission(req, "orders", "handle_orders");
+      if (denied) return denied;
+    }
+    if (Array.isArray(body.items)) {
+      const denied = await requirePermission(req, "orders", "edit");
+      if (denied) return denied;
+    }
+    if (!Array.isArray(body.items) && (body.payment_status !== undefined || body.notes !== undefined)) {
+      const denied = await requirePermission(req, "orders", "edit");
+      if (denied) return denied;
+    }
 
     if (body.status && body.status !== prevStatus) {
       const newStatus = body.status as string;
@@ -315,7 +337,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (body.payment_status) await execute("UPDATE orders SET payment_status = ? WHERE id = ?", [body.payment_status, id]);
     if (body.notes !== undefined) await execute("UPDATE orders SET notes = ? WHERE id = ?", [body.notes, id]);
 
-    // ─── Full order edit: items/quantities/prices/discount/shipping/address (super-admin only, enforced client-side) ───
+    // ─── Full order edit: items/quantities/prices/discount/shipping/address (requires orders:edit — enforced above) ───
     if (Array.isArray(body.items)) {
       const conn = await pool.getConnection();
       try {

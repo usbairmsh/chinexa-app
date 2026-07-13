@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { resolveTierColorStyle } from "@/lib/tier-color";
+import { useAdmin } from "@/contexts/admin-context";
 
 type SortKey = "time" | "tier";
 
@@ -78,6 +79,9 @@ function timeLabel(dateStr: string): string {
 }
 
 export default function SupportInboxPage() {
+  const { can } = useAdmin();
+  const canReply = can("support_inbox", "add");
+  const canDelete = can("support_inbox", "delete");
   const pageVisible = useIsPageVisible();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loadingList, setLoadingList] = useState(true);
@@ -345,14 +349,16 @@ export default function SupportInboxPage() {
                       </div>
                     </div>
                   </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setDeleteTarget(c); }}
-                    className="shrink-0 rounded-full p-1.5 text-charcoal-lighter opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
-                    aria-label={`Delete conversation with ${c.display_name}`}
-                    title="Delete conversation"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  {canDelete && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setDeleteTarget(c); }}
+                      className="shrink-0 rounded-full p-1.5 text-charcoal-lighter opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
+                      aria-label={`Delete conversation with ${c.display_name}`}
+                      title="Delete conversation"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               ))
             )}
@@ -380,14 +386,16 @@ export default function SupportInboxPage() {
                     <TierBadge tier={active.tier} />
                   </div>
                 </div>
-                <button
-                  onClick={() => setDeleteTarget(active)}
-                  className="shrink-0 rounded-full p-2 text-charcoal-lighter hover:bg-destructive/10 hover:text-destructive transition-colors"
-                  aria-label="Delete conversation"
-                  title="Delete conversation"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                {canDelete && (
+                  <button
+                    onClick={() => setDeleteTarget(active)}
+                    className="shrink-0 rounded-full p-2 text-charcoal-lighter hover:bg-destructive/10 hover:text-destructive transition-colors"
+                    aria-label="Delete conversation"
+                    title="Delete conversation"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
               </div>
 
               <div ref={listRef} className="flex-1 overflow-y-auto overscroll-contain bg-pearl/30 px-4 py-4 space-y-2">
@@ -434,14 +442,16 @@ export default function SupportInboxPage() {
                   maxLength={5000}
                   className="flex-1 resize-none rounded-xl border border-border/30 bg-pearl/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-secondary/30 max-h-28"
                 />
-                <button
-                  onClick={handleSend}
-                  disabled={!draft.trim() || sending}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-white transition-all hover:bg-secondary-dark disabled:opacity-40"
-                  aria-label="Send reply"
-                >
-                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                </button>
+                {canReply && (
+                  <button
+                    onClick={handleSend}
+                    disabled={!draft.trim() || sending}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary !text-white transition-all hover:bg-secondary-dark disabled:opacity-40"
+                    aria-label="Send reply"
+                  >
+                    {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  </button>
+                )}
               </div>
             </>
           )}
@@ -463,10 +473,12 @@ export default function SupportInboxPage() {
             <AdminButton variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
               Cancel
             </AdminButton>
-            <AdminButton variant="danger" onClick={handleDelete} disabled={deleting}>
-              {deleting && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
-              {deleting ? "Deleting..." : "Delete Permanently"}
-            </AdminButton>
+            {canDelete && (
+              <AdminButton variant="danger" onClick={handleDelete} disabled={deleting}>
+                {deleting && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+                {deleting ? "Deleting..." : "Delete Permanently"}
+              </AdminButton>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

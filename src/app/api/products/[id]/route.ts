@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { requirePermission } from "@/lib/admin-permissions-server";
 import { deleteUploadedFile } from "@/lib/delete-upload";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { ensureAccountingTables } from "@/lib/migrate-accounting";
@@ -25,6 +26,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const denied = await requirePermission(req, "products", "edit");
+    if (denied) return denied;
     await ensurePromotionColumns();
     await ensureAccountingTables();
     const { id } = await params;
@@ -150,8 +153,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const denied = await requirePermission(req, "products", "delete");
+    if (denied) return denied;
     const { id } = await params;
     // Get images and category before deleting
     const product = await query<ProductRow[]>("SELECT category_id FROM products WHERE id = ? LIMIT 1", [id]);

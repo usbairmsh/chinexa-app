@@ -3,6 +3,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { ensureChatTables, newConversationId } from "@/lib/chat";
 import { publicServerError } from "@/lib/validate";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export const dynamic = "force-dynamic";
 
@@ -102,6 +103,8 @@ export async function GET(req: NextRequest) {
 // messages (chat_messages cascades via its FOREIGN KEY ... ON DELETE CASCADE).
 export async function DELETE(req: NextRequest) {
   await ensureChatTables();
+  const denied = await requirePermission(req, "support_inbox", "delete");
+  if (denied) return denied;
   const conversationId = req.nextUrl.searchParams.get("id");
   if (!conversationId) {
     return NextResponse.json({ error: "id required" }, { status: 400 });

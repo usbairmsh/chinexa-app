@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { query, execute, escapeLike } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 // Normalize Bangladesh phone: "01712345678" → "+8801712345678" — matches
 // src/app/api/auth/route.ts and src/app/api/otp/route.ts exactly. Without
@@ -99,6 +100,12 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    // Only the admin panel's Add Customer dialog calls this route directly
+    // (checkout/registration create customers via their own dedicated flows),
+    // so it's safe to gate on the admin customers:add permission.
+    const denied = await requirePermission(req, "customers", "add");
+    if (denied) return denied;
+
     await ensurePromotionColumns();
     const body = await req.json();
     if (!body.name || typeof body.name !== "string" || !body.name.trim()) {

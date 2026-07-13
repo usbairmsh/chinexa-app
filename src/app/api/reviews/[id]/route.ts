@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import pool, { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const denied = await requirePermission(req, "reviews", "approve");
+    if (denied) return denied;
     const { id } = await params;
     const body = await req.json();
     if (body.is_approved !== undefined) await execute("UPDATE reviews SET is_approved = ? WHERE id = ?", [body.is_approved ? 1 : 0, id]);
@@ -46,7 +49,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try { const { id } = await params; await execute("DELETE FROM reviews WHERE id = ?", [id]); await logActivity("Deleted review", "review", id); return NextResponse.json({ success: true }); }
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const denied = await requirePermission(req, "reviews", "delete");
+    if (denied) return denied;
+    const { id } = await params; await execute("DELETE FROM reviews WHERE id = ?", [id]); await logActivity("Deleted review", "review", id); return NextResponse.json({ success: true });
+  }
   catch (error: unknown) { return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 }); }
 }

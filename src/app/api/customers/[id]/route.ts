@@ -5,6 +5,7 @@ import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { validate, validationError, publicServerError } from "@/lib/validate";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 /** True only when the request carries a cookie for a currently-superadmin
  * account — the client-side "canEditCustomer" check in the admin panel is
@@ -103,6 +104,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     // prove identity via the current password or a verified OTP; here the
     // proof of authority is instead "you are logged in as a superadmin."
     if (body.new_password !== undefined) {
+      // Password reset stays superadmin-only regardless of granted
+      // customers permissions — a separately-reasoned, deliberately
+      // superadmin-exclusive capability, not something a regular admin
+      // should ever be grantable.
       if (!(await isSuperadmin(req))) {
         return NextResponse.json({ error: "Only a super admin can reset a customer's password" }, { status: 403 });
       }
@@ -112,6 +117,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       if (body.new_password.length > 128) {
         return validationError("Password must be at most 128 characters");
       }
+    } else if (req.cookies.get("chinexa-admin-id")?.value) {
+      // This route is also called by the customer's own self-service profile
+      // page (no admin cookie present) — only gate on the admin permission
+      // when the request is actually coming from the admin panel.
+      const denied = await requirePermission(req, "customers", "edit");
+      if (denied) return denied;
     }
 
     const fields: string[] = []; const values: (string | number | null)[] = [];
@@ -153,7 +164,14 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       }
       await execute("DELETE FROM customers WHERE id = ?", [id]);
     } else {
-      // Soft delete — deactivate the account
+      // Soft delete — deactivate the account. Also reachable unauthenticated
+      // as the customer's own self-service "delete my account" action, so
+      // only gate this on the admin permission when the request is actually
+      // coming from the admin panel (carries the admin cookie).
+      if (req.cookies.get("chinexa-admin-id")?.value) {
+        const denied = await requirePermission(req, "customers", "delete");
+        if (denied) return denied;
+      }
       await execute(
         "UPDATE customers SET is_active = FALSE, deactivated_at = NOW(), deactivation_reason = 'Customer requested account deletion' WHERE id = ?",
         [id]

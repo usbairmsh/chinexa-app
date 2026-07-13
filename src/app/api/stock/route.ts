@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import pool, { query, execute, escapeLike } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 interface StockRow extends RowDataPacket {
   id: string; name: string; sku: string; stock_quantity: number; min_stock: number; max_stock: number; price: number;
@@ -107,6 +108,8 @@ export async function GET(req: NextRequest) {
 // Bulk or single stock update
 export async function PUT(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "stock", "edit");
+    if (denied) return denied;
     const body = await req.json();
 
     if (body.updates && Array.isArray(body.updates)) {

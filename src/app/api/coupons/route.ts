@@ -7,6 +7,7 @@ import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { resolveApplicableNames } from "@/lib/promotions";
 import { bulkNotify, resolvePromoRecipients } from "@/lib/notify";
 import type { OfferApplicability } from "@/types/offer";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export async function GET() {
   try {
@@ -40,6 +41,8 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "coupons", "add");
+    if (denied) return denied;
     await ensurePromotionColumns();
     const body = await req.json();
     const err = validate([

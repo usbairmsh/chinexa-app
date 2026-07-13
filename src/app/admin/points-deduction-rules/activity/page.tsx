@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { cn, formatDate } from "@/lib/utils";
+import { useAdmin } from "@/contexts/admin-context";
 
 interface ActivityEntry {
   runId: string;
@@ -55,6 +56,9 @@ const TRIGGER_META: Record<string, { label: string; icon: typeof Clock; classNam
 
 export default function EngineActivityLogPage() {
   const router = useRouter();
+  const { can } = useAdmin();
+  const canEdit = can("points_deduction_rules", "edit");
+  const canDelete = can("points_deduction_rules", "delete");
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<ActivityEntry | null>(null);
@@ -209,18 +213,20 @@ export default function EngineActivityLogPage() {
                         <ChevronRight className="h-4 w-4 text-charcoal-lighter" />
                       </div>
                     </button>
-                    <button
-                      onClick={() => {
-                        if (window.confirm(`Delete this log entry for "${entry.ruleName}"? This only removes it from the activity log — any points already deducted are not affected.`)) {
-                          handleDelete(entry);
-                        }
-                      }}
-                      disabled={deletingKey === key}
-                      className="p-2 mr-2 rounded-md text-charcoal-lighter/60 hover:text-destructive hover:bg-destructive/5 transition-colors shrink-0"
-                      title="Delete this log entry"
-                    >
-                      {deletingKey === key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                    </button>
+                    {canDelete && (
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Delete this log entry for "${entry.ruleName}"? This only removes it from the activity log — any points already deducted are not affected.`)) {
+                            handleDelete(entry);
+                          }
+                        }}
+                        disabled={deletingKey === key}
+                        className="p-2 mr-2 rounded-md text-charcoal-lighter/60 hover:text-destructive hover:bg-destructive/5 transition-colors shrink-0"
+                        title="Delete this log entry"
+                      >
+                        {deletingKey === key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -290,7 +296,7 @@ export default function EngineActivityLogPage() {
                           {row.disbursedAt && (
                             <span className="flex items-center gap-1 text-[11px] text-success"><Check className="h-3 w-3" /> Disbursed {formatDate(row.disbursedAt)}</span>
                           )}
-                          {row.outcome === "deducted" && !row.reversedAt && (
+                          {canEdit && row.outcome === "deducted" && !row.reversedAt && (
                             <AdminButton size="xs" variant="outline" onClick={() => handleCancel(row)} disabled={cancellingId === row.id}>
                               {cancellingId === row.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Undo2 className="h-3 w-3" />}
                               Refund

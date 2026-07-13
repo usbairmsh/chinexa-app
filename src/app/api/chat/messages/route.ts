@@ -4,6 +4,7 @@ import { query, execute } from "@/lib/db";
 import { ensureChatTables, newMessageId } from "@/lib/chat";
 import { notifyAdmin, bulkNotify } from "@/lib/notify";
 import { publicServerError } from "@/lib/validate";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +84,14 @@ export async function POST(req: NextRequest) {
     }
     if (message.length > 5000) {
       return NextResponse.json({ error: "Message must be at most 5000 characters" }, { status: 400 });
+    }
+
+    // This route is also called by the storefront's customer-facing chat
+    // widget (no admin cookie present) — only gate on the admin permission
+    // when the request is actually coming from the admin panel.
+    if (req.cookies.get("chinexa-admin-id")?.value) {
+      const denied = await requirePermission(req, "support_inbox", "add");
+      if (denied) return denied;
     }
 
     const convRows = await query<RowDataPacket[]>("SELECT * FROM chat_conversations WHERE id = ?", [conversation_id]);

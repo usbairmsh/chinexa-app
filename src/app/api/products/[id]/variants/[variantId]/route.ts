@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { requirePermission } from "@/lib/admin-permissions-server";
 import { deleteUploadedFile } from "@/lib/delete-upload";
 
 // GET /api/products/[id]/variants/[variantId]
@@ -19,6 +20,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 // PUT /api/products/[id]/variants/[variantId]
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string; variantId: string }> }) {
   try {
+    const denied = await requirePermission(req, "products", "edit");
+    if (denied) return denied;
     const { id: productId, variantId } = await params;
     const body = await req.json();
     const fields: string[] = [];
@@ -43,8 +46,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 // DELETE /api/products/[id]/variants/[variantId]
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string; variantId: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string; variantId: string }> }) {
   try {
+    const denied = await requirePermission(req, "products", "delete");
+    if (denied) return denied;
     const { id: productId, variantId } = await params;
     // Get variant image before deleting
     const rows = await query<RowDataPacket[]>("SELECT image FROM product_variants WHERE id = ?", [variantId]);

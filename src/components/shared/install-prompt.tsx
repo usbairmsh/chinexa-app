@@ -160,7 +160,7 @@ export function InstallPrompt() {
                 <button
                   onClick={handleInstall}
                   disabled={installing}
-                  className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-secondary px-4 py-2 text-xs font-semibold text-white transition-all hover:bg-secondary-dark disabled:opacity-60"
+                  className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-secondary px-4 py-2 text-xs font-semibold !text-white transition-all hover:bg-secondary-dark disabled:opacity-60"
                 >
                   <Download className="h-3.5 w-3.5" />
                   {installing ? "Installing..." : "Install App"}

@@ -21,6 +21,8 @@ import { AdminButton } from "@/components/admin/shared/admin-button";
 import { AdminNotificationBell } from "@/components/admin/notification-bell";
 import { PageLoader } from "@/components/shared/page-loader";
 import { Badge } from "@/components/ui/badge";
+import { AdminContext } from "@/contexts/admin-context";
+import { PERMISSION_SECTIONS, normalizePermissions, canDo, type PermissionsMap, type PermissionAction } from "@/lib/admin-permissions";
 
 function getCookie(name: string): string {
   if (typeof document === "undefined") return "";
@@ -82,12 +84,10 @@ const navSections = [
   },
 ];
 
-// All available permission keys (for the access management UI)
-export const ALL_PERMISSIONS = [
-  ...navSections.flatMap((s) => s.items.map((i) => ({ key: i.perm, label: i.label, section: s.label }))),
-  { key: "edit_customers", label: "Edit Customer Profiles", section: "Advanced" },
-  { key: "edit_orders", label: "Edit Order Details", section: "Advanced" },
-];
+// All available permission sections (for the access management UI) — each
+// section declares which of view/add/edit/delete are actually meaningful for
+// it, so the grid never shows a checkbox that would do nothing.
+export const ALL_PERMISSIONS = PERMISSION_SECTIONS;
 
 export default function AdminLayout({
   children,
@@ -122,8 +122,9 @@ export default function AdminLayout({
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
 
-  // Permissions — null means superadmin (full access), array means restricted
-  const [adminPermissions, setAdminPermissions] = useState<string[] | null>(null);
+  // Permissions — action-map per section; superadmin ignores this entirely
+  // (canDo() short-circuits true for role==='superadmin').
+  const [adminPermissionsMap, setAdminPermissionsMap] = useState<PermissionsMap>({});
 
   // Password fields (inside profile modal)
   const [currentPw, setCurrentPw] = useState("");
@@ -159,12 +160,11 @@ export default function AdminLayout({
             setAdminEmail((me.email as string) || "");
             setAdminPhone((me.phone as string) || "");
             setAdminUsername((me.username as string) || "");
-            // Superadmin has full access (null = all), regular admin uses permissions array
-            if (me.role === "superadmin") {
-              setAdminPermissions(null);
-            } else {
-              setAdminPermissions(Array.isArray(me.permissions) ? me.permissions : []);
-            }
+            // Superadmin has full access regardless of this map (canDo()
+            // short-circuits on role); regular admins get the normalized
+            // per-section action grants (handles both the legacy flat-array
+            // shape and the current action-map shape transparently).
+            setAdminPermissionsMap(normalizePermissions(me.permissions));
           }
         }
       }).catch(() => {});
@@ -212,9 +212,20 @@ export default function AdminLayout({
     setProfileOpen(true);
   };
 
+  const adminContextValue = {
+    adminId: getCookie("chinexa-admin-id"),
+    role: adminRole,
+    permissions: adminPermissionsMap,
+    name: adminName,
+    email: adminEmail,
+    phone: adminPhone,
+    username: adminUsername,
+    can: (section: string, action: PermissionAction) => canDo(adminRole, adminPermissionsMap, section, action),
+  };
+
   // Admin login page renders without sidebar
   if (pathname === "/admin/login") {
-    return <>{children}</>;
+    return <AdminContext.Provider value={adminContextValue}>{children}</AdminContext.Provider>;
   }
 
   const isActive = (href: string) => {
@@ -247,9 +258,9 @@ export default function AdminLayout({
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-3 space-y-4">
         {navSections.map((section) => {
-          // Filter items by permissions — superadmin (null) sees all, dashboard always visible
+          // Filter items by permissions — superadmin/dashboard always visible
           const visibleItems = section.items.filter((item) =>
-            item.perm === "dashboard" || adminPermissions === null || adminPermissions.includes(item.perm)
+            canDo(adminRole, adminPermissionsMap, item.perm, "view")
           );
           if (visibleItems.length === 0) return null;
           return (
@@ -313,7 +324,7 @@ export default function AdminLayout({
       <nav className="flex-1 overflow-y-auto p-3 space-y-4">
         {navSections.map((section) => {
           const visibleItems = section.items.filter((item) =>
-            item.perm === "dashboard" || adminPermissions === null || adminPermissions.includes(item.perm)
+            canDo(adminRole, adminPermissionsMap, item.perm, "view")
           );
           if (visibleItems.length === 0) return null;
           return (
@@ -358,6 +369,7 @@ export default function AdminLayout({
   );
 
   return (
+    <AdminContext.Provider value={adminContextValue}>
     <div className="flex h-screen bg-pearl overflow-hidden">
       <Suspense><PageLoader /></Suspense>
       {/* Desktop Sidebar */}
@@ -482,5 +494,6 @@ export default function AdminLayout({
         </DialogContent>
       </Dialog>
     </div>
+    </AdminContext.Provider>
   );
 }

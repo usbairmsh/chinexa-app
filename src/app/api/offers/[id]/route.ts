@@ -5,9 +5,12 @@ import { logActivity } from "@/lib/log-activity";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { bulkNotify, resolvePromoRecipients } from "@/lib/notify";
 import { validationError } from "@/lib/validate";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const denied = await requirePermission(req, "offers", "edit");
+    if (denied) return denied;
     await ensurePromotionColumns();
     const { id } = await params;
     const body = await req.json();
@@ -98,8 +101,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const denied = await requirePermission(req, "offers", "delete");
+    if (denied) return denied;
     const { id } = await params;
     await execute("DELETE FROM offers WHERE id = ?", [id]);
     await logActivity("Deleted offer", "offer", id);

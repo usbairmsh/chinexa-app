@@ -190,72 +190,86 @@
    Base Styles
    ============================================ */
 
-html {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
+/* Everything below that targets a bare HTML element (html, body, h1-h6,
+   ::selection, scrollbar pseudo-elements, :focus-visible) is wrapped in
+   @layer base. Tailwind v4's own utilities are emitted inside its own CSS
+   layers, and per the CSS cascade-layers spec, ANY unlayered rule beats
+   EVERY layered rule regardless of selector specificity or source order.
+   Before this was layered, the bare `h1, h2, h3...{ color: ... }` rule sat
+   unlayered and therefore silently won against every text-color utility
+   class applied to a heading tag anywhere in the app (e.g. a `text-white`
+   h3 rendered dark) — this was the real, reproducible cause behind several
+   "the code says white but it renders dark" reports, not a stale deploy. */
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  html[data-scroll-behavior="smooth"] {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-body);
+    color: var(--color-foreground);
+    background-color: var(--color-background);
+    line-height: 1.7;
+    letter-spacing: 0.01em;
+  }
+
+  /* Luxury Typography */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    color: var(--color-charcoal);
+  }
+
+  /* Selection color */
+  ::selection {
+    background-color: var(--color-primary);
+    color: var(--color-charcoal);
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--color-pearl);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-coral);
+    border-radius: var(--radius-full);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-secondary);
+  }
+
+  /* Focus styles for accessibility */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
 }
 
-html[data-scroll-behavior="smooth"] {
-  scroll-behavior: smooth;
-}
-
-body {
-  font-family: var(--font-body);
-  color: var(--color-foreground);
-  background-color: var(--color-background);
-  line-height: 1.7;
-  letter-spacing: 0.01em;
-}
-
-/* Luxury Typography */
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-heading);
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-  color: var(--color-charcoal);
-}
-
-/* Selection color */
-::selection {
-  background-color: var(--color-primary);
-  color: var(--color-charcoal);
-}
-
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--color-pearl);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--color-coral);
-  border-radius: var(--radius-full);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-secondary);
-}
-
-/* Hide scrollbar utility */
+/* Hide scrollbar utility — a real utility class (applied deliberately via
+   className, not a base-element default), so it stays unlayered like the
+   other custom utility classes below. */
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
-}
-
-/* Focus styles for accessibility */
-:focus-visible {
-  outline: 2px solid var(--color-ring);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
 }
 
 /* Reduced motion */

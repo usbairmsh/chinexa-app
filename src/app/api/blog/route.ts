@@ -4,6 +4,7 @@ import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { validate, validationError, publicServerError } from "@/lib/validate";
 import { getBlogPostBySlug } from "@/lib/blog";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 interface BlogRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -29,6 +30,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "blog", "add");
+    if (denied) return denied;
     const body = await req.json();
     const err = validate([
       { field: "title", value: body.title, rules: ["required", "string", { minLength: 3 }], label: "Blog title" },

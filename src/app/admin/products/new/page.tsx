@@ -25,6 +25,8 @@ import { cn } from "@/lib/utils";
 import { CountrySearch } from "@/components/admin/shared/country-search";
 import { BrandSearch } from "@/components/admin/shared/brand-search";
 import { getIconById, type TrustBadge } from "@/lib/trust-badges";
+import { useAdmin } from "@/contexts/admin-context";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type VariantRow = {
   id: string;
@@ -51,6 +53,8 @@ type ImageRow = {
 
 export default function AddProductPage() {
   const router = useRouter();
+  const { can } = useAdmin();
+  const canAddProduct = can("products", "add");
   const [activeTab, setActiveTab] = useState<"basic" | "media" | "variants" | "seo">("basic");
   const [saving, setSaving] = useState(false);
   const [dbCategories, setDbCategories] = useState<{ id: string; name: string; children: { id: string; name: string; slug: string }[] }[]>([]);
@@ -305,6 +309,16 @@ export default function AddProductPage() {
     { id: "seo" as const, label: "SEO", icon: BarChart3 },
   ];
 
+  if (!canAddProduct) {
+    return (
+      <EmptyState
+        icon={Package}
+        title="You don't have permission to add products"
+        description="Ask an administrator to grant you Add access for Products."
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -319,9 +333,11 @@ export default function AddProductPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <AdminButton size="sm" onClick={handleSave} disabled={saving} className={saved ? "!bg-success hover:!bg-success" : ""}>
-            <Save className="h-3.5 w-3.5" /> {saving ? "Saving..." : saved ? "Saved!" : "Save Product"}
-          </AdminButton>
+          {canAddProduct && (
+            <AdminButton size="sm" onClick={handleSave} disabled={saving} className={saved ? "!bg-success hover:!bg-success" : ""}>
+              <Save className="h-3.5 w-3.5" /> {saving ? "Saving..." : saved ? "Saved!" : "Save Product"}
+            </AdminButton>
+          )}
         </div>
       </div>
 
@@ -405,7 +421,7 @@ export default function AddProductPage() {
                   </div>
                   <button
                     onClick={addVariant}
-                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full bg-secondary text-white text-[12px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full bg-secondary !text-white text-[12px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 cursor-pointer"
                   >
                     <Plus className="h-3.5 w-3.5" /> Add Variant
                   </button>
@@ -715,7 +731,7 @@ export default function AddProductPage() {
                     className={cn(
                       "px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 capitalize",
                       selectedBadges.includes(badge)
-                        ? "bg-secondary text-white border-secondary"
+                        ? "bg-secondary !text-white border-secondary"
                         : "bg-white text-charcoal-lighter border-border hover:border-charcoal hover:text-charcoal"
                     )}
                   >
@@ -758,7 +774,7 @@ export default function AddProductPage() {
           </div>
           <div className="flex justify-end gap-2 pt-2 shrink-0">
             <button onClick={() => setSeoPromptOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal transition-colors">Close</button>
-            <button onClick={handleCopyPrompt} className={cn("flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all", seoPromptCopied ? "bg-success text-white" : "bg-secondary text-white hover:bg-secondary-dark")}>
+            <button onClick={handleCopyPrompt} className={cn("flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all", seoPromptCopied ? "bg-success !text-white" : "bg-secondary !text-white hover:bg-secondary-dark")}>
               {seoPromptCopied ? <><Check className="h-3 w-3" /> Copied!</> : <><Copy className="h-3 w-3" /> Copy Prompt</>}
             </button>
           </div>

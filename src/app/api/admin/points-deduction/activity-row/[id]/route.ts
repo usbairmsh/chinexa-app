@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/log-activity";
 import { notifyTierUpgrade, bulkNotify } from "@/lib/notify";
 import { insertCustomerPoints } from "@/lib/points";
 import { validationError, dependencyError } from "@/lib/validate";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,9 @@ export const dynamic = "force-dynamic";
 //                defaults to the row's points_deducted but can be overridden.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const denied = await requirePermission(req, "points_deduction_rules", "edit");
+    if (denied) return denied;
+
     const { id } = await params;
     const body = await req.json().catch(() => ({}));
     const action = body?.action;

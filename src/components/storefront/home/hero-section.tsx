@@ -150,13 +150,13 @@ export function HeroSection() {
             className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center"
           >
             <Link href="/products">
-              <span className="group inline-flex items-center gap-2.5 h-12 px-8 sm:h-14 sm:px-10 rounded-full bg-secondary text-white text-sm sm:text-[15px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] active:scale-[0.96] transition-all duration-300">
+              <span className="group inline-flex items-center gap-2.5 h-12 px-8 sm:h-14 sm:px-10 rounded-full bg-secondary !text-white text-sm sm:text-[15px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] active:scale-[0.96] transition-all duration-300">
                 Shop Now
                 <svg className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
               </span>
             </Link>
             <Link href="/categories/skincare">
-              <span className="inline-flex items-center gap-2 h-12 px-8 sm:h-14 sm:px-10 rounded-full border-2 border-white/30 text-charcoal text-sm sm:text-[15px] font-body font-semibold tracking-wide backdrop-blur-sm hover:bg-charcoal hover:text-white hover:border-charcoal hover:shadow-[0_6px_30px_rgba(0,0,0,0.2)] active:scale-[0.96] transition-all duration-300">
+              <span className="inline-flex items-center gap-2 h-12 px-8 sm:h-14 sm:px-10 rounded-full border-2 border-white/30 text-charcoal text-sm sm:text-[15px] font-body font-semibold tracking-wide backdrop-blur-sm hover:bg-charcoal hover:!text-white hover:border-charcoal hover:shadow-[0_6px_30px_rgba(0,0,0,0.2)] active:scale-[0.96] transition-all duration-300">
                 Explore Skincare
               </span>
             </Link>
@@ -244,7 +244,7 @@ export function HeroSection() {
                     transition={{ delay: 0.5 }}
                   >
                     <Link href={slide.link}>
-                      <span className="group inline-flex items-center gap-1.5 sm:gap-2.5 h-8 px-4 sm:h-12 sm:px-8 lg:h-14 lg:px-10 rounded-full bg-white text-charcoal text-[11px] sm:text-sm lg:text-[15px] font-body font-semibold tracking-wide shadow-[0_4px_30px_rgba(0,0,0,0.2)] hover:bg-secondary hover:text-white hover:shadow-[0_6px_35px_rgba(122,79,160,0.4)] active:scale-[0.96] transition-all duration-300">
+                      <span className="group inline-flex items-center gap-1.5 sm:gap-2.5 h-8 px-4 sm:h-12 sm:px-8 lg:h-14 lg:px-10 rounded-full bg-white text-charcoal text-[11px] sm:text-sm lg:text-[15px] font-body font-semibold tracking-wide shadow-[0_4px_30px_rgba(0,0,0,0.2)] hover:bg-secondary hover:!text-white hover:shadow-[0_6px_35px_rgba(122,79,160,0.4)] active:scale-[0.96] transition-all duration-300">
                         {slide.cta_text}
                         <svg className="h-3 w-3 sm:h-4 sm:w-4 transition-transform duration-200 group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                       </span>

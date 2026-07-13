@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/log-activity";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
 import { publicServerError } from "@/lib/validate";
+import { normalizePermissions } from "@/lib/admin-permissions";
 
 // Admin credentials guard the whole store — cap login attempts per
 // username+IP so a password can't just be ground through with unlimited
@@ -88,6 +89,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, id }, { status: 201 });
     }
 
+    // ─── UPDATE ADMIN (superadmin only) — edits an existing admin's identity
+    // fields; distinct from update_profile (self-service, no role field) and
+    // update_permissions (permissions only) ───
+    if (action === "update_admin") {
+      const { admin_id, name, email, phone, username, role } = body;
+      if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      const requester = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [requesterId]);
+      if (requester.length === 0 || requester[0].role !== "superadmin") {
+        return NextResponse.json({ error: "Only super admin can edit admins" }, { status: 403 });
+      }
+      if (!admin_id) return NextResponse.json({ error: "admin_id is required" }, { status: 400 });
+      if (!name || !String(name).trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 });
+      if (!username || !String(username).trim()) return NextResponse.json({ error: "Username is required" }, { status: 400 });
+
+      // A superadmin editing their own row can't demote themselves — avoids
+      // accidentally locking every superadmin out of admin management.
+      if (admin_id === requesterId && role !== "superadmin") {
+        return NextResponse.json({ error: "You cannot change your own role" }, { status: 400 });
+      }
+
+      await execute(
+        "UPDATE admin_users SET name = ?, email = ?, phone = ?, username = ?, role = ? WHERE id = ?",
+        [String(name).trim(), email || null, phone || null, String(username).trim(), role === "superadmin" ? "superadmin" : "admin", admin_id]
+      );
+      await logActivity("Updated admin details", "admin", admin_id, undefined, requesterId);
+      return NextResponse.json({ success: true });
+    }
+
     // ─── UPDATE PERMISSIONS (superadmin only) ───
     if (action === "update_permissions") {
       const { admin_id, permissions } = body;
@@ -142,9 +171,9 @@ export async function POST(req: NextRequest) {
     if (action === "list") {
       const rows = await query<RowDataPacket[]>("SELECT id, username, name, email, phone, role, permissions, is_active, last_login, created_at FROM admin_users ORDER BY created_at");
       return NextResponse.json(rows.map((r) => {
-        let perms = null;
-        try { perms = r.permissions ? JSON.parse(r.permissions as string) : null; } catch { perms = null; }
-        return { ...r, is_active: !!r.is_active, permissions: perms };
+        let raw: unknown = null;
+        try { raw = r.permissions ? JSON.parse(r.permissions as string) : null; } catch { raw = null; }
+        return { ...r, is_active: !!r.is_active, permissions: r.role === "superadmin" ? null : normalizePermissions(raw) };
       }));
     }
 

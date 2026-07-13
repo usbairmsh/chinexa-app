@@ -4,9 +4,12 @@ import { query, execute } from "@/lib/db";
 import { validationError, dependencyError } from "@/lib/validate";
 import { logActivity } from "@/lib/log-activity";
 import { ensureAccountingTables } from "@/lib/migrate-accounting";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const denied = await requirePermission(req, "accounting", "edit");
+    if (denied) return denied;
     await ensureAccountingTables();
     const { id } = await params;
     const body = await req.json();
@@ -42,8 +45,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const denied = await requirePermission(req, "accounting", "delete");
+    if (denied) return denied;
     await ensureAccountingTables();
     const { id } = await params;
     await execute("DELETE FROM expenses WHERE id = ?", [id]);

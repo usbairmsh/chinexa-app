@@ -22,6 +22,7 @@ import { ImportBatchesTab } from "@/components/admin/accounting/import-batches-t
 import { PartnersTab } from "@/components/admin/accounting/partners-tab";
 import { LoansTab } from "@/components/admin/accounting/loans-tab";
 import { RecordSaleDialog } from "@/components/admin/accounting/record-sale-dialog";
+import { useAdmin } from "@/contexts/admin-context";
 
 const tooltipStyle = { borderRadius: "12px", border: "1px solid #E8DDD4", fontSize: "12px", boxShadow: "0 4px 30px rgba(0,0,0,0.04)" };
 const PIE_COLORS = ["#7A4FA0", "#E0B96C", "#C9AEE6", "#D9668F", "#5C4058", "#F2AFC9"];
@@ -53,6 +54,8 @@ function formatDate(value: string): string {
 }
 
 export default function AdminAccountingPage() {
+  const { can } = useAdmin();
+  const canAddAccounting = can("accounting", "add");
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [sourceFilter, setSourceFilter] = useState<"all" | "website" | "manual">("all");
   const [data, setData] = useState<AccountingData | null>(null);
@@ -298,9 +301,11 @@ export default function AdminAccountingPage() {
                 <AdminButton variant="outline" onClick={handleExportTransactions} disabled={!data}>
                   <Download className="h-4 w-4 mr-1" /> Export
                 </AdminButton>
-                <AdminButton onClick={() => setRecordSaleOpen(true)}>
-                  <Plus className="h-4 w-4 mr-1" /> Record Sale
-                </AdminButton>
+                {canAddAccounting && (
+                  <AdminButton onClick={() => setRecordSaleOpen(true)}>
+                    <Plus className="h-4 w-4 mr-1" /> Record Sale
+                  </AdminButton>
+                )}
               </div>
             </div>
 

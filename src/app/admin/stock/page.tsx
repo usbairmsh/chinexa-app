@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Pagination } from "@/components/ui/pagination";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { formatCurrency, cn } from "@/lib/utils";
+import { useAdmin } from "@/contexts/admin-context";
 
 interface StockProduct {
   id: string; name: string; sku: string; stock: number; min_stock: number; max_stock: number; price: number;
@@ -29,6 +30,8 @@ interface StockSummary {
 }
 
 export default function StockManagementPage() {
+  const { can } = useAdmin();
+  const canEditStock = can("stock", "edit");
   const [products, setProducts] = useState<StockProduct[]>([]);
   const [summary, setSummary] = useState<StockSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -348,7 +351,7 @@ export default function StockManagementPage() {
                     {[0, 5, 10, 25, 50, 100].map((v) => (
                       <button key={v} onClick={() => setEditStock(String(v))}
                         className={cn("px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                          Number(editStock) === v ? "bg-charcoal text-white" : "bg-pearl text-charcoal-lighter hover:bg-charcoal/5 hover:text-charcoal"
+                          Number(editStock) === v ? "bg-charcoal !text-white" : "bg-pearl text-charcoal-lighter hover:bg-charcoal/5 hover:text-charcoal"
                         )}>
                         {v}
                       </button>
@@ -422,9 +425,11 @@ export default function StockManagementPage() {
                 )}
                 <div className="flex gap-3">
                   <AdminButton variant="outline" className="flex-1" onClick={() => setEditProduct(null)}>Cancel</AdminButton>
-                  <AdminButton className="flex-1" onClick={handleSaveAll} disabled={saving}>
-                    {saving ? "Saving..." : saved ? "Saved!" : "Save Changes"}
-                  </AdminButton>
+                  {canEditStock && (
+                    <AdminButton className="flex-1" onClick={handleSaveAll} disabled={saving}>
+                      {saving ? "Saving..." : saved ? "Saved!" : "Save Changes"}
+                    </AdminButton>
+                  )}
                 </div>
               </div>
             </motion.div>

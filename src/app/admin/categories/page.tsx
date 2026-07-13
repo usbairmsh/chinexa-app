@@ -21,8 +21,13 @@ import { useCategories } from "@/hooks/queries/use-categories";
 import { useCategoriesStore } from "@/stores/categories.store";
 import { slugify, cn } from "@/lib/utils";
 import type { Category } from "@/types/category";
+import { useAdmin } from "@/contexts/admin-context";
 
 export default function AdminCategoriesPage() {
+  const { can } = useAdmin();
+  const canAddCategory = can("categories", "add");
+  const canEditCategory = can("categories", "edit");
+  const canDeleteCategory = can("categories", "delete");
   const { data: seedCategories, isLoading } = useCategories();
   const {
     customCategories, addCategory, removeCategory, toggleCategory,
@@ -218,7 +223,7 @@ export default function AdminCategoriesPage() {
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Categories</h1>
           <p className="text-sm text-charcoal-lighter">{visibleCount} visible{hiddenCount > 0 ? ` · ${hiddenCount} hidden` : ""}</p>
         </div>
-        <AdminButton onClick={() => { resetForm(); setDialogOpen(true); }}><Plus className="h-4 w-4" /> Add Category</AdminButton>
+        {canAddCategory && <AdminButton onClick={() => { resetForm(); setDialogOpen(true); }}><Plus className="h-4 w-4" /> Add Category</AdminButton>}
       </div>
 
       <AnimatePresence>
@@ -290,18 +295,26 @@ export default function AdminCategoriesPage() {
                             <MoreHorizontal className="h-4 w-4 text-charcoal-lighter" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEdit(cat)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
+                            {canEditCategory && <DropdownMenuItem onClick={() => openEdit(cat)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>}
                             <DropdownMenuItem onClick={() => isCustom ? toggleCategory(cat.id) : toggleSeedCategory(cat.id)}>
                               {visible ? <><EyeOff className="h-3.5 w-3.5 mr-2" /> Hide from Topbar</> : <><Eye className="h-3.5 w-3.5 mr-2" /> Show in Topbar</>}
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => { resetForm(); setFormParentId(cat.id); setDialogOpen(true); }}>
-                              <Plus className="h-3.5 w-3.5 mr-2" /> Add Subcategory
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDialog(cat)}>
-                              <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
-                            </DropdownMenuItem>
+                            {canAddCategory && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => { resetForm(); setFormParentId(cat.id); setDialogOpen(true); }}>
+                                  <Plus className="h-3.5 w-3.5 mr-2" /> Add Subcategory
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            {canDeleteCategory && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDialog(cat)}>
+                                  <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -329,24 +342,28 @@ export default function AdminCategoriesPage() {
                                   </button>
                                 </div>
                                 <span
-                                  className="flex items-center gap-1 rounded-full bg-white border border-border/30 px-2.5 py-1 text-[10px] cursor-pointer hover:border-secondary/30 transition-colors"
-                                  onClick={() => openEditSub({ ...sub, parent_id: cat.id })}
+                                  className={cn("flex items-center gap-1 rounded-full bg-white border border-border/30 px-2.5 py-1 text-[10px] transition-colors", canEditCategory ? "cursor-pointer hover:border-secondary/30" : "cursor-default")}
+                                  onClick={() => canEditCategory && openEditSub({ ...sub, parent_id: cat.id })}
                                 >
                                   <FolderTree className="h-2.5 w-2.5 text-secondary" />
                                   <span className="font-medium">{sub.name}</span>
                                   <span className="text-charcoal-lighter">({sub.product_count})</span>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); openEditSub({ ...sub, parent_id: cat.id }); }}
-                                    className="ml-0.5 text-charcoal-lighter/50 hover:text-secondary transition-colors opacity-0 group-hover:opacity-100"
-                                  >
-                                    <Edit className="h-2.5 w-2.5" />
-                                  </button>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); setDeleteDialog(sub as Category); }}
-                                    className="text-charcoal-lighter/50 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
-                                  >
-                                    <Trash2 className="h-2.5 w-2.5" />
-                                  </button>
+                                  {canEditCategory && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); openEditSub({ ...sub, parent_id: cat.id }); }}
+                                      className="ml-0.5 text-charcoal-lighter/50 hover:text-secondary transition-colors opacity-0 group-hover:opacity-100"
+                                    >
+                                      <Edit className="h-2.5 w-2.5" />
+                                    </button>
+                                  )}
+                                  {canDeleteCategory && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setDeleteDialog(sub as Category); }}
+                                      className="text-charcoal-lighter/50 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                                    >
+                                      <Trash2 className="h-2.5 w-2.5" />
+                                    </button>
+                                  )}
                                 </span>
                               </div>
                             ))}

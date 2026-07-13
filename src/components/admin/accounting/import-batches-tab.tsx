@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/utils";
 import { toCsv, downloadCsv } from "@/lib/csv";
+import { useAdmin } from "@/contexts/admin-context";
 
 interface ImportBatch {
   id: string; product_id: string; product_name: string; quantity_imported: number;
@@ -25,6 +26,8 @@ function formatDate(value: string): string {
 }
 
 export function ImportBatchesTab() {
+  const { can } = useAdmin();
+  const canAdd = can("accounting", "add");
   const [batches, setBatches] = useState<ImportBatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -128,9 +131,11 @@ export function ImportBatchesTab() {
         <AdminButton variant="outline" onClick={handleExport} disabled={batches.length === 0}>
           <Download className="h-4 w-4 mr-1" /> Export
         </AdminButton>
-        <AdminButton onClick={openDialog}>
-          <Plus className="h-4 w-4 mr-1" /> Record Import Batch
-        </AdminButton>
+        {canAdd && (
+          <AdminButton onClick={openDialog}>
+            <Plus className="h-4 w-4 mr-1" /> Record Import Batch
+          </AdminButton>
+        )}
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}

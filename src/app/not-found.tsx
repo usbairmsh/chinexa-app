@@ -13,7 +13,7 @@ export default function NotFound() {
       <div className="flex gap-4">
         <Link
           href="/"
-          className="inline-flex items-center justify-center rounded-luxury bg-secondary text-white px-6 py-3 text-sm font-medium hover:bg-secondary-dark transition-colors"
+          className="inline-flex items-center justify-center rounded-luxury bg-secondary !text-white px-6 py-3 text-sm font-medium hover:bg-secondary-dark transition-colors"
         >
           Go Home
         </Link>

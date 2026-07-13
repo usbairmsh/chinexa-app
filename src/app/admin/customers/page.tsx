@@ -25,6 +25,7 @@ import { FieldLabel } from "@/components/admin/shared/field-label";
 import { AvatarViewDialog } from "@/components/shared/avatar-view-dialog";
 import { resolveTierColorStyle } from "@/lib/tier-color";
 import { formatCurrency, formatDateShort, getInitials, cn } from "@/lib/utils";
+import { useAdmin } from "@/contexts/admin-context";
 
 // ─── Types ────────────────────────────────────────
 interface OrderProduct {
@@ -75,7 +76,14 @@ function getCookie(name: string): string {
 
 export default function AdminCustomersPage() {
   const adminRole = getCookie("chinexa-role");
-  const canEditCustomer = adminRole === "superadmin";
+  const { can } = useAdmin();
+  // Password reset and hard-delete stay superadmin-only regardless of
+  // granted customers permissions — a deliberately superadmin-exclusive
+  // capability, not something a regular admin can be granted.
+  const isSuperAdminUser = adminRole === "superadmin";
+  const canEditCustomerFields = can("customers", "edit");
+  const canDeleteCustomer = can("customers", "delete");
+  const canAddCustomer = can("customers", "add");
 
   // Edit customer dialog
   const [viewAvatarOpen, setViewAvatarOpen] = useState(false);
@@ -552,15 +560,15 @@ export default function AdminCustomersPage() {
           <Badge className={cn("text-[10px]", tierColor.className)} style={tierColor.style}><Crown className="h-3 w-3 mr-1" />{tierName}</Badge>
           {tierBadgeShown && <VerifiedBadge color={membershipData!.tier!.badge_color} opacity={membershipData!.tier!.badge_opacity} size={18} tooltip={membershipData!.tier!.badge_name} />}
           <Badge variant={c.isActive ? "success" : "destructive"} className="text-[10px]">{c.isActive ? "Active" : "Inactive"}</Badge>
-          {canEditCustomer && (
-            <>
-              <button onClick={openEditCustomer} className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-border text-[11px] font-medium text-charcoal-lighter hover:border-secondary hover:text-secondary transition-all">
-                <Edit className="h-3 w-3" /> Edit
-              </button>
-              <button onClick={() => { setDeleteCustomerError(""); setDeleteCustomerDialog("deactivate"); }} className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-border text-[11px] font-medium text-charcoal-lighter hover:border-destructive hover:text-destructive transition-all">
-                <XCircle className="h-3 w-3" /> Delete
-              </button>
-            </>
+          {canEditCustomerFields && (
+            <button onClick={openEditCustomer} className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-border text-[11px] font-medium text-charcoal-lighter hover:border-secondary hover:text-secondary transition-all">
+              <Edit className="h-3 w-3" /> Edit
+            </button>
+          )}
+          {canDeleteCustomer && (
+            <button onClick={() => { setDeleteCustomerError(""); setDeleteCustomerDialog("deactivate"); }} className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-border text-[11px] font-medium text-charcoal-lighter hover:border-destructive hover:text-destructive transition-all">
+              <XCircle className="h-3 w-3" /> Delete
+            </button>
           )}
         </div>
 
@@ -852,7 +860,7 @@ export default function AdminCustomersPage() {
             </div>
             <DialogFooter>
               <button onClick={() => setCouponDialogOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
-              <button onClick={handleAssignCoupon} disabled={!selectedCouponId} className="px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300">
+              <button onClick={handleAssignCoupon} disabled={!selectedCouponId} className="px-4 py-2 rounded-full bg-secondary !text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300">
                 Assign Coupon
               </button>
             </DialogFooter>
@@ -876,28 +884,30 @@ export default function AdminCustomersPage() {
                 <span className="text-sm text-charcoal-lighter">{editActive ? "Active" : "Inactive"}</span>
               </div>
 
-              <div className="pt-2 border-t border-border/30 space-y-2">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <Switch checked={editResetPassword} onCheckedChange={(v) => { setEditResetPassword(v); if (!v) setEditNewPassword(""); }} />
-                  <span className="text-sm text-charcoal-lighter">Set a new password for this customer</span>
-                </label>
-                {editResetPassword && (
-                  <Input
-                    label="New Password"
-                    type="password"
-                    value={editNewPassword}
-                    onChange={(e) => setEditNewPassword(e.target.value)}
-                    placeholder="At least 6 characters"
-                    icon={<Lock className="h-4 w-4" />}
-                  />
-                )}
-              </div>
+              {isSuperAdminUser && (
+                <div className="pt-2 border-t border-border/30 space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <Switch checked={editResetPassword} onCheckedChange={(v) => { setEditResetPassword(v); if (!v) setEditNewPassword(""); }} />
+                    <span className="text-sm text-charcoal-lighter">Set a new password for this customer</span>
+                  </label>
+                  {editResetPassword && (
+                    <Input
+                      label="New Password"
+                      type="password"
+                      value={editNewPassword}
+                      onChange={(e) => setEditNewPassword(e.target.value)}
+                      placeholder="At least 6 characters"
+                      icon={<Lock className="h-4 w-4" />}
+                    />
+                  )}
+                </div>
+              )}
 
               {editError && <p className="text-xs text-destructive">{editError}</p>}
             </div>
             <DialogFooter>
               <button onClick={() => setEditCustomerOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
-              <button onClick={handleSaveCustomer} disabled={editSaving || !editName.trim() || (editResetPassword && editNewPassword.length < 6)} className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300">
+              <button onClick={handleSaveCustomer} disabled={editSaving || !editName.trim() || (editResetPassword && editNewPassword.length < 6)} className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary !text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300">
                 {editSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save
               </button>
             </DialogFooter>
@@ -924,12 +934,14 @@ export default function AdminCustomersPage() {
                 >
                   Deactivate (reversible)
                 </button>
-                <button
-                  onClick={() => setDeleteCustomerDialog("hard")}
-                  className={cn("flex-1 px-3 py-2 rounded-xl border text-xs font-medium transition-all", deleteCustomerDialog === "hard" ? "border-destructive bg-destructive/5 text-destructive" : "border-border/40 text-charcoal-lighter")}
-                >
-                  Delete Permanently
-                </button>
+                {isSuperAdminUser && (
+                  <button
+                    onClick={() => setDeleteCustomerDialog("hard")}
+                    className={cn("flex-1 px-3 py-2 rounded-xl border text-xs font-medium transition-all", deleteCustomerDialog === "hard" ? "border-destructive bg-destructive/5 text-destructive" : "border-border/40 text-charcoal-lighter")}
+                  >
+                    Delete Permanently
+                  </button>
+                )}
               </div>
               {deleteCustomerError && <p className="text-xs text-destructive">{deleteCustomerError}</p>}
             </div>
@@ -938,7 +950,7 @@ export default function AdminCustomersPage() {
               <button
                 onClick={handleDeleteCustomer}
                 disabled={deleteCustomerSaving}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-destructive text-white text-xs font-semibold hover:bg-destructive/90 active:scale-[0.96] disabled:opacity-40 transition-all duration-300"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-destructive !text-white text-xs font-semibold hover:bg-destructive/90 active:scale-[0.96] disabled:opacity-40 transition-all duration-300"
               >
                 {deleteCustomerSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
                 {deleteCustomerDialog === "hard" ? "Delete Permanently" : "Deactivate"}
@@ -962,7 +974,7 @@ export default function AdminCustomersPage() {
         </div>
         <div className="flex gap-2">
           <AdminButton variant="outline" size="sm" onClick={openSmsDialog}><MessageSquare className="h-3.5 w-3.5" /> Send SMS</AdminButton>
-          <AdminButton size="sm" onClick={openAddCustomer}><UserPlus className="h-3.5 w-3.5" /> Add Customer</AdminButton>
+          {canAddCustomer && <AdminButton size="sm" onClick={openAddCustomer}><UserPlus className="h-3.5 w-3.5" /> Add Customer</AdminButton>}
           <AdminButton variant="outline" size="sm" onClick={handleExport}><Users className="h-3.5 w-3.5" /> Export</AdminButton>
         </div>
       </div>
@@ -1127,7 +1139,7 @@ export default function AdminCustomersPage() {
             <button
               onClick={handleAddCustomer}
               disabled={newSaving || !newName.trim() || !newPhone.trim() || newPassword.length < 6}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary !text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300"
             >
               {newSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />} Create
             </button>
@@ -1195,7 +1207,7 @@ export default function AdminCustomersPage() {
             <button
               onClick={handleSendSms}
               disabled={smsSending || smsSelected.length === 0 || !smsMessage.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary !text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300"
             >
               {smsSending ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageSquare className="h-3 w-3" />} Send
             </button>
@@ -1234,7 +1246,7 @@ export default function AdminCustomersPage() {
               <DialogFooter>
                 <button
                   onClick={() => setSmsResultDialog(null)}
-                  className="px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark transition-all"
+                  className="px-4 py-2 rounded-full bg-secondary !text-white text-xs font-semibold hover:bg-secondary-dark transition-all"
                 >
                   OK
                 </button>

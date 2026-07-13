@@ -539,7 +539,7 @@ export default function CheckoutPage() {
                   onClick={() => goToStep(s.id)}
                   className={cn(
                     "flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full text-xs sm:text-sm font-medium transition-colors",
-                    step >= s.id ? "bg-secondary text-white" : "bg-pearl text-charcoal-lighter",
+                    step >= s.id ? "bg-secondary !text-white" : "bg-pearl text-charcoal-lighter",
                     canClick ? "cursor-pointer hover:opacity-80" : "cursor-default"
                   )}
                 >

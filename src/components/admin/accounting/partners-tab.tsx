@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/utils";
+import { useAdmin } from "@/contexts/admin-context";
 
 interface Partner {
   id: string; name: string; email: string | null; phone: string | null;
@@ -32,6 +33,8 @@ const TYPE_LABELS: Record<PartnerTransaction["type"], string> = {
 };
 
 export function PartnersTab() {
+  const { can } = useAdmin();
+  const canAdd = can("accounting", "add");
   const [partners, setPartners] = useState<Partner[]>([]);
   const [transactions, setTransactions] = useState<PartnerTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -139,12 +142,16 @@ export function PartnersTab() {
   return (
     <div className="space-y-5">
       <div className="flex justify-end gap-2">
-        <AdminButton variant="outline" onClick={() => openAddTransaction()} disabled={partners.length === 0}>
-          <Wallet className="h-4 w-4 mr-1" /> Record Transaction
-        </AdminButton>
-        <AdminButton onClick={openAddPartner}>
-          <Plus className="h-4 w-4 mr-1" /> Add Partner
-        </AdminButton>
+        {canAdd && (
+          <AdminButton variant="outline" onClick={() => openAddTransaction()} disabled={partners.length === 0}>
+            <Wallet className="h-4 w-4 mr-1" /> Record Transaction
+          </AdminButton>
+        )}
+        {canAdd && (
+          <AdminButton onClick={openAddPartner}>
+            <Plus className="h-4 w-4 mr-1" /> Add Partner
+          </AdminButton>
+        )}
       </div>
 
       {partners.length === 0 ? (
@@ -173,7 +180,9 @@ export function PartnersTab() {
                 </div>
                 <div className="flex justify-between text-xs text-charcoal-lighter pt-1 border-t border-border/30 mt-2">
                   <span>Joined {formatDate(p.join_date)}</span>
-                  <button onClick={() => openAddTransaction(p.id)} className="text-secondary hover:underline">+ Transaction</button>
+                  {canAdd && (
+                    <button onClick={() => openAddTransaction(p.id)} className="text-secondary hover:underline">+ Transaction</button>
+                  )}
                 </div>
               </CardContent>
             </Card>

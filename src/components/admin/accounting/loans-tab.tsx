@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency, cn } from "@/lib/utils";
+import { useAdmin } from "@/contexts/admin-context";
 
 interface Loan {
   id: string; lender_name: string; lender_type: "bank" | "company" | "person";
@@ -33,6 +34,8 @@ const REPAYMENT_TYPE_LABELS: Record<Loan["repayment_type"], string> = { installm
 const REPAYMENT_KIND_LABELS: Record<LoanRepayment["type"], string> = { principal: "Principal", interest: "Interest" };
 
 export function LoansTab() {
+  const { can } = useAdmin();
+  const canAdd = can("accounting", "add");
   const [loans, setLoans] = useState<Loan[]>([]);
   const [repayments, setRepayments] = useState<LoanRepayment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,12 +143,16 @@ export function LoansTab() {
   return (
     <div className="space-y-5">
       <div className="flex justify-end gap-2">
-        <AdminButton variant="outline" onClick={() => openAddRepayment()} disabled={loans.length === 0}>
-          <Wallet className="h-4 w-4 mr-1" /> Record Repayment
-        </AdminButton>
-        <AdminButton onClick={openAddLoan}>
-          <Plus className="h-4 w-4 mr-1" /> Add Loan
-        </AdminButton>
+        {canAdd && (
+          <AdminButton variant="outline" onClick={() => openAddRepayment()} disabled={loans.length === 0}>
+            <Wallet className="h-4 w-4 mr-1" /> Record Repayment
+          </AdminButton>
+        )}
+        {canAdd && (
+          <AdminButton onClick={openAddLoan}>
+            <Plus className="h-4 w-4 mr-1" /> Add Loan
+          </AdminButton>
+        )}
       </div>
 
       {loans.length === 0 ? (
@@ -186,7 +193,9 @@ export function LoansTab() {
                 </div>
                 <div className="flex justify-between text-xs text-charcoal-lighter pt-1 border-t border-border/30 mt-2">
                   <span>Started {formatDate(l.start_date)}</span>
-                  <button onClick={() => openAddRepayment(l.id)} className="text-secondary hover:underline">+ Repayment</button>
+                  {canAdd && (
+                    <button onClick={() => openAddRepayment(l.id)} className="text-secondary hover:underline">+ Repayment</button>
+                  )}
                 </div>
               </CardContent>
             </Card>

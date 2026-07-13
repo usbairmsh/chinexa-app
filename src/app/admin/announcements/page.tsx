@@ -16,6 +16,7 @@ import {
   DEFAULT_ANNOUNCEMENT_CONFIG,
   type Announcement, type AnnouncementConfig, type AnnouncementType,
 } from "@/types/announcement";
+import { useAdmin } from "@/contexts/admin-context";
 
 const TYPE_META: Record<AnnouncementType, { label: string; description: string; icon: typeof Type }> = {
   text: { label: "Text / Info", description: "A simple message, e.g. a shipping policy or a store note", icon: Type },
@@ -71,6 +72,8 @@ function AnnouncementEditor({ item, onChange }: { item: Announcement; onChange: 
 }
 
 export default function AdminAnnouncementsPage() {
+  const { can } = useAdmin();
+  const canEdit = can("announcements", "edit");
   const [config, setConfig] = useState<AnnouncementConfig>(DEFAULT_ANNOUNCEMENT_CONFIG);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -132,7 +135,7 @@ export default function AdminAnnouncementsPage() {
           </h1>
           <p className="text-sm text-charcoal-lighter mt-1">The top bar shown on every storefront page. Add one or more — if more than one is enabled, they rotate automatically.</p>
         </div>
-        <AdminButton onClick={handleSave} disabled={saving} className={cn(saved && "!bg-success hover:!bg-success")}>
+        <AdminButton onClick={handleSave} disabled={saving || !canEdit} className={cn(saved && "!bg-success hover:!bg-success")}>
           {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : saved ? <Check className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
           {saved ? "Saved!" : saving ? "Saving..." : "Save Changes"}
         </AdminButton>
@@ -166,7 +169,7 @@ export default function AdminAnnouncementsPage() {
               ))}
             </SelectContent>
           </Select>
-          <AdminButton variant="outline" onClick={addItem}><Plus className="h-3.5 w-3.5" /> Add</AdminButton>
+          <AdminButton variant="outline" onClick={addItem} disabled={!canEdit}><Plus className="h-3.5 w-3.5" /> Add</AdminButton>
         </CardContent>
       </Card>
 
@@ -197,10 +200,12 @@ export default function AdminAnnouncementsPage() {
                   <button onClick={() => moveItem(item.id, "down")} disabled={i === config.items.length - 1} className="p-1.5 rounded-md text-charcoal-lighter/60 hover:text-charcoal hover:bg-pearl disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                     <ChevronDown className="h-4 w-4" />
                   </button>
-                  <Switch checked={item.enabled} onCheckedChange={(v) => updateItem(item.id, { enabled: v })} />
-                  <button onClick={() => removeItem(item.id)} className="p-1.5 rounded-md text-charcoal-lighter/50 hover:text-destructive hover:bg-destructive/5 transition-colors">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  <Switch checked={item.enabled} onCheckedChange={(v) => updateItem(item.id, { enabled: v })} disabled={!canEdit} />
+                  {canEdit && (
+                    <button onClick={() => removeItem(item.id)} className="p-1.5 rounded-md text-charcoal-lighter/50 hover:text-destructive hover:bg-destructive/5 transition-colors">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">

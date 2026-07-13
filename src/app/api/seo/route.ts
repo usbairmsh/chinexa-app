@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,9 @@ export async function GET(req: NextRequest) {
 // POST /api/seo — create or update SEO metadata for a page
 export async function POST(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "seo", "edit");
+    if (denied) return denied;
+
     const body = await req.json();
     if (!body.page_path) {
       return NextResponse.json({ error: "page_path is required" }, { status: 400 });

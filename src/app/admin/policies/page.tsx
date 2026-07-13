@@ -10,12 +10,15 @@ import { AdminButton } from "@/components/admin/shared/admin-button";
 import { randomId } from "@/lib/utils";
 import type { PolicyPage, PolicySection } from "@/types/policy";
 import { DEFAULT_POLICY_PAGES } from "@/types/policy";
+import { useAdmin } from "@/contexts/admin-context";
 
 function slugify(text: string): string {
   return text.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || randomId();
 }
 
 export default function AdminPoliciesPage() {
+  const { can } = useAdmin();
+  const canEdit = can("policies", "edit");
   const [policies, setPolicies] = useState<PolicyPage[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -129,7 +132,9 @@ export default function AdminPoliciesPage() {
           </h1>
           <p className="text-sm text-charcoal-lighter">Manage Shipping, Returns, Privacy, Terms, and any other policy page — each is reachable at /policies/[slug].</p>
         </div>
-        <AdminButton onClick={openCreate}><Plus className="h-3.5 w-3.5" /> Add Policy Page</AdminButton>
+        {canEdit && (
+          <AdminButton onClick={openCreate}><Plus className="h-3.5 w-3.5" /> Add Policy Page</AdminButton>
+        )}
       </div>
 
       {saved && <p className="text-xs text-success flex items-center gap-1"><Check className="h-3 w-3" /> Saved</p>}
@@ -140,14 +145,16 @@ export default function AdminPoliciesPage() {
             <CardHeader>
               <CardTitle className="text-base flex items-center justify-between">
                 {policy.title}
-                <div className="flex items-center gap-1">
-                  <button onClick={() => openEdit(policy)} className="flex items-center justify-center h-8 w-8 rounded-full text-charcoal-lighter hover:text-secondary hover:bg-primary-light transition-colors">
-                    <Edit className="h-3.5 w-3.5" />
-                  </button>
-                  <button onClick={() => setDeleteTarget(policy)} className="flex items-center justify-center h-8 w-8 rounded-full text-charcoal-lighter hover:text-destructive hover:bg-destructive/10 transition-colors">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                {canEdit && (
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => openEdit(policy)} className="flex items-center justify-center h-8 w-8 rounded-full text-charcoal-lighter hover:text-secondary hover:bg-primary-light transition-colors">
+                      <Edit className="h-3.5 w-3.5" />
+                    </button>
+                    <button onClick={() => setDeleteTarget(policy)} className="flex items-center justify-center h-8 w-8 rounded-full text-charcoal-lighter hover:text-destructive hover:bg-destructive/10 transition-colors">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
               </CardTitle>
               <CardDescription>/policies/{policy.slug} · {policy.sections.length} section{policy.sections.length !== 1 ? "s" : ""}</CardDescription>
             </CardHeader>
@@ -247,8 +254,8 @@ export default function AdminPoliciesPage() {
             <button onClick={() => { setDialogOpen(false); resetForm(); }} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
             <button
               onClick={handleSave}
-              disabled={saving || !formTitle.trim() || !formSlug.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300"
+              disabled={!canEdit || saving || !formTitle.trim() || !formSlug.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary !text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300"
             >
               {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save
             </button>

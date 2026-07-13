@@ -5,9 +5,12 @@ import { logActivity } from "@/lib/log-activity";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { bulkNotify, resolvePromoRecipients } from "@/lib/notify";
 import { validationError } from "@/lib/validate";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const denied = await requirePermission(req, "coupons", "edit");
+    if (denied) return denied;
     await ensurePromotionColumns();
     const { id } = await params;
     const body = await req.json();
@@ -89,7 +92,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try { const { id } = await params; await execute("DELETE FROM coupons WHERE id = ?", [id]); await logActivity("Deleted coupon", "coupon", id); return NextResponse.json({ success: true }); }
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const denied = await requirePermission(req, "coupons", "delete");
+    if (denied) return denied;
+    const { id } = await params; await execute("DELETE FROM coupons WHERE id = ?", [id]); await logActivity("Deleted coupon", "coupon", id); return NextResponse.json({ success: true });
+  }
   catch (error: unknown) { return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 }); }
 }

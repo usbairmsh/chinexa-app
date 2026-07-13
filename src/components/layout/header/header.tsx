@@ -357,7 +357,7 @@ export function Header() {
                       ref={mobileSignInIcon.scope}
                       onHoverStart={() => mobileSignInIcon.play({ y: [0, -3, 0], scale: [1, 1.08, 1] }, 0.4)}
                       whileTap={{ scale: 0.92 }}
-                      className="flex items-center justify-center h-9 w-9 rounded-full bg-secondary text-white hover:bg-secondary-dark transition-colors"
+                      className="flex items-center justify-center h-9 w-9 rounded-full bg-secondary !text-white hover:bg-secondary-dark transition-colors"
                     >
                       <User className="h-4 w-4" />
                     </motion.span>
@@ -370,7 +370,7 @@ export function Header() {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                        className="inline-flex items-center gap-1.5 h-9 px-5 rounded-full bg-secondary text-white text-[13px] font-body font-medium tracking-wide hover:bg-secondary-dark hover:shadow-lg transition-colors duration-200 cursor-pointer"
+                        className="inline-flex items-center gap-1.5 h-9 px-5 rounded-full bg-secondary !text-white text-[13px] font-body font-medium tracking-wide hover:bg-secondary-dark hover:shadow-lg transition-colors duration-200 cursor-pointer"
                       >
                         <User className="h-3.5 w-3.5" />
                         Sign In

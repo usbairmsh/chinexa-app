@@ -21,6 +21,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Pagination } from "@/components/ui/pagination";
 import { formatCurrency, formatDateShort, getInitials, cn } from "@/lib/utils";
+import { useAdmin } from "@/contexts/admin-context";
 
 type OrderStatus = "pending" | "confirmed" | "processing" | "shipped" | "on_delivery" | "received" | "not_received";
 type PaymentStatus = "pending" | "paid" | "refunded";
@@ -47,6 +48,8 @@ const nextStatus: Partial<Record<OrderStatus, OrderStatus>> = {
 const PAGE_SIZE = 20;
 
 export default function OrderManagementPage() {
+  const { can } = useAdmin();
+  const canHandleOrders = can("orders", "handle_orders");
   const [activeTab, setActiveTab] = useState<"all" | OrderStatus>("all");
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState(""); // debounced value actually sent to the API
@@ -309,7 +312,7 @@ export default function OrderManagementPage() {
                             </Link>
 
                             {/* Advance Status */}
-                            {next ? (
+                            {next && canHandleOrders ? (
                               <button onClick={() => handleQuickAdvance(order)}
                                 className="flex h-8 items-center gap-1 px-2.5 rounded-lg bg-charcoal text-[10px] font-semibold !text-white hover:bg-secondary hover:shadow-[0_2px_12px_rgba(122,79,160,0.25)] transition-all">
                                 <ArrowUpRight className="h-3 w-3" /> <span className="hidden xl:inline">{statusConfig[next].label}</span>
@@ -322,9 +325,11 @@ export default function OrderManagementPage() {
                                 <MoreHorizontal className="h-3.5 w-3.5 text-charcoal-lighter" />
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => { setStatusDialog(order); setNewStatus(""); }}><Package className="h-3.5 w-3.5 mr-2" /> Change Status</DropdownMenuItem>
+                                {canHandleOrders && (
+                                  <DropdownMenuItem onClick={() => { setStatusDialog(order); setNewStatus(""); }}><Package className="h-3.5 w-3.5 mr-2" /> Change Status</DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem onClick={() => window.open(`/invoice?id=${encodeURIComponent(order.dbId)}`, "_blank")}><Printer className="h-3.5 w-3.5 mr-2" /> Print Invoice</DropdownMenuItem>
-                                {!["not_received", "received"].includes(order.status) && (
+                                {canHandleOrders && !["not_received", "received"].includes(order.status) && (
                                   <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive" onClick={() => setCancelDialog(order)}><ThumbsDown className="h-3.5 w-3.5 mr-2" /> Not Received</DropdownMenuItem></>
                                 )}
                               </DropdownMenuContent>

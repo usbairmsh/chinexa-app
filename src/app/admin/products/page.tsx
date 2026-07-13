@@ -23,9 +23,14 @@ import { AdminButton } from "@/components/admin/shared/admin-button";
 import { useProducts } from "@/hooks/queries/use-products";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { ProductListParams, Product, ProductVariant } from "@/types/product";
+import { useAdmin } from "@/contexts/admin-context";
 
 export default function AdminProductsPage() {
   const router = useRouter();
+  const { can } = useAdmin();
+  const canAddProduct = can("products", "add");
+  const canEditProduct = can("products", "edit");
+  const canDeleteProduct = can("products", "delete");
   const [activeTab, setActiveTab] = useState<"active" | "inactive">("active");
   const [params, setParams] = useState<ProductListParams>({ page: 1, page_size: 10, sort_by: "newest" });
   const [searchQuery, setSearchQuery] = useState("");
@@ -204,16 +209,22 @@ export default function AdminProductsPage() {
                 <DropdownMenuItem onClick={() => window.open(`/products/${product.slug}`, "_blank")}>
                   <ExternalLink className="h-3.5 w-3.5 mr-2" /> View on Store
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push(`/admin/products/${product.id}`)}>
-                  <Edit className="h-3.5 w-3.5 mr-2" /> Edit Product
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => handleToggleStatus(product)}>
-                  {product.is_active ? <><EyeOff className="h-3.5 w-3.5 mr-2" /> Deactivate</> : <><RotateCcw className="h-3.5 w-3.5 mr-2" /> Reactivate</>}
-                </DropdownMenuItem>
-                <DropdownMenuItem className="text-destructive" onClick={() => setDeleteProduct(product)}>
-                  <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete Product
-                </DropdownMenuItem>
+                {canEditProduct && (
+                  <DropdownMenuItem onClick={() => router.push(`/admin/products/${product.id}`)}>
+                    <Edit className="h-3.5 w-3.5 mr-2" /> Edit Product
+                  </DropdownMenuItem>
+                )}
+                {canEditProduct && (
+                  <DropdownMenuItem onClick={() => handleToggleStatus(product)}>
+                    {product.is_active ? <><EyeOff className="h-3.5 w-3.5 mr-2" /> Deactivate</> : <><RotateCcw className="h-3.5 w-3.5 mr-2" /> Reactivate</>}
+                  </DropdownMenuItem>
+                )}
+                {(canEditProduct || canDeleteProduct) && <DropdownMenuSeparator />}
+                {canDeleteProduct && (
+                  <DropdownMenuItem className="text-destructive" onClick={() => setDeleteProduct(product)}>
+                    <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete Product
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </td>
@@ -260,12 +271,16 @@ export default function AdminProductsPage() {
                 <button onClick={() => setViewVariant({ variant: v, product })} className="p-1 hover:bg-white rounded text-charcoal-lighter hover:text-charcoal transition-colors" title="View">
                   <Eye className="h-3.5 w-3.5" />
                 </button>
-                <button onClick={() => openEditVariant(v, product)} className="p-1 hover:bg-white rounded text-charcoal-lighter hover:text-secondary transition-colors" title="Edit">
-                  <Edit className="h-3.5 w-3.5" />
-                </button>
-                <button onClick={() => setDeleteVariant({ variant: v, product })} className="p-1 hover:bg-white rounded text-charcoal-lighter hover:text-destructive transition-colors" title="Delete">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                {canEditProduct && (
+                  <button onClick={() => openEditVariant(v, product)} className="p-1 hover:bg-white rounded text-charcoal-lighter hover:text-secondary transition-colors" title="Edit">
+                    <Edit className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                {canDeleteProduct && (
+                  <button onClick={() => setDeleteVariant({ variant: v, product })} className="p-1 hover:bg-white rounded text-charcoal-lighter hover:text-destructive transition-colors" title="Delete">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
             </td>
           </tr>
@@ -298,7 +313,7 @@ export default function AdminProductsPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href="/admin/brands"><AdminButton variant="outline"><Award className="h-4 w-4" /> Brands</AdminButton></Link>
-          <Link href="/admin/products/new"><AdminButton><Plus className="h-4 w-4" /> Add Product</AdminButton></Link>
+          {canAddProduct && <Link href="/admin/products/new"><AdminButton><Plus className="h-4 w-4" /> Add Product</AdminButton></Link>}
         </div>
       </div>
 
@@ -425,9 +440,11 @@ export default function AdminProductsPage() {
           )}
           <DialogFooter>
             <AdminButton variant="outline" onClick={() => setViewVariant(null)}>Close</AdminButton>
-            <AdminButton size="sm" onClick={() => { if (viewVariant) { openEditVariant(viewVariant.variant, viewVariant.product); setViewVariant(null); } }}>
-              <Edit className="h-3.5 w-3.5" /> Edit
-            </AdminButton>
+            {canEditProduct && (
+              <AdminButton size="sm" onClick={() => { if (viewVariant) { openEditVariant(viewVariant.variant, viewVariant.product); setViewVariant(null); } }}>
+                <Edit className="h-3.5 w-3.5" /> Edit
+              </AdminButton>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

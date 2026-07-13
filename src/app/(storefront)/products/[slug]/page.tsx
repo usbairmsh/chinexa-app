@@ -477,8 +477,8 @@ export default function ProductDetailPage() {
                       className={cn(
                         "flex-1 h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
                         addedToCart
-                          ? "bg-charcoal text-white"
-                          : "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px]"
+                          ? "bg-charcoal !text-white"
+                          : "bg-secondary !text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px]"
                       )}
                     >
                       <AnimatePresence mode="wait">
@@ -518,7 +518,7 @@ export default function ProductDetailPage() {
                       className={cn(
                         "flex items-center gap-2 h-11 px-3 sm:px-5 rounded-full border text-xs sm:text-sm font-medium transition-all duration-300 shrink-0",
                         shared
-                          ? "border-success bg-success text-white"
+                          ? "border-success bg-success !text-white"
                           : "border-border text-charcoal-light hover:border-charcoal hover:text-charcoal"
                       )}
                     >
@@ -538,8 +538,8 @@ export default function ProductDetailPage() {
                     className={cn(
                       "w-full h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-200 cursor-pointer flex items-center justify-center gap-2",
                       wishlisted
-                        ? "bg-secondary text-white hover:bg-secondary-dark"
-                        : "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px]"
+                        ? "bg-secondary !text-white hover:bg-secondary-dark"
+                        : "bg-secondary !text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px]"
                     )}
                   >
                     <Heart className={cn("h-5 w-5", wishlisted && "fill-current")} />

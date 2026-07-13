@@ -4,10 +4,13 @@ import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { deleteUploadedFile } from "@/lib/delete-upload";
 import { publicServerError } from "@/lib/validate";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    const denied = await requirePermission(req, "categories", "edit");
+    if (denied) return denied;
     const body = await req.json();
     const fields: string[] = [];
     const values: (string | number | null)[] = [];
@@ -28,9 +31,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    const denied = await requirePermission(req, "categories", "delete");
+    if (denied) return denied;
     // Get images before deleting
     const cats = await query<RowDataPacket[]>("SELECT image FROM categories WHERE id = ? OR parent_id = ?", [id, id]);
     // Delete subcategories first, then the category

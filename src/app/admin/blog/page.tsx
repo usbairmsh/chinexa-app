@@ -16,8 +16,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateShort, slugify } from "@/lib/utils";
 import type { BlogPost } from "@/types/blog";
+import { useAdmin } from "@/contexts/admin-context";
 
 export default function AdminBlogPage() {
+  const { can } = useAdmin();
+  const canAddBlog = can("blog", "add");
+  const canEditBlog = can("blog", "edit");
+  const canDeleteBlog = can("blog", "delete");
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -128,13 +133,13 @@ export default function AdminBlogPage() {
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Blog</h1>
           <p className="text-sm text-charcoal-lighter">{posts.length} post{posts.length !== 1 ? "s" : ""} · {publishedCount} published · {draftCount} draft{draftCount !== 1 ? "s" : ""}</p>
         </div>
-        <AdminButton onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> New Post</AdminButton>
+        {canAddBlog && <AdminButton onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> New Post</AdminButton>}
       </div>
 
       {loading ? (
         <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => <Card key={i}><CardContent className="p-4"><Skeleton className="h-24 w-full" /></CardContent></Card>)}</div>
       ) : posts.length === 0 ? (
-        <EmptyState icon={FileText} title="No blog posts yet" description="Write your first blog post." actionLabel="New Post" onAction={openCreate} />
+        <EmptyState icon={FileText} title="No blog posts yet" description="Write your first blog post." actionLabel={canAddBlog ? "New Post" : undefined} onAction={canAddBlog ? openCreate : undefined} />
       ) : (
         <div className="space-y-3">
           {posts.map((post) => (
@@ -158,9 +163,9 @@ export default function AdminBlogPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => window.open(`/blog/${post.slug}`, "_blank")}><Eye className="h-3.5 w-3.5 mr-2" /> Preview</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openEdit(post)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDialog(post)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>
+                          {canEditBlog && <DropdownMenuItem onClick={() => openEdit(post)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>}
+                          {(canEditBlog || canDeleteBlog) && <DropdownMenuSeparator />}
+                          {canDeleteBlog && <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDialog(post)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -170,7 +175,7 @@ export default function AdminBlogPage() {
                       <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {post.reading_time} min</span>
                       <span>{(post.views || 0).toLocaleString()} views</span>
                       {post.category && <Badge variant="outline" className="text-[10px]">{post.category}</Badge>}
-                      <Switch checked={post.is_published} onCheckedChange={() => handleTogglePublish(post)} />
+                      <Switch checked={post.is_published} onCheckedChange={() => handleTogglePublish(post)} disabled={!canEditBlog} />
                     </div>
                     {post.tags && post.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">

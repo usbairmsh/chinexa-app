@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
+import { requirePermission } from "@/lib/admin-permissions-server";
 import { validate, validationError, dependencyError, publicServerError } from "@/lib/validate";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { ensureSearchIndexes } from "@/lib/migrate-search";
@@ -91,6 +92,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "products", "add");
+    if (denied) return denied;
     await ensurePromotionColumns();
     await ensureAccountingTables();
     const body = await req.json();

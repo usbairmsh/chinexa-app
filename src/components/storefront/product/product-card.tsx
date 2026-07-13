@@ -146,7 +146,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                       onClick={handleWishlist}
                       className={cn(
                         "flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-[14px] font-semibold hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300",
-                        wishlisted ? "bg-secondary text-white" : "bg-white text-charcoal hover:bg-secondary hover:!text-white"
+                        wishlisted ? "bg-secondary !text-white" : "bg-white text-charcoal hover:bg-secondary hover:!text-white"
                       )}
                       aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
                     >
@@ -216,7 +216,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                   className={cn(
                     "flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full border transition-colors active:scale-[0.96]",
                     wishlisted
-                      ? "border-secondary bg-secondary text-white"
+                      ? "border-secondary bg-secondary !text-white"
                       : "border-border text-charcoal-lighter"
                   )}
                   aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
@@ -301,7 +301,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                           className={cn(
                             "flex items-center gap-1.5 px-4 py-2 rounded-full border text-sm font-medium transition-all duration-200",
                             selectedVariant === variant.id
-                              ? "border-secondary bg-secondary text-white"
+                              ? "border-secondary bg-secondary !text-white"
                               : "border-border text-charcoal hover:border-charcoal",
                             variant.stock === 0 && "opacity-30 cursor-not-allowed line-through"
                           )}
@@ -348,8 +348,8 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                   className={cn(
                     "w-full h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2",
                     added
-                      ? "bg-success text-white"
-                      : "bg-secondary text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px]"
+                      ? "bg-success !text-white"
+                      : "bg-secondary !text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px]"
                   )}
                 >
                   <AnimatePresence mode="wait">

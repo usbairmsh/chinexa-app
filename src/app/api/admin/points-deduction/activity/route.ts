@@ -4,6 +4,7 @@ import { query, execute } from "@/lib/db";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { validationError } from "@/lib/validate";
 import { logActivity } from "@/lib/log-activity";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +62,9 @@ export async function GET(req: NextRequest) {
 // customer_points, so any deduction already applied is left exactly as-is.
 export async function DELETE(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "points_deduction_rules", "delete");
+    if (denied) return denied;
+
     const url = new URL(req.url);
     const runId = url.searchParams.get("runId");
     const ruleId = url.searchParams.get("ruleId");

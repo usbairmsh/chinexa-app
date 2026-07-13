@@ -184,7 +184,7 @@ export default function CouponsOffersPage() {
                     </div>
                     <button
                       onClick={() => handleCopyCode(selected.data.coupon_code)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary text-white text-xs font-semibold hover:bg-secondary-dark transition-all"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary !text-white text-xs font-semibold hover:bg-secondary-dark transition-all"
                     >
                       {copiedCode === selected.data.coupon_code ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                       {copiedCode === selected.data.coupon_code ? "Copied" : "Copy"}

@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn, getInitials, formatDateShort } from "@/lib/utils";
+import { useAdmin } from "@/contexts/admin-context";
 
 interface ReviewData {
   id: string; customer_name: string; product_name: string; rating: number;
@@ -19,6 +20,9 @@ interface ReviewData {
 }
 
 export default function AdminReviewsPage() {
+  const { can } = useAdmin();
+  const canApproveReview = can("reviews", "approve");
+  const canDeleteReview = can("reviews", "delete");
   const [reviews, setReviews] = useState<ReviewData[]>([]);
   const [loading, setLoading] = useState(true);
   const [replyDialog, setReplyDialog] = useState<ReviewData | null>(null);
@@ -111,18 +115,22 @@ export default function AdminReviewsPage() {
         )}
 
         <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border/30">
-          {!review.is_approved && (
+          {!review.is_approved && canApproveReview && (
             <AdminButton size="sm" onClick={() => handleApprove(review.id)}><Check className="h-3 w-3 mr-1" /> Approve</AdminButton>
           )}
-          {review.is_approved && (
+          {review.is_approved && canApproveReview && (
             <AdminButton variant="outline" size="sm" onClick={() => handleReject(review.id)}><X className="h-3 w-3 mr-1" /> Unapprove</AdminButton>
           )}
-          <AdminButton variant="ghost" size="sm" onClick={() => openReply(review)}>
-            <MessageSquare className="h-3 w-3 mr-1" /> {review.admin_reply ? "Edit Reply" : "Reply"}
-          </AdminButton>
-          <AdminButton variant="ghost" size="sm" className="text-destructive sm:ml-auto" onClick={() => setDeleteDialog(review)}>
-            <Trash2 className="h-3 w-3" />
-          </AdminButton>
+          {canApproveReview && (
+            <AdminButton variant="ghost" size="sm" onClick={() => openReply(review)}>
+              <MessageSquare className="h-3 w-3 mr-1" /> {review.admin_reply ? "Edit Reply" : "Reply"}
+            </AdminButton>
+          )}
+          {canDeleteReview && (
+            <AdminButton variant="ghost" size="sm" className="text-destructive sm:ml-auto" onClick={() => setDeleteDialog(review)}>
+              <Trash2 className="h-3 w-3" />
+            </AdminButton>
+          )}
         </div>
       </CardContent>
     </Card>

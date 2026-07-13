@@ -199,7 +199,7 @@ export function ChatWidget() {
       {!open && (
         <button
           onClick={() => openChat("general")}
-          className="fixed bottom-4 left-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-secondary text-white shadow-[0_8px_30px_rgba(0,0,0,0.2)] transition-transform hover:scale-105"
+          className="fixed bottom-4 left-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-secondary !text-white shadow-[0_8px_30px_rgba(0,0,0,0.2)] transition-transform hover:scale-105"
           aria-label={unread > 0 ? `Chat with support (${unread} unread)` : "Chat with support"}
         >
           <MessageCircle className="h-6 w-6" />
@@ -295,7 +295,7 @@ export function ChatWidget() {
               <button
                 onClick={handleSend}
                 disabled={!draft.trim() || sending}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-white transition-all hover:bg-secondary-dark disabled:opacity-40"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary !text-white transition-all hover:bg-secondary-dark disabled:opacity-40"
                 aria-label="Send message"
               >
                 {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

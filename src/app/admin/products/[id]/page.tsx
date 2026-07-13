@@ -26,6 +26,8 @@ import { CountrySearch } from "@/components/admin/shared/country-search";
 import { BrandSearch } from "@/components/admin/shared/brand-search";
 import { getIconById, type TrustBadge } from "@/lib/trust-badges";
 import { Shield } from "lucide-react";
+import { useAdmin } from "@/contexts/admin-context";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type VariantRow = {
   id: string; type: "size" | "color" | "shade" | "weight";
@@ -39,6 +41,8 @@ type ImageRow = { id: string; url: string; alt: string; variant_id: string; foca
 export default function EditProductPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
+  const { can } = useAdmin();
+  const canEditProduct = can("products", "edit");
   const [activeTab, setActiveTab] = useState<"basic" | "media" | "variants" | "seo">("basic");
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
@@ -294,18 +298,18 @@ export default function EditProductPage() {
         </div>
         <div className="flex items-center gap-2">
           <AdminButton variant="outline" size="sm" disabled={!productSlug} onClick={() => productSlug && window.open(`/products/${productSlug}`, "_blank")}><Eye className="h-3.5 w-3.5" /> Preview</AdminButton>
-          {editMode ? (
+          {editMode && canEditProduct ? (
             <>
               <AdminButton variant="outline" size="sm" onClick={() => setEditMode(false)}>Cancel</AdminButton>
               <AdminButton size="sm" onClick={handleSave} disabled={saving} className={saved ? "!bg-success hover:!bg-success" : ""}>
                 <Save className="h-3.5 w-3.5" /> {saving ? "Saving..." : saved ? "Saved!" : "Save Changes"}
               </AdminButton>
             </>
-          ) : (
+          ) : canEditProduct ? (
             <AdminButton size="sm" onClick={() => setEditMode(true)}>
               <Edit className="h-3.5 w-3.5" /> Edit Product
             </AdminButton>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -400,7 +404,7 @@ export default function EditProductPage() {
       )}
 
       {/* Edit Mode */}
-      {editMode && <>
+      {editMode && canEditProduct && <>
       <div className="flex gap-1 bg-pearl/60 p-1 rounded-xl overflow-x-auto scrollbar-hide">
         {tabs.map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
@@ -694,7 +698,7 @@ export default function EditProductPage() {
                 {["new", "sale", "bestseller", "preorder", "limited", "trending"].map((badge) => (
                   <button key={badge} onClick={() => toggleBadge(badge)}
                     className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-all capitalize",
-                      selectedBadges.includes(badge) ? "bg-secondary text-white border-secondary" : "bg-white text-charcoal-lighter border-border hover:border-charcoal hover:text-charcoal")}>
+                      selectedBadges.includes(badge) ? "bg-secondary !text-white border-secondary" : "bg-white text-charcoal-lighter border-border hover:border-charcoal hover:text-charcoal")}>
                     {badge === "preorder" ? "Pre-order" : badge}
                   </button>
                 ))}
@@ -720,7 +724,7 @@ export default function EditProductPage() {
           </div>
           <div className="flex justify-end gap-2 pt-2 shrink-0">
             <button onClick={() => setSeoPromptOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal transition-colors">Close</button>
-            <button onClick={handleCopyPrompt} className={cn("flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all", seoPromptCopied ? "bg-success text-white" : "bg-secondary text-white hover:bg-secondary-dark")}>
+            <button onClick={handleCopyPrompt} className={cn("flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all", seoPromptCopied ? "bg-success !text-white" : "bg-secondary !text-white hover:bg-secondary-dark")}>
               {seoPromptCopied ? <><Check className="h-3 w-3" /> Copied!</> : <><Copy className="h-3 w-3" /> Copy Prompt</>}
             </button>
           </div>

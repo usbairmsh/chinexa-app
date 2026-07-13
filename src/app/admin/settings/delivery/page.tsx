@@ -248,7 +248,7 @@ export default function DeliverySettingsPage() {
                           <button onClick={() => {
                             updateZone(zone.id, { name: editZoneData.name, areas: editZoneData.areas, charge: Number(editZoneData.charge), estimatedDays: editZoneData.estimatedDays });
                             setEditingZone(null); showSaved();
-                          }} className="h-7 w-7 flex items-center justify-center rounded-full bg-success text-white hover:bg-success/90 transition-colors">
+                          }} className="h-7 w-7 flex items-center justify-center rounded-full bg-success !text-white hover:bg-success/90 transition-colors">
                             <Check className="h-3 w-3" />
                           </button>
                           <button onClick={() => setEditingZone(null)} className="h-7 w-7 flex items-center justify-center rounded-full hover:bg-destructive/10 text-charcoal-lighter hover:text-destructive transition-colors">
