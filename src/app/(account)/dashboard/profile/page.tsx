@@ -257,7 +257,7 @@ export default function ProfilePage() {
         <Card>
           <CardContent className="p-6">
             <div className="flex flex-col sm:flex-row items-center gap-5">
-              <div>
+              <div className="shrink-0">
                 <AvatarUpload
                   currentUrl={user?.avatar}
                   name={user?.name || "Profile"}
@@ -271,13 +271,13 @@ export default function ProfilePage() {
                 />
                 {avatarError && <p className="text-xs text-destructive mt-1.5 text-center">{avatarError}</p>}
               </div>
-              <div className="text-center sm:text-left">
-                <h3 className="font-heading text-lg font-semibold text-charcoal flex items-center gap-1.5">
+              <div className="w-full flex flex-col items-center sm:items-start text-center sm:text-left">
+                <h3 className="font-heading text-lg font-semibold text-charcoal flex items-center justify-center sm:justify-start gap-1.5">
                   {user?.name || "Guest User"}
                   {badgeData?.badge_color && <VerifiedBadge color={badgeData.badge_color} opacity={badgeData.badge_opacity} size={22} tooltip={badgeData.badge_name} />}
                 </h3>
                 <p className="text-sm text-charcoal-lighter">{user?.phone || "Not signed in"}</p>
-                <div className="flex items-center gap-2 mt-2 justify-center sm:justify-start">
+                <div className="flex items-center flex-wrap gap-2 mt-2 justify-center sm:justify-start">
                   {badgeData?.tier_name && (
                     <Badge className={cn("text-[10px]", tierColor.className)} style={tierColor.style}>
                       <Crown className="h-3 w-3 mr-1" /> {badgeData.tier_name} Member

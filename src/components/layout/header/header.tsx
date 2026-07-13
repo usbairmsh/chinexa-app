@@ -509,36 +509,45 @@ export function Header() {
                   </button>
                 </div>
 
-                {/* Tier badge — same premium pill as the header, sized up for mobile.
-                    Background is filled with the tier's own color; label is the
-                    customer's name rather than the tier name. */}
-                {isAuthenticated && badgeData?.tier_name && (
-                  <Link
-                    href="/dashboard"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={cn(
-                      "flex items-center gap-2 w-fit h-9 pl-1 pr-3.5 rounded-full border shadow-sm mb-4",
-                      tierPillColor.className
-                    )}
-                    style={{
-                      ...tierPillColor.style,
-                      borderColor: tierPillColor.style?.color ?? "currentColor",
-                      boxShadow: `0 1px 6px -1px ${tierPillColor.style?.color ?? "currentColor"}`,
-                    }}
-                    title={`${badgeData.tier_name} Member`}
+                {/* Profile card — same tier-tinted card used across the account
+                    section (avatar on top, name + tier pill, phone, View Profile
+                    button), so the mobile menu's identity block matches everywhere. */}
+                {isAuthenticated && (
+                  <div
+                    className={cn("rounded-2xl p-5 mb-4 flex flex-col items-center text-center", tierPillColor.className)}
+                    style={tierPillColor.style}
                   >
                     <span
-                      className="flex items-center justify-center h-7 w-7 rounded-full bg-white overflow-hidden"
-                      style={{ boxShadow: "inset 0 0 0 1px currentColor" }}
+                      className="flex items-center justify-center h-16 w-16 rounded-full bg-white overflow-hidden ring-2 ring-white/70 shadow-md"
                     >
                       {user?.avatar ? (
                         <img src={user.avatar} alt={user.name || "Account"} className="h-full w-full object-cover" />
                       ) : (
-                        <User className="h-3.5 w-3.5" />
+                        <User className="h-6 w-6 text-charcoal-lighter" />
                       )}
                     </span>
-                    <span className="font-heading text-[13px] font-semibold tracking-[0.02em]">{user?.name || "Account"}</span>
-                  </Link>
+
+                    <div className="mt-3 flex items-center gap-1.5 min-w-0 max-w-full">
+                      <span className="font-heading font-semibold text-base text-charcoal truncate">{user?.name || "Guest User"}</span>
+                      {badgeData?.tier_name && (
+                        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-white/70 text-charcoal">
+                          {badgeData.tier_name}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="mt-0.5 text-xs text-charcoal/70 truncate max-w-full">
+                      {user?.phone || "Not signed in"}
+                    </p>
+
+                    <Link
+                      href="/dashboard/profile"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="mt-4 w-full py-2 rounded-xl bg-white/90 text-charcoal text-sm font-medium hover:bg-white transition-colors"
+                    >
+                      View Profile
+                    </Link>
+                  </div>
                 )}
 
                 {/* Mobile Nav */}

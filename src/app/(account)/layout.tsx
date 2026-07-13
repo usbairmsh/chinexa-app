@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutDashboard, ShoppingBag, Heart, MapPin, UserCircle,
+  ShoppingBag, Heart, MapPin, UserCircle,
   LogOut, ChevronRight, HelpCircle, Tag, Crown, MessageCircle
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -22,9 +22,23 @@ import { useChatStore } from "@/stores/chat.store";
 import { cn, getInitials } from "@/lib/utils";
 import { resolveTierColorStyle } from "@/lib/tier-color";
 
+// Same 4-square layout as lucide's LayoutDashboard, but with a much smaller
+// corner radius (rx 0.5 vs lucide's rx 1) so the tiles read as near-square
+// rather than pill-like at the small sizes this nav renders icons at.
+function SquareDashboardIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect width="7" height="9" x="3" y="3" rx="0.5" />
+      <rect width="7" height="5" x="14" y="3" rx="0.5" />
+      <rect width="7" height="9" x="14" y="12" rx="0.5" />
+      <rect width="7" height="5" x="3" y="16" rx="0.5" />
+    </svg>
+  );
+}
+
 // Notifications intentionally omitted — they live in the header bell popup now
 const accountNav = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
+  { icon: SquareDashboardIcon, label: "Dashboard", href: "/dashboard" },
   { icon: ShoppingBag, label: "My Orders", href: "/dashboard/orders" },
   { icon: Heart, label: "Wishlist", href: "/dashboard/wishlist" },
   { icon: MapPin, label: "Addresses", href: "/dashboard/addresses" },
@@ -128,16 +142,16 @@ export default function AccountLayout({
               </Avatar>
 
               <div className="mt-3 flex items-center gap-1.5 min-w-0 max-w-full">
-                <span className="font-heading font-semibold text-base truncate">{user?.name || "Guest User"}</span>
+                <span className="font-heading font-semibold text-base text-charcoal truncate">{user?.name || "Guest User"}</span>
                 {badge?.badge_color && <VerifiedBadge color={badge.badge_color} opacity={badge.badge_opacity} size={17} tooltip={badge.badge_name} />}
                 {badge?.tier_name && (
-                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-white/70">
+                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-white/70 text-charcoal">
                     {badge.tier_name}
                   </span>
                 )}
               </div>
 
-              <p className="mt-0.5 text-xs opacity-80 truncate max-w-full">
+              <p className="mt-0.5 text-xs text-charcoal/70 truncate max-w-full">
                 {user?.phone || "Not signed in"}
               </p>
 
