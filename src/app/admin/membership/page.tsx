@@ -16,6 +16,7 @@ import { FieldLabel } from "@/components/admin/shared/field-label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { cn, formatCurrency, collectMissingFields } from "@/lib/utils";
 import type { MembershipTier } from "@/types/membership";
+import { useAdmin } from "@/contexts/admin-context";
 
 /** Convert hex to light bg + dark text color pair for tier name badges */
 function hexToTierStyle(hex: string): { bg: string; text: string } {
@@ -23,6 +24,10 @@ function hexToTierStyle(hex: string): { bg: string; text: string } {
 }
 
 export default function AdminMembershipPage() {
+  const { can } = useAdmin();
+  const canAddTier = can("customers", "add");
+  const canEditTier = can("customers", "edit");
+  const canDeleteTier = can("customers", "delete");
   const [tiers, setTiers] = useState<MembershipTier[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -188,9 +193,11 @@ export default function AdminMembershipPage() {
           </h1>
           <p className="text-sm text-charcoal-lighter">Manage tiers, points calculation, and member benefits</p>
         </div>
+        {canAddTier && (
         <AdminButton size="sm" onClick={openCreate}>
           <Plus className="h-3.5 w-3.5" /> Add Tier
         </AdminButton>
+        )}
       </div>
 
       {/* Points Settings Card */}
@@ -225,10 +232,12 @@ export default function AdminMembershipPage() {
                 </div>
               </div>
             </div>
+            {canEditTier && (
             <AdminButton variant="outline" size="sm" onClick={handleSaveSettings} disabled={settingsLoading}>
               {settingsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
               Save Settings
             </AdminButton>
+            )}
           </div>
           <p className="text-[10px] text-charcoal-lighter mt-3">
             Example: With current settings, a {formatCurrency(1000)} purchase earns {Math.floor(1000 / pointsPerTaka)} points (base rate). Tier multipliers apply on top.
@@ -303,14 +312,20 @@ export default function AdminMembershipPage() {
                 )}
 
                 {/* Actions */}
+                {(canEditTier || canDeleteTier) && (
                 <div className="flex gap-2 pt-2 border-t border-border/20">
+                  {canEditTier && (
                   <AdminButton variant="outline" size="sm" className="flex-1" onClick={() => openEdit(tier)}>
                     <Edit className="h-3 w-3" /> Edit
                   </AdminButton>
+                  )}
+                  {canDeleteTier && (
                   <AdminButton variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteDialog(tier)}>
                     <Trash2 className="h-3 w-3" />
                   </AdminButton>
+                  )}
                 </div>
+                )}
               </CardContent>
             </Card>
           ))}

@@ -648,6 +648,7 @@ export default function AdminCustomersPage() {
                     {membershipData.tier.points_multiplier}x points multiplier active
                   </p>
                 )}
+                {canEditCustomerFields && (
                 <div className="flex gap-2">
                   <button onClick={() => { setPointsMode("give"); setPointsType("bonus"); setPointsAmount(0); setPointsNote(""); setPointsNotifTitle(""); setPointsNotifMessage(""); setPointsDialogOpen(true); }} className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-border/30 text-[11px] font-medium text-charcoal hover:bg-pearl transition-colors">
                     <Plus className="h-3 w-3" /> Give Points
@@ -660,6 +661,7 @@ export default function AdminCustomersPage() {
                     <Minus className="h-3 w-3" /> Deduct Points
                   </button>
                 </div>
+                )}
                 <button onClick={openCouponDialog} className="w-full flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-border/30 text-[11px] font-medium text-charcoal hover:bg-pearl transition-colors">
                   <Gift className="h-3 w-3" /> Assign Coupon
                 </button>

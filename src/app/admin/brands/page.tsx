@@ -16,6 +16,7 @@ import { CountrySearch } from "@/components/admin/shared/country-search";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, slugify } from "@/lib/utils";
+import { useAdmin } from "@/contexts/admin-context";
 
 interface Brand {
   id: string; name: string; slug: string; logo?: string; country?: string;
@@ -24,6 +25,10 @@ interface Brand {
 }
 
 export default function AdminBrandsPage() {
+  const { can } = useAdmin();
+  const canAddBrand = can("brands", "add");
+  const canEditBrand = can("brands", "edit");
+  const canDeleteBrand = can("brands", "delete");
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -108,7 +113,7 @@ export default function AdminBrandsPage() {
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Brands</h1>
           <p className="text-sm text-charcoal-lighter">{brands.length} brand{brands.length !== 1 ? "s" : ""}</p>
         </div>
-        <AdminButton onClick={openCreate}><Plus className="h-4 w-4" /> Add Brand</AdminButton>
+        {canAddBrand && <AdminButton onClick={openCreate}><Plus className="h-4 w-4" /> Add Brand</AdminButton>}
       </div>
 
       {loading ? (
@@ -116,7 +121,7 @@ export default function AdminBrandsPage() {
           {Array.from({ length: 3 }).map((_, i) => <Card key={i}><CardContent className="p-5"><Skeleton className="h-32 w-full" /></CardContent></Card>)}
         </div>
       ) : brands.length === 0 ? (
-        <EmptyState icon={Award} title="No brands yet" description="Add your first brand to organize products." actionLabel="Add Brand" onAction={openCreate} />
+        <EmptyState icon={Award} title="No brands yet" description="Add your first brand to organize products." actionLabel={canAddBrand ? "Add Brand" : undefined} onAction={canAddBrand ? openCreate : undefined} />
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {brands.map((brand) => (
@@ -138,14 +143,16 @@ export default function AdminBrandsPage() {
                       {brand.country && <p className="text-[10px] text-charcoal-lighter truncate">{brand.country}</p>}
                     </div>
                   </div>
+                  {(canEditBrand || canDeleteBrand) && (
                   <DropdownMenu>
                     <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md shrink-0"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => openEdit(brand)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDialog(brand)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>
+                      {canEditBrand && <DropdownMenuItem onClick={() => openEdit(brand)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>}
+                      {canEditBrand && canDeleteBrand && <DropdownMenuSeparator />}
+                      {canDeleteBrand && <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDialog(brand)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>}
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap gap-1 mb-3">

@@ -11,6 +11,7 @@ export const PERMISSION_SECTIONS: PermissionSectionDef[] = [
   { key: "products", label: "Products", navSection: "Main", actions: ["view", "add", "edit", "delete"] },
   { key: "stock", label: "Stock Management", navSection: "Main", actions: ["view", "edit"] },
   { key: "categories", label: "Categories", navSection: "Main", actions: ["view", "add", "edit", "delete"] },
+  { key: "brands", label: "Brands", navSection: "Main", actions: ["view", "add", "edit", "delete"] },
   { key: "orders", label: "Order Management", navSection: "Main", actions: ["view", "edit", "handle_orders", "approve"] },
   { key: "customers", label: "Customers", navSection: "Main", actions: ["view", "add", "edit", "delete"] },
   { key: "points_deduction_rules", label: "Points Deduction Rules", navSection: "Main", actions: ["view", "add", "edit", "delete"] },

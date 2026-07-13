@@ -6,6 +6,7 @@ import { notifyTierUpgrade, bulkNotify } from "@/lib/notify";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { insertCustomerPoints } from "@/lib/points";
 import { publicServerError } from "@/lib/validate";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export const dynamic = "force-dynamic";
 
@@ -92,6 +93,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 // POST /api/customers/[id]/points — admin: add/deduct points
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const denied = await requirePermission(req, "customers", "edit");
+    if (denied) return denied;
     const { id } = await params;
     const body = await req.json();
     const { points, type, description, reference_id, notificationTitle, notificationMessage } = body;
@@ -137,6 +140,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     return NextResponse.json({ success: true, id: entryId }, { status: 201 });
   } catch (error: unknown) {
-    return publicServerError("POST /api/customers/[id]/points", error);
+    console.error("[POST /api/customers/[id]/points]", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to update points" }, { status: 500 });
   }
 }

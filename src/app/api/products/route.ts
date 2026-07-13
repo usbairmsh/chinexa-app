@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
 
     await query(
       `INSERT INTO products (id, name, slug, description, short_description, sku, price, compare_at_price, cost_price, currency, category_id, category_name, subcategory, brand_id, brand_name, tags, badges, trust_badges, stock_quantity, min_stock, max_stock, is_active, is_featured, country_of_origin, weight, ingredients, how_to_use, seo_title, seo_description)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'BDT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'BDT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id, body.name, slug,
         body.description || "", body.short_description || "",

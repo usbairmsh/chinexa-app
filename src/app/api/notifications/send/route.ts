@@ -3,6 +3,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { bulkNotify, getAllCustomerIds, getTierCustomerIds, type NotificationType } from "@/lib/notify";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export const dynamic = "force-dynamic";
 
@@ -32,8 +33,10 @@ async function ensureBroadcastTable() {
 }
 
 // GET /api/notifications/send — broadcast history for the admin panel
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "customers", "view");
+    if (denied) return denied;
     await ensureBroadcastTable();
     const rows = await query<RowDataPacket[]>(
       "SELECT * FROM notification_broadcasts ORDER BY created_at DESC LIMIT 50"
@@ -48,6 +51,8 @@ export async function GET() {
 // Body: { title, message, type?, link?, audience: "all" | "tiers" | "customers", tier_ids?: string[], customer_ids?: string[] }
 export async function POST(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "customers", "add");
+    if (denied) return denied;
     await ensureBroadcastTable();
     const body = await req.json();
     const title: string = (body.title || "").trim();

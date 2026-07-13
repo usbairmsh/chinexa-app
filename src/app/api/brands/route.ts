@@ -3,6 +3,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { validate, validationError, publicServerError } from "@/lib/validate";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "brands", "add");
+    if (denied) return denied;
     const body = await req.json();
     const err = validate([
       { field: "name", value: body.name, rules: ["required", "string", { minLength: 2 }], label: "Brand name" },
@@ -48,6 +51,7 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "";
     if (msg.includes("Duplicate entry")) return NextResponse.json({ error: "A brand with this name already exists" }, { status: 409 });
-    return publicServerError("POST /api/brands", error);
+    console.error("[POST /api/brands]", error);
+    return NextResponse.json({ error: msg || "Failed to create brand" }, { status: 500 });
   }
 }

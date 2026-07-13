@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/log-activity";
 import { deleteUploadedFile } from "@/lib/delete-upload";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { publicServerError } from "@/lib/validate";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -29,6 +30,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const denied = await requirePermission(req, "brands", "edit");
+    if (denied) return denied;
     await ensurePromotionColumns();
     const { id } = await params;
     const body = await req.json();
@@ -46,12 +49,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     await logActivity("Updated brand", "brand", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return publicServerError("PUT /api/brands/[id]", error);
+    console.error("[PUT /api/brands/[id]]", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to update brand" }, { status: 500 });
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const denied = await requirePermission(req, "brands", "delete");
+    if (denied) return denied;
     const { id } = await params;
     const rows = await query<RowDataPacket[]>("SELECT logo FROM brands WHERE id = ?", [id]);
     await execute("UPDATE products SET brand_id = NULL, brand_name = NULL WHERE brand_id = ?", [id]);
@@ -60,6 +66,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     await logActivity("Deleted brand", "brand", id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return publicServerError("DELETE /api/brands/[id]", error);
+    console.error("[DELETE /api/brands/[id]]", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to delete brand" }, { status: 500 });
   }
 }

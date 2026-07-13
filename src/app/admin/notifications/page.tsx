@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateShort, cn, collectMissingFields } from "@/lib/utils";
+import { useAdmin } from "@/contexts/admin-context";
 
 type Audience = "all" | "tiers" | "customers";
 type NotifType = "promo" | "loyalty" | "order" | "system";
@@ -33,6 +34,8 @@ const typeConfig: Record<string, { label: string; icon: typeof Bell; color: stri
 };
 
 export default function AdminNotificationsPage() {
+  const { can } = useAdmin();
+  const canSendBroadcast = can("customers", "add");
   // Composer state
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
@@ -95,6 +98,7 @@ export default function AdminNotificationsPage() {
   };
 
   const canSend =
+    canSendBroadcast &&
     title.trim() &&
     message.trim() &&
     (audience === "all" ||

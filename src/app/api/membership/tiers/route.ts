@@ -4,6 +4,7 @@ import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { validate, validationError, publicServerError } from "@/lib/validate";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,8 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "customers", "add");
+    if (denied) return denied;
     await ensurePromotionColumns();
     const body = await req.json();
 
@@ -82,6 +85,7 @@ export async function POST(req: NextRequest) {
     await logActivity("Created membership tier", "membership", id, body.name);
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {
-    return publicServerError("POST /api/membership/tiers", error);
+    console.error("[POST /api/membership/tiers]", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to create tier" }, { status: 500 });
   }
 }
