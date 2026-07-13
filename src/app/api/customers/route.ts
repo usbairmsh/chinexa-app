@@ -5,6 +5,23 @@ import { query, execute, escapeLike } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 
+// Normalize Bangladesh phone: "01712345678" → "+8801712345678" — matches
+// src/app/api/auth/route.ts and src/app/api/otp/route.ts exactly. Without
+// this, an admin-created customer's phone was stored in whatever raw format
+// was typed (no country code, dashes, etc.) — the customer's own later login
+// attempt (typed in a DIFFERENT but equally valid format) would normalize to
+// a value that never matches what got stored, since nothing here ever
+// canonicalized it at write time.
+function normalizePhone(phone: string): string {
+  const cleaned = phone.replace(/[\s-]/g, "");
+  if (cleaned.startsWith("+880")) return cleaned;
+  if (cleaned.startsWith("+88") && !cleaned.startsWith("+880")) return `+880${cleaned.slice(3)}`;
+  if (cleaned.startsWith("880")) return `+${cleaned}`;
+  if (cleaned.startsWith("88") && cleaned.length === 13) return `+${cleaned}`;
+  if (cleaned.startsWith("0") && cleaned.length === 11) return `+88${cleaned}`;
+  return cleaned;
+}
+
 export async function GET(req: NextRequest) {
   try {
     await ensurePromotionColumns();
@@ -90,6 +107,7 @@ export async function POST(req: NextRequest) {
     if (!body.phone || typeof body.phone !== "string" || !body.phone.trim()) {
       return NextResponse.json({ error: "Customer phone is required" }, { status: 400 });
     }
+    const normalizedPhone = normalizePhone(body.phone.trim());
 
     // Admin-created customers can be registered up front (with a real login
     // password) or left as a plain temporary record, same as a guest checkout.
@@ -105,7 +123,7 @@ export async function POST(req: NextRequest) {
     const id = `cust-${Date.now()}`;
     await execute(
       "INSERT INTO customers (id, name, email, phone, password, account_type, is_active) VALUES (?, ?, ?, ?, ?, ?, TRUE)",
-      [id, body.name.trim(), body.email || null, body.phone.trim(), hashedPassword, accountType]
+      [id, body.name.trim(), body.email || null, normalizedPhone, hashedPassword, accountType]
     );
     if (body.address) {
       await execute(

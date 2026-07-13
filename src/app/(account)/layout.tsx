@@ -186,10 +186,10 @@ export default function AccountLayout({
                       <button
                         key={item.href}
                         onClick={() => openChat("help_and_support")}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150 text-charcoal/70 hover:bg-pearl hover:text-charcoal"
+                        className="flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-normal font-body text-charcoal/70 transition-all duration-150 hover:bg-pearl hover:text-charcoal"
                       >
                         <item.icon className="h-[18px] w-[18px] shrink-0" />
-                        <span className="flex-1 text-left">{item.label}</span>
+                        <span className="flex-1 text-left font-normal">{item.label}</span>
                       </button>
                     ) : (
                       <Link
@@ -216,10 +216,10 @@ export default function AccountLayout({
                   {isAuthenticated ? (
                     <button
                       onClick={handleLogout}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-charcoal/70 hover:bg-destructive/5 hover:text-destructive transition-all duration-150 w-full"
+                      className="flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-normal font-body text-charcoal/70 transition-all duration-150 hover:bg-destructive/5 hover:text-destructive"
                     >
                       <LogOut className="h-[18px] w-[18px]" />
-                      <span>Sign Out</span>
+                      <span className="font-normal">Sign Out</span>
                     </button>
                   ) : (
                     <Link
