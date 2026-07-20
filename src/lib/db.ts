@@ -54,3 +54,20 @@ export async function execute(
 export function escapeLike(str: string): string {
   return str.replace(/[%_\\]/g, "\\$&");
 }
+
+/**
+ * Read a JSON value off a DB row regardless of column type. mysql2
+ * auto-parses JSON-typed columns into objects, while TEXT columns holding
+ * JSON come back as strings — and which one a deployment actually has can
+ * vary with the schema's age. Calling JSON.parse() unconditionally was the
+ * classic trap here: on a real JSON column it received an object, coerced it
+ * to "[object Object]", threw, and the catch silently discarded the data
+ * (roles/admin permissions reading back empty).
+ */
+export function parseDbJson(raw: unknown): unknown {
+  if (raw == null) return null;
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw); } catch { return null; }
+  }
+  return typeof raw === "object" ? raw : null;
+}

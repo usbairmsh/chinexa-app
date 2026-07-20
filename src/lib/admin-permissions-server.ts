@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
-import { query } from "@/lib/db";
+import { query, parseDbJson } from "@/lib/db";
 import { normalizePermissions, canDo, type PermissionAction, type PermissionsMap } from "@/lib/admin-permissions";
 import { getVerifiedAdminId } from "@/lib/admin-session";
 
@@ -24,12 +24,10 @@ export async function getRequester(req: NextRequest): Promise<RequesterInfo | nu
     [adminId]
   );
   if (rows.length === 0) return null;
-  let parsed: unknown = null;
-  try {
-    parsed = rows[0].permissions ? JSON.parse(rows[0].permissions as string) : null;
-  } catch {
-    parsed = null;
-  }
+  // parseDbJson handles both JSON-typed columns (mysql2 returns objects) and
+  // TEXT columns holding JSON (strings) — a bare JSON.parse here silently
+  // emptied every regular admin's permissions on JSON-typed schemas.
+  const parsed = parseDbJson(rows[0].permissions);
   return { id: adminId, role: rows[0].role as string, permissions: normalizePermissions(parsed) };
 }
 

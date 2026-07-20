@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
-import { query, execute } from "@/lib/db";
+import { query, execute, parseDbJson } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
@@ -207,8 +207,7 @@ export async function POST(req: NextRequest) {
       );
       if (rows.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
       const r = rows[0];
-      let raw: unknown = null;
-      try { raw = r.permissions ? JSON.parse(r.permissions as string) : null; } catch { raw = null; }
+      const raw = parseDbJson(r.permissions);
       return NextResponse.json({ ...r, permissions: r.role === "superadmin" ? null : normalizePermissions(raw) });
     }
 
@@ -219,8 +218,7 @@ export async function POST(req: NextRequest) {
       if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       const rows = await query<RowDataPacket[]>("SELECT id, username, name, email, phone, role, permissions, is_active, last_login, created_at FROM admin_users ORDER BY created_at");
       return NextResponse.json(rows.map((r) => {
-        let raw: unknown = null;
-        try { raw = r.permissions ? JSON.parse(r.permissions as string) : null; } catch { raw = null; }
+        const raw = parseDbJson(r.permissions);
         return { ...r, is_active: !!r.is_active, permissions: r.role === "superadmin" ? null : normalizePermissions(raw) };
       }));
     }
