@@ -519,7 +519,10 @@ interface CashFlowMonth { month: string; cash_in: number; cash_out: number; open
 interface CashFlowData {
   opening_balance: number;
   cash_in: { orders: number; investments: number; loan_disbursements: number; total: number };
-  cash_out: { expenses: number; withdrawals: number; loan_payments: number; refunds: number; total: number };
+  // No refunds line: refunded orders drop out of cash-in at the source (their
+  // payment_status flips off 'paid'), so listing refunds as cash-out too
+  // would show the same money leaving twice.
+  cash_out: { expenses: number; withdrawals: number; loan_payments: number; total: number };
   closing_balance: number;
   monthly: CashFlowMonth[];
 }
@@ -560,7 +563,7 @@ function CashFlowTab({ year }: { year: number }) {
           <CardContent className="p-5">
             <span className="text-sm text-charcoal-lighter">Cash Out</span>
             <p className="text-2xl font-bold text-destructive mt-2 [font-variant-numeric:tabular-nums]">-{formatCurrency(data.cash_out.total)}</p>
-            <p className="text-xs text-charcoal-lighter mt-1">Expenses {formatCurrency(data.cash_out.expenses)} · Withdrawals {formatCurrency(data.cash_out.withdrawals)} · Loan Payments {formatCurrency(data.cash_out.loan_payments)} · Refunds {formatCurrency(data.cash_out.refunds)}</p>
+            <p className="text-xs text-charcoal-lighter mt-1">Expenses {formatCurrency(data.cash_out.expenses)} · Withdrawals {formatCurrency(data.cash_out.withdrawals)} · Loan Payments {formatCurrency(data.cash_out.loan_payments)}</p>
           </CardContent>
         </Card>
         <Card>

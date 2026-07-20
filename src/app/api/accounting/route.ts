@@ -2,15 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query } from "@/lib/db";
 import { ensureAccountingTables } from "@/lib/migrate-accounting";
+import { ensureOrderArchiveColumns } from "@/lib/migrate-order-archive";
 
 export const dynamic = "force-dynamic";
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
+// Orders whose money the store actually keeps. Reversed orders (cancelled /
+// not_received / returned — all three restore stock and reverse revenue in
+// PUT /api/orders/[id]) and refunded payments are excluded at the SOURCE, so
+// they never inflate sales, COGS or the transactions ledger. is_archived is
+// belt-and-braces: archiving sets status='cancelled' nowadays, but rows
+// archived before that logic existed only carry the flag. `alias` prefixes
+// the columns for queries that join orders under an alias (e.g. "o.").
+const keptOrders = (alias = "") =>
+  `${alias}status NOT IN ('cancelled','not_received','returned') AND ${alias}payment_status <> 'refunded' AND ${alias}is_archived = 0`;
+const KEPT_ORDERS = keptOrders();
+
 // GET /api/accounting?year=2026&source=website|manual|all — financial overview derived from real orders/returns/expenses
 export async function GET(req: NextRequest) {
   try {
     await ensureAccountingTables();
+    await ensureOrderArchiveColumns();
     const yearParam = Number(req.nextUrl.searchParams.get("year"));
     const year = Number.isFinite(yearParam) && yearParam > 2000 ? yearParam : new Date().getFullYear();
     const sourceParam = req.nextUrl.searchParams.get("source");
@@ -22,10 +35,11 @@ export async function GET(req: NextRequest) {
     const [yearRows, revRows, refundRows] = await Promise.all([
       // Available years for the selector
       query<RowDataPacket[]>("SELECT DISTINCT YEAR(created_at) AS y FROM orders ORDER BY y DESC"),
-      // Monthly revenue + order counts (exclude cancelled orders)
+      // Monthly revenue + order counts — kept orders only (reversed/refunded/
+      // archived orders excluded, see KEPT_ORDERS)
       query<RowDataPacket[]>(
         `SELECT MONTH(created_at) AS m, COALESCE(SUM(total), 0) AS revenue, COUNT(*) AS orders
-         FROM orders WHERE YEAR(created_at) = ? AND status <> 'cancelled'${sourceFilter}
+         FROM orders WHERE YEAR(created_at) = ? AND ${KEPT_ORDERS}${sourceFilter}
          GROUP BY MONTH(created_at)`,
         [year, ...sourceParams]
       ),
@@ -60,7 +74,7 @@ export async function GET(req: NextRequest) {
     const [orderTxns, refundTxns] = await Promise.all([
       query<RowDataPacket[]>(
         `SELECT id, order_number, customer_name, total, payment_method, source, created_at
-         FROM orders WHERE status <> 'cancelled' ORDER BY created_at DESC LIMIT 15`
+         FROM orders WHERE ${KEPT_ORDERS} ORDER BY created_at DESC LIMIT 15`
       ),
       query<RowDataPacket[]>(
         `SELECT r.id, r.order_id, r.refund_amount, r.updated_at, o.order_number
@@ -94,10 +108,12 @@ export async function GET(req: NextRequest) {
 
     // ─── P&L: COGS from order_items cost snapshots, expenses from the expenses table ─── (independent, batched)
     const [cogsRows, expenseRows] = await Promise.all([
+      // COGS only for kept orders — returned goods went back into stock, so
+      // their cost must not stay on the books either.
       query<RowDataPacket[]>(
         `SELECT MONTH(o.created_at) AS m, COALESCE(SUM(oi.cost_price_snapshot * oi.quantity), 0) AS cogs
          FROM order_items oi JOIN orders o ON o.id = oi.order_id
-         WHERE YEAR(o.created_at) = ? AND o.status <> 'cancelled'${sourceFilter}
+         WHERE YEAR(o.created_at) = ? AND ${keptOrders("o.")}${sourceFilter}
          GROUP BY MONTH(o.created_at)`,
         [year, ...sourceParams]
       ),
@@ -110,19 +126,24 @@ export async function GET(req: NextRequest) {
     const cogsByMonth = new Map(cogsRows.map((r) => [Number(r.m), Number(r.cogs) || 0]));
     const expensesByMonth = new Map(expenseRows.map((r) => [Number(r.m), Number(r.amount) || 0]));
 
+    // NOTE: refunds are NOT subtracted here. Reversed/refunded orders are
+    // already excluded from revenue and COGS at the source (keptOrders), so
+    // also subtracting the order_returns refund amounts would remove the same
+    // money twice. The refunds figures stay in the response as an
+    // informational "returned to customers" ledger only.
     const pnlMonthly = MONTH_NAMES.map((name, i) => {
       const sales = monthly[i].revenue;
       const cogs = cogsByMonth.get(i + 1) || 0;
       const grossProfit = sales - cogs;
       const expensesAmt = expensesByMonth.get(i + 1) || 0;
-      const netProfit = grossProfit - expensesAmt - monthly[i].refunds;
+      const netProfit = grossProfit - expensesAmt;
       return { month: name, sales, cogs, gross_profit: grossProfit, expenses: expensesAmt, net_profit: netProfit };
     });
 
     const totalCogs = pnlMonthly.reduce((s, m) => s + m.cogs, 0);
     const totalExpenses = pnlMonthly.reduce((s, m) => s + m.expenses, 0);
     const grossProfit = totalRevenue - totalCogs;
-    const netProfit = grossProfit - totalExpenses - totalRefunds;
+    const netProfit = grossProfit - totalExpenses;
 
     // ─── Expense breakdown by category for the selected year ───
     const breakdownRows = await query<RowDataPacket[]>(
@@ -208,7 +229,9 @@ export async function GET(req: NextRequest) {
       summary: {
         total_revenue: totalRevenue,
         total_refunds: totalRefunds,
-        net: totalRevenue - totalRefunds,
+        // Revenue already excludes reversed/refunded orders, so it IS the net
+        // figure — subtracting refunds again here would double-count.
+        net: totalRevenue,
         total_orders: totalOrders,
       },
       pnl: {

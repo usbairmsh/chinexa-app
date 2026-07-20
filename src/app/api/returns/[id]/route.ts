@@ -144,9 +144,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       ).catch(() => {});
     }
 
-    // When refunded → update payment status
+    // When refunded → update payment status. Only when the order was actually
+    // PAID: an unpaid COD order being returned had no money to give back, and
+    // marking it 'refunded' anyway would corrupt what that status means to
+    // the accounting section (whose cash figures treat 'refunded' as "money
+    // came in and went back out"). Matches the same guard in the
+    // cancel/return reversal branches of PUT /api/orders/[id].
     if (body.status === "refunded") {
-      await execute("UPDATE orders SET payment_status = 'refunded' WHERE id = ?", [ret.order_id]);
+      await execute("UPDATE orders SET payment_status = 'refunded' WHERE id = ? AND payment_status = 'paid'", [ret.order_id]);
     }
 
     await logActivity(`Return ${body.status || "updated"}`, "order", id, `Order ${ret.order_number}`);
