@@ -378,3 +378,16 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ── Image download deterrence ──────────────────────────────────────────
+   Kills the drag-to-desktop ghost, the iOS long-press "Save Image" callout,
+   and select-highlighting on every image. The matching context-menu and
+   dragstart blocking lives in ImageProtection (shared/image-protection.tsx),
+   which exempts /admin so admins keep normal behavior for managing uploads.
+   None of this can stop screenshots or DevTools — it deters casual saving. */
+img {
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}

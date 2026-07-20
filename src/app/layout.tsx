@@ -7,6 +7,7 @@ import { ChatWidget } from "@/components/shared/chat-widget-lazy";
 import { ServiceWorkerRegister } from "@/components/shared/sw-register";
 import { RouteScrollReset } from "@/components/shared/route-scroll-reset";
 import { TrackingScripts } from "@/components/shared/tracking-scripts";
+import { ImageProtection } from "@/components/shared/image-protection";
 import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
@@ -179,6 +180,7 @@ export default function RootLayout({
         <CookieConsent />
         <ChatWidget />
         <TrackingScripts />
+        <ImageProtection />
       </body>
     </html>
   );
