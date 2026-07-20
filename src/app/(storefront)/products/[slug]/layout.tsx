@@ -10,7 +10,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
 
 interface LayoutProductRow extends RowDataPacket {
   id: string; name: string; short_description: string | null; description: string | null;
-  price: number; category_name: string | null; average_rating: number; review_count: number;
+  price: number; compare_at_price: number | null; category_name: string | null; average_rating: number; review_count: number;
   sku: string; stock_quantity: number;
 }
 
@@ -23,7 +23,7 @@ interface LayoutProductRow extends RowDataPacket {
 // the shared query() helper the rest of the app uses.
 const getProductForLayout = cache(async (slug: string) => {
   const products = await query<LayoutProductRow[]>(
-    "SELECT id, name, short_description, description, price, category_name, average_rating, review_count, sku, stock_quantity FROM products WHERE slug = ? AND is_active = 1 LIMIT 1",
+    "SELECT id, name, short_description, description, price, compare_at_price, category_name, average_rating, review_count, sku, stock_quantity FROM products WHERE slug = ? AND is_active = 1 LIMIT 1",
     [slug]
   );
   if (products.length === 0) return null;
@@ -31,6 +31,9 @@ const getProductForLayout = cache(async (slug: string) => {
 
   const [images, variants] = await Promise.all([
     query<RowDataPacket[]>("SELECT url FROM product_images WHERE product_id = ? ORDER BY `order` LIMIT 1", [product.id]),
+    // Same unordered row order the client's product.variants[0] uses for its
+    // default/first swatch — kept consistent so the JSON-LD's price matches
+    // what a shopper actually sees on first paint, before picking a variant.
     query<RowDataPacket[]>("SELECT price_adjustment FROM product_variants WHERE product_id = ?", [product.id]),
   ]);
 
@@ -90,11 +93,20 @@ async function ProductStructuredData({ slug }: { slug: string }) {
     if (data) {
       const { product, imageUrl, variants } = data;
       const basePrice = Number(product.price);
+      // The storefront shows no variant pre-selected on first paint (product
+      // page starts with selectedVariant = null), so the price a shopper —
+      // and Google's crawler — actually sees first is the first-listed
+      // variant's adjusted price, not the bare base price ignoring variants.
+      const initialPrice = variants.length > 0 ? basePrice + Number(variants[0].price_adjustment) : basePrice;
+      const compareAtPrice = product.compare_at_price
+        ? Number(product.compare_at_price) + (variants.length > 0 ? Number(variants[0].price_adjustment) : 0)
+        : undefined;
+
       let highPrice: number | undefined;
       if (variants.length > 1) {
         const prices = variants.map((v) => basePrice + Number(v.price_adjustment));
         const maxP = Math.max(...prices);
-        if (maxP > basePrice) highPrice = maxP;
+        if (maxP > initialPrice) highPrice = maxP;
       }
 
       productData = {
@@ -102,7 +114,8 @@ async function ProductStructuredData({ slug }: { slug: string }) {
         description: (product.short_description || product.description || "").slice(0, 300),
         image: imageUrl || "/logo.png",
         sku: product.sku,
-        price: basePrice,
+        price: initialPrice,
+        compareAtPrice: highPrice ? undefined : compareAtPrice,
         highPrice,
         availability: (Number(product.stock_quantity) > 0 ? "InStock" : "OutOfStock") as "InStock" | "OutOfStock",
         rating: Number(product.average_rating) || undefined,

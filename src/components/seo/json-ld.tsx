@@ -55,6 +55,8 @@ interface ProductJsonLdProps {
   sku: string;
   price: number;
   highPrice?: number;
+  /** Original ("was") price before discount, for the initial/default variant — renders as a strikethrough-style price comparison in Google's rich result. Ignored when highPrice is set, since an AggregateOffer range and a single "was/now" price aren't both expressible at once. */
+  compareAtPrice?: number;
   currency?: string;
   availability?: "InStock" | "OutOfStock" | "PreOrder";
   rating?: number;
@@ -65,7 +67,7 @@ interface ProductJsonLdProps {
 }
 
 export function ProductJsonLd({
-  name, description, image, sku, price, highPrice, currency = "BDT",
+  name, description, image, sku, price, highPrice, compareAtPrice, currency = "BDT",
   availability = "InStock", rating, reviewCount, brand, category, url,
 }: ProductJsonLdProps) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
@@ -91,6 +93,21 @@ export function ProductJsonLd({
         availability: `https://schema.org/${availability}`,
         itemCondition: "https://schema.org/NewCondition",
         seller: { "@type": "Organization", name: "ChineXa" },
+        // "Was X, now Y" per Google's Merchant Listing structured data spec:
+        // the active price stays on Offer.price (unmarked), and only the
+        // original/struck-through price goes in priceSpecification with
+        // priceType: StrikethroughPrice — same discount already shown in the
+        // storefront UI's price display.
+        ...(compareAtPrice && compareAtPrice > price
+          ? {
+              priceSpecification: {
+                "@type": "UnitPriceSpecification",
+                priceType: "https://schema.org/StrikethroughPrice",
+                price: compareAtPrice.toFixed(2),
+                priceCurrency: currency,
+              },
+            }
+          : {}),
         shippingDetails: {
           "@type": "OfferShippingDetails",
           shippingDestination: { "@type": "DefinedRegion", addressCountry: "BD" },

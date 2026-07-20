@@ -57,6 +57,12 @@ export function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+export function normalizeWebsite(url: string): string | null {
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
 export function truncate(text: string, length: number): string {
   if (text.length <= length) return text;
   return text.slice(0, length).trimEnd() + "...";

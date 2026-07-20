@@ -23,6 +23,7 @@ const PUBLIC_API_ALLOW = [
   "/api/reviews",
   "/api/settings",
   "/api/search/trending",
+  "/api/membership/tiers",
 ];
 
 // Private/transactional areas. NOTE: /cart, /search, /wishlist, /login are

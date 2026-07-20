@@ -17,6 +17,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ProductCard } from "@/components/storefront/product/product-card";
 import { useProducts } from "@/hooks/queries/use-products";
 import type { ProductListParams } from "@/types/product";
+import { normalizeWebsite } from "@/lib/utils";
 
 interface Brand {
   id: string;
@@ -197,7 +198,7 @@ export default function BrandPage() {
                 </span>
                 {brand.website && (
                   <a
-                    href={brand.website}
+                    href={normalizeWebsite(brand.website) || undefined}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 text-sm text-secondary hover:text-secondary-dark active:scale-[0.97] transition-all"

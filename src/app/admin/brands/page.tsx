@@ -17,7 +17,7 @@ import { ImageUpload } from "@/components/admin/shared/image-upload";
 import { CountrySearch } from "@/components/admin/shared/country-search";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn, slugify } from "@/lib/utils";
+import { cn, slugify, normalizeWebsite } from "@/lib/utils";
 import { useAdmin } from "@/contexts/admin-context";
 
 interface Brand {
@@ -90,7 +90,7 @@ export default function AdminBrandsPage() {
       const payload = {
         name: fName.trim(), slug: fSlug.trim() || slugify(fName),
         logo: fLogo || null, country: fCountry || null, description: fDesc.trim() || null,
-        website: fWebsite.trim() || null, certifications: fCerts.filter((c) => c.trim()),
+        website: normalizeWebsite(fWebsite), certifications: fCerts.filter((c) => c.trim()),
         is_active: fActive, show_on_homepage: fHomepage,
         seo_title: fSeoTitle.trim() || null, seo_description: fSeoDesc.trim() || null,
       };
