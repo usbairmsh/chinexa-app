@@ -294,106 +294,112 @@ export default function ProfilePage() {
       </motion.div>
 
       {/* Personal Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Personal Information</CardTitle>
-          <CardDescription>Update your personal details</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Input label="Full Name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" />
-            <Input label="Phone Number" value={user?.phone || ""} placeholder="+880 1XXXXXXXXX" disabled />
-          </div>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Input label="Email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com" type="email" />
-            <Input
-              label="Birthdate"
-              value={birthdate ? new Date(birthdate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
-              icon={<Cake className="h-4 w-4" />}
-              disabled
-            />
-          </div>
-          <Button variant="secondary" onClick={handleSave} disabled={saving || saved || !name.trim()}>
-            {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : saved ? <Check className="h-4 w-4 mr-1" /> : null}
-            {saved ? "Saved!" : saving ? "Saving..." : "Save Changes"}
-          </Button>
-        </CardContent>
-      </Card>
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Personal Information</CardTitle>
+            <CardDescription>Update your personal details</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Input label="Full Name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" />
+              <Input label="Phone Number" value={user?.phone || ""} placeholder="+880 1XXXXXXXXX" disabled />
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Input label="Email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com" type="email" />
+              <Input
+                label="Birthdate"
+                value={birthdate ? new Date(birthdate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
+                icon={<Cake className="h-4 w-4" />}
+                disabled
+              />
+            </div>
+            <Button variant="secondary" onClick={handleSave} disabled={saving || saved || !name.trim()}>
+              {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : saved ? <Check className="h-4 w-4 mr-1" /> : null}
+              {saved ? "Saved!" : saving ? "Saving..." : "Save Changes"}
+            </Button>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Change Password */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Change Password</CardTitle>
-          <CardDescription>Update the password used to sign in</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Input
-            label="Current Password"
-            required
-            type="password"
-            value={currentPassword}
-            onChange={(e) => { setCurrentPassword(e.target.value); setPasswordError(""); }}
-            placeholder="Enter current password"
-            icon={<Lock className="h-4 w-4" />}
-          />
-          <div className="grid sm:grid-cols-2 gap-4">
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Change Password</CardTitle>
+            <CardDescription>Update the password used to sign in</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <Input
-              label="New Password"
+              label="Current Password"
               required
               type="password"
-              value={newPassword}
-              onChange={(e) => { setNewPassword(e.target.value); setPasswordError(""); }}
-              placeholder="At least 6 characters"
+              value={currentPassword}
+              onChange={(e) => { setCurrentPassword(e.target.value); setPasswordError(""); }}
+              placeholder="Enter current password"
               icon={<Lock className="h-4 w-4" />}
             />
-            <Input
-              label="Confirm New Password"
-              required
-              type="password"
-              value={confirmNewPassword}
-              onChange={(e) => { setConfirmNewPassword(e.target.value); setPasswordError(""); }}
-              placeholder="Re-enter new password"
-              icon={<Lock className="h-4 w-4" />}
-            />
-          </div>
-          {passwordError && <p className="text-sm text-destructive">{passwordError}</p>}
-          <Button variant="secondary" onClick={handleChangePassword} disabled={passwordSaving || passwordSaved}>
-            {passwordSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : passwordSaved ? <Check className="h-4 w-4 mr-1" /> : null}
-            {passwordSaved ? "Password Updated!" : passwordSaving ? "Updating..." : "Update Password"}
-          </Button>
-        </CardContent>
-      </Card>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Input
+                label="New Password"
+                required
+                type="password"
+                value={newPassword}
+                onChange={(e) => { setNewPassword(e.target.value); setPasswordError(""); }}
+                placeholder="At least 6 characters"
+                icon={<Lock className="h-4 w-4" />}
+              />
+              <Input
+                label="Confirm New Password"
+                required
+                type="password"
+                value={confirmNewPassword}
+                onChange={(e) => { setConfirmNewPassword(e.target.value); setPasswordError(""); }}
+                placeholder="Re-enter new password"
+                icon={<Lock className="h-4 w-4" />}
+              />
+            </div>
+            {passwordError && <p className="text-sm text-destructive">{passwordError}</p>}
+            <Button variant="secondary" onClick={handleChangePassword} disabled={passwordSaving || passwordSaved}>
+              {passwordSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : passwordSaved ? <Check className="h-4 w-4 mr-1" /> : null}
+              {passwordSaved ? "Password Updated!" : passwordSaving ? "Updating..." : "Update Password"}
+            </Button>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Security & Account */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Account</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between p-3 rounded-xl bg-pearl/50">
-            <div>
-              <p className="text-sm font-medium text-charcoal">Phone Verification</p>
-              <p className="text-xs text-charcoal-lighter">{user?.phone || "+880 17XX-XXXXXX"}</p>
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Account</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-pearl/50">
+              <div>
+                <p className="text-sm font-medium text-charcoal">Phone Verification</p>
+                <p className="text-xs text-charcoal-lighter">{user?.phone || "+880 17XX-XXXXXX"}</p>
+              </div>
+              <Badge variant="success" className="text-[10px]">Verified</Badge>
             </div>
-            <Badge variant="success" className="text-[10px]">Verified</Badge>
-          </div>
-          <Separator />
-          <div className="p-3 rounded-xl bg-destructive/5 border border-destructive/10">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-destructive">Deactivate Account</p>
-                <p className="text-xs text-charcoal-lighter mt-0.5">
-                  Your account will be deactivated and you won&apos;t be able to log in. Your order history and data will be preserved.
-                </p>
-                <Button variant="ghost" size="sm" className="text-destructive text-xs mt-2 -ml-2" onClick={openDeactivateFlow}>
-                  Deactivate My Account
-                </Button>
+            <Separator />
+            <div className="p-3 rounded-xl bg-destructive/5 border border-destructive/10">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-destructive">Deactivate Account</p>
+                  <p className="text-xs text-charcoal-lighter mt-0.5">
+                    Your account will be deactivated and you won&apos;t be able to log in. Your order history and data will be preserved.
+                  </p>
+                  <Button variant="ghost" size="sm" className="text-destructive text-xs mt-2 -ml-2" onClick={openDeactivateFlow}>
+                    Deactivate My Account
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Deactivation Dialog */}
       <Dialog open={deactivateOpen} onOpenChange={(open) => { if (!open && deactivateStep !== 3) { setDeactivateOpen(false); } }}>

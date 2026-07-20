@@ -40,7 +40,15 @@ const orderStatusConfig: Record<string, { color: string; icon: typeof Clock }> =
   not_received: { color: "text-destructive bg-destructive/10", icon: XCircle },
 };
 
-const tooltipStyle = { borderRadius: "12px", border: "1px solid #E8DDD4", fontSize: "12px", boxShadow: "0 4px 30px rgba(0,0,0,0.04)" };
+const tooltipStyle = { borderRadius: "12px", border: "1px solid #F3DFEC", fontSize: "12px", boxShadow: "0 4px 30px rgba(0,0,0,0.04)" };
+// Chart grid lines / axis labels — theme border + charcoal-lighter, not a
+// leftover neutral from an earlier palette.
+const chartGrid = "#F3DFEC";
+const chartAxisLabel = "#8A7590";
+// Primary chart series accent — the theme's own secondary purple, so the
+// dashboard's charts read as the same product as everything else instead of
+// a different app's orphaned red/terracotta scheme.
+const chartAccent = "#7A4FA0";
 
 // ─── COMPONENT ────────────────────────────────────────────
 export default function AdminDashboard() {
@@ -96,12 +104,15 @@ export default function AdminDashboard() {
   const ordersLineData = (ordersChartData || []).map((d) => ({ month: d.label, orders: d.orders, customers: d.customers }));
 
   const orderStatusChartData = (dbStats?.order_statuses || []).map((s) => {
-    const colors: Record<string, string> = { received: "#10B981", shipped: "#8B5CF6", processing: "#C0392B", confirmed: "#3B82F6", pending: "#F59E0B", on_delivery: "#6366F1", not_received: "#EF4444" };
-    return { name: s.name, value: s.value, color: colors[s.name] || "#6B6B6B" };
+    // Theme-derived — secondary purple for the "healthy pipeline" states,
+    // gold/coral as the two ornamental accents, success/warning/destructive
+    // reserved for their actual semantic meaning (never repurposed as decoration).
+    const colors: Record<string, string> = { received: "#10B981", shipped: "#7A4FA0", processing: "#E0B96C", confirmed: "#3B82F6", pending: "#F59E0B", on_delivery: "#C9AEE6", not_received: "#EF4444" };
+    return { name: s.name, value: s.value, color: colors[s.name] || "#8A7590" };
   });
 
   const categoryRevenueChartData = (dbStats?.category_revenue || []).map((c, i) => {
-    const colors = ["#C0392B", "#E74C3C", "#F0A8C6", "#D4AF37", "#6B3A2A", "#8B5E4B", "#60A5FA"];
+    const colors = ["#7A4FA0", "#E0B96C", "#C9AEE6", "#BC4A72", "#3B82F6", "#10B981", "#5F3C7D"];
     return { name: c.name, value: c.value, color: colors[i % colors.length] };
   });
 
@@ -174,9 +185,7 @@ export default function AdminDashboard() {
             </span>
           </Link>
           <Link href="/admin/products/new">
-            <span className="inline-flex items-center gap-1.5 h-9 px-3 sm:px-5 rounded-full bg-secondary !text-white text-[12px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 cursor-pointer">
-              <Package className="h-3.5 w-3.5" /> Add Product
-            </span>
+            <AdminButton size="sm"><Package className="h-3.5 w-3.5" /> Add Product</AdminButton>
           </Link>
         </div>
       </div>
@@ -212,11 +221,11 @@ export default function AdminDashboard() {
                       <span className="text-[11px] text-charcoal-lighter">{stat.label}</span>
                       <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", stat.bg)}><stat.icon className={cn("h-4 w-4", stat.color)} /></div>
                     </div>
-                    <p className="text-xl font-bold text-charcoal group-hover:text-secondary transition-colors">{stat.value}</p>
+                    <p className="text-xl font-bold text-charcoal group-hover:text-secondary transition-colors [font-variant-numeric:tabular-nums]">{stat.value}</p>
                     {stat.change !== 0 && (
                       <div className="flex items-center gap-1 mt-1">
                         {stat.change > 0 ? <TrendingUp className="h-3 w-3 text-success" /> : <TrendingDown className="h-3 w-3 text-destructive" />}
-                        <span className={cn("text-[10px] font-medium", stat.change > 0 ? "text-success" : "text-destructive")}>{stat.change > 0 ? "+" : ""}{stat.change}%</span>
+                        <span className={cn("text-[10px] font-semibold [font-variant-numeric:tabular-nums]", stat.change > 0 ? "text-success" : "text-destructive")}>{stat.change > 0 ? "+" : ""}{stat.change}%</span>
                         <span className="text-[10px] text-charcoal-lighter">vs last month</span>
                       </div>
                     )}
@@ -244,26 +253,26 @@ export default function AdminDashboard() {
               <ResponsiveContainer width="100%" height="100%" debounce={300}>
                 {revenuePeriod === "weekly" ? (
                   <BarChart data={revenueBarData} barGap={6} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E8DDD4" vertical={false} />
-                    <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#6B6B6B" }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 9, fill: "#6B6B6B" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `৳${(v/1000).toFixed(0)}k`} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} vertical={false} />
+                    <XAxis dataKey="day" tick={{ fontSize: 10, fill: chartAxisLabel }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 9, fill: chartAxisLabel }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `৳${(v/1000).toFixed(0)}k`} />
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Bar dataKey="prev" name="Last Week" fill="#E8DDD4" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="revenue" name="This Week" fill="#C0392B" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="prev" name="Last Week" fill={chartGrid} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="revenue" name="This Week" fill={chartAccent} radius={[4, 4, 0, 0]} />
                   </BarChart>
                 ) : (
                   <AreaChart data={revenueAreaData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                     <defs>
                       <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#C0392B" stopOpacity={0.25} />
-                        <stop offset="95%" stopColor="#C0392B" stopOpacity={0} />
+                        <stop offset="5%" stopColor={chartAccent} stopOpacity={0.25} />
+                        <stop offset="95%" stopColor={chartAccent} stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E8DDD4" vertical={false} />
-                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#6B6B6B" }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 9, fill: "#6B6B6B" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `৳${(v/1000).toFixed(0)}k`} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} vertical={false} />
+                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: chartAxisLabel }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 9, fill: chartAxisLabel }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `৳${(v/1000).toFixed(0)}k`} />
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#C0392B" fill="url(#revenueGrad)" strokeWidth={2} dot={{ r: 3, fill: "#C0392B", strokeWidth: 2, stroke: "#fff" }} activeDot={{ r: 5 }} />
+                    <Area type="monotone" dataKey="revenue" name="Revenue" stroke={chartAccent} fill="url(#revenueGrad)" strokeWidth={2} dot={{ r: 3, fill: chartAccent, strokeWidth: 2, stroke: "#fff" }} activeDot={{ r: 5 }} />
                   </AreaChart>
                 )}
               </ResponsiveContainer>
@@ -309,12 +318,12 @@ export default function AdminDashboard() {
             <div className="w-full" style={{ height: 200 }}>
               <ResponsiveContainer width="100%" height="100%" debounce={300}>
                 <LineChart data={ordersLineData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E8DDD4" vertical={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 9, fill: "#6B6B6B" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 9, fill: "#6B6B6B" }} axisLine={false} tickLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 9, fill: chartAxisLabel }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 9, fill: chartAxisLabel }} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={tooltipStyle} />
-                  <Line type="monotone" dataKey="orders" name="Orders" stroke="#C0392B" strokeWidth={2} dot={{ r: 2.5, fill: "#C0392B" }} />
-                  <Line type="monotone" dataKey="customers" name="Customers" stroke="#60A5FA" strokeWidth={2} dot={{ r: 2.5, fill: "#60A5FA" }} />
+                  <Line type="monotone" dataKey="orders" name="Orders" stroke={chartAccent} strokeWidth={2} dot={{ r: 2.5, fill: chartAccent }} />
+                  <Line type="monotone" dataKey="customers" name="Customers" stroke="#E0B96C" strokeWidth={2} dot={{ r: 2.5, fill: "#E0B96C" }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -331,15 +340,15 @@ export default function AdminDashboard() {
                 <AreaChart data={trafficData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
                   <defs>
                     <linearGradient id="visitorsGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#E74C3C" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="#E74C3C" stopOpacity={0} />
+                      <stop offset="5%" stopColor={chartAccent} stopOpacity={0.15} />
+                      <stop offset="95%" stopColor={chartAccent} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E8DDD4" vertical={false} />
-                  <XAxis dataKey="day" tick={{ fontSize: 9, fill: "#6B6B6B" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 9, fill: "#6B6B6B" }} axisLine={false} tickLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} vertical={false} />
+                  <XAxis dataKey="day" tick={{ fontSize: 9, fill: chartAxisLabel }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 9, fill: chartAxisLabel }} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={tooltipStyle} />
-                  <Area type="monotone" dataKey="visitors" name="Visitors" stroke="#E74C3C" fill="url(#visitorsGrad)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="visitors" name="Visitors" stroke={chartAccent} fill="url(#visitorsGrad)" strokeWidth={2} />
                   <Area type="monotone" dataKey="conversions" name="Conversions" stroke="#10B981" fill="none" strokeWidth={2} strokeDasharray="5 5" />
                 </AreaChart>
               </ResponsiveContainer>

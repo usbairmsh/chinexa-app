@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import { motion } from "framer-motion";
 import { Plus, Edit, Trash2, MoreHorizontal, Loader2, AlertTriangle, Save, X, Globe, Award, Package, Home, BarChart3 } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -131,17 +132,18 @@ export default function AdminBrandsPage() {
         <EmptyState icon={Award} title="No brands yet" description="Add your first brand to organize products." actionLabel={canAddBrand ? "Add Brand" : undefined} onAction={canAddBrand ? openCreate : undefined} />
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {brands.map((brand) => (
-            <Card key={brand.id} className={cn("transition-opacity", !brand.is_active && "opacity-60")}>
+          {brands.map((brand, i) => (
+            <motion.div key={brand.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+            <Card className={cn("transition-opacity", !brand.is_active && "opacity-60")}>
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3 gap-2">
                   <div className="flex items-center gap-3 min-w-0">
                     {brand.logo ? (
-                      <div className="relative h-12 w-12 rounded-xl overflow-hidden bg-pearl border border-border/20 shrink-0">
+                      <div className="relative h-12 w-12 rounded-lg overflow-hidden bg-pearl border border-border/20 shrink-0">
                         <Image src={brand.logo} alt={brand.name} fill className="object-contain p-1" sizes="48px" unoptimized={brand.logo.includes("/uploads/")} />
                       </div>
                     ) : (
-                      <div className="h-12 w-12 rounded-xl bg-pearl flex items-center justify-center shrink-0">
+                      <div className="h-12 w-12 rounded-lg bg-pearl flex items-center justify-center shrink-0">
                         <Award className="h-5 w-5 text-charcoal-lighter" />
                       </div>
                     )}
@@ -170,12 +172,15 @@ export default function AdminBrandsPage() {
                 <div className="flex items-center justify-between pt-3 border-t border-border/30">
                   <div className="flex items-center gap-2">
                     <Package className="h-3 w-3 text-charcoal-lighter" />
-                    <span className="text-[10px] text-charcoal-lighter">{brand.product_count} products</span>
+                    <span className="text-[10px] text-charcoal-lighter">
+                      <span className="font-semibold text-charcoal-light [font-variant-numeric:tabular-nums]">{brand.product_count}</span> products
+                    </span>
                   </div>
                   <Switch checked={brand.is_active} onCheckedChange={() => handleToggle(brand)} />
                 </div>
               </CardContent>
             </Card>
+            </motion.div>
           ))}
         </div>
       )}
@@ -246,7 +251,7 @@ export default function AdminBrandsPage() {
                 {/* Live Search Preview */}
                 <div>
                   <p className="text-xs font-semibold text-charcoal-lighter uppercase tracking-wider mb-2">Google Search Preview</p>
-                  <div className="p-4 rounded-xl border border-border/30 bg-white">
+                  <div className="p-4 rounded-lg border border-border/30 bg-white">
                     <p className="text-blue-600 text-base font-medium truncate">
                       {fSeoTitle || (fName ? `${fName} — Authentic Products in Bangladesh` : "Brand Name")}
                     </p>

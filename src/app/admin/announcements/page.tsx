@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Megaphone, Type, Timer, Truck, Star, Plus, Trash2, Save, Loader2, Check,
   ChevronUp, ChevronDown, ExternalLink,
@@ -11,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { FieldLabel } from "@/components/admin/shared/field-label";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn, randomId } from "@/lib/utils";
 import {
   DEFAULT_ANNOUNCEMENT_CONFIG,
@@ -175,54 +177,72 @@ export default function AdminAnnouncementsPage() {
 
       <div className="space-y-4">
         {config.items.length === 0 && (
-          <Card><CardContent className="py-10 text-center text-sm text-charcoal-lighter">
-            No announcements yet — the top bar stays hidden on your storefront until you add one.
-          </CardContent></Card>
+          <Card>
+            <CardContent>
+              <EmptyState
+                icon={Megaphone}
+                title="No announcements yet"
+                description="The top bar stays hidden on your storefront until you add one."
+              />
+            </CardContent>
+          </Card>
         )}
 
-        {config.items.map((item, i) => {
-          const meta = TYPE_META[item.type];
-          const Icon = meta.icon;
-          return (
-            <Card key={item.id}>
-              <CardHeader className="flex-row items-center justify-between space-y-0">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-light shrink-0"><Icon className="h-4 w-4 text-secondary" /></div>
-                  <div>
-                    <CardTitle className="text-sm">{meta.label}</CardTitle>
-                    <CardDescription className="text-xs">{meta.description}</CardDescription>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => moveItem(item.id, "up")} disabled={i === 0} className="p-1.5 rounded-md text-charcoal-lighter/60 hover:text-charcoal hover:bg-pearl disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-                    <ChevronUp className="h-4 w-4" />
-                  </button>
-                  <button onClick={() => moveItem(item.id, "down")} disabled={i === config.items.length - 1} className="p-1.5 rounded-md text-charcoal-lighter/60 hover:text-charcoal hover:bg-pearl disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-                    <ChevronDown className="h-4 w-4" />
-                  </button>
-                  <Switch checked={item.enabled} onCheckedChange={(v) => updateItem(item.id, { enabled: v })} disabled={!canEdit} />
-                  {canEdit && (
-                    <button onClick={() => removeItem(item.id)} className="p-1.5 rounded-md text-charcoal-lighter/50 hover:text-destructive hover:bg-destructive/5 transition-colors">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <AnnouncementEditor item={item} onChange={(patch) => updateItem(item.id, patch)} />
-                <div className="flex items-center gap-1.5 text-xs text-charcoal-lighter">
-                  <ExternalLink className="h-3 w-3" />
-                  <Input
-                    value={item.link || ""}
-                    onChange={(e) => updateItem(item.id, { link: e.target.value })}
-                    placeholder="Link when clicked (optional), e.g. /products?category=sale"
-                    className="h-8 text-xs"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+        <AnimatePresence>
+          {config.items.map((item, i) => {
+            const meta = TYPE_META[item.type];
+            const Icon = meta.icon;
+            return (
+              <motion.div
+                key={item.id}
+                layout
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: -20, height: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="mb-4 last:mb-0"
+              >
+                <Card>
+                  <CardHeader className="flex-row items-center justify-between space-y-0">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-light shrink-0"><Icon className="h-4 w-4 text-secondary" /></div>
+                      <div>
+                        <CardTitle className="text-sm">{meta.label}</CardTitle>
+                        <CardDescription className="text-xs">{meta.description}</CardDescription>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => moveItem(item.id, "up")} disabled={i === 0} className="p-1.5 rounded-md text-charcoal-lighter/60 hover:text-charcoal hover:bg-pearl disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                        <ChevronUp className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => moveItem(item.id, "down")} disabled={i === config.items.length - 1} className="p-1.5 rounded-md text-charcoal-lighter/60 hover:text-charcoal hover:bg-pearl disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                        <ChevronDown className="h-4 w-4" />
+                      </button>
+                      <Switch checked={item.enabled} onCheckedChange={(v) => updateItem(item.id, { enabled: v })} disabled={!canEdit} />
+                      {canEdit && (
+                        <button onClick={() => removeItem(item.id)} className="p-1.5 rounded-md text-charcoal-lighter/50 hover:text-destructive hover:bg-destructive/5 transition-colors">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <AnnouncementEditor item={item} onChange={(patch) => updateItem(item.id, patch)} />
+                    <div className="flex items-center gap-1.5 text-xs text-charcoal-lighter">
+                      <ExternalLink className="h-3 w-3" />
+                      <Input
+                        value={item.link || ""}
+                        onChange={(e) => updateItem(item.id, { link: e.target.value })}
+                        placeholder="Link when clicked (optional), e.g. /products?category=sale"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
       </div>
     </div>
   );

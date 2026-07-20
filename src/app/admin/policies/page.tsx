@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AdminButton } from "@/components/admin/shared/admin-button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { randomId, collectMissingFields } from "@/lib/utils";
 import type { PolicyPage, PolicySection } from "@/types/policy";
 import { DEFAULT_POLICY_PAGES } from "@/types/policy";
@@ -173,7 +174,13 @@ export default function AdminPoliciesPage() {
       </div>
 
       {policies.length === 0 && (
-        <Card><CardContent className="p-10 text-center text-charcoal-lighter text-sm">No policy pages yet. Click &quot;Add Policy Page&quot; to create one.</CardContent></Card>
+        <Card>
+          <EmptyState
+            icon={FileText}
+            title="No policy pages yet"
+            description={canEdit ? "Click “Add Policy Page” to create your first one." : "No policy pages have been created yet."}
+          />
+        </Card>
       )}
 
       {/* Add/Edit dialog */}
@@ -220,7 +227,7 @@ export default function AdminPoliciesPage() {
             <div className="space-y-3">
               <label className="block text-sm font-medium text-charcoal-light">Sections</label>
               {formSections.map((section, si) => (
-                <div key={si} className="p-3 rounded-xl bg-pearl/40 border border-border/20 space-y-2">
+                <div key={si} className="p-3 rounded-luxury bg-pearl/40 border border-border/20 space-y-2">
                   <div className="flex items-center gap-2">
                     <Input
                       value={section.heading}
@@ -263,14 +270,14 @@ export default function AdminPoliciesPage() {
             <p className="shrink-0 text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">{formError}</p>
           )}
           <DialogFooter className="shrink-0">
-            <button onClick={() => { setDialogOpen(false); resetForm(); }} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
-            <button
+            <AdminButton variant="ghost" size="sm" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</AdminButton>
+            <AdminButton
+              size="sm"
               onClick={handleSave}
               disabled={!canEdit || saving || !formTitle.trim() || !formSlug.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary !text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300"
             >
               {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save
-            </button>
+            </AdminButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -50,7 +50,7 @@ export default function BlogPostPage() {
 
         <motion.article initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           {/* Featured Image */}
-          <div className="relative aspect-[16/9] rounded-2xl overflow-hidden bg-pearl mb-8">
+          <div className="relative aspect-[16/9] rounded-2xl overflow-hidden bg-pearl mb-8 shadow-card">
             <Image
               src={post.featured_image}
               alt={post.title}

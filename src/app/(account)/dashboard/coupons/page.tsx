@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Tag, Gift, Loader2, Globe, Users, FolderTree, ShoppingCart, Copy, Check, Calendar, Wallet, Award } from "lucide-react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -98,8 +99,8 @@ export default function CouponsOffersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-heading text-xl font-semibold text-charcoal">Offers & Coupons</h2>
-        <p className="text-xs text-charcoal-lighter mt-0.5">Tap any card to see the full terms before you shop</p>
+        <h2 className="font-heading text-2xl font-bold text-charcoal">Offers & Coupons</h2>
+        <p className="text-xs text-charcoal-lighter mt-1">Tap any card to see the full terms before you shop</p>
       </div>
 
       {/* My Coupons */}
@@ -109,13 +110,14 @@ export default function CouponsOffersPage() {
           <EmptyState icon={Tag} title="No coupons yet" description="Coupons assigned to you or your membership tier will show up here." />
         ) : (
           <div className="grid sm:grid-cols-2 gap-3">
-            {activeCoupons.map((c) => (
+            {activeCoupons.map((c, i) => (
               <motion.button
                 key={c.id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
                 onClick={() => setSelected({ kind: "coupon", data: c })}
-                className="text-left p-4 rounded-2xl border border-dashed border-secondary/40 bg-secondary/5 hover:bg-secondary/10 hover:border-secondary transition-all"
+                className="text-left p-4 rounded-2xl border border-dashed border-secondary/40 bg-secondary/5 shadow-card hover:bg-secondary/10 hover:border-secondary transition-all"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -140,13 +142,14 @@ export default function CouponsOffersPage() {
           <EmptyState icon={Gift} title="No active offers" description="Automatic discounts you qualify for will appear here — no code needed, they apply at checkout." />
         ) : (
           <div className="grid sm:grid-cols-2 gap-3">
-            {offers.map((o) => (
+            {offers.map((o, i) => (
               <motion.button
                 key={o.id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
                 onClick={() => setSelected({ kind: "offer", data: o })}
-                className="text-left p-4 rounded-2xl border border-border bg-white hover:border-secondary hover:shadow-card transition-all"
+                className="text-left p-4 rounded-2xl border border-border bg-white shadow-card hover:border-secondary hover:shadow-card-hover transition-all"
               >
                 <p className="font-heading text-lg font-semibold text-charcoal">{o.discount || discountLabel(o.discount_type, o.discount_value)}</p>
                 <p className="text-sm font-medium text-charcoal mt-1">{o.title}</p>
@@ -182,13 +185,13 @@ export default function CouponsOffersPage() {
                       <p className="text-[10px] text-charcoal-lighter">Coupon Code</p>
                       <p className="font-mono font-semibold text-charcoal">{selected.data.coupon_code}</p>
                     </div>
-                    <button
+                    <Button
+                      size="sm"
                       onClick={() => handleCopyCode(selected.data.coupon_code)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary !text-white text-xs font-semibold hover:bg-secondary-dark transition-all"
                     >
                       {copiedCode === selected.data.coupon_code ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                       {copiedCode === selected.data.coupon_code ? "Copied" : "Copy"}
-                    </button>
+                    </Button>
                   </div>
                 )}
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query } from "@/lib/db";
+import { ensureOrderArchiveColumns } from "@/lib/migrate-order-archive";
 
 interface TrafficRow extends RowDataPacket { label: string; orders: number; }
 
@@ -8,10 +9,11 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    await ensureOrderArchiveColumns();
     // Compute traffic proxy from orders — visitors estimated as orders * 15 (avg conversion ~6.7%)
     const rows = await query<TrafficRow[]>(`
       SELECT DATE_FORMAT(created_at, '%a') as label, COUNT(*) as orders
-      FROM orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+      FROM orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND is_archived = 0
       GROUP BY DATE(created_at), label ORDER BY DATE(created_at)
     `);
 

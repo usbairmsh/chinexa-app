@@ -470,7 +470,7 @@ export default function AdminLayout({
           </DialogHeader>
           <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
             {/* Profile Header */}
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-pearl/60">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-pearl/60">
               <Avatar className="h-12 w-12"><AvatarFallback className="text-lg font-semibold bg-secondary text-white">{adminName ? getInitials(adminName) : adminUsername ? getInitials(adminUsername) : "AD"}</AvatarFallback></Avatar>
               <div>
                 <p className="font-medium text-charcoal">{adminName || adminUsername}</p>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowLeft, Loader2, Crown, Check, Star, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2, Crown, Check, Star, Sparkles, ChevronDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -74,7 +74,7 @@ export default function MembershipBenefitsPage() {
 
       {/* Current membership summary */}
       {mounted && user?.id && (
-        <Card className="bg-gradient-to-r from-secondary/10 via-primary-light to-coral-light border-0">
+        <Card className="rounded-2xl bg-gradient-to-r from-secondary/10 via-primary-light to-coral-light border-0">
           <CardContent className="p-6">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
@@ -93,8 +93,8 @@ export default function MembershipBenefitsPage() {
                   )}
                 </div>
               </div>
-              <p className="font-heading text-2xl font-bold text-charcoal flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-gold" /> {totalPoints.toLocaleString()} <span className="text-sm font-normal text-charcoal-lighter">points</span>
+              <p className="font-heading text-3xl font-bold text-charcoal flex items-center gap-2">
+                <Sparkles className="h-6 w-6 text-gold" /> {totalPoints.toLocaleString()} <span className="text-sm font-normal text-charcoal-lighter">points</span>
               </p>
             </div>
             {nextTierAt > 0 && (
@@ -162,6 +162,12 @@ export default function MembershipBenefitsPage() {
                             {tier.points_multiplier !== 1 ? ` · ${tier.points_multiplier}x points` : ""}
                           </p>
                         </div>
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 text-charcoal-lighter shrink-0 transition-transform duration-200",
+                            isExpanded && "rotate-180"
+                          )}
+                        />
                       </div>
 
                       {isExpanded && (

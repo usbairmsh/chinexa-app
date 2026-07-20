@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { Bell, Send, Users, Crown, Globe, Search, Check, Loader2, Tag, Gift, Package, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AdminButton } from "@/components/admin/shared/admin-button";
@@ -9,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateShort, cn, collectMissingFields } from "@/lib/utils";
 import { useAdmin } from "@/contexts/admin-context";
 
@@ -242,7 +244,7 @@ export default function AdminNotificationsPage() {
                     ))}
                   </div>
                 )}
-                <div className="flex items-center gap-2 px-3 rounded-xl border border-border bg-pearl/30">
+                <div className="flex items-center gap-2 px-3 rounded-lg border border-border bg-pearl/30">
                   <Search className="h-3.5 w-3.5 text-charcoal-lighter shrink-0" />
                   <input
                     type="text"
@@ -254,7 +256,7 @@ export default function AdminNotificationsPage() {
                   {searchLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-charcoal-lighter shrink-0" />}
                 </div>
                 {searchResults.length > 0 && (
-                  <div className="max-h-40 overflow-y-auto border border-border/30 rounded-xl bg-white">
+                  <div className="max-h-40 overflow-y-auto border border-border/30 rounded-lg bg-white shadow-card">
                     {searchResults.map((cust) => {
                       const isSelected = selectedCustomers.some((c) => c.id === cust.id);
                       return (
@@ -295,15 +297,21 @@ export default function AdminNotificationsPage() {
           </CardHeader>
           <CardContent className="space-y-2 max-h-[620px] overflow-y-auto">
             {historyLoading ? (
-              Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)
+              Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)
             ) : history.length === 0 ? (
-              <p className="text-sm text-charcoal-lighter text-center py-8">No notifications sent yet.</p>
+              <EmptyState icon={Bell} title="No notifications sent yet" description="Broadcasts you send will show up here." />
             ) : (
-              history.map((b) => {
+              history.map((b, i) => {
                 const config = typeConfig[b.type] || typeConfig.system;
                 const Icon = config.icon;
                 return (
-                  <div key={b.id} className="rounded-xl border border-border/20 p-3 flex gap-3">
+                  <motion.div
+                    key={b.id}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.03 }}
+                    className="rounded-lg border border-border/20 shadow-card p-3 flex gap-3"
+                  >
                     <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg shrink-0", config.color)}>
                       <Icon className="h-4 w-4" />
                     </div>
@@ -313,12 +321,12 @@ export default function AdminNotificationsPage() {
                       <div className="flex items-center gap-2 mt-1.5 text-[10px] text-charcoal-lighter">
                         <span className="capitalize">{b.audience_detail || b.audience}</span>
                         <span>·</span>
-                        <span>{b.recipient_count} recipient{b.recipient_count !== 1 ? "s" : ""}</span>
+                        <span className="[font-variant-numeric:tabular-nums]">{b.recipient_count} recipient{b.recipient_count !== 1 ? "s" : ""}</span>
                         <span>·</span>
                         <span>{formatDateShort(b.created_at)}</span>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })
             )}

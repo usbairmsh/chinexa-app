@@ -1,35 +1,45 @@
 "use client";
 
 import * as React from "react";
+import { Button, type ButtonProps } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-interface AdminButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+// Thin admin-specific wrapper around the shared Button — used to duplicate
+// Button's entire visual language independently (own shadow values, own
+// scale/timing), which drifted out of sync with it over time. Composing
+// Button directly means the two can never diverge again; only the variant
+// names differ (admin's smaller day-to-day set vs. Button's full range).
+interface AdminButtonProps extends Omit<ButtonProps, "variant" | "size"> {
   variant?: "primary" | "outline" | "ghost" | "danger";
   size?: "default" | "sm" | "xs";
 }
 
+const variantMap: Record<NonNullable<AdminButtonProps["variant"]>, ButtonProps["variant"]> = {
+  primary: "primary",
+  outline: "outline",
+  ghost: "ghost",
+  danger: "destructive",
+};
+
+// AdminButton's "xs" has no Button equivalent — sized down via className
+// rather than adding a one-off size variant to the shared component.
+const sizeMap: Record<NonNullable<AdminButtonProps["size"]>, { size: ButtonProps["size"]; className?: string }> = {
+  default: { size: "default" },
+  sm: { size: "sm" },
+  xs: { size: "sm", className: "h-7 px-3 text-[11px]" },
+};
+
 const AdminButton = React.forwardRef<HTMLButtonElement, AdminButtonProps>(
-  ({ className, variant = "primary", size = "default", children, ...props }, ref) => {
+  ({ className, variant = "primary", size = "default", ...props }, ref) => {
+    const { size: mappedSize, className: sizeClassName } = sizeMap[size];
     return (
-      <button
+      <Button
         ref={ref}
-        className={cn(
-          "inline-flex items-center justify-center gap-2 rounded-full font-body font-semibold tracking-wide transition-all duration-300 ease-out cursor-pointer active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap",
-          // Variants
-          variant === "primary" && "bg-secondary !text-white hover:bg-secondary-dark hover:!text-white hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px]",
-          variant === "outline" && "border-2 border-secondary/30 bg-white !text-secondary hover:bg-secondary hover:!text-white hover:border-secondary hover:shadow-[0_6px_25px_rgba(122,79,160,0.25)] hover:-translate-y-[1px]",
-          variant === "ghost" && "!text-charcoal-light hover:bg-pearl hover:!text-charcoal hover:shadow-sm",
-          variant === "danger" && "bg-destructive !text-white hover:bg-destructive/90 hover:shadow-[0_6px_20px_rgba(239,68,68,0.3)] hover:-translate-y-[1px]",
-          // Sizes
-          size === "default" && "h-10 px-6 text-[13px]",
-          size === "sm" && "h-8 px-4 text-[12px]",
-          size === "xs" && "h-7 px-3 text-[11px]",
-          className
-        )}
+        variant={variantMap[variant]}
+        size={mappedSize}
+        className={cn(sizeClassName, className)}
         {...props}
-      >
-        {children}
-      </button>
+      />
     );
   }
 );

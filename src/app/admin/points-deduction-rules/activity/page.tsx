@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowLeft, ChevronRight, Loader2, AlertTriangle, Undo2, X, Check, Zap, Clock, PlayCircle, Trash2, Search,
+  ArrowLeft, ChevronRight, Loader2, AlertTriangle, Undo2, X, Check, Zap, Clock, PlayCircle, Trash2, Search, History, Inbox,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { AdminButton } from "@/components/admin/shared/admin-button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn, formatDate } from "@/lib/utils";
 import { useAdmin } from "@/contexts/admin-context";
 
@@ -175,17 +177,24 @@ export default function EngineActivityLogPage() {
           ) : loadError ? (
             <p className="text-sm text-destructive py-6 text-center">{loadError}</p>
           ) : entries.length === 0 ? (
-            <p className="text-sm text-charcoal-lighter py-6 text-center">No rule runs recorded yet.</p>
+            <EmptyState
+              icon={History}
+              title="No rule runs recorded yet"
+              description="Scheduled, manual, and instant runs will show up here once a points deduction rule executes."
+            />
           ) : (
             <div className="space-y-2">
               {deleteError && <p className="text-xs text-destructive">{deleteError}</p>}
-              {entries.map((entry) => {
+              {entries.map((entry, i) => {
                 const trigger = TRIGGER_META[entry.triggerSource] || TRIGGER_META.scheduled;
                 const TriggerIcon = trigger.icon;
                 const key = `${entry.runId}-${entry.ruleId}`;
                 return (
-                  <div
+                  <motion.div
                     key={key}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.03 }}
                     className={cn(
                       "w-full flex items-center gap-2 rounded-lg border transition-colors",
                       selected?.runId === entry.runId && selected?.ruleId === entry.ruleId
@@ -203,12 +212,12 @@ export default function EngineActivityLogPage() {
                           <p className="text-xs text-charcoal-lighter">{formatDate(entry.ranAt)}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 shrink-0 text-xs text-charcoal-light">
+                      <div className="flex items-center gap-3 shrink-0 text-xs text-charcoal-light [font-variant-numeric:tabular-nums]">
                         <span>{entry.candidates} matched</span>
                         <span>{entry.customersAffected} deducted</span>
-                        <span>{entry.pointsDeducted} pts</span>
+                        <span className="font-semibold text-charcoal">{entry.pointsDeducted} pts</span>
                         {entry.errorCount > 0 && (
-                          <span className="flex items-center gap-1 text-destructive"><AlertTriangle className="h-3 w-3" /> {entry.errorCount}</span>
+                          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive font-medium"><AlertTriangle className="h-3 w-3" /> {entry.errorCount}</span>
                         )}
                         <ChevronRight className="h-4 w-4 text-charcoal-lighter" />
                       </div>
@@ -227,7 +236,7 @@ export default function EngineActivityLogPage() {
                         {deletingKey === key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                       </button>
                     )}
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>
@@ -235,83 +244,101 @@ export default function EngineActivityLogPage() {
         </CardContent>
       </Card>
 
-      {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={closeEntry}>
-          <div
-            className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
+      <AnimatePresence>
+        {selected && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            onClick={closeEntry}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
           >
-            <div className="flex items-center justify-between gap-3 p-5 pb-3 shrink-0">
-              <div className="min-w-0">
-                <h3 className="font-heading text-lg font-semibold text-charcoal truncate">{selected.ruleName} — Matched Customers</h3>
-                <p className="text-xs text-charcoal-lighter mt-0.5">{formatDate(selected.ranAt)}</p>
-              </div>
-              <button onClick={closeEntry} className="p-1.5 rounded-md hover:bg-pearl shrink-0"><X className="h-4 w-4 text-charcoal-lighter" /></button>
-            </div>
-
-            {customers.length > 0 && (
-              <div className="px-5 pb-3 shrink-0">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-charcoal-lighter" />
-                  <Input
-                    value={customerSearch}
-                    onChange={(e) => setCustomerSearch(e.target.value)}
-                    placeholder="Search by name or phone..."
-                    className="pl-9"
-                  />
+            <motion.div
+              className="bg-white rounded-luxury shadow-xl max-w-lg w-full max-h-[85vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ type: "spring", damping: 26, stiffness: 400 }}
+            >
+              <div className="flex items-center justify-between gap-3 p-5 pb-3 shrink-0">
+                <div className="min-w-0">
+                  <h3 className="font-heading text-lg font-semibold text-charcoal truncate">{selected.ruleName} — Matched Customers</h3>
+                  <p className="text-xs text-charcoal-lighter mt-0.5">{formatDate(selected.ranAt)}</p>
                 </div>
+                <button onClick={closeEntry} className="p-1.5 rounded-md hover:bg-pearl shrink-0"><X className="h-4 w-4 text-charcoal-lighter" /></button>
               </div>
-            )}
 
-            <div className="px-5 pb-5 overflow-y-auto flex-1">
-              {rowActionError && <p className="text-xs text-destructive mb-3">{rowActionError}</p>}
-              {customersLoading ? (
-                <div className="flex items-center justify-center py-10"><Loader2 className="h-6 w-6 text-secondary animate-spin" /></div>
-              ) : customers.length === 0 ? (
-                <p className="text-sm text-charcoal-lighter py-6 text-center">No customer detail recorded for this run.</p>
-              ) : filteredCustomers.length === 0 ? (
-                <p className="text-sm text-charcoal-lighter py-6 text-center">No customer matches &ldquo;{customerSearch}&rdquo;.</p>
-              ) : (
-                <div className="space-y-2">
-                  {filteredCustomers.map((row) => {
-                    const meta = OUTCOME_META[row.outcome];
-                    return (
-                      <div key={row.id} className="p-3 rounded-lg border border-border/30 space-y-2">
-                        <div className="flex items-center justify-between gap-3 flex-wrap">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-charcoal">{row.customerName}</p>
-                            {row.customerPhone && <p className="text-xs text-charcoal-lighter">{row.customerPhone}</p>}
-                          </div>
-                          <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0", meta.className)}>{meta.label}</span>
-                        </div>
-                        <p className="text-xs text-charcoal-light">{row.matchedCriteria}</p>
-                        {row.errorMessage && <p className="text-xs text-destructive">{row.errorMessage}</p>}
-                        {row.outcome === "deducted" && (
-                          <p className="text-xs text-charcoal-lighter">Deducted <span className="font-medium text-charcoal">{row.pointsDeducted} points</span></p>
-                        )}
-                        <div className="flex items-center gap-2 flex-wrap pt-1">
-                          {row.reversedAt && (
-                            <span className="flex items-center gap-1 text-[11px] text-success"><Check className="h-3 w-3" /> Reversed {formatDate(row.reversedAt)}</span>
-                          )}
-                          {row.disbursedAt && (
-                            <span className="flex items-center gap-1 text-[11px] text-success"><Check className="h-3 w-3" /> Disbursed {formatDate(row.disbursedAt)}</span>
-                          )}
-                          {canEdit && row.outcome === "deducted" && !row.reversedAt && (
-                            <AdminButton size="xs" variant="outline" onClick={() => handleCancel(row)} disabled={cancellingId === row.id}>
-                              {cancellingId === row.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Undo2 className="h-3 w-3" />}
-                              Refund
-                            </AdminButton>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+              {customers.length > 0 && (
+                <div className="px-5 pb-3 shrink-0">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-charcoal-lighter" />
+                    <Input
+                      value={customerSearch}
+                      onChange={(e) => setCustomerSearch(e.target.value)}
+                      placeholder="Search by name or phone..."
+                      className="pl-9"
+                    />
+                  </div>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-      )}
+
+              <div className="px-5 pb-5 overflow-y-auto flex-1">
+                {rowActionError && <p className="text-xs text-destructive mb-3">{rowActionError}</p>}
+                {customersLoading ? (
+                  <div className="flex items-center justify-center py-10"><Loader2 className="h-6 w-6 text-secondary animate-spin" /></div>
+                ) : customers.length === 0 ? (
+                  <EmptyState
+                    icon={Inbox}
+                    title="No customer detail recorded"
+                    description="This run didn't leave a per-customer breakdown."
+                    className="py-10"
+                  />
+                ) : filteredCustomers.length === 0 ? (
+                  <p className="text-sm text-charcoal-lighter py-6 text-center">No customer matches &ldquo;{customerSearch}&rdquo;.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {filteredCustomers.map((row) => {
+                      const meta = OUTCOME_META[row.outcome];
+                      return (
+                        <div key={row.id} className="p-3 rounded-lg border border-border/30 space-y-2">
+                          <div className="flex items-center justify-between gap-3 flex-wrap">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-charcoal">{row.customerName}</p>
+                              {row.customerPhone && <p className="text-xs text-charcoal-lighter [font-variant-numeric:tabular-nums]">{row.customerPhone}</p>}
+                            </div>
+                            <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0", meta.className)}>{meta.label}</span>
+                          </div>
+                          <p className="text-xs text-charcoal-light">{row.matchedCriteria}</p>
+                          {row.errorMessage && <p className="text-xs text-destructive">{row.errorMessage}</p>}
+                          {row.outcome === "deducted" && (
+                            <p className="text-xs text-charcoal-lighter">Deducted <span className="font-semibold text-charcoal [font-variant-numeric:tabular-nums]">{row.pointsDeducted} points</span></p>
+                          )}
+                          <div className="flex items-center gap-2 flex-wrap pt-1">
+                            {row.reversedAt && (
+                              <span className="flex items-center gap-1 text-[11px] text-success"><Check className="h-3 w-3" /> Reversed {formatDate(row.reversedAt)}</span>
+                            )}
+                            {row.disbursedAt && (
+                              <span className="flex items-center gap-1 text-[11px] text-success"><Check className="h-3 w-3" /> Disbursed {formatDate(row.disbursedAt)}</span>
+                            )}
+                            {canEdit && row.outcome === "deducted" && !row.reversedAt && (
+                              <AdminButton size="xs" variant="outline" onClick={() => handleCancel(row)} disabled={cancellingId === row.id}>
+                                {cancellingId === row.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Undo2 className="h-3 w-3" />}
+                                Refund
+                              </AdminButton>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

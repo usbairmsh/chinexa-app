@@ -25,6 +25,7 @@ interface OrderData {
   items: { product_name: string; variant?: string; quantity: number; unit_price: number; total_price: number }[];
   billing_address?: { name: string; phone: string; email?: string; address_line_1: string; address_line_2?: string; city?: string; district?: string; division?: string; postal_code?: string };
   shipping_address?: { name: string; phone: string; address_line_1: string; address_line_2?: string; city?: string; district?: string; division?: string; postal_code?: string };
+  redacted?: boolean;
 }
 
 const statusLabels: Record<string, string> = {
@@ -50,18 +51,26 @@ function formatAddress(addr: OrderData["billing_address"]) {
 function InvoiceContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("id") || "";
+  // Admin opens this with no params (its own session cookie proves access).
+  // A customer opening their own invoice needs to prove ownership the same
+  // way the rest of the app does — pass customer_id through so this gets the
+  // real address/name instead of a redacted, PII-stripped response.
+  const customerId = searchParams.get("customer_id") || "";
   const { store_name, store_email, store_phone, loaded: settingsLoaded } = useStoreSettings();
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!orderId) { setLoading(false); return; }
-    fetch(`/api/orders/${encodeURIComponent(orderId)}`)
+    const url = customerId
+      ? `/api/orders/${encodeURIComponent(orderId)}?customer_id=${encodeURIComponent(customerId)}`
+      : `/api/orders/${encodeURIComponent(orderId)}`;
+    fetch(url)
       .then((r) => r.json())
       .then(setOrder)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [orderId]);
+  }, [orderId, customerId]);
 
   // Auto-print once loaded — wait on store settings too, so a real phone/email
   // ends up on the printed page rather than the placeholder defaults.
@@ -81,7 +90,11 @@ function InvoiceContent() {
     );
   }
 
-  if (!order) {
+  // A redacted response means ownership couldn't be verified (missing/wrong
+  // customer_id) — never render an invoice missing the customer's own name/
+  // address, since that would print as a silently-broken document instead of
+  // a clear failure.
+  if (!order || order.redacted) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", fontFamily: "system-ui, sans-serif", color: "#666" }}>
         Order not found

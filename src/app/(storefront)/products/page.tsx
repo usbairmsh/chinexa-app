@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { SlidersHorizontal, X } from "lucide-react";
+import { SlidersHorizontal, X, PackageSearch } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,6 +11,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pagination } from "@/components/ui/pagination";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ProductCard } from "@/components/storefront/product/product-card";
 import { useProducts } from "@/hooks/queries/use-products";
 import { useCategories } from "@/hooks/queries/use-categories";
@@ -150,7 +151,6 @@ export default function ProductsPage() {
                     <SelectItem value="name_asc">Name: A-Z</SelectItem>
                   </SelectContent>
                 </Select>
-
               </div>
             </div>
 
@@ -159,24 +159,35 @@ export default function ProductsPage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:gap-6">
                 {Array.from({ length: 12 }).map((_, i) => (
                   <div key={i} className="space-y-3">
-                    <Skeleton className="aspect-[3/4] rounded-2xl" />
+                    <Skeleton className="aspect-[3/4] rounded-xl sm:rounded-2xl" />
                     <Skeleton className="h-3 w-20" />
                     <Skeleton className="h-4 w-full" />
                     <Skeleton className="h-4 w-24" />
                   </div>
                 ))}
               </div>
-            ) : (
+            ) : Array.isArray(data?.data) && data.data.length > 0 ? (
               <motion.div
                 key={`${params.page}-${params.sort_by}-${params.category}`}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:gap-6"
               >
-                {(Array.isArray(data?.data) ? data.data : []).map((product, index) => (
+                {data.data.map((product, index) => (
                   <ProductCard key={product.id} product={product} index={index} />
                 ))}
               </motion.div>
+            ) : (
+              <EmptyState
+                icon={PackageSearch}
+                title="No products found"
+                description="Try adjusting your filters or check back later for new arrivals."
+                actionLabel="Clear All Filters"
+                onAction={() => {
+                  setParams({ page: 1, page_size: 12, sort_by: "featured" });
+                  setPriceRange([0, 30000]);
+                }}
+              />
             )}
 
             {/* Pagination */}

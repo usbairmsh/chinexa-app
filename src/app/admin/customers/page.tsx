@@ -12,6 +12,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableCellNumeric } from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
@@ -571,14 +573,14 @@ export default function AdminCustomersPage() {
           {tierBadgeShown && <VerifiedBadge color={membershipData!.tier!.badge_color} opacity={membershipData!.tier!.badge_opacity} size={18} tooltip={membershipData!.tier!.badge_name} />}
           <Badge variant={c.isActive ? "success" : "destructive"} className="text-[10px]">{c.isActive ? "Active" : "Inactive"}</Badge>
           {canEditCustomerFields && (
-            <button onClick={openEditCustomer} className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-border text-[11px] font-medium text-charcoal-lighter hover:border-secondary hover:text-secondary transition-all">
+            <AdminButton variant="outline" size="xs" onClick={openEditCustomer}>
               <Edit className="h-3 w-3" /> Edit
-            </button>
+            </AdminButton>
           )}
           {canDeleteCustomer && (
-            <button onClick={() => { setDeleteCustomerError(""); setDeleteCustomerDialog("deactivate"); }} className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-border text-[11px] font-medium text-charcoal-lighter hover:border-destructive hover:text-destructive transition-all">
+            <AdminButton variant="danger" size="xs" onClick={() => { setDeleteCustomerError(""); setDeleteCustomerDialog("deactivate"); }}>
               <XCircle className="h-3 w-3" /> Delete
-            </button>
+            </AdminButton>
           )}
         </div>
 
@@ -626,7 +628,7 @@ export default function AdminCustomersPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-charcoal">{totalPoints.toLocaleString()}</p>
+                  <p className="text-3xl font-bold text-charcoal [font-variant-numeric:tabular-nums]">{totalPoints.toLocaleString()}</p>
                   <p className="text-[10px] text-charcoal-lighter">total points</p>
                 </div>
                 {membershipData?.tier && (
@@ -650,21 +652,28 @@ export default function AdminCustomersPage() {
                 )}
                 {canEditCustomerFields && (
                 <div className="flex gap-2">
-                  <button onClick={() => { setPointsMode("give"); setPointsType("bonus"); setPointsAmount(0); setPointsNote(""); setPointsNotifTitle(""); setPointsNotifMessage(""); setPointsDialogOpen(true); }} className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-border/30 text-[11px] font-medium text-charcoal hover:bg-pearl transition-colors">
+                  <AdminButton
+                    variant="outline"
+                    size="xs"
+                    className="flex-1"
+                    onClick={() => { setPointsMode("give"); setPointsType("bonus"); setPointsAmount(0); setPointsNote(""); setPointsNotifTitle(""); setPointsNotifMessage(""); setPointsDialogOpen(true); }}
+                  >
                     <Plus className="h-3 w-3" /> Give Points
-                  </button>
-                  <button
+                  </AdminButton>
+                  <AdminButton
+                    variant="outline"
+                    size="xs"
+                    className="flex-1"
                     onClick={() => { setPointsMode("deduct"); setPointsType("admin_adjustment"); setPointsAmount(0); setPointsNote(""); setPointsNotifTitle(""); setPointsNotifMessage(""); setPointsDialogOpen(true); }}
                     disabled={!membershipData?.total_points}
-                    className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-border/30 text-[11px] font-medium text-charcoal hover:bg-pearl disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
                   >
                     <Minus className="h-3 w-3" /> Deduct Points
-                  </button>
+                  </AdminButton>
                 </div>
                 )}
-                <button onClick={openCouponDialog} className="w-full flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-border/30 text-[11px] font-medium text-charcoal hover:bg-pearl transition-colors">
+                <AdminButton variant="outline" size="xs" className="w-full" onClick={openCouponDialog}>
                   <Gift className="h-3 w-3" /> Assign Coupon
-                </button>
+                </AdminButton>
               </CardContent>
             </Card>
 
@@ -696,7 +705,7 @@ export default function AdminCustomersPage() {
               ].map((s) => (
                 <Card key={s.label}><CardContent className="p-3 text-center">
                   <div className={cn("inline-flex h-8 w-8 items-center justify-center rounded-lg mb-1.5", s.color)}><s.icon className="h-3.5 w-3.5" /></div>
-                  <p className="text-base font-bold text-charcoal truncate">{s.value}</p>
+                  <p className="text-base font-bold text-charcoal truncate [font-variant-numeric:tabular-nums]">{s.value}</p>
                   <p className="text-[9px] text-charcoal-lighter">{s.label}</p>
                 </CardContent></Card>
               ))}
@@ -743,7 +752,7 @@ export default function AdminCustomersPage() {
                   const sc = statusConfig[order.status] || { label: order.status, color: "text-charcoal-lighter", bg: "bg-pearl", icon: Clock };
                   const Icon = sc.icon;
                   return (
-                    <div key={order.id} className="rounded-xl border border-border/20 overflow-hidden">
+                    <div key={order.id} className="rounded-luxury border border-border/20 overflow-hidden">
                       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 bg-pearl/40">
                         <div className="flex items-center gap-4 text-xs min-w-0">
                           <div className="min-w-0"><p className="text-[9px] text-charcoal-lighter uppercase">Order</p><p className="font-semibold text-charcoal truncate">{order.id}</p></div>
@@ -828,17 +837,15 @@ export default function AdminCustomersPage() {
               </div>
             </div>
             <DialogFooter>
-              <button onClick={() => setPointsDialogOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
-              <button
+              <AdminButton variant="ghost" size="xs" onClick={() => setPointsDialogOpen(false)}>Cancel</AdminButton>
+              <AdminButton
+                variant={pointsMode === "deduct" ? "danger" : "primary"}
+                size="xs"
                 onClick={handleGivePoints}
                 disabled={!pointsAmount || (pointsMode === "deduct" && pointsAmount > (membershipData?.total_points || 0))}
-                className={cn(
-                  "px-4 py-2 rounded-full text-white text-xs font-semibold hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 disabled:hover:translate-y-0 transition-all duration-300",
-                  pointsMode === "deduct" ? "bg-destructive hover:bg-destructive/90 hover:shadow-[0_6px_25px_rgba(220,38,38,0.3)]" : "bg-secondary hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)]"
-                )}
               >
                 {pointsMode === "deduct" ? "Deduct" : "Give"} {Math.abs(pointsAmount)} Points
-              </button>
+              </AdminButton>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -872,10 +879,10 @@ export default function AdminCustomersPage() {
               ))}
             </div>
             <DialogFooter>
-              <button onClick={() => setCouponDialogOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
-              <button onClick={handleAssignCoupon} disabled={!selectedCouponId} className="px-4 py-2 rounded-full bg-secondary !text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300">
+              <AdminButton variant="ghost" size="xs" onClick={() => setCouponDialogOpen(false)}>Cancel</AdminButton>
+              <AdminButton variant="primary" size="xs" onClick={handleAssignCoupon} disabled={!selectedCouponId}>
                 Assign Coupon
-              </button>
+              </AdminButton>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -919,10 +926,10 @@ export default function AdminCustomersPage() {
               {editError && <p className="text-xs text-destructive">{editError}</p>}
             </div>
             <DialogFooter>
-              <button onClick={() => setEditCustomerOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
-              <button onClick={handleSaveCustomer} disabled={editSaving || !editName.trim() || (editResetPassword && editNewPassword.length < 6)} className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary !text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300">
+              <AdminButton variant="ghost" size="xs" onClick={() => setEditCustomerOpen(false)}>Cancel</AdminButton>
+              <AdminButton variant="primary" size="xs" onClick={handleSaveCustomer} disabled={editSaving || !editName.trim() || (editResetPassword && editNewPassword.length < 6)}>
                 {editSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save
-              </button>
+              </AdminButton>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -959,15 +966,16 @@ export default function AdminCustomersPage() {
               {deleteCustomerError && <p className="text-xs text-destructive">{deleteCustomerError}</p>}
             </div>
             <DialogFooter>
-              <button onClick={() => setDeleteCustomerDialog(null)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
-              <button
+              <AdminButton variant="ghost" size="xs" onClick={() => setDeleteCustomerDialog(null)}>Cancel</AdminButton>
+              <AdminButton
+                variant="danger"
+                size="xs"
                 onClick={handleDeleteCustomer}
                 disabled={deleteCustomerSaving}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-destructive !text-white text-xs font-semibold hover:bg-destructive/90 active:scale-[0.96] disabled:opacity-40 transition-all duration-300"
               >
                 {deleteCustomerSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
                 {deleteCustomerDialog === "hard" ? "Delete Permanently" : "Deactivate"}
-              </button>
+              </AdminButton>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -1002,7 +1010,7 @@ export default function AdminCustomersPage() {
         ].map((s) => (
           <Card key={s.label}><CardContent className="p-3 flex items-center gap-2.5">
             <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl shrink-0", s.color)}><s.icon className="h-4 w-4" /></div>
-            <div><p className="text-lg font-bold text-charcoal leading-tight">{s.value}</p><p className="text-[9px] text-charcoal-lighter">{s.label}</p></div>
+            <div><p className="text-lg font-bold text-charcoal leading-tight [font-variant-numeric:tabular-nums]">{s.value}</p><p className="text-[9px] text-charcoal-lighter">{s.label}</p></div>
           </CardContent></Card>
         ))}
       </div>
@@ -1041,89 +1049,91 @@ export default function AdminCustomersPage() {
             </div>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border/20 text-left">
-                <th className="px-4 py-2.5 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider">Customer</th>
-                <th className="px-4 py-2.5 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden sm:table-cell">Account</th>
-                <th className="px-4 py-2.5 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden sm:table-cell">
+        {filtered.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title={activeCustomers.length === 0 ? "No customers yet" : "No customers match your search"}
+            description={activeCustomers.length === 0 ? "Customers will appear here when they register or place an order." : undefined}
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Customer</TableHead>
+                <TableHead className="hidden sm:table-cell">Account</TableHead>
+                <TableHead className="hidden sm:table-cell">
                   <button onClick={() => toggleSort("orders")} className="flex items-center gap-1 hover:text-charcoal transition-colors">
                     Orders <ArrowUpDown className={cn("h-3 w-3", sortBy === "orders" && "text-secondary")} />
                   </button>
-                </th>
-                <th className="px-4 py-2.5 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider">
+                </TableHead>
+                <TableHead>
                   <button onClick={() => toggleSort("spent")} className="flex items-center gap-1 hover:text-charcoal transition-colors">
                     Spent <ArrowUpDown className={cn("h-3 w-3", sortBy === "spent" && "text-secondary")} />
                   </button>
-                </th>
-                <th className="px-4 py-2.5 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden md:table-cell">Tier</th>
-                <th className="px-4 py-2.5 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden lg:table-cell">
+                </TableHead>
+                <TableHead className="hidden md:table-cell">Tier</TableHead>
+                <TableHead className="hidden lg:table-cell">
                   <button onClick={() => toggleSort("lastOrder")} className="flex items-center gap-1 hover:text-charcoal transition-colors">
                     Last Order <ArrowUpDown className={cn("h-3 w-3", sortBy === "lastOrder" && "text-secondary")} />
                   </button>
-                </th>
-                <th className="px-4 py-2.5 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden xl:table-cell">
+                </TableHead>
+                <TableHead className="hidden xl:table-cell">
                   <button onClick={() => toggleSort("joined")} className="flex items-center gap-1 hover:text-charcoal transition-colors">
                     Joined <ArrowUpDown className={cn("h-3 w-3", sortBy === "joined" && "text-secondary")} />
                   </button>
-                </th>
-                <th className="px-4 py-2.5 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden md:table-cell">Status</th>
-                <th className="px-4 py-2.5 w-10"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr><td colSpan={9} className="px-4 py-16 text-center text-charcoal-lighter">{activeCustomers.length === 0 ? "No customers yet. Customers will appear here when they register or place an order." : "No customers match your search"}</td></tr>
-              ) : (
-                filtered.map((c) => (
-                  <tr key={c.id} onClick={() => handleSelectCustomer(c)} className="border-b border-border/10 hover:bg-pearl/50 transition-colors cursor-pointer">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9 shrink-0">{c.avatar && <AvatarImage src={c.avatar} alt={c.name} />}<AvatarFallback className="text-[10px] font-semibold">{getInitials(c.name)}</AvatarFallback></Avatar>
-                        <div className="min-w-0">
-                          <p className="font-medium text-charcoal text-sm truncate">{c.name}</p>
-                          <p className="text-[10px] text-charcoal-lighter">{c.phone}</p>
-                        </div>
+                </TableHead>
+                <TableHead className="hidden md:table-cell">Status</TableHead>
+                <TableHead className="w-10" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((c) => (
+                <TableRow key={c.id} onClick={() => handleSelectCustomer(c)} className="cursor-pointer">
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-9 w-9 shrink-0">{c.avatar && <AvatarImage src={c.avatar} alt={c.name} />}<AvatarFallback className="text-[10px] font-semibold">{getInitials(c.name)}</AvatarFallback></Avatar>
+                      <div className="min-w-0">
+                        <p className="font-medium text-charcoal text-sm truncate">{c.name}</p>
+                        <p className="text-[10px] text-charcoal-lighter">{c.phone}</p>
                       </div>
-                    </td>
-                    <td className="px-4 py-3 hidden sm:table-cell">
-                      <Badge variant={c.accountType === "registered" ? "success" : "outline"} className="text-[9px]">
-                        {c.accountType === "registered" ? "Registered" : "Temporary"}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 hidden sm:table-cell">
-                      <p className="font-semibold text-charcoal">{c.totalOrders}</p>
-                      <p className="text-[9px] text-charcoal-lighter">{c.totalItems} items</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="font-semibold text-charcoal">{formatCurrency(c.totalSpent)}</p>
-                      <p className="text-[9px] text-charcoal-lighter">Avg {formatCurrency(c.avgOrderValue)}</p>
-                    </td>
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      {(() => {
-                        const rowTierColor = resolveTierColorStyle(tierColorMap[c.tier] || fallbackTierColors[c.tier]);
-                        return <Badge className={cn("text-[9px]", rowTierColor.className)} style={rowTierColor.style}>{c.tier}</Badge>;
-                      })()}
-                    </td>
-                    <td className="px-4 py-3 hidden lg:table-cell text-xs text-charcoal-lighter">
-                      {formatDateShort(c.lastOrderDate)}
-                    </td>
-                    <td className="px-4 py-3 hidden xl:table-cell text-xs text-charcoal-lighter">
-                      {c.joinedDate ? formatDateShort(c.joinedDate) : "—"}
-                    </td>
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      <Badge variant={c.isActive ? "success" : "destructive"} className="text-[9px]">{c.isActive ? "Active" : "Inactive"}</Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <ChevronRight className="h-4 w-4 text-charcoal-lighter" />
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    <Badge variant={c.accountType === "registered" ? "success" : "outline"} className="text-[9px]">
+                      {c.accountType === "registered" ? "Registered" : "Temporary"}
+                    </Badge>
+                  </TableCell>
+                  <TableCellNumeric className="hidden sm:table-cell">
+                    <p className="font-semibold text-charcoal">{c.totalOrders}</p>
+                    <p className="text-[9px] text-charcoal-lighter">{c.totalItems} items</p>
+                  </TableCellNumeric>
+                  <TableCellNumeric>
+                    <p className="font-semibold text-charcoal">{formatCurrency(c.totalSpent)}</p>
+                    <p className="text-[9px] text-charcoal-lighter">Avg {formatCurrency(c.avgOrderValue)}</p>
+                  </TableCellNumeric>
+                  <TableCell className="hidden md:table-cell">
+                    {(() => {
+                      const rowTierColor = resolveTierColorStyle(tierColorMap[c.tier] || fallbackTierColors[c.tier]);
+                      return <Badge className={cn("text-[9px]", rowTierColor.className)} style={rowTierColor.style}>{c.tier}</Badge>;
+                    })()}
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell text-xs text-charcoal-lighter">
+                    {formatDateShort(c.lastOrderDate)}
+                  </TableCell>
+                  <TableCell className="hidden xl:table-cell text-xs text-charcoal-lighter">
+                    {c.joinedDate ? formatDateShort(c.joinedDate) : "—"}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <Badge variant={c.isActive ? "success" : "destructive"} className="text-[9px]">{c.isActive ? "Active" : "Inactive"}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <ChevronRight className="h-4 w-4 text-charcoal-lighter" />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </Card>
 
       {/* Add Customer Dialog */}
@@ -1149,14 +1159,15 @@ export default function AdminCustomersPage() {
             {newError && <p className="text-xs text-destructive">{newError}</p>}
           </div>
           <DialogFooter>
-            <button onClick={() => setAddCustomerOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
-            <button
+            <AdminButton variant="ghost" size="xs" onClick={() => setAddCustomerOpen(false)}>Cancel</AdminButton>
+            <AdminButton
+              variant="primary"
+              size="xs"
               onClick={handleAddCustomer}
               disabled={newSaving || !newName.trim() || !newPhone.trim() || newPassword.length < 6}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary !text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300"
             >
               {newSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />} Create
-            </button>
+            </AdminButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1217,14 +1228,15 @@ export default function AdminCustomersPage() {
             />
           </div>
           <DialogFooter className="shrink-0 pt-2 border-t border-border/20">
-            <button onClick={() => setSmsOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Close</button>
-            <button
+            <AdminButton variant="ghost" size="xs" onClick={() => setSmsOpen(false)}>Close</AdminButton>
+            <AdminButton
+              variant="primary"
+              size="xs"
               onClick={handleSendSms}
               disabled={smsSending || smsSelected.length === 0 || !smsMessage.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary !text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300"
             >
               {smsSending ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageSquare className="h-3 w-3" />} Send
-            </button>
+            </AdminButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1258,12 +1270,9 @@ export default function AdminCustomersPage() {
                 </div>
               )}
               <DialogFooter>
-                <button
-                  onClick={() => setSmsResultDialog(null)}
-                  className="px-4 py-2 rounded-full bg-secondary !text-white text-xs font-semibold hover:bg-secondary-dark transition-all"
-                >
+                <AdminButton variant="primary" size="xs" onClick={() => setSmsResultDialog(null)}>
                   OK
-                </button>
+                </AdminButton>
               </DialogFooter>
             </>
           )}

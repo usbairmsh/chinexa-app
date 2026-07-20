@@ -51,8 +51,8 @@ export function BrandSearch({ brands, value, onChange }: BrandSearchProps) {
         type="button"
         onClick={() => { setOpen(!open); setTimeout(() => inputRef.current?.focus(), 50); }}
         className={cn(
-          "flex items-center justify-between w-full h-11 px-3 rounded-xl border text-sm transition-all",
-          open ? "border-secondary ring-2 ring-secondary/20" : "border-border",
+          "flex items-center justify-between w-full h-11 px-3 rounded-luxury text-sm transition-all",
+          open ? "bg-white shadow-[inset_0_0_0_1.5px_var(--color-secondary)]" : "bg-beige-dark/70 shadow-[inset_0_0_0_1px_rgba(58,36,56,0.06)] hover:bg-beige-dark",
           value ? "text-charcoal" : "text-charcoal-lighter"
         )}
       >
@@ -70,7 +70,7 @@ export function BrandSearch({ brands, value, onChange }: BrandSearchProps) {
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-xl border border-border bg-white shadow-lg overflow-hidden">
+        <div className="absolute z-50 mt-1.5 w-full rounded-luxury border border-border/50 bg-white shadow-luxury-hover overflow-hidden animate-scale-in">
           <div className="p-2 border-b border-border/30">
             <div className="flex items-center gap-2 px-2 rounded-lg bg-pearl/60">
               <Search className="h-3.5 w-3.5 text-charcoal-lighter shrink-0" />

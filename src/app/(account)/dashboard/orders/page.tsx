@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Package, Truck, CheckCircle2, Clock, XCircle, MapPin, PackageCheck, ThumbsDown, LocateFixed } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useAuthStore } from "@/stores/auth.store";
@@ -83,16 +84,16 @@ function OrderCard({ order }: { order: Order }) {
             <span className="text-charcoal-lighter">Total: </span>
             <span className="font-semibold text-charcoal">{formatCurrency(order.total)}</span>
           </p>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <Link href={`/track-order?order=${encodeURIComponent(displayId)}`}>
-              <button className="flex items-center gap-1 text-xs text-secondary hover:text-secondary-dark font-medium transition-colors py-2 px-3 rounded-lg">
+              <Button variant="outline" size="sm">
                 <LocateFixed className="h-3.5 w-3.5" /> Track Order
-              </button>
+              </Button>
             </Link>
             <Link href={`/dashboard/orders/${displayId}`}>
-              <button className="text-xs text-charcoal-lighter hover:text-charcoal font-medium transition-colors py-2 px-3 -mr-3 rounded-lg">
+              <Button variant="ghost" size="sm">
                 View Details &rarr;
-              </button>
+              </Button>
             </Link>
           </div>
         </div>
@@ -139,7 +140,7 @@ export default function OrdersPage() {
     return (
       <div className="space-y-4">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="rounded-xl border border-border/20 p-4">
+          <div key={i} className="rounded-luxury border border-border/40 shadow-card p-4">
             <div className="h-4 w-32 bg-pearl rounded animate-pulse mb-3" />
             <div className="space-y-2">
               <div className="flex items-center gap-3">

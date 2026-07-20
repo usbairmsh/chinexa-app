@@ -235,7 +235,7 @@ export default function AdminUsersPage() {
   if (loading) return <div className="flex items-center justify-center py-24"><Loader2 className="h-8 w-8 text-secondary animate-spin" /></div>;
 
   const renderPermGrid = (perms: PermissionsMap, setPerms: React.Dispatch<React.SetStateAction<PermissionsMap>>) => (
-    <div className="space-y-4 p-3 rounded-xl border border-border/30 bg-pearl/20">
+    <div className="space-y-4 p-3 rounded-lg border border-border/30 bg-pearl/20">
       {Object.entries(permsBySection).map(([navSection, sections]) => (
         <div key={navSection}>
           <p className="text-[10px] font-bold uppercase tracking-wider text-charcoal-lighter mb-1.5">{navSection}</p>
@@ -267,7 +267,7 @@ export default function AdminUsersPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Users, Roles & Access</h1>
-          <p className="text-sm text-charcoal-lighter">{admins.length} admin{admins.length !== 1 ? "s" : ""}</p>
+          <p className="text-sm text-charcoal-lighter"><span className="font-semibold text-charcoal [font-variant-numeric:tabular-nums]">{admins.length}</span> admin{admins.length !== 1 ? "s" : ""}</p>
         </div>
         <div className="flex gap-2">
           {isSuperAdmin && <AdminButton variant="outline" onClick={() => router.push("/admin/roles")}><Shield className="h-4 w-4 mr-1" /> Manage Roles</AdminButton>}
@@ -275,22 +275,22 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {success && <div className="p-3 rounded-xl bg-success/10 border border-success/20 text-success text-sm font-medium">{success}</div>}
+      {success && <div className="p-3 rounded-lg bg-success/10 border border-success/20 text-success text-sm font-medium">{success}</div>}
 
       {admins.length === 0 ? (
         <EmptyState icon={Shield} title="No admins" description="Add your first admin user." />
       ) : (
         <Card>
           <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-sm min-w-[520px]">
+            <table className="w-full text-sm min-w-[520px] border-collapse">
               <thead>
-                <tr className="border-b border-border/30 text-left">
-                  <th className="px-4 py-3 font-medium text-charcoal-lighter">User</th>
-                  <th className="px-4 py-3 font-medium text-charcoal-lighter hidden sm:table-cell">Role</th>
-                  <th className="px-4 py-3 font-medium text-charcoal-lighter hidden md:table-cell">Access</th>
-                  <th className="px-4 py-3 font-medium text-charcoal-lighter hidden lg:table-cell">Last Login</th>
-                  <th className="px-4 py-3 font-medium text-charcoal-lighter">Status</th>
-                  <th className="px-4 py-3 w-12"></th>
+                <tr className="border-b border-border/60 text-left">
+                  <th className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-charcoal-lighter">User</th>
+                  <th className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-charcoal-lighter hidden sm:table-cell">Role</th>
+                  <th className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-charcoal-lighter hidden md:table-cell">Access</th>
+                  <th className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-charcoal-lighter hidden lg:table-cell">Last Login</th>
+                  <th className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-charcoal-lighter">Status</th>
+                  <th className="px-4 py-2.5 w-12"></th>
                 </tr>
               </thead>
               <tbody>
@@ -298,8 +298,8 @@ export default function AdminUsersPage() {
                   const normPerms = normalizePermissions(admin.permissions);
                   const grantedSections = Object.entries(normPerms).filter(([, actions]) => actions.length > 0);
                   return (
-                  <tr key={admin.id} className={cn("border-b border-border/20 hover:bg-pearl/50 transition-colors", admin.id === currentAdminId && "bg-primary-light/30")}>
-                    <td className="px-4 py-3">
+                  <tr key={admin.id} className={cn("border-b border-border/20 last:border-0 hover:bg-pearl/60 transition-colors", admin.id === currentAdminId && "bg-primary-light/30")}>
+                    <td className="px-4 py-3 align-middle">
                       <div className="flex items-center gap-3 min-w-0">
                         <Avatar className="h-9 w-9 shrink-0"><AvatarFallback className="text-xs">{getInitials(admin.name)}</AvatarFallback></Avatar>
                         <div className="min-w-0">
@@ -308,12 +308,12 @@ export default function AdminUsersPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 hidden sm:table-cell">
+                    <td className="px-4 py-3 align-middle hidden sm:table-cell">
                       <Badge variant={admin.role === "superadmin" ? "destructive" : "secondary"} className="text-[10px]">
                         {admin.role === "superadmin" ? "Super Admin" : "Admin"}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 hidden md:table-cell">
+                    <td className="px-4 py-3 align-middle hidden md:table-cell">
                       {admin.role === "superadmin" ? (
                         <span className="text-[10px] text-charcoal-lighter">Full Access</span>
                       ) : (
@@ -331,17 +331,17 @@ export default function AdminUsersPage() {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs text-charcoal-lighter hidden lg:table-cell">
+                    <td className="px-4 py-3 align-middle text-xs text-charcoal-lighter hidden lg:table-cell">
                       {admin.last_login ? formatDateShort(admin.last_login) : "Never"}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 align-middle">
                       {isSuperAdmin && admin.id !== currentAdminId ? (
                         <Switch checked={admin.is_active} onCheckedChange={() => handleToggleActive(admin)} />
                       ) : (
                         <Badge variant={admin.is_active ? "success" : "warning"} className="text-[10px]">{admin.is_active ? "Active" : "Inactive"}</Badge>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 align-middle">
                       {isSuperAdmin && (
                         <DropdownMenu>
                           <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>

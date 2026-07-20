@@ -2,8 +2,10 @@
 
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
+import { PackageSearch } from "lucide-react";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ProductCard } from "@/components/storefront/product/product-card";
 import { useNewArrivals, useBestsellers, useTrendingProducts } from "@/hooks/queries/use-products";
 
@@ -83,12 +85,17 @@ export default function CollectionPage() {
         )}
 
         {products?.length === 0 && !isLoading && (
-          <div className="text-center py-20">
-            <p className="text-charcoal-lighter mb-4">
-              {isKnownCollection ? "No products in this collection yet." : "This collection does not exist."}
-            </p>
-            <a href="/products" className="text-sm font-medium text-secondary hover:underline">Browse all products →</a>
-          </div>
+          <EmptyState
+            icon={PackageSearch}
+            title={isKnownCollection ? "No products in this collection yet" : "Collection not found"}
+            description={
+              isKnownCollection
+                ? "Check back soon — we're adding new products all the time."
+                : "The collection you are looking for does not exist."
+            }
+            actionLabel="Browse all products"
+            actionHref="/products"
+          />
         )}
       </div>
     </div>

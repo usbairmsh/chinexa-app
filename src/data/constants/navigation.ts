@@ -81,13 +81,9 @@ export const FOOTER_LINKS = {
   shop: {
     title: "Shop",
     links: [
-      { label: "New Arrivals", href: "/collections/new-arrivals" },
-      { label: "Best Sellers", href: "/collections/bestsellers" },
-      { label: "Skincare", href: "/categories/skincare" },
-      { label: "Bags", href: "/categories/bags" },
-      { label: "Jewels", href: "/categories/jewels" },
-      { label: "Perfumes", href: "/categories/perfumes" },
-      { label: "Pre-Orders", href: "/categories/pre-orders" },
+      { label: "All Products", href: "/products" },
+      { label: "Brands", href: "/brands" },
+      { label: "Wishlist", href: "/wishlist" },
     ],
   },
   help: {

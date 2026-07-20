@@ -94,7 +94,7 @@ export default function PointsHistoryPage() {
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               {tierName && <Badge className={cn("text-[10px] mb-2", tierColor)}>{tierName} Member</Badge>}
-              <p className="font-heading text-3xl font-bold text-charcoal flex items-center gap-2">
+              <p className="font-heading text-3xl font-bold text-charcoal flex items-center gap-2 [font-variant-numeric:tabular-nums]">
                 <Star className="h-6 w-6 text-gold" /> {totalPoints.toLocaleString()} <span className="text-sm font-normal text-charcoal-lighter">points</span>
               </p>
             </div>
@@ -124,12 +124,18 @@ export default function PointsHistoryPage() {
             <EmptyState icon={Star} title="No points activity yet" description="Points you earn from orders and bonuses will show up here." />
           ) : (
             <div className="space-y-1">
-              {history.map((entry) => {
+              {history.map((entry, i) => {
                 const config = typeConfig[entry.type] || typeConfig.bonus;
                 const Icon = config.icon;
                 const isPositive = entry.points > 0;
                 return (
-                  <div key={entry.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-pearl/50 transition-colors">
+                  <motion.div
+                    key={entry.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: Math.min(i, 10) * 0.03 }}
+                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-pearl/50 transition-colors"
+                  >
                     <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl shrink-0", config.color)}>
                       <Icon className="h-4 w-4" />
                     </div>
@@ -140,11 +146,11 @@ export default function PointsHistoryPage() {
                       </div>
                       <p className="text-[10px] text-charcoal-lighter">{formatDateTime(entry.created_at)}</p>
                     </div>
-                    <div className={cn("flex items-center gap-1 text-sm font-semibold shrink-0", isPositive ? "text-success" : "text-destructive")}>
+                    <div className={cn("flex items-center gap-1 text-sm font-semibold shrink-0 [font-variant-numeric:tabular-nums]", isPositive ? "text-success" : "text-destructive")}>
                       {isPositive ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
                       {isPositive ? "+" : ""}{entry.points.toLocaleString()}
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>

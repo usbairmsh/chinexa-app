@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
+import { motion } from "framer-motion";
 import { Plus, Edit, Trash2, MoreHorizontal, ExternalLink, Loader2, ImageIcon, AlertTriangle, Move, ZoomIn, ZoomOut, RotateCcw, Sparkles } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -107,7 +108,7 @@ function ImagePositionEditor({ imageUrl, crop, onChange }: { imageUrl: string; c
         onMouseDown={handleMouseDown}
         onWheel={handleWheel}
         className={cn(
-          "relative aspect-[16/7] rounded-xl overflow-hidden border-2 transition-colors select-none",
+          "relative aspect-[16/7] rounded-luxury overflow-hidden border-2 transition-colors select-none",
           dragging ? "border-secondary cursor-grabbing" : "border-border/30 hover:border-secondary/40 cursor-grab"
         )}
       >
@@ -295,7 +296,9 @@ export default function AdminBannersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Banners</h1>
-          <p className="text-sm text-charcoal-lighter">{banners.length} banner{banners.length !== 1 ? "s" : ""} · {activeBanners.length} active · {heroBanners.length} hero</p>
+          <p className="text-sm text-charcoal-lighter">
+            <span className="font-semibold text-charcoal">{banners.length}</span> banner{banners.length !== 1 ? "s" : ""} · <span className="font-semibold text-charcoal">{activeBanners.length}</span> active · <span className="font-semibold text-charcoal">{heroBanners.length}</span> hero
+          </p>
         </div>
         {canAddBanner && <AdminButton onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Add Banner</AdminButton>}
       </div>
@@ -307,52 +310,54 @@ export default function AdminBannersPage() {
         <EmptyState icon={ImageIcon} title="No banners yet" description="Create your first banner to display on the storefront." actionLabel={canAddBanner ? "Add Banner" : undefined} onAction={canAddBanner ? openCreate : undefined} />
       ) : (
         <div className="grid sm:grid-cols-2 gap-4">
-          {banners.map((banner) => {
+          {banners.map((banner, i) => {
             const crop = parseCrop(banner.focal_point);
             return (
-              <Card key={banner.id} className={cn("overflow-hidden transition-opacity", !banner.is_active && "opacity-60")}>
-                <CardContent className="p-0">
-                  <div className="relative aspect-[16/7]">
-                    <Image src={banner.image} alt={banner.title} fill className="object-cover"
-                      style={{ objectPosition: `${crop.x}% ${crop.y}%`, transform: `scale(${crop.zoom})`, transformOrigin: `${crop.x}% ${crop.y}%` }}
-                      sizes="(max-width: 640px) 100vw, 50vw" unoptimized={banner.image.includes("/uploads/")} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 to-transparent" />
-                    <div className="absolute bottom-3 left-3 right-3">
-                      <h3 className="text-white font-medium text-sm truncate">{banner.title}</h3>
-                      {banner.subtitle && <p className="text-white/70 text-xs truncate">{banner.subtitle}</p>}
+              <motion.div key={banner.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                <Card className={cn("overflow-hidden transition-opacity", !banner.is_active && "opacity-60")}>
+                  <CardContent className="p-0">
+                    <div className="relative aspect-[16/7]">
+                      <Image src={banner.image} alt={banner.title} fill className="object-cover"
+                        style={{ objectPosition: `${crop.x}% ${crop.y}%`, transform: `scale(${crop.zoom})`, transformOrigin: `${crop.x}% ${crop.y}%` }}
+                        sizes="(max-width: 640px) 100vw, 50vw" unoptimized={banner.image.includes("/uploads/")} />
+                      <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 to-transparent" />
+                      <div className="absolute bottom-3 left-3 right-3">
+                        <h3 className="text-white font-medium text-sm truncate">{banner.title}</h3>
+                        {banner.subtitle && <p className="text-white/70 text-xs truncate">{banner.subtitle}</p>}
+                      </div>
+                      <div className="absolute top-2 right-2 flex gap-1.5">
+                        <Badge variant={banner.is_active ? "success" : "destructive"} className="text-[10px]">{banner.is_active ? "Active" : "Inactive"}</Badge>
+                        <Badge variant="outline" className="text-[10px] bg-white/80 backdrop-blur-sm capitalize">{banner.position}</Badge>
+                      </div>
+                      {banner.cta_text && <div className="absolute bottom-3 right-3"><Badge variant="outline" className="text-[9px] bg-white/90 text-charcoal">{banner.cta_text}</Badge></div>}
                     </div>
-                    <div className="absolute top-2 right-2 flex gap-1.5">
-                      <Badge variant={banner.is_active ? "success" : "destructive"} className="text-[10px]">{banner.is_active ? "Active" : "Inactive"}</Badge>
-                      <Badge variant="outline" className="text-[10px] bg-white/80 backdrop-blur-sm capitalize">{banner.position}</Badge>
+                    <div className="p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs text-charcoal-lighter truncate min-w-0">
+                        {banner.link ? <span className="flex items-center gap-1 truncate"><ExternalLink className="h-3 w-3 shrink-0" /> <span className="truncate">{banner.link}</span></span> : <span className="text-charcoal-lighter/50">No link</span>}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Switch checked={banner.is_active} onCheckedChange={() => handleToggleActive(banner)} />
+                        <DropdownMenu modal={false}>
+                          <DropdownMenuTrigger asChild>
+                            <button type="button" className="p-1 hover:bg-pearl rounded-md">
+                              <MoreHorizontal className="h-4 w-4 text-charcoal-lighter" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="z-[100]">
+                            {canEditBanner && (
+                              <DropdownMenuItem onSelect={() => openEdit(banner)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
+                            )}
+                            {canEditBanner && canDeleteBanner && <DropdownMenuSeparator />}
+                            {canDeleteBanner && (
+                              <DropdownMenuItem className="text-destructive" onSelect={() => setDeleteDialog(banner)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
-                    {banner.cta_text && <div className="absolute bottom-3 right-3"><Badge variant="outline" className="text-[9px] bg-white/90 text-charcoal">{banner.cta_text}</Badge></div>}
-                  </div>
-                  <div className="p-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs text-charcoal-lighter truncate min-w-0">
-                      {banner.link ? <span className="flex items-center gap-1 truncate"><ExternalLink className="h-3 w-3 shrink-0" /> <span className="truncate">{banner.link}</span></span> : <span className="text-charcoal-lighter/50">No link</span>}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Switch checked={banner.is_active} onCheckedChange={() => handleToggleActive(banner)} />
-                      <DropdownMenu modal={false}>
-                        <DropdownMenuTrigger asChild>
-                          <button type="button" className="p-1 hover:bg-pearl rounded-md">
-                            <MoreHorizontal className="h-4 w-4 text-charcoal-lighter" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="z-[100]">
-                          {canEditBanner && (
-                            <DropdownMenuItem onSelect={() => openEdit(banner)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
-                          )}
-                          {canEditBanner && canDeleteBanner && <DropdownMenuSeparator />}
-                          {canDeleteBanner && (
-                            <DropdownMenuItem className="text-destructive" onSelect={() => setDeleteDialog(banner)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </motion.div>
             );
           })}
         </div>
@@ -408,18 +413,18 @@ export default function AdminBannersPage() {
 
                   {/* Title/Description toggles */}
                   <div className="grid sm:grid-cols-2 gap-3">
-                    <label className="flex items-center justify-between p-3 rounded-xl bg-pearl/40 cursor-pointer">
+                    <label className="flex items-center justify-between p-3 rounded-lg bg-pearl/40 cursor-pointer">
                       <span className="text-sm text-charcoal-light">Show Title</span>
                       <Switch checked={formSettings.showTitle} onCheckedChange={(v) => setFormSettings((s) => ({ ...s, showTitle: v }))} />
                     </label>
-                    <label className="flex items-center justify-between p-3 rounded-xl bg-pearl/40 cursor-pointer">
+                    <label className="flex items-center justify-between p-3 rounded-lg bg-pearl/40 cursor-pointer">
                       <span className="text-sm text-charcoal-light">Show Description</span>
                       <Switch checked={formSettings.showDescription} onCheckedChange={(v) => setFormSettings((s) => ({ ...s, showDescription: v }))} />
                     </label>
                   </div>
 
                   {/* Overlay blur/fade */}
-                  <div className="p-3 rounded-xl bg-pearl/40 space-y-3">
+                  <div className="p-3 rounded-lg bg-pearl/40 space-y-3">
                     <label className="flex items-center justify-between cursor-pointer">
                       <span className="text-sm text-charcoal-light">Dark Overlay (for text legibility)</span>
                       <Switch checked={formSettings.overlayEnabled} onCheckedChange={(v) => setFormSettings((s) => ({ ...s, overlayEnabled: v }))} />
@@ -582,7 +587,7 @@ export default function AdminBannersPage() {
             <DialogDescription>This action cannot be undone.</DialogDescription>
           </DialogHeader>
           {deleteDialog && (
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-pearl/60">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-pearl/60">
               <div className="relative h-14 w-24 rounded-lg overflow-hidden bg-pearl shrink-0"><Image src={deleteDialog.image} alt={deleteDialog.title} fill className="object-cover" sizes="96px" unoptimized={deleteDialog.image.includes("/uploads/")} /></div>
               <div className="min-w-0"><p className="text-sm font-medium text-charcoal truncate">{deleteDialog.title}</p><p className="text-xs text-charcoal-lighter capitalize">{deleteDialog.position} banner</p></div>
             </div>

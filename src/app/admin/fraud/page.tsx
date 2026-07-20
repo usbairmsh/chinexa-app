@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { AlertTriangle, Shield, ShieldCheck, ShieldX, Eye, Ban, CheckCircle2, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -119,41 +120,28 @@ export default function AdminFraudPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="p-4 text-center">
-            <AlertTriangle className="h-5 w-5 text-warning mx-auto mb-1" />
-            <p className="text-2xl font-bold text-charcoal">{stats.flagged}</p>
-            <p className="text-xs text-charcoal-lighter">Flagged</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <Eye className="h-5 w-5 text-secondary mx-auto mb-1" />
-            <p className="text-2xl font-bold text-charcoal">{stats.reviewed}</p>
-            <p className="text-xs text-charcoal-lighter">Under Review</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <ShieldX className="h-5 w-5 text-destructive mx-auto mb-1" />
-            <p className="text-2xl font-bold text-charcoal">{stats.blocked}</p>
-            <p className="text-xs text-charcoal-lighter">Blocked</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <ShieldCheck className="h-5 w-5 text-success mx-auto mb-1" />
-            <p className="text-2xl font-bold text-charcoal">{stats.cleared}</p>
-            <p className="text-xs text-charcoal-lighter">Cleared</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <Shield className="h-5 w-5 text-charcoal-lighter mx-auto mb-1" />
-            <p className="text-2xl font-bold text-charcoal">{stats.total}</p>
-            <p className="text-xs text-charcoal-lighter">Total Alerts</p>
-          </CardContent>
-        </Card>
+        {[
+          { icon: AlertTriangle, iconColor: "text-warning", value: stats.flagged, label: "Flagged" },
+          { icon: Eye, iconColor: "text-secondary", value: stats.reviewed, label: "Under Review" },
+          { icon: ShieldX, iconColor: "text-destructive", value: stats.blocked, label: "Blocked" },
+          { icon: ShieldCheck, iconColor: "text-success", value: stats.cleared, label: "Cleared" },
+          { icon: Shield, iconColor: "text-charcoal-lighter", value: stats.total, label: "Total Alerts" },
+        ].map((stat, i) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.05 }}
+          >
+            <Card>
+              <CardContent className="p-4 text-center">
+                <stat.icon className={cn("h-5 w-5 mx-auto mb-1", stat.iconColor)} />
+                <p className="text-2xl font-bold text-charcoal [font-variant-numeric:tabular-nums]">{stat.value}</p>
+                <p className="text-xs text-charcoal-lighter">{stat.label}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
 
       {/* Alerts */}
@@ -161,11 +149,17 @@ export default function AdminFraudPage() {
         <EmptyState icon={ShieldCheck} title="No fraud alerts" description="Fraud alerts will appear here when orders are marked as not received." />
       ) : (
         <div className="space-y-4">
-          {alerts.map((alert) => {
+          {alerts.map((alert, i) => {
             const config = statusConfig[alert.status];
             const StatusIcon = config.icon;
             return (
-              <Card key={alert.id}>
+              <motion.div
+                key={alert.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.03 }}
+              >
+              <Card>
                 <CardContent className="p-5">
                   <div className="flex flex-col sm:flex-row sm:items-start gap-4">
                     <div className="flex-1">
@@ -180,7 +174,7 @@ export default function AdminFraudPage() {
                       <div className="flex flex-wrap items-center gap-4 text-xs text-charcoal-lighter mb-3">
                         <span>Customer: <span className="text-charcoal font-medium">{alert.customer_name}</span></span>
                         <span>Phone: <span className="text-charcoal font-medium">{alert.customer_phone}</span></span>
-                        <span>Amount: <span className="text-charcoal font-medium">{formatCurrency(alert.amount)}</span></span>
+                        <span>Amount: <span className="text-charcoal font-medium [font-variant-numeric:tabular-nums]">{formatCurrency(alert.amount)}</span></span>
                         <span className="hidden sm:inline">{new Date(alert.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
                       </div>
 
@@ -195,7 +189,7 @@ export default function AdminFraudPage() {
                             />
                           </div>
                         </div>
-                        <span className={cn("text-sm font-bold", getRiskColor(alert.risk_score))}>
+                        <span className={cn("text-sm font-bold [font-variant-numeric:tabular-nums]", getRiskColor(alert.risk_score))}>
                           {alert.risk_score}/100
                         </span>
                       </div>
@@ -237,6 +231,7 @@ export default function AdminFraudPage() {
                   </div>
                 </CardContent>
               </Card>
+              </motion.div>
             );
           })}
         </div>

@@ -12,6 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { FieldLabel } from "@/components/admin/shared/field-label";
 import { cn, randomId, collectMissingFields } from "@/lib/utils";
@@ -486,9 +488,15 @@ export default function AdminPointsDeductionRulesPage() {
 
       <div className="space-y-4">
         {config.items.length === 0 && (
-          <Card><CardContent className="py-10 text-center text-sm text-charcoal-lighter">
-            No rules yet — nothing will be deducted until you add and enable at least one.
-          </CardContent></Card>
+          <Card>
+            <CardContent>
+              <EmptyState
+                icon={ShieldMinus}
+                title="No rules yet"
+                description="Nothing will be deducted until you add and enable at least one rule."
+              />
+            </CardContent>
+          </Card>
         )}
 
         {config.items.map((item) => {
@@ -505,7 +513,7 @@ export default function AdminPointsDeductionRulesPage() {
                   <div className="min-w-0">
                     <CardTitle className="text-sm flex items-center gap-1.5">
                       {item.name || meta.label}
-                      {isInstant && <span className="flex items-center gap-0.5 text-[10px] font-medium text-secondary bg-secondary/10 px-1.5 py-0.5 rounded-full"><Zap className="h-2.5 w-2.5" /> Instant</span>}
+                      {isInstant && <Badge className="text-[10px] bg-secondary/10 text-secondary gap-0.5"><Zap className="h-2.5 w-2.5" /> Instant</Badge>}
                     </CardTitle>
                     <CardDescription className="text-xs">{meta.description}</CardDescription>
                   </div>

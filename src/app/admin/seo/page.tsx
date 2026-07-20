@@ -10,6 +10,7 @@ import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 
 const GLOBAL_PATH = "_global";
 
@@ -175,7 +176,7 @@ export default function AdminSeoPage() {
       </div>
 
       {error && (
-        <p className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-2">{error}</p>
+        <p className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-4 py-2">{error}</p>
       )}
 
       <Tabs defaultValue="global">
@@ -250,14 +251,14 @@ export default function AdminSeoPage() {
                       <p className="text-sm font-medium text-charcoal">Sitemap</p>
                       <p className="text-xs text-charcoal-lighter">sitemap.xml is generated automatically from your products, categories and pages</p>
                     </div>
-                    <span className="text-xs font-medium text-success">Active</span>
+                    <Badge variant="success">Active</Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-charcoal">Robots</p>
                       <p className="text-xs text-charcoal-lighter">robots.txt is generated automatically</p>
                     </div>
-                    <span className="text-xs font-medium text-success">Active</span>
+                    <Badge variant="success">Active</Badge>
                   </div>
                 </div>
               </CardContent>
@@ -285,7 +286,7 @@ export default function AdminSeoPage() {
                   </thead>
                   <tbody>
                     {DEFAULT_PAGES.map((page) => (
-                      <tr key={page.path} className="border-b border-border/20">
+                      <tr key={page.path} className="border-b border-border/20 hover:bg-pearl/50 transition-colors">
                         <td className="px-4 py-3 font-medium text-charcoal">{page.path}</td>
                         <td className="px-4 py-3 text-charcoal-light">{page.title}</td>
                         <td className="px-4 py-3">
@@ -319,7 +320,7 @@ export default function AdminSeoPage() {
                       <p className="text-sm font-medium text-charcoal">{schema}</p>
                       <p className="text-xs text-charcoal-lighter">Auto-generated</p>
                     </div>
-                    <span className="text-xs font-medium text-success">Active</span>
+                    <Badge variant="success">Active</Badge>
                   </div>
                 ))}
               </div>

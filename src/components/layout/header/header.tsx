@@ -195,7 +195,7 @@ export function Header() {
                   <Link
                     href={item.href}
                     className={cn(
-                      "relative inline-flex items-center gap-1.5 px-4 py-2 font-heading text-[15px] font-medium tracking-[0.01em] transition-colors",
+                      "relative inline-flex items-center gap-1.5 px-4 py-2 font-heading text-[15px] font-semibold tracking-[0.01em] transition-colors",
                       activeMenu === item.label
                         ? "text-secondary"
                         : "text-charcoal/75 hover:text-charcoal"
@@ -557,7 +557,7 @@ export function Header() {
                       <Link
                         href={item.href}
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center justify-between py-2.5 px-2 rounded-xl font-heading text-[16px] font-medium text-charcoal hover:bg-primary-light hover:text-secondary transition-colors"
+                        className="flex items-center justify-between py-2.5 px-2 rounded-xl font-heading text-[16px] font-semibold text-charcoal hover:bg-primary-light hover:text-secondary transition-colors"
                       >
                         <span>{item.label}</span>
                         {item.badge && (

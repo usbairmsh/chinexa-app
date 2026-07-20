@@ -75,8 +75,8 @@
   --color-accent-foreground: #47192B;
 
   /* Fonts */
-  --font-heading: "Playfair Display", "Cormorant Garamond", Georgia, serif;
-  --font-body: "Inter", "Poppins", system-ui, sans-serif;
+  --font-heading: "Fraunces", Georgia, serif;
+  --font-body: "Manrope", system-ui, sans-serif;
   --font-sans: var(--font-body);
 
   /* Shadows */
@@ -219,10 +219,10 @@
     letter-spacing: 0.01em;
   }
 
-  /* Luxury Typography */
+  /* Bold Typography */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);
-    font-weight: 600;
+    font-weight: 700;
     line-height: 1.2;
     letter-spacing: -0.02em;
     color: var(--color-charcoal);

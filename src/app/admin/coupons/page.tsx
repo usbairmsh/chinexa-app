@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { Plus, Edit, Trash2, MoreHorizontal, Copy, Percent, BadgeDollarSign, Loader2, AlertTriangle, Check, Tag, Users, Crown, Globe, FolderTree, ShoppingCart, Search, X, Award } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -250,7 +251,7 @@ export default function AdminCouponsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Coupons</h1>
-          <p className="text-sm text-charcoal-lighter">{coupons.length} coupon{coupons.length !== 1 ? "s" : ""} · {activeCount} active</p>
+          <p className="text-sm text-charcoal-lighter [font-variant-numeric:tabular-nums]"><span className="font-semibold text-charcoal">{coupons.length}</span> coupon{coupons.length !== 1 ? "s" : ""} · <span className="font-semibold text-charcoal">{activeCount}</span> active</p>
         </div>
         {canAddCoupon && <AdminButton onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Add Coupon</AdminButton>}
       </div>
@@ -263,12 +264,13 @@ export default function AdminCouponsPage() {
         <EmptyState icon={Tag} title="No coupons yet" description="Create your first discount coupon." actionLabel={canAddCoupon ? "Add Coupon" : undefined} onAction={canAddCoupon ? openCreate : undefined} />
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {coupons.map((coupon) => {
+          {coupons.map((coupon, i) => {
             const usagePercent = coupon.usage_limit ? (coupon.used_count / coupon.usage_limit) * 100 : 0;
             const isExpired = coupon.valid_until && new Date(coupon.valid_until) < new Date();
 
             return (
-              <Card key={coupon.id} className={cn("relative overflow-hidden", (!coupon.is_active || isExpired) && "opacity-60")}>
+              <motion.div key={coupon.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+              <Card className={cn("relative overflow-hidden", (!coupon.is_active || isExpired) && "opacity-60")}>
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-secondary to-primary" />
                 <CardContent className="p-5 pt-6">
                   <div className="flex items-start justify-between mb-3 gap-2">
@@ -301,7 +303,7 @@ export default function AdminCouponsPage() {
                     </DropdownMenu>
                   </div>
 
-                  <div className="text-2xl font-bold text-charcoal mb-3">
+                  <div className="text-2xl font-bold text-charcoal mb-3 [font-variant-numeric:tabular-nums]">
                     {coupon.discount_type === "percentage" ? `${coupon.discount_value}% OFF` : `${formatCurrency(coupon.discount_value)} OFF`}
                   </div>
 
@@ -315,7 +317,7 @@ export default function AdminCouponsPage() {
 
                   {coupon.usage_limit ? (
                     <div className="mt-3">
-                      <div className="flex justify-between text-[10px] text-charcoal-lighter mb-1">
+                      <div className="flex justify-between text-[10px] text-charcoal-lighter mb-1 [font-variant-numeric:tabular-nums]">
                         <span>{coupon.used_count} used</span>
                         <span>{coupon.usage_limit} limit</span>
                       </div>
@@ -331,6 +333,7 @@ export default function AdminCouponsPage() {
                   </div>
                 </CardContent>
               </Card>
+              </motion.div>
             );
           })}
         </div>
@@ -378,7 +381,7 @@ export default function AdminCouponsPage() {
 
                 {(formApplicability === "customers" || formApplicability === "products") && (
                   <div>
-                    <div className="flex items-center gap-2 px-3 rounded-xl border border-border bg-pearl/30">
+                    <div className="flex items-center gap-2 px-3 rounded-luxury border border-border bg-pearl/30">
                       <Search className="h-3.5 w-3.5 text-charcoal-lighter shrink-0" />
                       <input
                         type="text"
@@ -390,7 +393,7 @@ export default function AdminCouponsPage() {
                       {applSearchLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-charcoal-lighter shrink-0" />}
                     </div>
                     {applSearchResults.length > 0 && (
-                      <div className="mt-1 max-h-36 overflow-y-auto border border-border/30 rounded-xl bg-white">
+                      <div className="mt-1 max-h-36 overflow-y-auto border border-border/30 rounded-luxury bg-white">
                         {applSearchResults.map((r) => {
                           const isSelected = formSelectedIds.some((s) => s.id === r.id);
                           return (
@@ -410,7 +413,7 @@ export default function AdminCouponsPage() {
                 )}
 
                 {(formApplicability === "categories" || formApplicability === "subcategories" || formApplicability === "tiers" || formApplicability === "brands") && (
-                  <div className="max-h-44 overflow-y-auto border border-border/30 rounded-xl bg-white">
+                  <div className="max-h-44 overflow-y-auto border border-border/30 rounded-luxury bg-white">
                     {getApplOptions().length === 0 ? (
                       <p className="px-3 py-4 text-xs text-charcoal-lighter text-center">No {formApplicability} found</p>
                     ) : getApplOptions().map((opt) => {
@@ -486,7 +489,7 @@ export default function AdminCouponsPage() {
             <DialogDescription>This action cannot be undone.</DialogDescription>
           </DialogHeader>
           {deleteDialog && (
-            <div className="p-3 rounded-xl bg-pearl/60">
+            <div className="p-3 rounded-luxury bg-pearl/60">
               <code className="font-mono font-bold text-charcoal">{deleteDialog.code}</code>
               <p className="text-xs text-charcoal-lighter mt-1">{deleteDialog.discount_type === "percentage" ? `${deleteDialog.discount_value}% off` : `${formatCurrency(deleteDialog.discount_value)} off`} · {deleteDialog.used_count} times used</p>
             </div>

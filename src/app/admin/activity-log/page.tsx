@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { motion } from "framer-motion";
 import { Package, ShoppingCart, Users, Star, Settings, Shield, FileText, Image as ImageIcon, Tag, Loader2, Activity } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -88,7 +89,9 @@ export default function AdminActivityLogPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Activity Log</h1>
-          <p className="text-sm text-charcoal-lighter">{logs.length} recent activities</p>
+          <p className="text-sm text-charcoal-lighter">
+            <span className="font-semibold text-charcoal [font-variant-numeric:tabular-nums]">{logs.length}</span> recent activities
+          </p>
         </div>
         <Select value={filter} onValueChange={handleFilterChange}>
           <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
@@ -125,8 +128,11 @@ export default function AdminActivityLogPage() {
                 const color = entityColors[log.entity_type] || "bg-pearl text-charcoal";
 
                 return (
-                  <div
+                  <motion.div
                     key={log.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: Math.min(index, 20) * 0.03 }}
                     className={cn(
                       "flex items-start gap-4 p-4 hover:bg-pearl/50 transition-colors",
                       index < logs.length - 1 && "border-b border-border/20"
@@ -153,7 +159,7 @@ export default function AdminActivityLogPage() {
                         {log.entity_id && <span className="hidden sm:inline font-mono">{log.entity_id}</span>}
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, Edit, Save, Loader2, Check, X, Shield } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -104,28 +105,39 @@ export default function TrustBadgesPage() {
         <EmptyState icon={Shield} title="No trust badges" description="Create trust badges that can be added to products." actionLabel="Add Badge" onAction={openCreate} />
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {badges.map((badge, i) => {
-            const Icon = getIconById(badge.icon);
-            return (
-              <Card key={badge.id}>
-                <CardContent className="p-5">
-                  <div className="flex flex-col items-center text-center">
-                    <Icon className="h-8 w-8 text-secondary mb-3" />
-                    <h3 className="text-sm font-semibold text-charcoal mb-0.5">{badge.title}</h3>
-                    <p className="text-[10px] text-charcoal-lighter">{badge.description}</p>
-                  </div>
-                  <div className="flex justify-center gap-2 mt-4 pt-3 border-t border-border/20">
-                    <button onClick={() => openEdit(i)} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-medium text-charcoal-lighter border border-border/30 hover:border-secondary hover:text-secondary transition-all">
-                      <Edit className="h-3 w-3" /> Edit
-                    </button>
-                    <button onClick={() => handleDelete(i)} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-medium text-charcoal-lighter border border-border/30 hover:border-destructive hover:text-destructive transition-all">
-                      <Trash2 className="h-3 w-3" /> Delete
-                    </button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+          <AnimatePresence initial={false}>
+            {badges.map((badge, i) => {
+              const Icon = getIconById(badge.icon);
+              return (
+                <motion.div
+                  key={badge.id}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ delay: i * 0.04 }}
+                >
+                  <Card>
+                    <CardContent className="p-5">
+                      <div className="flex flex-col items-center text-center">
+                        <Icon className="h-8 w-8 text-secondary mb-3" />
+                        <h3 className="text-sm font-semibold text-charcoal mb-0.5">{badge.title}</h3>
+                        <p className="text-[10px] text-charcoal-lighter">{badge.description}</p>
+                      </div>
+                      <div className="flex justify-center gap-2 mt-4 pt-3 border-t border-border/20">
+                        <AdminButton variant="ghost" size="xs" onClick={() => openEdit(i)}>
+                          <Edit className="h-3 w-3" /> Edit
+                        </AdminButton>
+                        <AdminButton variant="ghost" size="xs" onClick={() => handleDelete(i)} className="text-destructive/70 hover:!text-destructive hover:bg-destructive/10">
+                          <Trash2 className="h-3 w-3" /> Delete
+                        </AdminButton>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       )}
 

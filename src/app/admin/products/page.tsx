@@ -173,21 +173,21 @@ export default function AdminProductsPage() {
             {hasVariants ? (
               <div>
                 <p className="text-xs text-charcoal-lighter">From</p>
-                <p className="font-medium text-charcoal">{formatCurrency(product.price)}</p>
+                <p className="font-medium text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(product.price)}</p>
               </div>
             ) : singleVariant ? (
-              <p className="font-medium text-charcoal">{formatCurrency(product.price + singleVariant.price_adjustment)}</p>
+              <p className="font-medium text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(product.price + singleVariant.price_adjustment)}</p>
             ) : (
               <div>
-                <p className="font-medium text-charcoal">{formatCurrency(product.price)}</p>
-                {product.compare_at_price && <p className="text-[10px] text-charcoal-lighter line-through">{formatCurrency(product.compare_at_price)}</p>}
+                <p className="font-medium text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(product.price)}</p>
+                {product.compare_at_price && <p className="text-[10px] text-charcoal-lighter line-through [font-variant-numeric:tabular-nums]">{formatCurrency(product.compare_at_price)}</p>}
               </div>
             )}
           </td>
 
           {/* Stock */}
           <td className="px-4 py-3 hidden md:table-cell">
-            <span className={cn("text-xs font-medium", product.stock_quantity <= 5 ? "text-destructive" : product.stock_quantity <= 20 ? "text-warning" : "text-charcoal-light")}>
+            <span className={cn("text-xs font-semibold [font-variant-numeric:tabular-nums]", product.stock_quantity <= 5 ? "text-destructive" : product.stock_quantity <= 20 ? "text-warning" : "text-charcoal-light")}>
               {product.stock_quantity}
             </span>
           </td>
@@ -253,15 +253,15 @@ export default function AdminProductsPage() {
               </div>
             </td>
             <td className="px-4 py-2.5">
-              <p className="text-xs font-medium text-charcoal">
+              <p className="text-xs font-medium text-charcoal [font-variant-numeric:tabular-nums]">
                 {formatCurrency(product.price + v.price_adjustment)}
               </p>
               {v.price_adjustment !== 0 && (
-                <p className="text-[9px] text-charcoal-lighter">{v.price_adjustment > 0 ? "+" : ""}{formatCurrency(v.price_adjustment)}</p>
+                <p className="text-[9px] text-charcoal-lighter [font-variant-numeric:tabular-nums]">{v.price_adjustment > 0 ? "+" : ""}{formatCurrency(v.price_adjustment)}</p>
               )}
             </td>
             <td className="px-4 py-2.5 hidden md:table-cell">
-              <span className={cn("text-xs font-medium", v.stock <= 5 ? "text-destructive" : v.stock <= 20 ? "text-warning" : "text-charcoal-light")}>
+              <span className={cn("text-xs font-semibold [font-variant-numeric:tabular-nums]", v.stock <= 5 ? "text-destructive" : v.stock <= 20 ? "text-warning" : "text-charcoal-light")}>
                 {v.stock}
               </span>
             </td>
@@ -309,7 +309,7 @@ export default function AdminProductsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Products</h1>
-          <p className="text-sm text-charcoal-lighter">{data?.total || 0} total products</p>
+          <p className="text-sm text-charcoal-lighter"><span className="font-semibold text-charcoal [font-variant-numeric:tabular-nums]">{data?.total || 0}</span> total products</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href="/admin/brands"><AdminButton variant="outline"><Award className="h-4 w-4" /> Brands</AdminButton></Link>
@@ -387,7 +387,7 @@ export default function AdminProductsPage() {
             <DialogDescription>This will permanently delete the product, all its variants, images, and reviews.</DialogDescription>
           </DialogHeader>
           {deleteProduct && (
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-pearl/60">
+            <div className="flex items-center gap-3 p-3 rounded-luxury bg-pearl/60">
               <div className="relative h-12 w-12 rounded-lg overflow-hidden bg-pearl shrink-0">
                 <Image src={deleteProduct.images[0]?.url || "https://placehold.co/48x48"} alt={deleteProduct.name} fill className="object-cover" sizes="48px" />
               </div>
@@ -412,7 +412,7 @@ export default function AdminProductsPage() {
           <DialogHeader><DialogTitle>Variant Details</DialogTitle></DialogHeader>
           {viewVariant && (
             <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-pearl/60">
+              <div className="flex items-center gap-3 p-3 rounded-luxury bg-pearl/60">
                 <div className="relative h-16 w-16 rounded-lg overflow-hidden bg-pearl shrink-0 border border-border/20">
                   {viewVariant.variant.image ? (
                     <Image src={viewVariant.variant.image} alt={viewVariant.variant.name} fill className="object-cover" sizes="64px" unoptimized={viewVariant.variant.image.includes("/uploads/")} />
@@ -431,9 +431,9 @@ export default function AdminProductsPage() {
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="min-w-0"><p className="text-[10px] text-charcoal-lighter uppercase">Product</p><p className="font-medium text-charcoal truncate">{viewVariant.product.name}</p></div>
                 <div className="min-w-0"><p className="text-[10px] text-charcoal-lighter uppercase">Value</p><p className="text-charcoal truncate">{viewVariant.variant.value}</p></div>
-                <div className="min-w-0"><p className="text-[10px] text-charcoal-lighter uppercase">Price</p><p className="font-medium text-charcoal truncate">{formatCurrency(viewVariant.product.price + viewVariant.variant.price_adjustment)}</p></div>
-                <div className="min-w-0"><p className="text-[10px] text-charcoal-lighter uppercase">Adjustment</p><p className="text-charcoal truncate">{viewVariant.variant.price_adjustment > 0 ? "+" : ""}{formatCurrency(viewVariant.variant.price_adjustment)}</p></div>
-                <div className="min-w-0"><p className="text-[10px] text-charcoal-lighter uppercase">Stock</p><p className={cn("font-medium", viewVariant.variant.stock <= 5 ? "text-destructive" : "text-charcoal")}>{viewVariant.variant.stock}</p></div>
+                <div className="min-w-0"><p className="text-[10px] text-charcoal-lighter uppercase">Price</p><p className="font-medium text-charcoal truncate [font-variant-numeric:tabular-nums]">{formatCurrency(viewVariant.product.price + viewVariant.variant.price_adjustment)}</p></div>
+                <div className="min-w-0"><p className="text-[10px] text-charcoal-lighter uppercase">Adjustment</p><p className="text-charcoal truncate [font-variant-numeric:tabular-nums]">{viewVariant.variant.price_adjustment > 0 ? "+" : ""}{formatCurrency(viewVariant.variant.price_adjustment)}</p></div>
+                <div className="min-w-0"><p className="text-[10px] text-charcoal-lighter uppercase">Stock</p><p className={cn("font-semibold [font-variant-numeric:tabular-nums]", viewVariant.variant.stock <= 5 ? "text-destructive" : "text-charcoal")}>{viewVariant.variant.stock}</p></div>
                 <div className="min-w-0"><p className="text-[10px] text-charcoal-lighter uppercase">SKU</p><p className="text-charcoal font-mono text-xs truncate">{viewVariant.variant.sku}</p></div>
               </div>
             </div>

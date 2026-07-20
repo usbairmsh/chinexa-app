@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { playfairDisplay, inter } from "@/lib/fonts";
+import { fraunces, manrope } from "@/lib/fonts";
 import { Providers } from "@/providers";
 import { InstallPrompt } from "@/components/shared/install-prompt";
 import { CookieConsent } from "@/components/shared/cookie-consent";
@@ -130,7 +130,7 @@ export default function RootLayout({
     <html
       lang="en"
       data-scroll-behavior="smooth"
-      className={`${playfairDisplay.variable} ${inter.variable} h-full antialiased`}
+      className={`${fraunces.variable} ${manrope.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-body text-charcoal bg-background">
         {/* Initial splash screen — covers everything until content is ready */}

@@ -84,7 +84,7 @@ export default function NotificationsPage() {
     return (
       <div className="space-y-2">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-xl border border-border/20 p-4 flex gap-3">
+          <div key={i} className="rounded-luxury border border-border/40 shadow-card p-4 flex gap-3">
             <div className="h-10 w-10 bg-pearl rounded-xl animate-pulse shrink-0" />
             <div className="flex-1">
               <div className="h-4 w-32 bg-pearl rounded animate-pulse mb-2" />

@@ -261,7 +261,7 @@ function TrackOrderContent() {
 
                 {/* Not Received notice */}
                 {order.status === "not_received" && (
-                  <div className="mt-4 p-3 rounded-xl bg-destructive/5 border border-destructive/10">
+                  <div className="mt-4 p-4 rounded-2xl bg-destructive/5 border border-destructive/10">
                     <p className="text-sm font-medium text-destructive">Delivery could not be completed</p>
                     <p className="text-xs text-destructive/70 mt-0.5">Please contact support for assistance.</p>
                   </div>

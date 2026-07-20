@@ -1074,7 +1074,7 @@ export default function CheckoutPage() {
           {/* ═══ Order Summary Sidebar ═══ */}
           {step < 4 && (
             <div className="lg:col-span-2 order-1 lg:order-2 min-w-0">
-              <div className="rounded-2xl border border-border/30 bg-pearl/30 p-3 sm:p-5">
+              <div className="rounded-2xl border border-border/30 bg-pearl/30 p-3 sm:p-5 shadow-card">
                 <h3 className="font-heading text-base font-semibold text-charcoal mb-4">
                   Order Summary ({items.length})
                 </h3>

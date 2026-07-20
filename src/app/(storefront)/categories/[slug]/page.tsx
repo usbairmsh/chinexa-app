@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { SlidersHorizontal, X } from "lucide-react";
+import { SlidersHorizontal, X, PackageSearch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
@@ -13,7 +13,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pagination } from "@/components/ui/pagination";
-import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ProductCard } from "@/components/storefront/product/product-card";
 import { useProductsByCategory, useProducts } from "@/hooks/queries/use-products";
 import { useCategory } from "@/hooks/queries/use-categories";
@@ -176,7 +176,7 @@ export default function CategoryPage() {
                 onClick={() => setSelectedBrands([])}
                 className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
                   selectedBrands.length === 0
-                    ? "bg-secondary !text-white shadow-[0_4px_15px_rgba(122,79,160,0.25)]"
+                    ? "bg-secondary !text-white shadow-luxury"
                     : "bg-pearl text-charcoal-lighter hover:bg-primary-light hover:text-charcoal"
                 }`}
               >
@@ -188,7 +188,7 @@ export default function CategoryPage() {
                   onClick={() => toggleBrand(brand.name)}
                   className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
                     selectedBrands.includes(brand.name)
-                      ? "bg-secondary !text-white shadow-[0_4px_15px_rgba(122,79,160,0.25)]"
+                      ? "bg-secondary !text-white shadow-luxury"
                       : "bg-pearl text-charcoal-lighter hover:bg-primary-light hover:text-charcoal"
                   }`}
                 >
@@ -199,8 +199,6 @@ export default function CategoryPage() {
           </div>
         </div>
       )}
-
-
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex gap-8">
@@ -261,9 +259,15 @@ export default function CategoryPage() {
                 </div>
               </div>
             ) : !data?.data?.length ? (
-              <div className="text-center py-20">
-                <p className="text-charcoal-lighter">No products found{selectedBrands.length > 0 || selectedSubs.length > 0 ? " matching your filters" : " in this category"}.</p>
-              </div>
+              <EmptyState
+                icon={PackageSearch}
+                title="No products found"
+                description={
+                  selectedBrands.length > 0 || selectedSubs.length > 0
+                    ? "Try adjusting or clearing your filters to see more results."
+                    : "There are no products in this category yet — check back soon."
+                }
+              />
             ) : (
               <motion.div
                 key={`${params.page}-${params.sort_by}-${params.subcategory}-${params.brand}`}

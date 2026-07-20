@@ -325,13 +325,13 @@ export default function EditProductPage() {
 
       {saved && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2 p-3 rounded-xl bg-success/10 border border-success/20 text-success text-sm font-medium">
+          className="flex items-center gap-2 p-3 rounded-luxury bg-success/10 border border-success/20 text-success text-sm font-medium">
           <Save className="h-4 w-4" /> Product updated successfully!
         </motion.div>
       )}
       {error && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm font-medium">
+          className="flex items-center gap-2 p-3 rounded-luxury bg-destructive/10 border border-destructive/20 text-destructive text-sm font-medium">
           <X className="h-4 w-4" /> {error}
         </motion.div>
       )}
@@ -343,7 +343,7 @@ export default function EditProductPage() {
             <Card><CardContent className="p-5">
               <div className="flex items-start gap-4">
                 {images[0]?.url && (
-                  <div className="relative h-24 w-24 rounded-xl overflow-hidden bg-pearl shrink-0">
+                  <div className="relative h-24 w-24 rounded-luxury overflow-hidden bg-pearl shrink-0">
                     <Image src={images[0].url} alt={productName} fill className="object-cover" sizes="96px" unoptimized={images[0].url.includes("/uploads/")} />
                   </div>
                 )}
@@ -377,8 +377,8 @@ export default function EditProductPage() {
                         <span className="text-xs text-charcoal-lighter ml-2 font-mono">{v.sku}</span>
                       </div>
                       <div className="text-right">
-                        <span className="text-sm font-semibold text-charcoal">{formatCurrency(Number(v.price))}</span>
-                        <span className="text-xs text-charcoal-lighter ml-2">Stock: {v.stock}</span>
+                        <span className="text-sm font-semibold text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(Number(v.price))}</span>
+                        <span className="text-xs text-charcoal-lighter ml-2">Stock: <span className="[font-variant-numeric:tabular-nums]">{v.stock}</span></span>
                       </div>
                     </div>
                   ))}
@@ -390,8 +390,8 @@ export default function EditProductPage() {
           <div className="space-y-5">
             <Card><CardContent className="p-5">
               <h3 className="text-sm font-semibold text-charcoal mb-3">Pricing</h3>
-              <p className="text-2xl font-bold text-charcoal">{formatCurrency(Number(variants[0]?.price || 0))}</p>
-              {variants[0]?.compare_price && <p className="text-sm text-charcoal-lighter line-through">{formatCurrency(Number(variants[0].compare_price))}</p>}
+              <p className="text-2xl font-bold text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(Number(variants[0]?.price || 0))}</p>
+              {variants[0]?.compare_price && <p className="text-sm text-charcoal-lighter line-through [font-variant-numeric:tabular-nums]">{formatCurrency(Number(variants[0].compare_price))}</p>}
             </CardContent></Card>
 
             <Card><CardContent className="p-5">
@@ -399,7 +399,7 @@ export default function EditProductPage() {
               <div className="space-y-2">
                 <div className="flex justify-between"><span className="text-xs text-charcoal-lighter">Active</span><Badge variant={isActive ? "success" : "destructive"} className="text-[10px]">{isActive ? "Yes" : "No"}</Badge></div>
                 <div className="flex justify-between"><span className="text-xs text-charcoal-lighter">Featured</span><Badge variant={isFeatured ? "success" : "default"} className="text-[10px]">{isFeatured ? "Yes" : "No"}</Badge></div>
-                <div className="flex justify-between"><span className="text-xs text-charcoal-lighter">Stock</span><span className="text-xs font-medium">{variants[0]?.stock || 0}</span></div>
+                <div className="flex justify-between"><span className="text-xs text-charcoal-lighter">Stock</span><span className="text-xs font-semibold text-charcoal [font-variant-numeric:tabular-nums]">{variants[0]?.stock || 0}</span></div>
               </div>
             </CardContent></Card>
 
@@ -415,7 +415,7 @@ export default function EditProductPage() {
 
       {/* Edit Mode */}
       {editMode && canEditProduct && <>
-      <div className="flex gap-1 bg-pearl/60 p-1 rounded-xl overflow-x-auto scrollbar-hide">
+      <div className="flex gap-1 bg-pearl/60 p-1 rounded-luxury overflow-x-auto scrollbar-hide">
         {tabs.map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             className={cn("flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 transition-all duration-200",
@@ -464,7 +464,7 @@ export default function EditProductPage() {
                 <CardContent>
                     <div className="space-y-4">
                       {variants.map((variant, i) => (
-                        <div key={variant.id} className="rounded-xl border border-border/30 overflow-hidden">
+                        <div key={variant.id} className="rounded-luxury border border-border/30 overflow-hidden shadow-card">
                           <div className="flex items-center justify-between px-4 py-2.5 bg-pearl/50 border-b border-border/20">
                             <span className="text-xs font-bold text-charcoal">Variant {i + 1} {i === 0 && <span className="text-[9px] text-secondary font-normal ml-1">(default)</span>}</span>
                             {variants.length > 1 && (
@@ -541,7 +541,7 @@ export default function EditProductPage() {
                 <CardContent>
                   <div className="space-y-4">
                     {images.map((img, i) => (
-                      <div key={img.id} className="p-4 rounded-xl border border-border/30 bg-pearl/20">
+                      <div key={img.id} className="p-4 rounded-luxury border border-border/30 bg-pearl/20">
                         <div className="flex items-center justify-between mb-3">
                           <span className="text-xs font-bold text-charcoal">Image {i + 1} {i === 0 && <span className="text-[9px] text-secondary font-normal ml-1">(main)</span>}</span>
                           <button onClick={() => removeImage(img.id)} className="p-1 rounded-full hover:bg-destructive/10 text-charcoal-lighter hover:text-destructive transition-colors">
@@ -577,7 +577,7 @@ export default function EditProductPage() {
                       </div>
                     ))}
                     {images.length < 8 && (
-                      <button onClick={addImage} className="w-full py-6 rounded-xl border-2 border-dashed border-border/40 hover:border-secondary/40 hover:bg-primary-light/20 transition-all flex items-center justify-center gap-2 text-charcoal-lighter hover:text-secondary">
+                      <button onClick={addImage} className="w-full py-6 rounded-luxury border-2 border-dashed border-border/40 hover:border-secondary/40 hover:bg-primary-light/20 transition-all flex items-center justify-center gap-2 text-charcoal-lighter hover:text-secondary">
                         <Plus className="h-5 w-5" /> <span className="text-sm font-medium">Add Image</span>
                       </button>
                     )}
@@ -615,7 +615,7 @@ export default function EditProductPage() {
                             else if (selectedTrustBadges.length < 3) setSelectedTrustBadges((prev) => [...prev, badge.id]);
                           }}
                           disabled={!isSelected && selectedTrustBadges.length >= 3}
-                          className={cn("flex items-center gap-2 p-3 rounded-xl border text-left transition-all",
+                          className={cn("flex items-center gap-2 p-3 rounded-luxury border text-left transition-all",
                             isSelected ? "border-secondary bg-secondary/5" : "border-border/30 hover:border-secondary/40",
                             !isSelected && selectedTrustBadges.length >= 3 && "opacity-40 cursor-not-allowed"
                           )}>
@@ -635,9 +635,9 @@ export default function EditProductPage() {
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-charcoal-lighter">Paste from ChatGPT / Gemini, or write manually</p>
-                    <button type="button" onClick={() => setSeoPromptOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary/10 text-secondary text-[11px] font-medium hover:bg-secondary/20 transition-colors">
+                    <AdminButton type="button" variant="outline" size="xs" onClick={() => setSeoPromptOpen(true)}>
                       <Copy className="h-3 w-3" /> Copy for AI
-                    </button>
+                    </AdminButton>
                   </div>
                   <Input label="SEO Title" value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} />
                   <div>
@@ -649,7 +649,7 @@ export default function EditProductPage() {
                   <Separator />
                   <div>
                     <p className="text-xs font-semibold text-charcoal-lighter uppercase tracking-wider mb-2">Google Search Preview</p>
-                    <div className="p-4 rounded-xl border border-border/30 bg-white">
+                    <div className="p-4 rounded-luxury border border-border/30 bg-white">
                       <p className="text-blue-600 text-base font-medium truncate">{seoTitle || productName || "Product Name"}</p>
                       <p className="text-green-700 text-xs">chinexabd.com/products/{productName ? productName.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-").replace(/^-+|-+$/g, "") : "product-slug"}</p>
                       <p className="text-sm text-charcoal-light mt-1 line-clamp-2">{seoDesc || shortDesc || "Your meta description will appear here..."}</p>
@@ -728,15 +728,15 @@ export default function EditProductPage() {
             <DialogDescription>Copy this prompt and paste it in ChatGPT, Gemini, or Claude to generate SEO title, description &amp; purchase-intent keywords</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto py-2">
-            <pre className="whitespace-pre-wrap text-xs text-charcoal bg-pearl/60 rounded-xl p-4 border border-border/30 font-mono leading-relaxed select-all">
+            <pre className="whitespace-pre-wrap text-xs text-charcoal bg-pearl/60 rounded-luxury p-4 border border-border/30 font-mono leading-relaxed select-all">
               {buildSeoPrompt()}
             </pre>
           </div>
           <div className="flex justify-end gap-2 pt-2 shrink-0">
-            <button onClick={() => setSeoPromptOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal transition-colors">Close</button>
-            <button onClick={handleCopyPrompt} className={cn("flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all", seoPromptCopied ? "bg-success !text-white" : "bg-secondary !text-white hover:bg-secondary-dark")}>
+            <AdminButton variant="ghost" size="sm" onClick={() => setSeoPromptOpen(false)}>Close</AdminButton>
+            <AdminButton variant="primary" size="sm" onClick={handleCopyPrompt} className={seoPromptCopied ? "!bg-success hover:!bg-success" : ""}>
               {seoPromptCopied ? <><Check className="h-3 w-3" /> Copied!</> : <><Copy className="h-3 w-3" /> Copy Prompt</>}
-            </button>
+            </AdminButton>
           </div>
         </DialogContent>
       </Dialog>

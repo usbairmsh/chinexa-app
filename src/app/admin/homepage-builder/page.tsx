@@ -182,23 +182,21 @@ export default function AdminHomepageBuilder() {
 
       {/* Trust Badges Config */}
       <Card>
-        <CardContent className="p-4">
-          <h3 className="text-sm font-medium text-charcoal mb-3">Trust Badges</h3>
+        <CardContent className="p-4 sm:p-5">
+          <h3 className="text-sm font-semibold text-charcoal mb-3">Trust Badges</h3>
           <div className="grid sm:grid-cols-2 gap-3">
             {trustBadges.map((badge, i) => (
-              <div key={i} className="p-3 rounded-xl bg-pearl/40 border border-border/20 space-y-2">
-                <input
-                  type="text"
+              <div key={i} className="p-3 rounded-luxury bg-pearl/40 border border-border/20 space-y-2">
+                <Input
                   value={badge.title}
                   onChange={(e) => updateBadge(i, "title", e.target.value)}
-                  className="w-full rounded-md border border-border bg-white px-2.5 py-1.5 text-xs font-semibold text-charcoal focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary/20"
+                  className="text-xs font-semibold"
                   placeholder="Badge title"
                 />
-                <input
-                  type="text"
+                <Input
                   value={badge.description}
                   onChange={(e) => updateBadge(i, "description", e.target.value)}
-                  className="w-full rounded-md border border-border bg-white px-2.5 py-1.5 text-[11px] text-charcoal-light focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary/20"
+                  className="text-[11px] text-charcoal-light"
                   placeholder="Badge description"
                 />
               </div>
@@ -209,7 +207,7 @@ export default function AdminHomepageBuilder() {
 
       {/* Sections */}
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-charcoal px-1">Sections Order & Visibility</h3>
+        <h3 className="text-sm font-semibold text-charcoal px-1">Sections Order & Visibility</h3>
         {sections.map((section, index) => {
           const isExpanded = expandedSection === section.id;
           const isEditable = editableSections.includes(section.type);

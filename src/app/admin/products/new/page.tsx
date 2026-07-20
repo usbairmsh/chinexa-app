@@ -355,13 +355,13 @@ export default function AddProductPage() {
       {/* Alerts */}
       {saved && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2 p-3 rounded-xl bg-success/10 border border-success/20 text-success text-sm font-medium">
+          className="flex items-center gap-2 p-3 rounded-luxury bg-success/10 border border-success/20 text-success text-sm font-medium">
           <Save className="h-4 w-4" /> Product saved successfully! Redirecting to product list...
         </motion.div>
       )}
       {error && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm font-medium">
+          className="flex items-center gap-2 p-3 rounded-luxury bg-destructive/10 border border-destructive/20 text-destructive text-sm font-medium">
           <X className="h-4 w-4" /> {error}
         </motion.div>
       )}
@@ -430,17 +430,14 @@ export default function AddProductPage() {
                     <CardTitle className="text-base">Product Variants</CardTitle>
                     <CardDescription>Add size, color, or other variations</CardDescription>
                   </div>
-                  <button
-                    onClick={addVariant}
-                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full bg-secondary !text-white text-[12px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 cursor-pointer"
-                  >
+                  <AdminButton size="sm" onClick={addVariant}>
                     <Plus className="h-3.5 w-3.5" /> Add Variant
-                  </button>
+                  </AdminButton>
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
                       {variants.map((variant, i) => (
-                        <div key={variant.id} className="rounded-xl border border-border/30 overflow-hidden">
+                        <div key={variant.id} className="rounded-luxury border border-border/30 overflow-hidden">
                           <div className="flex items-center justify-between px-4 py-2.5 bg-pearl/50 border-b border-border/20">
                             <span className="text-xs font-bold text-charcoal">Variant {i + 1} {i === 0 && <span className="text-[9px] text-secondary font-normal ml-1">(default)</span>}</span>
                             {variants.length > 1 && (
@@ -487,7 +484,7 @@ export default function AddProductPage() {
                                 {variant.price && variant.cost_price && Number(variant.price) > 0 && (
                                   <div className="flex items-end pb-2">
                                     <span className="text-xs text-charcoal-lighter">
-                                      Margin: <span className="font-semibold text-secondary">{(((Number(variant.price) - Number(variant.cost_price)) / Number(variant.price)) * 100).toFixed(1)}%</span>
+                                      Margin: <span className="font-semibold text-secondary [font-variant-numeric:tabular-nums]">{(((Number(variant.price) - Number(variant.cost_price)) / Number(variant.price)) * 100).toFixed(1)}%</span>
                                     </span>
                                   </div>
                                 )}
@@ -527,7 +524,7 @@ export default function AddProductPage() {
                 <CardContent>
                   <div className="space-y-4">
                     {images.map((img, i) => (
-                      <div key={img.id} className="p-4 rounded-xl border border-border/30 bg-pearl/20">
+                      <div key={img.id} className="p-4 rounded-luxury border border-border/30 bg-pearl/20">
                         <div className="flex items-center justify-between mb-3">
                           <span className="text-xs font-bold text-charcoal">Image {i + 1} {i === 0 && <span className="text-[9px] text-secondary font-normal ml-1">(main)</span>}</span>
                           <button onClick={() => removeImage(img.id)} className="p-1 rounded-full hover:bg-destructive/10 text-charcoal-lighter hover:text-destructive transition-colors">
@@ -571,7 +568,7 @@ export default function AddProductPage() {
 
                     {images.length < 8 && (
                       <button onClick={addImage}
-                        className="w-full py-6 rounded-xl border-2 border-dashed border-border/40 hover:border-secondary/40 hover:bg-primary-light/20 transition-all flex items-center justify-center gap-2 text-charcoal-lighter hover:text-secondary">
+                        className="w-full py-6 rounded-luxury border-2 border-dashed border-border/40 hover:border-secondary/40 hover:bg-primary-light/20 transition-all flex items-center justify-center gap-2 text-charcoal-lighter hover:text-secondary">
                         <Plus className="h-5 w-5" /> <span className="text-sm font-medium">Add Image</span>
                       </button>
                     )}
@@ -612,7 +609,7 @@ export default function AddProductPage() {
                           }}
                           disabled={!isSelected && selectedTrustBadges.length >= 3}
                           className={cn(
-                            "flex items-center gap-2 p-3 rounded-xl border text-left transition-all",
+                            "flex items-center gap-2 p-3 rounded-luxury border text-left transition-all",
                             isSelected ? "border-secondary bg-secondary/5" : "border-border/30 hover:border-secondary/40",
                             !isSelected && selectedTrustBadges.length >= 3 && "opacity-40 cursor-not-allowed"
                           )}
@@ -658,7 +655,7 @@ export default function AddProductPage() {
                   {/* Live Search Preview */}
                   <div>
                     <p className="text-xs font-semibold text-charcoal-lighter uppercase tracking-wider mb-2">Google Search Preview</p>
-                    <div className="p-4 rounded-xl border border-border/30 bg-white">
+                    <div className="p-4 rounded-luxury border border-border/30 bg-white">
                       <p className="text-blue-600 text-base font-medium truncate">{seoTitle || productName || "Product Name"} {!seoTitle && !productName ? "— ChineXa" : ""}</p>
                       <p className="text-green-700 text-xs">chinexabd.com/products/{productName ? productName.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-").replace(/^-+|-+$/g, "") : "product-slug"}</p>
                       <p className="text-sm text-charcoal-light mt-1 line-clamp-2">
@@ -779,15 +776,15 @@ export default function AddProductPage() {
             <DialogDescription>Copy this prompt and paste it in ChatGPT, Gemini, or Claude to generate SEO title, description &amp; purchase-intent keywords</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto py-2">
-            <pre className="whitespace-pre-wrap text-xs text-charcoal bg-pearl/60 rounded-xl p-4 border border-border/30 font-mono leading-relaxed select-all">
+            <pre className="whitespace-pre-wrap text-xs text-charcoal bg-pearl/60 rounded-luxury p-4 border border-border/30 font-mono leading-relaxed select-all">
               {buildSeoPrompt()}
             </pre>
           </div>
           <div className="flex justify-end gap-2 pt-2 shrink-0">
-            <button onClick={() => setSeoPromptOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal transition-colors">Close</button>
-            <button onClick={handleCopyPrompt} className={cn("flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all", seoPromptCopied ? "bg-success !text-white" : "bg-secondary !text-white hover:bg-secondary-dark")}>
+            <AdminButton variant="ghost" size="sm" onClick={() => setSeoPromptOpen(false)}>Close</AdminButton>
+            <AdminButton size="sm" onClick={handleCopyPrompt} className={seoPromptCopied ? "!bg-success hover:!bg-success" : ""}>
               {seoPromptCopied ? <><Check className="h-3 w-3" /> Copied!</> : <><Copy className="h-3 w-3" /> Copy Prompt</>}
-            </button>
+            </AdminButton>
           </div>
         </DialogContent>
       </Dialog>

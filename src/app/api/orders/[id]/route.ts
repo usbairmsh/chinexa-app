@@ -70,12 +70,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // ─── Ownership check ───
     // Order numbers are sequential/guessable, and this endpoint returns full
     // customer PII (name, phone, addresses) — it must not be fetchable by
-    // anyone who can guess an id. Three legitimate callers:
+    // anyone who can guess an id. Four legitimate callers:
     //   1. Admin panel (browser sends the signed chinexa-admin-id session cookie)
     //   2. The logged-in customer's own dashboard (?customer_id=<their id>)
-    //   3. The public Track Order page for guests (?phone=<the phone on the order>)
+    //   3. The public Track Order page, phone-verified (?phone=<the phone on the order>)
+    //   4. The public Track Order page, order-ID-only (no proof) — gets a
+    //      REDACTED response (status/items/totals, no name/phone/address)
+    //      rather than a 404, so "track by order number alone" still works
+    //      without leaking PII to anyone who merely guessed a valid id.
     // Verified, not just truthy — an unsigned/forged cookie must not count as "admin".
     const isAdmin = !!getVerifiedAdminId(req);
+    let redacted = false;
     if (!isAdmin) {
       const { searchParams } = new URL(req.url);
       const requestCustomerId = searchParams.get("customer_id");
@@ -83,18 +88,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       const ownsBySelf = !!requestCustomerId && requestCustomerId === order.customer_id;
       const ownsByPhone = !!requestPhone && order.customer_phone
         && normalizePhone(requestPhone) === normalizePhone(order.customer_phone as string);
-      if (!ownsBySelf && !ownsByPhone) {
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
-      }
+      redacted = !ownsBySelf && !ownsByPhone;
     }
 
     const [items, addresses, timeline] = await Promise.all([
       query<RowDataPacket[]>("SELECT * FROM order_items WHERE order_id = ?", [order.id]),
-      query<RowDataPacket[]>("SELECT * FROM order_addresses WHERE order_id = ?", [order.id]),
+      redacted ? Promise.resolve([]) : query<RowDataPacket[]>("SELECT * FROM order_addresses WHERE order_id = ?", [order.id]),
       query<RowDataPacket[]>("SELECT * FROM order_timeline WHERE order_id = ? ORDER BY created_at", [order.id]),
     ]);
-    return NextResponse.json({
-      ...order,
+
+    const base = {
+      id: order.id,
+      order_number: order.order_number,
+      status: order.status,
+      payment_method: order.payment_method,
+      payment_status: order.payment_status,
+      created_at: order.created_at,
       // mysql2 returns DECIMAL as string — normalize money fields for the frontend
       subtotal: Number(order.subtotal) || 0,
       shipping_cost: Number(order.shipping_cost) || 0,
@@ -102,9 +111,21 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       tax: Number(order.tax) || 0,
       total: Number(order.total) || 0,
       items: items.map((i) => ({ ...i, unit_price: Number(i.unit_price) || 0, total_price: Number(i.total_price) || 0 })),
+      timeline,
+    };
+
+    if (redacted) {
+      // Explicit marker so every consumer can tell "this is a limited,
+      // ownership-unverified view" apart from the full response shape —
+      // never silently render PII fields that simply happen to be absent.
+      return NextResponse.json({ ...base, redacted: true });
+    }
+
+    return NextResponse.json({
+      ...order,
+      ...base,
       billing_address: addresses.find((a) => a.type === "billing"),
       shipping_address: addresses.find((a) => a.type === "shipping"),
-      timeline,
     });
   } catch (error: unknown) {
     return publicServerError("GET /api/orders/[id]", error);
@@ -123,6 +144,24 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const order = orderRows[0];
     const id = order.id as string;
     const prevStatus = order.status as string;
+
+    // Archiving an order must reverse its stock/revenue impact and read as
+    // "never happened" for the customer too — the exact same effect the
+    // existing 'cancelled' status branch below already implements correctly.
+    // Reusing it (instead of writing a second parallel reversal path) means
+    // archiving inherits that logic's stock-restore/revenue-reversal/coupon-
+    // decrement guards for free, and the order genuinely shows as Cancelled
+    // to the customer, not a separate "archived" status they've never seen.
+    // Unarchiving does NOT resurrect the original status — once cancelled,
+    // it stays cancelled; only the is_archived flag/tab membership reverts.
+    // Skipped if already in a terminal reversed state (cancelled/not_received/
+    // returned) so re-archiving never double-reverses stock or revenue.
+    const isArchiving = body.is_archived === true;
+    const alreadyReversed = ["cancelled", "not_received", "returned"].includes(prevStatus);
+    if (isArchiving && !alreadyReversed) {
+      body.status = "cancelled";
+      body.note = "Order archived by admin — stock and revenue reversed";
+    }
 
     // Status/fulfillment changes (including cancellation) need "handle_orders";
     // a full item/pricing/address edit needs "edit" — these are deliberately
@@ -181,6 +220,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           if (order.coupon_code) {
             await conn.execute("UPDATE coupons SET used_count = GREATEST(used_count - 1, 0) WHERE code = ?", [order.coupon_code]);
           }
+          // Money already collected (non-COD auto-marks paid on confirmation)
+          // must stop counting as cash received once the order is reversed —
+          // otherwise accounting/cashflow keeps counting it as real revenue
+          // forever, since nothing else ever touches payment_status again.
+          if (order.payment_status === "paid") {
+            await conn.execute("UPDATE orders SET payment_status = 'refunded' WHERE id = ?", [id]);
+          }
         }
 
         // ─── NOT_RECEIVED: restore stock + fraud alert ───
@@ -196,6 +242,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             );
             await conn.execute("UPDATE orders SET revenue_counted = FALSE WHERE id = ?", [id]);
           }
+          if (order.payment_status === "paid") {
+            await conn.execute("UPDATE orders SET payment_status = 'refunded' WHERE id = ?", [id]);
+          }
         }
 
         // ─── RETURNED (via direct status change, not return-approval flow): restore stock ───
@@ -210,6 +259,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
               [orderTotal, order.customer_id]
             );
             await conn.execute("UPDATE orders SET revenue_counted = FALSE WHERE id = ?", [id]);
+          }
+          if (order.payment_status === "paid") {
+            await conn.execute("UPDATE orders SET payment_status = 'refunded' WHERE id = ?", [id]);
           }
         }
 

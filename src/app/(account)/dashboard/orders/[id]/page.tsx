@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { motion } from "framer-motion";
 import { ArrowLeft, Package, Truck, CheckCircle2, Clock, MapPin, CreditCard, Copy, PackageCheck, Loader2, ShoppingBag, RotateCcw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -157,21 +158,31 @@ export default function OrderDetailPage() {
     : "secondary";
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-start sm:items-center gap-3 flex-wrap">
+    <div className="space-y-6">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="flex items-start sm:items-center gap-3 flex-wrap"
+      >
         <Link href="/dashboard/orders" className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors shrink-0">
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div className="min-w-0 flex-1">
-          <h2 className="font-heading text-lg sm:text-xl font-semibold text-charcoal">{order.order_number}</h2>
+          <h1 className="font-heading text-xl sm:text-2xl font-bold text-charcoal">{order.order_number}</h1>
           <p className="text-[11px] sm:text-xs text-charcoal-lighter">Placed on {formatDateTime(order.created_at)}</p>
         </div>
         <Badge variant={statusVariant} className="shrink-0">{customerStatus}</Badge>
-      </div>
+      </motion.div>
 
       <div className="grid lg:grid-cols-5 gap-4 sm:gap-5">
         {/* Main — Items + Timeline */}
-        <div className="lg:col-span-3 space-y-4 sm:space-y-5">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.05, ease: "easeOut" }}
+          className="lg:col-span-3 space-y-4 sm:space-y-5"
+        >
           {/* Items */}
           <Card>
             <CardHeader className="pb-3"><CardTitle className="text-base">Order Items</CardTitle></CardHeader>
@@ -239,10 +250,15 @@ export default function OrderDetailPage() {
               )}
             </CardContent>
           </Card>
-        </div>
+        </motion.div>
 
         {/* Sidebar — Address + Payment */}
-        <div className="lg:col-span-2 space-y-4 sm:space-y-5">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.1, ease: "easeOut" }}
+          className="lg:col-span-2 space-y-4 sm:space-y-5"
+        >
           {/* Shipping Address */}
           {order.shipping_address && (
             <Card>
@@ -403,7 +419,7 @@ export default function OrderDetailPage() {
               </Link>
             </CardContent>
           </Card>
-        </div>
+        </motion.div>
       </div>
 
       {/* Return Request Dialog */}

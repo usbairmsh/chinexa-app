@@ -585,7 +585,7 @@ export default function ProductDetailPage() {
         {/* ═══════ PRODUCT DETAILS ACCORDION ═══════ */}
         <div className="mt-16 max-w-3xl">
           <Accordion type="multiple" defaultValue={["description"]} className="space-y-3">
-            <AccordionItem value="description" className="border rounded-2xl px-4 sm:px-6 overflow-hidden border-border/30">
+            <AccordionItem value="description" className="border rounded-2xl px-4 sm:px-6 overflow-hidden border-border/30 shadow-card">
               <AccordionTrigger className="text-base font-semibold py-5">Description</AccordionTrigger>
               <AccordionContent className="text-charcoal-light text-[15px] leading-relaxed pb-5">
                 {product.description}
@@ -600,7 +600,7 @@ export default function ProductDetailPage() {
               </AccordionContent>
             </AccordionItem>
 
-            <AccordionItem value="details" className="border rounded-2xl px-4 sm:px-6 overflow-hidden border-border/30">
+            <AccordionItem value="details" className="border rounded-2xl px-4 sm:px-6 overflow-hidden border-border/30 shadow-card">
               <AccordionTrigger className="text-base font-semibold py-5">Product Details</AccordionTrigger>
               <AccordionContent className="pb-5">
                 <div className="grid sm:grid-cols-2 gap-x-8 gap-y-3">
@@ -627,7 +627,7 @@ export default function ProductDetailPage() {
               </AccordionContent>
             </AccordionItem>
 
-            <AccordionItem value="shipping" className="border rounded-2xl px-4 sm:px-6 overflow-hidden border-border/30">
+            <AccordionItem value="shipping" className="border rounded-2xl px-4 sm:px-6 overflow-hidden border-border/30 shadow-card">
               <AccordionTrigger className="text-base font-semibold py-5">Shipping & Returns</AccordionTrigger>
               <AccordionContent className="pb-5 text-sm text-charcoal-light space-y-3">
                 <div className="flex items-start gap-3">
@@ -647,7 +647,7 @@ export default function ProductDetailPage() {
               </AccordionContent>
             </AccordionItem>
 
-            <AccordionItem id="reviews" value="reviews" className="border rounded-2xl px-4 sm:px-6 overflow-hidden border-border/30">
+            <AccordionItem id="reviews" value="reviews" className="border rounded-2xl px-4 sm:px-6 overflow-hidden border-border/30 shadow-card">
               <AccordionTrigger className="text-base font-semibold py-5">
                 Reviews ({realReviewCount})
               </AccordionTrigger>
@@ -688,7 +688,7 @@ export default function ProductDetailPage() {
 
                     {/* Real Reviews */}
                     {productReviews.map((review) => (
-                      <div key={review.id} className="p-4 rounded-xl border border-border/20">
+                      <div key={review.id} className="p-4 rounded-xl border border-border/20 shadow-card">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
                             <div className="h-8 w-8 rounded-full bg-secondary/10 flex items-center justify-center text-xs font-bold text-secondary">

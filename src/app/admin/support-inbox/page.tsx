@@ -266,7 +266,7 @@ export default function SupportInboxPage() {
         <p className="text-sm text-charcoal-lighter mt-1">Chat with customers and guests visiting the store.</p>
       </div>
 
-      <div className="flex h-[calc(100vh-220px)] min-h-[500px] rounded-2xl border border-border/30 bg-white overflow-hidden">
+      <div className="flex h-[calc(100vh-220px)] min-h-[500px] rounded-luxury border border-border/30 bg-white shadow-card overflow-hidden">
         {/* Conversation list */}
         <div className={cn("w-full sm:w-80 shrink-0 border-r border-border/20 flex flex-col", activeId && "hidden sm:flex")}>
           <div className="p-3 border-b border-border/20 space-y-2">
@@ -440,7 +440,7 @@ export default function SupportInboxPage() {
                   placeholder="Type a reply..."
                   rows={1}
                   maxLength={5000}
-                  className="flex-1 resize-none rounded-xl border border-border/30 bg-pearl/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-secondary/30 max-h-28"
+                  className="flex-1 resize-none rounded-lg border border-border/30 bg-pearl/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-secondary/30 max-h-28"
                 />
                 {canReply && (
                   <button

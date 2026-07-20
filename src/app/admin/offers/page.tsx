@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { Plus, Edit, Trash2, MoreHorizontal, Loader2, AlertTriangle, Tag, Search, X, Users, FolderTree, ShoppingCart, Globe, Check, Award } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -235,13 +236,15 @@ export default function AdminOffersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Offers & Promotions</h1>
-          <p className="text-sm text-charcoal-lighter">{offers.length} offer{offers.length !== 1 ? "s" : ""} · {activeCount} active</p>
+          <p className="text-sm text-charcoal-lighter">
+            <span className="font-semibold text-charcoal [font-variant-numeric:tabular-nums]">{offers.length}</span> offer{offers.length !== 1 ? "s" : ""} · <span className="font-semibold text-charcoal [font-variant-numeric:tabular-nums]">{activeCount}</span> active
+          </p>
         </div>
         {canAddOffer && <AdminButton onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Create Offer</AdminButton>}
       </div>
 
       {listError && (
-        <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-3">
+        <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-4 py-3">
           <AlertTriangle className="h-4 w-4 shrink-0" /> {listError}
         </div>
       )}
@@ -254,13 +257,19 @@ export default function AdminOffersPage() {
         <EmptyState icon={Tag} title="No offers yet" description="Create your first promotional offer." actionLabel={canAddOffer ? "Create Offer" : undefined} onAction={canAddOffer ? openCreate : undefined} />
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {offers.map((offer) => {
+          {offers.map((offer, i) => {
             const config = applicabilityConfig[offer.applicability] || applicabilityConfig.store;
             const Icon = config.icon;
             const isExpired = offer.end_date && new Date(offer.end_date) < new Date();
 
             return (
-              <Card key={offer.id} className={cn("transition-opacity", (!offer.is_active || isExpired) && "opacity-60")}>
+              <motion.div
+                key={offer.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+              >
+              <Card className={cn("transition-opacity", (!offer.is_active || isExpired) && "opacity-60")}>
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between mb-3">
                     <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", config.color)}>
@@ -289,10 +298,10 @@ export default function AdminOffersPage() {
                   </div>
 
                   {offer.applicable_ids && offer.applicable_ids.length > 0 && (
-                    <p className="text-[10px] text-charcoal-lighter mb-2">{offer.applicable_ids.length} {applicableItemNoun(offer.applicability, offer.applicable_ids.length)}</p>
+                    <p className="text-[10px] text-charcoal-lighter mb-2 [font-variant-numeric:tabular-nums]">{offer.applicable_ids.length} {applicableItemNoun(offer.applicability, offer.applicable_ids.length)}</p>
                   )}
 
-                  <div className="flex items-center gap-2 text-[10px] text-charcoal-lighter mb-3">
+                  <div className="flex items-center gap-2 text-[10px] text-charcoal-lighter mb-3 [font-variant-numeric:tabular-nums]">
                     {offer.start_date && offer.end_date && (
                       <span>{formatDateShort(offer.start_date)} — {formatDateShort(offer.end_date)}</span>
                     )}
@@ -307,6 +316,7 @@ export default function AdminOffersPage() {
                   </div>
                 </CardContent>
               </Card>
+              </motion.div>
             );
           })}
         </div>
@@ -357,7 +367,7 @@ export default function AdminOffersPage() {
                 {/* Customer / Product search */}
                 {(formApplicability === "customers" || formApplicability === "products") && (
                   <div>
-                    <div className="flex items-center gap-2 px-3 rounded-xl border border-border bg-pearl/30">
+                    <div className="flex items-center gap-2 px-3 rounded-lg border border-border bg-pearl/30">
                       <Search className="h-3.5 w-3.5 text-charcoal-lighter shrink-0" />
                       <input
                         type="text"
@@ -369,7 +379,7 @@ export default function AdminOffersPage() {
                       {searchLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-charcoal-lighter shrink-0" />}
                     </div>
                     {searchResults.length > 0 && (
-                      <div className="mt-1 max-h-36 overflow-y-auto border border-border/30 rounded-xl bg-white">
+                      <div className="mt-1 max-h-36 overflow-y-auto border border-border/30 rounded-lg bg-white">
                         {searchResults.map((r) => {
                           const isSelected = formSelectedIds.some((s) => s.id === r.id);
                           return (
@@ -390,7 +400,7 @@ export default function AdminOffersPage() {
 
                 {/* Category/Subcategory/Tier/Brand selection */}
                 {(formApplicability === "categories" || formApplicability === "subcategories" || formApplicability === "tiers" || formApplicability === "brands") && (
-                  <div className="max-h-44 overflow-y-auto border border-border/30 rounded-xl bg-white">
+                  <div className="max-h-44 overflow-y-auto border border-border/30 rounded-lg bg-white">
                     {getListOptions().length === 0 ? (
                       <p className="px-3 py-4 text-xs text-charcoal-lighter text-center">No {formApplicability} found</p>
                     ) : getListOptions().map((opt) => {
@@ -477,9 +487,9 @@ export default function AdminOffersPage() {
             <DialogDescription>This action cannot be undone.</DialogDescription>
           </DialogHeader>
           {deleteDialog && (
-            <div className="p-3 rounded-xl bg-pearl/60">
+            <div className="p-3 rounded-lg bg-pearl/60">
               <p className="text-sm font-medium text-charcoal">{deleteDialog.title}</p>
-              <p className="text-xs text-charcoal-lighter mt-1">{deleteDialog.discount} · {deleteDialog.usage_count} times used</p>
+              <p className="text-xs text-charcoal-lighter mt-1 [font-variant-numeric:tabular-nums]">{deleteDialog.discount} · {deleteDialog.usage_count} times used</p>
             </div>
           )}
           <DialogFooter>

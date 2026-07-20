@@ -247,7 +247,7 @@ export default function OrderManagementPage() {
         ].map((s) => (
           <Card key={s.label}><CardContent className="p-3 flex items-center gap-2.5">
             <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg shrink-0", s.bg)}><s.icon className={cn("h-3.5 w-3.5", s.color)} /></div>
-            <div><p className="text-base font-bold text-charcoal leading-tight">{s.value}</p><p className="text-[9px] text-charcoal-lighter">{s.label}</p></div>
+            <div><p className="text-base font-bold text-charcoal leading-tight [font-variant-numeric:tabular-nums]">{s.value}</p><p className="text-[9px] text-charcoal-lighter">{s.label}</p></div>
           </CardContent></Card>
         ))}
       </div>
@@ -342,7 +342,7 @@ export default function OrderManagementPage() {
                           <p className="text-xs text-charcoal">{order.payment}</p>
                           <Badge variant={order.payment_status === "paid" ? "success" : order.payment_status === "refunded" ? "warning" : "default"} className="text-[8px] mt-0.5">{order.payment_status}</Badge>
                         </td>
-                        <td className="px-4 py-3 font-semibold text-charcoal">{formatCurrency(order.total)}</td>
+                        <td className="px-4 py-3 font-semibold text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(order.total)}</td>
                         <td className="px-4 py-3">
                           <span className={cn("inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full", config.color, config.bg)}>
                             <Icon className="h-3 w-3" /> {config.label}
@@ -359,10 +359,10 @@ export default function OrderManagementPage() {
 
                             {/* Advance Status */}
                             {next && canHandleOrders ? (
-                              <button onClick={() => handleQuickAdvance(order)}
-                                className="flex h-8 items-center gap-1 px-2.5 rounded-lg bg-charcoal text-[10px] font-semibold !text-white hover:bg-secondary hover:shadow-[0_2px_12px_rgba(122,79,160,0.25)] transition-all">
+                              <AdminButton variant="primary" size="xs" onClick={() => handleQuickAdvance(order)}
+                                className="!h-8 gap-1 px-2.5 text-[10px] !rounded-lg !bg-charcoal hover:!bg-secondary">
                                 <ArrowUpRight className="h-3 w-3" /> <span className="hidden xl:inline">{statusConfig[next].label}</span>
-                              </button>
+                              </AdminButton>
                             ) : null}
 
                             {/* More */}
@@ -420,7 +420,7 @@ export default function OrderManagementPage() {
                   const sc = statusConfig[s];
                   return (
                     <button key={s} onClick={() => setNewStatus(s)} disabled={s === statusDialog.status}
-                      className={cn("flex items-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all",
+                      className={cn("flex items-center gap-2 p-3 rounded-lg border text-sm font-medium transition-all",
                         newStatus === s ? "border-secondary bg-secondary/5 text-secondary" : "border-border text-charcoal-light hover:border-charcoal",
                         s === statusDialog.status && "opacity-30 cursor-not-allowed")}>
                       <sc.icon className="h-4 w-4" /> {sc.label}
@@ -468,7 +468,7 @@ export default function OrderManagementPage() {
             const NextIcon = nextConfig.icon;
             return (
               <div className="space-y-4">
-                <div className="p-3 rounded-xl bg-pearl/60">
+                <div className="p-3 rounded-lg bg-pearl/60">
                   <p className="text-sm font-medium text-charcoal">{advanceDialog.id}</p>
                   <p className="text-xs text-charcoal-lighter">{advanceDialog.customer} · {formatCurrency(advanceDialog.total)}</p>
                 </div>

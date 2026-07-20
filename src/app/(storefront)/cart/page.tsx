@@ -102,13 +102,14 @@ export default function CartPage() {
           {/* Items */}
           <div className="lg:col-span-2 min-w-0">
             <AnimatePresence mode="popLayout">
-              {items.map((item) => (
+              {items.map((item, i) => (
                 <motion.div
                   key={item.id}
                   layout
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
+                  transition={{ delay: i * 0.05 }}
                   className="flex gap-3 sm:gap-6 py-4 sm:py-6 border-b border-border/30"
                 >
                   <div className="relative h-24 w-[68px] sm:h-40 sm:w-32 flex-shrink-0 rounded-xl overflow-hidden bg-pearl">
@@ -165,7 +166,7 @@ export default function CartPage() {
 
           {/* Summary */}
           <div>
-            <div className="rounded-2xl border border-border/30 bg-pearl/30 p-3 sm:p-6">
+            <div className="rounded-2xl border border-border/30 bg-pearl/30 shadow-card p-3 sm:p-6">
               <h3 className="font-heading text-base sm:text-lg font-semibold text-charcoal mb-4">Price Details</h3>
 
               <PriceCalculator

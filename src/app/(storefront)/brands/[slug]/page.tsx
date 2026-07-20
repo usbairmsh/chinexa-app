@@ -13,6 +13,7 @@ import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pagination } from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ProductCard } from "@/components/storefront/product/product-card";
 import { useProducts } from "@/hooks/queries/use-products";
 import type { ProductListParams } from "@/types/product";
@@ -122,11 +123,11 @@ export default function BrandPage() {
   if (!brand) {
     return (
       <div className="bg-white min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Award className="h-12 w-12 text-charcoal-lighter mx-auto mb-4" />
-          <h1 className="text-xl font-semibold text-charcoal mb-2">Brand Not Found</h1>
-          <p className="text-charcoal-lighter">The brand you are looking for does not exist.</p>
-        </div>
+        <EmptyState
+          icon={Award}
+          title="Brand Not Found"
+          description="The brand you are looking for does not exist."
+        />
       </div>
     );
   }
@@ -288,10 +289,11 @@ export default function BrandPage() {
                 </div>
               </div>
             ) : !data?.data?.length ? (
-              <div className="text-center py-20">
-                <Award className="h-10 w-10 text-charcoal-lighter mx-auto mb-3" />
-                <p className="text-charcoal-lighter">No products found for this brand.</p>
-              </div>
+              <EmptyState
+                icon={Award}
+                title="No products found"
+                description="This brand doesn't have any products matching your filters yet."
+              />
             ) : (
               <motion.div
                 key={`${params.page}-${params.sort_by}`}

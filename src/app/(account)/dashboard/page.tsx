@@ -10,6 +10,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { EmptyState } from "@/components/ui/empty-state";
 
 import { useAuthStore } from "@/stores/auth.store";
 import { useCustomerBadge } from "@/hooks/use-customer-badge";
@@ -108,17 +109,17 @@ export default function AccountDashboard() {
     <div className="space-y-6">
       {/* Welcome Banner */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <Card className="bg-gradient-to-r from-secondary/10 via-primary-light to-coral-light border-0 overflow-hidden relative">
+        <Card className="rounded-2xl bg-gradient-to-r from-secondary/10 via-primary-light to-coral-light border-0 overflow-hidden relative">
           <CardContent className="p-4 sm:p-6 lg:p-8">
             <div className="relative z-10">
               {loyaltyTier && (
-                <p className="text-xs font-medium text-secondary uppercase tracking-widest mb-1">
-                  <Badge className={cn("text-[10px] border-0", tierColor.className)} style={tierColor.style}>
+                <div className="mb-2">
+                  <Badge className={cn("text-[10px] border-0 uppercase tracking-widest", tierColor.className)} style={tierColor.style}>
                     {loyaltyTier} Member
                   </Badge>
-                </p>
+                </div>
               )}
-              <h2 className="font-heading text-lg sm:text-xl lg:text-2xl font-semibold text-charcoal mb-2 flex items-center gap-1.5 flex-wrap">
+              <h2 className="font-heading text-xl sm:text-2xl lg:text-3xl font-bold text-charcoal mb-2 flex items-center gap-1.5 flex-wrap">
                 {/* Gate on `mounted` — the persisted store differs from server HTML on refresh */}
                 Welcome back, {mounted && user?.name ? user.name : "Beautiful"}!
                 {badgeData?.badge_color && <VerifiedBadge color={badgeData.badge_color} opacity={badgeData.badge_opacity} size={22} tooltip={badgeData.badge_name} />}
@@ -181,7 +182,14 @@ export default function AccountDashboard() {
               <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading...
             </div>
           ) : recentOrders.length === 0 ? (
-            <p className="text-sm text-charcoal-lighter text-center py-8">No orders yet. Start shopping!</p>
+            <EmptyState
+              icon={ShoppingBag}
+              title="No orders yet"
+              description="Start shopping to see your orders here."
+              actionLabel="Start Shopping"
+              actionHref="/products"
+              className="py-8"
+            />
           ) : recentOrders.map((order) => {
             const config = statusConfig[order.status] || statusConfig.pending;
             const StatusIcon = config.icon;

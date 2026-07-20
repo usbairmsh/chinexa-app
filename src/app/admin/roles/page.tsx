@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Badge } from "@/components/ui/badge";
 import { cn, collectMissingFields } from "@/lib/utils";
 import { ALL_PERMISSIONS } from "../layout";
 import { normalizePermissions, type PermissionAction, type PermissionsMap } from "@/lib/admin-permissions";
@@ -136,7 +137,7 @@ export default function AdminRolesPage() {
         <AdminButton onClick={openAdd}><Plus className="h-4 w-4 mr-1" /> Add Role</AdminButton>
       </div>
 
-      {success && <div className="p-3 rounded-xl bg-success/10 border border-success/20 text-success text-sm font-medium">{success}</div>}
+      {success && <div className="p-3 rounded-luxury bg-success/10 border border-success/20 text-success text-sm font-medium">{success}</div>}
 
       {roles.length === 0 ? (
         <EmptyState icon={Shield} title="No roles yet" description="Create a role to use as a preset when adding admins." actionLabel="Add Role" onAction={openAdd} />
@@ -162,16 +163,16 @@ export default function AdminRolesPage() {
                         {role.description && <p className="text-[11px] text-charcoal-lighter">{role.description}</p>}
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
-                        <div className="flex flex-wrap gap-1 max-w-[280px]">
+                        <div className="flex flex-wrap items-center gap-1 max-w-[280px]">
                           {grantedSections.length > 0 ? (
                             <>
                               {grantedSections.slice(0, 3).map(([key, actions]) => (
-                                <span key={key} className="text-[9px] bg-pearl px-1.5 py-0.5 rounded text-charcoal-lighter capitalize">{key.replace(/_/g, " ")} ({actions.length})</span>
+                                <Badge key={key} variant="outline" className="text-[10px] py-0 capitalize">{key.replace(/_/g, " ")} ({actions.length})</Badge>
                               ))}
-                              {grantedSections.length > 3 && <span className="text-[9px] text-charcoal-lighter">+{grantedSections.length - 3}</span>}
+                              {grantedSections.length > 3 && <span className="text-[10px] text-charcoal-lighter">+{grantedSections.length - 3}</span>}
                             </>
                           ) : (
-                            <span className="text-[10px] text-warning">No access set</span>
+                            <Badge variant="warning" className="text-[10px] py-0">No access set</Badge>
                           )}
                         </div>
                       </td>
@@ -206,7 +207,7 @@ export default function AdminRolesPage() {
             <Textarea label="Description" placeholder="What this role is for" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} />
             <div>
               <label className="block text-sm font-medium text-charcoal-light mb-2"><FieldLabel label="Section Access" hint="This is copied into an admin's own permissions when this role is selected as a preset — editing the role later does not affect admins who already picked it." /></label>
-              <div className="space-y-4 p-3 rounded-xl border border-border/30 bg-pearl/20">
+              <div className="space-y-4 p-3 rounded-luxury border border-border/30 bg-pearl/20">
                 {Object.entries(permsBySection).map(([navSection, sections]) => (
                   <div key={navSection}>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-charcoal-lighter mb-1.5">{navSection}</p>

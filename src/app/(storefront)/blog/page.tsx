@@ -3,10 +3,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Clock, Eye } from "lucide-react";
+import { Clock, Eye, Newspaper } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useRecentPosts } from "@/hooks/queries/use-blog";
 import { formatDateShort } from "@/lib/utils";
 
@@ -40,6 +41,12 @@ export default function BlogPage() {
               </div>
             ))}
           </div>
+        ) : !posts || posts.length === 0 ? (
+          <EmptyState
+            icon={Newspaper}
+            title="No articles yet"
+            description="Check back soon for tips, guides, and stories from the world of beauty and luxury lifestyle."
+          />
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {posts?.map((post, index) => (

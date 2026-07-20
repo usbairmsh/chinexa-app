@@ -154,7 +154,7 @@ export default function AdminReviewsPage() {
         ].map((stat) => (
           <Card key={stat.label}><CardContent className="p-4 text-center">
             <p className="text-xs text-charcoal-lighter">{stat.label}</p>
-            <p className={cn("text-2xl font-bold mt-1", stat.color)}>{stat.value}</p>
+            <p className={cn("text-2xl font-bold mt-1 [font-variant-numeric:tabular-nums]", stat.color)}>{stat.value}</p>
           </CardContent></Card>
         ))}
       </div>
@@ -182,7 +182,7 @@ export default function AdminReviewsPage() {
             <DialogDescription>Your reply will be visible to all customers on the product page</DialogDescription>
           </DialogHeader>
           {replyDialog && (
-            <div className="p-3 rounded-xl bg-pearl/60 mb-2">
+            <div className="p-3 rounded-lg bg-pearl/60 mb-2">
               <div className="flex items-center gap-1 mb-1">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className={cn("h-3 w-3", i < replyDialog.rating ? "text-gold fill-gold" : "text-border")} />)}</div>
               <p className="text-xs text-charcoal-light line-clamp-2">{replyDialog.comment}</p>
               <p className="text-[10px] text-charcoal-lighter mt-1">— {replyDialog.customer_name}</p>

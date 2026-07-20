@@ -137,7 +137,9 @@ export default function AdminBlogPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Blog</h1>
-          <p className="text-sm text-charcoal-lighter">{posts.length} post{posts.length !== 1 ? "s" : ""} · {publishedCount} published · {draftCount} draft{draftCount !== 1 ? "s" : ""}</p>
+          <p className="text-sm text-charcoal-lighter">
+            <span className="font-semibold text-charcoal [font-variant-numeric:tabular-nums]">{posts.length}</span> post{posts.length !== 1 ? "s" : ""} · <span className="font-semibold text-charcoal [font-variant-numeric:tabular-nums]">{publishedCount}</span> published · <span className="font-semibold text-charcoal [font-variant-numeric:tabular-nums]">{draftCount}</span> draft{draftCount !== 1 ? "s" : ""}
+          </p>
         </div>
         {canAddBlog && <AdminButton onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> New Post</AdminButton>}
       </div>
@@ -153,14 +155,14 @@ export default function AdminBlogPage() {
               <CardContent className="p-0">
                 <div className="flex gap-4 p-4">
                   {post.featured_image && (
-                    <div className="relative h-24 w-36 flex-shrink-0 rounded-xl overflow-hidden bg-pearl hidden sm:block">
+                    <div className="relative h-24 w-36 flex-shrink-0 rounded-lg overflow-hidden bg-pearl hidden sm:block">
                       <Image src={post.featured_image} alt={post.title} fill className="object-cover" sizes="144px" unoptimized={post.featured_image.startsWith("/uploads/")} />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <h3 className="font-medium text-charcoal mb-1 line-clamp-1">{post.title}</h3>
+                        <h3 className="text-sm font-semibold text-charcoal mb-1 line-clamp-1">{post.title}</h3>
                         {post.excerpt && <p className="text-xs text-charcoal-lighter line-clamp-2 mb-2">{post.excerpt}</p>}
                       </div>
                       <DropdownMenu>
@@ -178,8 +180,8 @@ export default function AdminBlogPage() {
                     <div className="flex flex-wrap items-center gap-3 text-[10px] text-charcoal-lighter">
                       <Badge variant={post.is_published ? "success" : "warning"} className="text-[10px]">{post.is_published ? "Published" : "Draft"}</Badge>
                       {post.published_at && <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {formatDateShort(post.published_at)}</span>}
-                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {post.reading_time} min</span>
-                      <span>{(post.views || 0).toLocaleString()} views</span>
+                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> <span className="[font-variant-numeric:tabular-nums]">{post.reading_time}</span> min</span>
+                      <span className="[font-variant-numeric:tabular-nums]">{(post.views || 0).toLocaleString()} views</span>
                       {post.category && <Badge variant="outline" className="text-[10px]">{post.category}</Badge>}
                       <Switch checked={post.is_published} onCheckedChange={() => handleTogglePublish(post)} disabled={!canEditBlog} />
                     </div>
@@ -207,7 +209,7 @@ export default function AdminBlogPage() {
             <Input label="Title" required placeholder="The Ultimate Guide to..." value={formTitle} onChange={(e) => handleTitleChange(e.target.value)} />
             <div>
               <label className="block text-sm font-medium text-charcoal-light mb-1.5">Slug</label>
-              <div className="flex items-center rounded-xl border border-border overflow-hidden focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20">
+              <div className="flex items-center rounded-lg border border-border overflow-hidden focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20">
                 <span className="px-2.5 text-[11px] text-charcoal-lighter bg-pearl border-r border-border h-11 flex items-center shrink-0">/blog/</span>
                 <input className="flex-1 h-11 px-3 text-sm text-charcoal outline-none" value={formSlug} onChange={(e) => { setFormSlug(e.target.value); setAutoSlug(false); }} placeholder="post-slug" />
               </div>
@@ -250,7 +252,7 @@ export default function AdminBlogPage() {
             <DialogTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-destructive" /> Delete Post</DialogTitle>
             <DialogDescription>This action cannot be undone.</DialogDescription>
           </DialogHeader>
-          {deleteDialog && <p className="text-sm text-charcoal-light"><strong>{deleteDialog.title}</strong> — {(deleteDialog.views || 0).toLocaleString()} views</p>}
+          {deleteDialog && <p className="text-sm text-charcoal-light"><strong>{deleteDialog.title}</strong> — <span className="[font-variant-numeric:tabular-nums]">{(deleteDialog.views || 0).toLocaleString()}</span> views</p>}
           <DialogFooter>
             <AdminButton variant="outline" onClick={() => setDeleteDialog(null)}>Cancel</AdminButton>
             <AdminButton variant="danger" onClick={handleDelete}><Trash2 className="h-3.5 w-3.5" /> Delete</AdminButton>

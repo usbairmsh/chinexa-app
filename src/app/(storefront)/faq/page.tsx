@@ -58,20 +58,21 @@ export default function FaqPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14 space-y-8">
         {faqSections.map((section, si) => (
           <motion.div
             key={section.title}
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ delay: si * 0.05 }}
+            transition={{ delay: si * 0.08 }}
+            className="rounded-2xl border border-border/60 bg-white shadow-card px-5 sm:px-8 py-6 sm:py-8"
           >
-            <h2 className="font-heading text-xl font-semibold text-charcoal mb-4">{section.title}</h2>
+            <h2 className="font-heading text-xl sm:text-2xl font-semibold text-charcoal mb-2">{section.title}</h2>
             <Accordion type="single" collapsible>
               {section.faqs.map((faq, i) => (
                 <AccordionItem key={i} value={`${section.title}-${i}`}>
-                  <AccordionTrigger className="text-left">{faq.q}</AccordionTrigger>
+                  <AccordionTrigger className="text-left text-base">{faq.q}</AccordionTrigger>
                   <AccordionContent className="text-charcoal-lighter leading-relaxed">{faq.a}</AccordionContent>
                 </AccordionItem>
               ))}

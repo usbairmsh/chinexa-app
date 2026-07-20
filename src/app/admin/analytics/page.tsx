@@ -5,6 +5,7 @@ import { TrendingUp, ShoppingCart, Users, Package, AlertTriangle } from "lucide-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   useRevenueChartData, useOrdersChartData, useTrafficData, useTopProductsData,
   useLowStockProducts, useAdminDashboardStats,
@@ -15,7 +16,10 @@ import {
   CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 
-const tooltipStyle = { borderRadius: "12px", border: "1px solid #E8DDD4", fontSize: "12px", boxShadow: "0 4px 30px rgba(0,0,0,0.04)" };
+const tooltipStyle = { borderRadius: "12px", border: "1px solid #F3DFEC", fontSize: "12px", boxShadow: "0 4px 30px rgba(0,0,0,0.04)" };
+const chartGrid = "#F3DFEC";
+const chartAxisLabel = "#8A7590";
+const chartAccent = "#7A4FA0";
 const STATUS_COLORS: Record<string, string> = {
   pending: "#F59E0B", confirmed: "#7A4FA0", processing: "#60A5FA", shipped: "#3B82F6",
   on_delivery: "#8B5CF6", received: "#10B981", not_received: "#EF4444", returned: "#F97316", cancelled: "#6B7280",
@@ -30,7 +34,7 @@ export default function AdminAnalyticsPage() {
   const { data: topProducts, isLoading: loadingTop } = useTopProductsData(5);
   const { data: lowStock, isLoading: loadingLowStock } = useLowStockProducts();
 
-  const orderStatusData = (stats?.order_statuses || []).map((s) => ({ ...s, color: STATUS_COLORS[s.name] || "#6B6B6B" }));
+  const orderStatusData = (stats?.order_statuses || []).map((s) => ({ ...s, color: STATUS_COLORS[s.name] || chartAxisLabel }));
 
   return (
     <div className="space-y-6">
@@ -60,7 +64,7 @@ export default function AdminAnalyticsPage() {
               <span className="text-sm text-charcoal-lighter">Total Revenue</span>
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-success/10"><TrendingUp className="h-4 w-4 text-success" /></div>
             </div>
-            {loadingStats ? <Skeleton className="h-7 w-24" /> : <p className="text-2xl font-bold text-charcoal">{formatCurrency(stats?.stats.total_revenue || 0)}</p>}
+            {loadingStats ? <Skeleton className="h-7 w-24" /> : <p className="text-2xl font-bold text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(stats?.stats.total_revenue || 0)}</p>}
           </CardContent>
         </Card>
         <Card>
@@ -69,7 +73,7 @@ export default function AdminAnalyticsPage() {
               <span className="text-sm text-charcoal-lighter">Total Orders</span>
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary/10"><ShoppingCart className="h-4 w-4 text-secondary" /></div>
             </div>
-            {loadingStats ? <Skeleton className="h-7 w-16" /> : <p className="text-2xl font-bold text-charcoal">{stats?.stats.total_orders || 0}</p>}
+            {loadingStats ? <Skeleton className="h-7 w-16" /> : <p className="text-2xl font-bold text-charcoal [font-variant-numeric:tabular-nums]">{stats?.stats.total_orders || 0}</p>}
           </CardContent>
         </Card>
         <Card>
@@ -78,7 +82,7 @@ export default function AdminAnalyticsPage() {
               <span className="text-sm text-charcoal-lighter">Total Customers</span>
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-100"><Users className="h-4 w-4 text-charcoal" /></div>
             </div>
-            {loadingStats ? <Skeleton className="h-7 w-16" /> : <p className="text-2xl font-bold text-charcoal">{stats?.stats.total_customers || 0}</p>}
+            {loadingStats ? <Skeleton className="h-7 w-16" /> : <p className="text-2xl font-bold text-charcoal [font-variant-numeric:tabular-nums]">{stats?.stats.total_customers || 0}</p>}
           </CardContent>
         </Card>
         <Card>
@@ -87,7 +91,7 @@ export default function AdminAnalyticsPage() {
               <span className="text-sm text-charcoal-lighter">Avg Order Value</span>
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold/10"><Package className="h-4 w-4 text-gold" /></div>
             </div>
-            {loadingStats ? <Skeleton className="h-7 w-24" /> : <p className="text-2xl font-bold text-charcoal">{formatCurrency(stats?.stats.average_order_value || 0)}</p>}
+            {loadingStats ? <Skeleton className="h-7 w-24" /> : <p className="text-2xl font-bold text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(stats?.stats.average_order_value || 0)}</p>}
           </CardContent>
         </Card>
       </div>
@@ -109,9 +113,9 @@ export default function AdminAnalyticsPage() {
                         <stop offset="95%" stopColor="#7A4FA0" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E8DDD4" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#6B6B6B" }} axisLine={false} tickLine={false} />
-                    <YAxis tickFormatter={(v) => `৳${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 9, fill: "#6B6B6B" }} axisLine={false} tickLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 9, fill: chartAxisLabel }} axisLine={false} tickLine={false} />
+                    <YAxis tickFormatter={(v) => `৳${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 9, fill: chartAxisLabel }} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatCurrency(Number(v))} />
                     <Area type="monotone" dataKey="value" name="Revenue" stroke="#7A4FA0" fill="url(#analyticsRevenueGrad)" strokeWidth={2} />
                   </AreaChart>
@@ -131,12 +135,12 @@ export default function AdminAnalyticsPage() {
               <div className="w-full" style={{ height: 260 }}>
                 <ResponsiveContainer width="100%" height="100%" debounce={300}>
                   <LineChart data={ordersData || []} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E8DDD4" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#6B6B6B" }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 9, fill: "#6B6B6B" }} axisLine={false} tickLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 9, fill: chartAxisLabel }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 9, fill: chartAxisLabel }} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={tooltipStyle} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Line type="monotone" dataKey="orders" name="Orders" stroke="#C0392B" strokeWidth={2} dot={{ r: 2.5, fill: "#C0392B" }} />
+                    <Line type="monotone" dataKey="orders" name="Orders" stroke={chartAccent} strokeWidth={2} dot={{ r: 2.5, fill: chartAccent }} />
                     <Line type="monotone" dataKey="customers" name="Customers" stroke="#60A5FA" strokeWidth={2} dot={{ r: 2.5, fill: "#60A5FA" }} />
                   </LineChart>
                 </ResponsiveContainer>
@@ -159,15 +163,15 @@ export default function AdminAnalyticsPage() {
                   <AreaChart data={trafficData || []} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
                     <defs>
                       <linearGradient id="analyticsVisitorsGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#E74C3C" stopOpacity={0.15} />
-                        <stop offset="95%" stopColor="#E74C3C" stopOpacity={0} />
+                        <stop offset="5%" stopColor={chartAccent} stopOpacity={0.15} />
+                        <stop offset="95%" stopColor={chartAccent} stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E8DDD4" vertical={false} />
-                    <XAxis dataKey="day" tick={{ fontSize: 9, fill: "#6B6B6B" }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 9, fill: "#6B6B6B" }} axisLine={false} tickLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} vertical={false} />
+                    <XAxis dataKey="day" tick={{ fontSize: 9, fill: chartAxisLabel }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 9, fill: chartAxisLabel }} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Area type="monotone" dataKey="visitors" name="Visitors" stroke="#E74C3C" fill="url(#analyticsVisitorsGrad)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="visitors" name="Visitors" stroke={chartAccent} fill="url(#analyticsVisitorsGrad)" strokeWidth={2} />
                     <Area type="monotone" dataKey="conversions" name="Conversions" stroke="#10B981" fill="none" strokeWidth={2} strokeDasharray="5 5" />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -201,7 +205,7 @@ export default function AdminAnalyticsPage() {
                         <span className="h-2 w-2 rounded-full" style={{ backgroundColor: s.color }} />
                         <span className="text-xs text-charcoal-lighter capitalize">{s.name.replace(/_/g, " ")}</span>
                       </div>
-                      <span className="text-xs font-medium text-charcoal">{s.value}</span>
+                      <span className="text-xs font-medium text-charcoal [font-variant-numeric:tabular-nums]">{s.value}</span>
                     </div>
                   ))}
                 </div>
@@ -219,15 +223,15 @@ export default function AdminAnalyticsPage() {
             {loadingTop ? (
               <div className="p-5"><Skeleton className="h-40 w-full" /></div>
             ) : !topProducts || topProducts.length === 0 ? (
-              <p className="text-sm text-charcoal-lighter py-6 text-center">No sales data yet.</p>
+              <EmptyState icon={Package} title="No sales data yet" description="Top-selling products will appear here once orders come in." className="py-10" />
             ) : (
               <div className="divide-y divide-border/20">
                 {topProducts.map((p) => (
                   <div key={p.id} className="flex items-center justify-between px-4 py-3">
                     <span className="text-sm text-charcoal truncate max-w-[180px]">{p.name}</span>
                     <div className="text-right">
-                      <p className="text-sm font-medium text-charcoal">{formatCurrency(p.revenue)}</p>
-                      <p className="text-xs text-charcoal-lighter">{p.total_sold} sold</p>
+                      <p className="text-sm font-medium text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(p.revenue)}</p>
+                      <p className="text-xs text-charcoal-lighter [font-variant-numeric:tabular-nums]">{p.total_sold} sold</p>
                     </div>
                   </div>
                 ))}
@@ -243,13 +247,13 @@ export default function AdminAnalyticsPage() {
             {loadingLowStock ? (
               <div className="p-5"><Skeleton className="h-40 w-full" /></div>
             ) : !lowStock || lowStock.length === 0 ? (
-              <p className="text-sm text-charcoal-lighter py-6 text-center">No low-stock products right now.</p>
+              <EmptyState icon={AlertTriangle} title="No low-stock products" description="Every product is comfortably stocked right now." className="py-10" />
             ) : (
               <div className="divide-y divide-border/20">
                 {lowStock.map((p) => (
                   <div key={p.name} className="flex items-center justify-between px-4 py-3">
                     <span className="text-sm text-charcoal truncate max-w-[200px]">{p.name}</span>
-                    <span className="text-xs font-medium text-destructive">{p.stock} left</span>
+                    <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive [font-variant-numeric:tabular-nums]">{p.stock} left</span>
                   </div>
                 ))}
               </div>

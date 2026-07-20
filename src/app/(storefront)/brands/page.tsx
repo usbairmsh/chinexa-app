@@ -8,6 +8,7 @@ import { Award, Globe } from "lucide-react";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface Brand {
   id: string;
@@ -70,10 +71,11 @@ export default function BrandsPage() {
             ))}
           </div>
         ) : brands.length === 0 ? (
-          <div className="text-center py-20">
-            <Award className="h-12 w-12 text-charcoal-lighter mx-auto mb-4" />
-            <p className="text-charcoal-lighter">No brands available yet.</p>
-          </div>
+          <EmptyState
+            icon={Award}
+            title="No brands available yet"
+            description="Check back soon as we continue curating trusted brands for you."
+          />
         ) : (
           <motion.div
             initial={{ opacity: 0 }}
@@ -89,7 +91,7 @@ export default function BrandsPage() {
               >
                 <Link
                   href={`/brands/${brand.slug}`}
-                  className="group block rounded-2xl border border-border/30 bg-white p-5 hover:border-primary/30 hover:shadow-lg transition-all duration-300"
+                  className="group block rounded-2xl border border-border/30 bg-white p-5 shadow-card hover:border-primary/30 hover:shadow-luxury-hover transition-all duration-300"
                 >
                   {/* Logo */}
                   <div className="flex items-center justify-center h-20 mb-4">
@@ -108,7 +110,7 @@ export default function BrandsPage() {
                   </div>
 
                   {/* Info */}
-                  <h3 className="font-semibold text-charcoal text-center mb-1 group-hover:text-secondary transition-colors">
+                  <h3 className="font-heading text-base font-semibold text-charcoal text-center mb-1 group-hover:text-secondary transition-colors">
                     {brand.name}
                   </h3>
 

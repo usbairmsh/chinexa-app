@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Heart } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { FOOTER_LINKS } from "@/data/constants/navigation";
+import { useStoreSettings } from "@/hooks/use-store-settings";
 
 export function Footer() {
+  const { payment_methods } = useStoreSettings();
+  const enabledPayments = payment_methods.filter((m) => m.enabled);
+
   return (
     <footer className="bg-pearl border-t border-border/30">
       {/* Main Footer */}
@@ -93,16 +96,30 @@ export function Footer() {
           <p>
             &copy; {new Date().getFullYear()} ChineXa. All rights reserved.
           </p>
-          <p className="flex items-center gap-1">
-            Made with <Heart className="h-3 w-3 text-secondary fill-secondary" /> in Bangladesh
-          </p>
-          <div className="flex items-center gap-4">
-            <span className="font-medium">We Accept:</span>
-            <span>bKash</span>
-            <span>Nagad</span>
-            <span>COD</span>
-            <span>Card</span>
-          </div>
+          <p>Developed by ChineXa</p>
+          {enabledPayments.length > 0 && (
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <span className="font-medium">We Accept:</span>
+              {enabledPayments.map((m) =>
+                m.icon ? (
+                  <span key={m.id} title={m.name} className="flex h-6 items-center rounded-md border border-border/70 bg-white px-1.5">
+                    <Image
+                      src={m.icon}
+                      alt={m.name}
+                      width={40}
+                      height={20}
+                      unoptimized={m.icon.startsWith("data:") || m.icon.includes("/uploads/")}
+                      className="h-3.5 w-auto object-contain"
+                    />
+                  </span>
+                ) : (
+                  <span key={m.id} className="rounded-md border border-border/70 bg-white px-1.5 py-0.5 text-[10px] font-medium text-charcoal-light">
+                    {m.name}
+                  </span>
+                )
+              )}
+            </div>
+          )}
         </div>
       </div>
     </footer>

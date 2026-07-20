@@ -102,7 +102,7 @@ function DeliveryApplicabilityPicker({
                 {searchLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-charcoal-lighter shrink-0" />}
               </div>
               {searchResults.length > 0 && (
-                <div className="mt-1 max-h-36 overflow-y-auto border border-border/30 rounded-xl bg-white">
+                <div className="mt-1 max-h-36 overflow-y-auto border border-border/30 rounded-lg bg-white">
                   {searchResults.map((r) => {
                     const isSelected = selectedIds.some((s) => s.id === r.id);
                     return (
@@ -122,7 +122,7 @@ function DeliveryApplicabilityPicker({
           )}
 
           {(applicability === "categories" || applicability === "subcategories" || applicability === "tiers" || applicability === "brands") && (
-            <div className="max-h-44 overflow-y-auto border border-border/30 rounded-xl bg-white">
+            <div className="max-h-44 overflow-y-auto border border-border/30 rounded-lg bg-white">
               {options.length === 0 ? (
                 <p className="px-3 py-4 text-xs text-charcoal-lighter text-center">No {applicability} found</p>
               ) : options.map((opt) => {
@@ -478,7 +478,7 @@ function AdminSettingsPageInner() {
       <h1 className="font-heading text-2xl font-semibold text-charcoal">Settings</h1>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-pearl/60 p-1 rounded-xl overflow-x-auto">
+      <div className="flex gap-1 bg-pearl/60 p-1 rounded-lg overflow-x-auto">
         {tabList.map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             className={cn("flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all", activeTab === tab.id ? "bg-white text-charcoal shadow-card" : "text-charcoal-lighter hover:text-charcoal")}>
@@ -536,7 +536,7 @@ function AdminSettingsPageInner() {
                   {socialLinks.map((link, i) => {
                     const platform = getPlatform(link.platform);
                     return (
-                      <div key={i} className="relative p-3 rounded-xl border border-border/30 bg-pearl/20 space-y-2">
+                      <div key={i} className="relative p-3 rounded-lg border border-border/30 bg-pearl/20 space-y-2">
                         <button onClick={() => setSocialLinks((prev) => prev.filter((_, idx) => idx !== i))} className="absolute top-2 right-2 p-0.5 text-charcoal-lighter/40 hover:text-destructive transition-colors">
                           <X className="h-3 w-3" />
                         </button>
@@ -572,7 +572,7 @@ function AdminSettingsPageInner() {
                           type="button"
                           onClick={() => setNewSocialPlatform(p.id)}
                           className={cn(
-                            "flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all",
+                            "flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all",
                             newSocialPlatform === p.id ? "border-secondary bg-secondary/5 shadow-sm" : "border-border/30 hover:border-secondary/40"
                           )}
                         >
@@ -646,7 +646,7 @@ function AdminSettingsPageInner() {
                   {ourStory.values.map((value, i) => {
                     const Icon = OUR_STORY_ICON_MAP[value.icon] || OUR_STORY_ICON_MAP.Sparkles;
                     return (
-                      <div key={i} className="flex items-start gap-2 p-3 rounded-xl border border-border/30 bg-pearl/20">
+                      <div key={i} className="flex items-start gap-2 p-3 rounded-lg border border-border/30 bg-pearl/20">
                         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-light shrink-0 mt-0.5"><Icon className="h-4 w-4 text-secondary" /></div>
                         <div className="flex-1 min-w-0 space-y-2">
                           <div className="grid sm:grid-cols-[120px_1fr] gap-2">
@@ -676,7 +676,7 @@ function AdminSettingsPageInner() {
                 <label className="text-sm font-medium text-charcoal-light mb-2 block">Stats Row</label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {ourStory.stats.map((stat, i) => (
-                    <div key={i} className="relative p-3 rounded-xl border border-border/30 bg-pearl/20 space-y-2">
+                    <div key={i} className="relative p-3 rounded-lg border border-border/30 bg-pearl/20 space-y-2">
                       <button onClick={() => removeStat(i)} className="absolute top-2 right-2 p-0.5 text-charcoal-lighter/40 hover:text-destructive transition-colors">
                         <X className="h-3 w-3" />
                       </button>
@@ -705,7 +705,7 @@ function AdminSettingsPageInner() {
                 </div>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {instagramPosts.map((post, i) => (
-                    <div key={post.id} className="relative p-3 rounded-xl border border-border/30 bg-pearl/20 space-y-2">
+                    <div key={post.id} className="relative p-3 rounded-lg border border-border/30 bg-pearl/20 space-y-2">
                       <button onClick={() => removeInstagramPost(i)} className="absolute top-2 right-2 z-10 p-1 rounded-md bg-white/90 text-charcoal-lighter/60 hover:text-destructive transition-colors">
                         <X className="h-3 w-3" />
                       </button>
@@ -731,7 +731,7 @@ function AdminSettingsPageInner() {
               </div>
               <div className="space-y-2">
                 {faqItems.map((item, i) => (
-                  <div key={i} className="flex items-start gap-2 p-3 rounded-xl border border-border/30 bg-pearl/20">
+                  <div key={i} className="flex items-start gap-2 p-3 rounded-lg border border-border/30 bg-pearl/20">
                     <div className="flex-1 min-w-0 space-y-2">
                       <Input value={item.question} onChange={(e) => updateFaqItem(i, { question: e.target.value })} placeholder="Question" className="h-9" />
                       <Textarea value={item.answer} onChange={(e) => updateFaqItem(i, { answer: e.target.value })} placeholder="Answer" className="min-h-[70px]" />
@@ -977,7 +977,7 @@ function AdminSettingsPageInner() {
               <div className="flex items-center justify-between">
                 <div>
                   {smsBalance !== null && !smsBalanceError ? (
-                    <p className="text-2xl font-semibold text-charcoal">{smsBalance.toLocaleString()} <span className="text-sm font-normal text-charcoal-lighter">SMS credits</span></p>
+                    <p className="text-2xl font-semibold text-charcoal [font-variant-numeric:tabular-nums]">{smsBalance.toLocaleString()} <span className="text-sm font-normal text-charcoal-lighter">SMS credits</span></p>
                   ) : smsBalanceError ? (
                     <p className="text-sm text-destructive">{smsBalanceError}</p>
                   ) : (

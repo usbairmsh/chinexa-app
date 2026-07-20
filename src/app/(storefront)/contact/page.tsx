@@ -39,7 +39,7 @@ export default function ContactPage() {
           <div className="lg:col-span-2 space-y-4">
             {!loaded ? (
               Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="h-[68px] rounded-xl bg-pearl animate-pulse" />
+                <div key={i} className="h-[68px] rounded-luxury bg-pearl animate-pulse" />
               ))
             ) : contactInfo.map((item, i) => (
               <motion.div
@@ -50,7 +50,7 @@ export default function ContactPage() {
                 transition={{ delay: i * 0.05 }}
               >
                 <a href={item.href} className="group">
-                  <Card className="hover:shadow-card-hover transition-shadow">
+                  <Card>
                     <CardContent className="p-4 flex items-center gap-4">
                       <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-light group-hover:bg-secondary/10 transition-colors">
                         <item.icon className="h-5 w-5 text-secondary" />

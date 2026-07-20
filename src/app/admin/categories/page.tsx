@@ -229,7 +229,7 @@ export default function AdminCategoriesPage() {
       <AnimatePresence>
         {saved && (
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-            className="flex items-center gap-2 p-3 rounded-xl bg-success/10 border border-success/20 text-success text-sm font-medium">
+            className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success/20 text-success text-sm font-medium">
             <Check className="h-4 w-4" /> Changes saved and applied to storefront, topbar, and database.
           </motion.div>
         )}
@@ -268,7 +268,7 @@ export default function AdminCategoriesPage() {
                         </div>
 
                         {/* Image */}
-                        <div className="relative h-11 w-11 rounded-xl overflow-hidden bg-pearl shrink-0">
+                        <div className="relative h-11 w-11 rounded-lg overflow-hidden bg-pearl shrink-0">
                           <Image src={cat.image || `https://picsum.photos/seed/cat-${cat.slug}/100/100`} alt={cat.name} fill className="object-cover" sizes="44px" unoptimized={cat.image?.startsWith("data:")} />
                           {!visible && <div className="absolute inset-0 bg-white/60 flex items-center justify-center"><EyeOff className="h-3.5 w-3.5 text-charcoal-lighter" /></div>}
                         </div>
@@ -444,7 +444,7 @@ export default function AdminCategoriesPage() {
 
             <div>
               <label className="block text-sm font-medium text-charcoal-light mb-1.5">URL Slug</label>
-              <div className="flex items-center rounded-xl border border-border overflow-hidden focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20 transition-all">
+              <div className="flex items-center rounded-lg border border-border overflow-hidden focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20 transition-all">
                 <span className="px-2.5 text-[11px] text-charcoal-lighter bg-pearl border-r border-border h-11 flex items-center shrink-0">/categories/</span>
                 <input value={formSlug} onChange={(e) => { setFormSlug(e.target.value); setAutoSlug(false); }} placeholder="hair-care" className="flex-1 h-11 px-3 text-sm text-charcoal bg-transparent outline-none min-w-0" />
               </div>
@@ -464,7 +464,7 @@ export default function AdminCategoriesPage() {
             <Separator />
 
             {/* Topbar Toggle */}
-            <div className="flex items-center justify-between p-3 rounded-xl bg-pearl/60">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-pearl/60">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary/10 shrink-0">
                   <Globe className="h-4 w-4 text-secondary" />
@@ -478,7 +478,7 @@ export default function AdminCategoriesPage() {
 
             {/* Preview */}
             {formName && (
-              <div className="p-3 rounded-xl border border-border/30">
+              <div className="p-3 rounded-lg border border-border/30">
                 <p className="text-[9px] text-charcoal-lighter uppercase tracking-wider font-semibold mb-2 flex items-center gap-1">
                   <Sparkles className="h-3 w-3 text-secondary" /> Preview
                 </p>
@@ -518,7 +518,7 @@ export default function AdminCategoriesPage() {
           </DialogHeader>
           {deleteDialog && (
             <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-pearl/60">
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-pearl/60">
                 <div className="relative h-10 w-10 rounded-lg overflow-hidden bg-pearl shrink-0">
                   {deleteDialog.image ? (
                     <Image src={deleteDialog.image} alt={deleteDialog.name} fill className="object-cover" sizes="40px" unoptimized={deleteDialog.image.startsWith("data:") || deleteDialog.image.startsWith("/uploads/")} />

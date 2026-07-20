@@ -147,7 +147,7 @@ export default function DeliverySettingsPage() {
       <AnimatePresence>
         {saved && (
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-            className="flex items-center gap-2 p-3 rounded-xl bg-success/10 border border-success/20 text-success text-sm font-medium">
+            className="flex items-center gap-2 p-3 rounded-luxury bg-success/10 border border-success/20 text-success text-sm font-medium">
             <Check className="h-4 w-4" /> Settings saved! Changes are live on the storefront.
           </motion.div>
         )}
@@ -160,7 +160,7 @@ export default function DeliverySettingsPage() {
           <CardDescription>Configure free delivery threshold for your customers</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-4 rounded-xl bg-pearl/60">
+          <div className="flex items-center justify-between p-4 rounded-luxury bg-pearl/60">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-success/10 shrink-0">
                 <Truck className="h-5 w-5 text-success" />
@@ -177,7 +177,7 @@ export default function DeliverySettingsPage() {
               <div>
                 <label className="block text-sm font-medium text-charcoal-light mb-1.5">Minimum Order Amount for Free Delivery</label>
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center rounded-xl border border-border overflow-hidden focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20 transition-all flex-1 max-w-xs">
+                  <div className="flex items-center rounded-luxury border border-border overflow-hidden focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20 transition-all flex-1 max-w-xs">
                     <span className="px-3 text-sm text-charcoal-lighter bg-pearl border-r border-border h-11 flex items-center">৳</span>
                     <input type="number" value={thresholdInput} onChange={(e) => setThresholdInput(e.target.value)}
                       className="flex-1 h-11 px-3 text-sm font-medium text-charcoal bg-transparent outline-none" />
@@ -233,7 +233,7 @@ export default function DeliverySettingsPage() {
                         <div className="flex items-center gap-1">
                           <span className="text-xs text-charcoal-lighter">৳</span>
                           <input type="number" value={editZoneData.charge} onChange={(e) => setEditZoneData({ ...editZoneData, charge: e.target.value })}
-                            className="w-16 h-8 px-2 text-sm font-medium text-center border border-secondary/30 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-secondary/20" />
+                            className="w-16 h-8 px-2 text-sm font-medium text-center border border-secondary/30 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-secondary/20 [font-variant-numeric:tabular-nums]" />
                         </div>
                       </td>
                       <td className="px-4 py-2 hidden md:table-cell">
@@ -269,10 +269,10 @@ export default function DeliverySettingsPage() {
                         <p className="text-xs text-charcoal-lighter truncate max-w-[200px]">{zone.areas}</p>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="font-semibold text-charcoal">{formatCurrency(zone.charge)}</span>
+                        <span className="font-semibold text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(zone.charge)}</span>
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
-                        <span className="flex items-center gap-1 text-xs text-charcoal-lighter"><Clock className="h-3 w-3" /> {zone.estimatedDays} days</span>
+                        <span className="flex items-center gap-1 text-xs text-charcoal-lighter [font-variant-numeric:tabular-nums]"><Clock className="h-3 w-3" /> {zone.estimatedDays} days</span>
                       </td>
                       <td className="px-4 py-3">
                         <Switch checked={zone.isActive} onCheckedChange={(v) => { updateZone(zone.id, { isActive: v }); showSaved(); }} />
@@ -313,7 +313,7 @@ export default function DeliverySettingsPage() {
         <CardContent>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {partners.map((partner) => (
-              <div key={partner.id} className={cn("flex items-center justify-between p-4 rounded-xl border border-border/30", !partner.isActive && "opacity-50 bg-pearl/30")}>
+              <div key={partner.id} className={cn("flex items-center justify-between p-4 rounded-luxury border border-border/30 shadow-card", !partner.isActive && "opacity-50 bg-pearl/30")}>
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10 shrink-0">
                     <Truck className="h-5 w-5 text-secondary" />

@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -149,35 +150,37 @@ export default function MyReviewsPage() {
             <EmptyState icon={Star} title="No reviews yet" description="Reviews you write will show up here." />
           ) : (
             <div className="space-y-3">
-              {myReviews.map((review) => (
-                <Card key={review.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <p className="text-sm font-medium text-charcoal">{review.product_name}</p>
-                          {review.is_verified_purchase && <Badge variant="success" className="text-[9px]">Verified Purchase</Badge>}
-                          <Badge variant={review.is_approved ? "success" : "warning"} className="text-[9px]">{review.is_approved ? "Published" : "Pending Approval"}</Badge>
+              {myReviews.map((review, i) => (
+                <motion.div key={review.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="text-sm font-medium text-charcoal">{review.product_name}</p>
+                            {review.is_verified_purchase && <Badge variant="success" className="text-[9px]">Verified Purchase</Badge>}
+                            <Badge variant={review.is_approved ? "success" : "warning"} className="text-[9px]">{review.is_approved ? "Published" : "Pending Approval"}</Badge>
+                          </div>
+                          <div className="flex items-center gap-0.5 mt-1">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star key={i} className={cn("h-3.5 w-3.5", i < review.rating ? "text-gold fill-gold" : "text-border")} />
+                            ))}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-0.5 mt-1">
-                          {Array.from({ length: 5 }).map((_, i) => (
-                            <Star key={i} className={cn("h-3.5 w-3.5", i < review.rating ? "text-gold fill-gold" : "text-border")} />
-                          ))}
+                        <span className="text-[10px] text-charcoal-lighter shrink-0">{formatDateShort(review.created_at)}</span>
+                      </div>
+                      {review.title && <h4 className="text-sm font-medium text-charcoal mb-1">{review.title}</h4>}
+                      <p className="text-sm text-charcoal-light">{review.comment}</p>
+                      {review.images && review.images.length > 0 && <ReviewImageGallery images={review.images} />}
+                      {review.admin_reply && (
+                        <div className="mt-3 p-3 rounded-lg bg-primary-light">
+                          <p className="text-[10px] font-medium text-secondary mb-0.5">ChineXa Reply</p>
+                          <p className="text-xs text-charcoal-light">{review.admin_reply}</p>
                         </div>
-                      </div>
-                      <span className="text-[10px] text-charcoal-lighter shrink-0">{formatDateShort(review.created_at)}</span>
-                    </div>
-                    {review.title && <h4 className="text-sm font-medium text-charcoal mb-1">{review.title}</h4>}
-                    <p className="text-sm text-charcoal-light">{review.comment}</p>
-                    {review.images && review.images.length > 0 && <ReviewImageGallery images={review.images} />}
-                    {review.admin_reply && (
-                      <div className="mt-3 p-3 rounded-lg bg-primary-light">
-                        <p className="text-[10px] font-medium text-secondary mb-0.5">ChineXa Reply</p>
-                        <p className="text-xs text-charcoal-light">{review.admin_reply}</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
               ))}
             </div>
           )}
@@ -196,20 +199,20 @@ export default function MyReviewsPage() {
               <label className="text-xs font-medium text-charcoal-light mb-1.5 block">Rating</label>
               <div className="flex gap-1">
                 {[1, 2, 3, 4, 5].map((s) => (
-                  <button key={s} type="button" onClick={() => setRating(s)} className="p-1.5">
+                  <motion.button key={s} type="button" onClick={() => setRating(s)} className="p-1.5" whileTap={{ scale: 0.85 }}>
                     <Star className={cn("h-6 w-6 transition-colors", s <= rating ? "text-gold fill-gold" : "text-border hover:text-gold/50")} />
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             </div>
 
-            <input
+            <Input
               type="text"
+              label="Review Title"
               placeholder="Review title (optional)"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={255}
-              className="w-full h-10 rounded-xl border border-border bg-white px-3 text-sm text-charcoal placeholder:text-charcoal-lighter/50 focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
             />
 
             <Textarea

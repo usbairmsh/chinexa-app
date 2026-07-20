@@ -4,6 +4,7 @@ import { useState, useRef, type ReactNode } from "react";
 import Image from "next/image";
 import { Upload, X, Link2, ImagePlus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AdminButton } from "@/components/admin/shared/admin-button";
 
 interface ImageUploadProps {
   value?: string;
@@ -219,16 +220,11 @@ export function ImageUpload({
               onChange={(e) => setUrlInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleUrlApply()}
               placeholder={placeholder}
-              className="flex-1 h-10 rounded-xl border border-border bg-white px-3 text-sm text-charcoal placeholder:text-charcoal-lighter/50 focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20 transition-all"
+              className="flex-1 h-10 rounded-luxury bg-beige-dark/70 shadow-[inset_0_0_0_1px_rgba(58,36,56,0.06)] px-3 text-sm text-charcoal placeholder:text-charcoal-lighter/50 hover:bg-beige-dark focus:bg-white focus:shadow-[inset_0_0_0_1.5px_var(--color-secondary)] focus:outline-none transition-all"
             />
-            <button
-              type="button"
-              onClick={handleUrlApply}
-              disabled={!urlInput.trim()}
-              className="h-10 px-4 rounded-full bg-secondary !text-white text-[12px] font-body font-semibold tracking-wide hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
+            <AdminButton size="sm" onClick={handleUrlApply} disabled={!urlInput.trim()}>
               Apply
-            </button>
+            </AdminButton>
           </div>
           <p className="text-[10px] text-charcoal-lighter">Paste a direct image URL and click Apply to preview</p>
         </div>

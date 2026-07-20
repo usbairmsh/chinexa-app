@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query } from "@/lib/db";
+import { ensureOrderArchiveColumns } from "@/lib/migrate-order-archive";
 
 interface CountRow extends RowDataPacket { count: number; }
 interface SumRow extends RowDataPacket { total: number; }
@@ -16,6 +17,7 @@ interface CustomerWindowRow extends RowDataPacket { recent_count: number; prev_c
 
 export async function GET() {
   try {
+    await ensureOrderArchiveColumns();
     // All independent — none depend on another's result — so they run as one
     // round-trip batch instead of the ~16 sequential ones this route used to issue.
     const [
@@ -33,12 +35,17 @@ export async function GET() {
     ] = await Promise.all([
       query<CountRow[]>("SELECT COUNT(*) as count FROM products WHERE is_active = 1"),
       query<CountRow[]>("SELECT COUNT(*) as count FROM customers"),
-      query<CountRow[]>("SELECT COUNT(*) as count FROM orders"),
+      // Archived orders are excluded from every admin-facing count/total —
+      // they're set to 'cancelled' and reversed on archive (see PUT /api/orders/[id]),
+      // but is_archived = 0 here specifically drops them from "Total Orders"
+      // too, distinct from a genuine (non-archived) cancellation, which should
+      // still count as a real order that was once placed.
+      query<CountRow[]>("SELECT COUNT(*) as count FROM orders WHERE is_archived = 0"),
       // SUM(total) and COUNT(*) share the same predicate — one query, not two.
-      query<RevenueRow[]>("SELECT COALESCE(SUM(total), 0) as total, COUNT(*) as order_count FROM orders WHERE status = 'received' AND payment_status = 'paid'"),
-      query<CountRow[]>("SELECT COUNT(*) as count FROM orders WHERE status = 'pending'"),
+      query<RevenueRow[]>("SELECT COALESCE(SUM(total), 0) as total, COUNT(*) as order_count FROM orders WHERE status = 'received' AND payment_status = 'paid' AND is_archived = 0"),
+      query<CountRow[]>("SELECT COUNT(*) as count FROM orders WHERE status = 'pending' AND is_archived = 0"),
       query<CountRow[]>("SELECT COUNT(*) as count FROM reviews WHERE is_approved = 0"),
-      query<StatusRow[]>("SELECT status, COUNT(*) as count FROM orders GROUP BY status"),
+      query<StatusRow[]>("SELECT status, COUNT(*) as count FROM orders WHERE is_archived = 0 GROUP BY status"),
       query<CategoryRow[]>(`
         SELECT p.category_name, COALESCE(SUM(oi.total_price), 0) as revenue
         FROM order_items oi

@@ -207,9 +207,9 @@ export default function OrderDetailPage() {
           </div>
         </div>
         {canEditOrder && (
-          <button onClick={openEditOrder} className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-border text-[11px] font-medium text-charcoal-lighter hover:border-secondary hover:text-secondary transition-all">
-            <Edit className="h-3 w-3" /> Edit Order
-          </button>
+          <AdminButton variant="outline" size="sm" onClick={openEditOrder}>
+            <Edit className="h-3.5 w-3.5" /> Edit Order
+          </AdminButton>
         )}
       </div>
 
@@ -222,8 +222,8 @@ export default function OrderDetailPage() {
               {items.length === 0 ? (
                 <p className="text-sm text-charcoal-lighter text-center py-4">No items</p>
               ) : items.map((item, i) => (
-                <div key={i} className="flex gap-4 p-3 rounded-xl bg-pearl/40">
-                  <div className="relative h-14 w-14 rounded-xl overflow-hidden bg-pearl shrink-0">
+                <div key={i} className="flex gap-4 p-3 rounded-luxury bg-pearl/40">
+                  <div className="relative h-14 w-14 rounded-lg overflow-hidden bg-pearl shrink-0">
                     <Image src={(item.product_image as string) || "https://placehold.co/56x56"} alt={(item.product_name as string) || ""} fill className="object-cover" sizes="56px" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -231,16 +231,16 @@ export default function OrderDetailPage() {
                     {item.variant ? <p className="text-[10px] text-charcoal-lighter truncate">{String(item.variant)}</p> : null}
                     <p className="text-xs text-charcoal-lighter">Qty: {item.quantity as number}</p>
                   </div>
-                  <p className="text-sm font-semibold text-charcoal shrink-0">{formatCurrency(Number(item.total_price) || Number(item.unit_price))}</p>
+                  <p className="text-sm font-semibold text-charcoal shrink-0 [font-variant-numeric:tabular-nums]">{formatCurrency(Number(item.total_price) || Number(item.unit_price))}</p>
                 </div>
               ))}
               <Separator />
-              <div className="space-y-1.5 text-sm">
+              <div className="space-y-1.5 text-sm [font-variant-numeric:tabular-nums]">
                 <div className="flex justify-between"><span className="text-charcoal-lighter">Subtotal</span><span>{formatCurrency(Number(order.subtotal))}</span></div>
                 <div className="flex justify-between"><span className="text-charcoal-lighter">Shipping</span><span>{Number(order.shipping_cost) === 0 ? "Free" : formatCurrency(Number(order.shipping_cost))}</span></div>
                 {Number(order.discount) > 0 && <div className="flex justify-between text-success"><span>Discount</span><span>-{formatCurrency(Number(order.discount))}</span></div>}
                 <Separator />
-                <div className="flex justify-between font-semibold text-charcoal text-base"><span>Total</span><span>{formatCurrency(Number(order.total))}</span></div>
+                <div className="flex justify-between font-bold text-charcoal text-base"><span>Total</span><span>{formatCurrency(Number(order.total))}</span></div>
               </div>
             </CardContent>
           </Card>
@@ -342,14 +342,14 @@ export default function OrderDetailPage() {
               <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-1.5"><RotateCcw className="h-3.5 w-3.5 text-secondary" /> Returns</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 {returns.map((ret) => (
-                  <div key={ret.id as string} className="p-3 rounded-xl border border-border/30 space-y-2">
+                  <div key={ret.id as string} className="p-3 rounded-lg border border-border/30 space-y-2">
                     <div className="flex items-center justify-between">
                       <Badge variant={String(ret.status) === "approved" ? "success" : String(ret.status) === "rejected" ? "destructive" : String(ret.status) === "refunded" ? "success" : "warning"} className="text-[9px] capitalize">{String(ret.status)}</Badge>
                       <span className="text-[10px] text-charcoal-lighter">{formatDateShort(ret.created_at as string)}</span>
                     </div>
                     <p className="text-xs text-charcoal"><span className="font-medium">Reason:</span> {String(ret.reason).replace("_", " ")}</p>
                     {ret.description ? <p className="text-xs text-charcoal-lighter">{String(ret.description)}</p> : null}
-                    <p className="text-xs text-charcoal"><span className="font-medium">Refund:</span> {formatCurrency(Number(ret.refund_amount))}</p>
+                    <p className="text-xs text-charcoal [font-variant-numeric:tabular-nums]"><span className="font-medium">Refund:</span> {formatCurrency(Number(ret.refund_amount))}</p>
                     {ret.status === "requested" && canApproveReturns && (
                       <div className="flex gap-2 pt-1">
                         <AdminButton size="xs" onClick={() => handleReturnAction(ret.id as string, "approved")} disabled={returnActionLoading === ret.id}>
@@ -432,7 +432,7 @@ export default function OrderDetailPage() {
                       min={1}
                       value={item.quantity}
                       onChange={(e) => updateEditItem(i, { quantity: Math.max(1, Math.floor(Number(e.target.value) || 1)) })}
-                      className="w-16 h-9 rounded-lg border border-border px-2 text-xs text-charcoal outline-none focus:border-secondary"
+                      className="w-16 h-9 rounded-lg border border-border px-2 text-xs text-charcoal outline-none focus:border-secondary [font-variant-numeric:tabular-nums]"
                       placeholder="Qty"
                     />
                     <input
@@ -441,10 +441,10 @@ export default function OrderDetailPage() {
                       step="0.01"
                       value={item.unit_price}
                       onChange={(e) => updateEditItem(i, { unit_price: Math.max(0, Number(e.target.value) || 0) })}
-                      className="w-24 h-9 rounded-lg border border-border px-2 text-xs text-charcoal outline-none focus:border-secondary"
+                      className="w-24 h-9 rounded-lg border border-border px-2 text-xs text-charcoal outline-none focus:border-secondary [font-variant-numeric:tabular-nums]"
                       placeholder="Unit price"
                     />
-                    <span className="w-20 shrink-0 text-xs text-charcoal-lighter text-right">{formatCurrency(item.quantity * item.unit_price)}</span>
+                    <span className="w-20 shrink-0 text-xs text-charcoal-lighter text-right [font-variant-numeric:tabular-nums]">{formatCurrency(item.quantity * item.unit_price)}</span>
                     <button type="button" onClick={() => removeEditItem(i)} className="shrink-0 text-charcoal-lighter hover:text-destructive">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -460,9 +460,9 @@ export default function OrderDetailPage() {
               <Input label="Discount" type="number" min={0} step="0.01" value={editDiscount} onChange={(e) => setEditDiscount(Math.max(0, Number(e.target.value) || 0))} />
               <Input label="Tax" type="number" min={0} step="0.01" value={editTax} onChange={(e) => setEditTax(Math.max(0, Number(e.target.value) || 0))} />
             </div>
-            <div className="flex justify-between text-sm p-3 rounded-lg bg-pearl/50">
+            <div className="flex justify-between text-sm p-3 rounded-lg bg-pearl/50 [font-variant-numeric:tabular-nums]">
               <span className="text-charcoal-lighter">Subtotal {formatCurrency(editSubtotal)} — New Total</span>
-              <span className="font-semibold text-charcoal">{formatCurrency(editTotal)}</span>
+              <span className="font-bold text-charcoal">{formatCurrency(editTotal)}</span>
             </div>
 
             {/* Shipping Address */}
@@ -488,11 +488,11 @@ export default function OrderDetailPage() {
             <Textarea label="Order Notes" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Internal notes..." className="min-h-[60px]" />
           </div>
           <DialogFooter>
-            <button onClick={() => setEditOrderOpen(false)} className="px-4 py-2 text-xs text-charcoal-lighter hover:text-charcoal">Cancel</button>
+            <AdminButton variant="ghost" size="sm" onClick={() => setEditOrderOpen(false)}>Cancel</AdminButton>
             {can("orders", "edit") && (
-              <button onClick={handleSaveOrder} disabled={editSaving} className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary !text-white text-xs font-semibold hover:bg-secondary-dark hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] disabled:opacity-40 transition-all duration-300">
+              <AdminButton variant="primary" size="sm" onClick={handleSaveOrder} disabled={editSaving}>
                 {editSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save
-              </button>
+              </AdminButton>
             )}
           </DialogFooter>
         </DialogContent>

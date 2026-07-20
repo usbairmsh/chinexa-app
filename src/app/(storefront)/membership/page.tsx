@@ -85,20 +85,20 @@ export default function MembershipBenefitsPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-10 space-y-6">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14 space-y-8">
         {/* Current membership summary — signed-in customers only */}
         {isAuthenticated && user?.id && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            <Card className="bg-gradient-to-r from-secondary/10 via-primary-light to-coral-light border-0">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between flex-wrap gap-3">
+            <Card className="rounded-2xl bg-gradient-to-r from-secondary/10 via-primary-light to-coral-light border-0 shadow-card">
+              <CardContent className="p-6 sm:p-8">
+                <div className="flex items-center justify-between flex-wrap gap-4">
                   <div>
-                    <p className="text-xs text-charcoal-lighter mb-1">Your current membership</p>
+                    <p className="text-xs text-charcoal-lighter mb-1.5">Your current membership</p>
                     <div className="flex items-center gap-2">
                       {(() => {
                         const summaryTierColor = resolveTierColorStyle(currentTier?.color);
                         return (
-                          <Badge className={cn("text-[10px]", summaryTierColor.className)} style={summaryTierColor.style}>
+                          <Badge className={cn("text-xs", summaryTierColor.className)} style={summaryTierColor.style}>
                             {currentTier?.name || "—"} Member
                           </Badge>
                         );
@@ -108,18 +108,18 @@ export default function MembershipBenefitsPage() {
                       )}
                     </div>
                   </div>
-                  <p className="font-heading text-2xl font-bold text-charcoal flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-gold" /> {totalPoints.toLocaleString()} <span className="text-sm font-normal text-charcoal-lighter">points</span>
+                  <p className="font-heading text-2xl sm:text-3xl font-bold text-charcoal flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-gold" /> {totalPoints.toLocaleString()} <span className="text-sm font-normal text-charcoal-lighter">points</span>
                   </p>
                 </div>
                 {nextTierAt > 0 && (
-                  <div className="max-w-xs mt-4">
-                    <div className="flex items-center justify-between text-[10px] text-charcoal-lighter mb-1">
+                  <div className="max-w-xs mt-5">
+                    <div className="flex items-center justify-between text-xs text-charcoal-lighter mb-1.5">
                       <span>{totalPoints.toLocaleString()} pts</span>
                       <span>Next tier at {nextTierAt.toLocaleString()}</span>
                     </div>
                     <Progress value={Math.min((totalPoints / nextTierAt) * 100, 100)} />
-                    <p className="text-[9px] text-charcoal-lighter mt-1">{pointsToNext} points to go</p>
+                    <p className="text-xs text-charcoal-lighter mt-1.5">{pointsToNext} points to go</p>
                   </div>
                 )}
               </CardContent>
@@ -129,11 +129,11 @@ export default function MembershipBenefitsPage() {
 
         {/* Guests — nudge to create an account instead of a personal summary */}
         {!isAuthenticated && (
-          <Card className="bg-gradient-to-r from-secondary/10 via-primary-light to-coral-light border-0">
-            <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <Card className="rounded-2xl bg-gradient-to-r from-secondary/10 via-primary-light to-coral-light border-0 shadow-card">
+            <CardContent className="p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-center sm:text-left">
-                <p className="font-heading text-lg font-semibold text-charcoal">Start earning points today</p>
-                <p className="text-sm text-charcoal-lighter mt-0.5">Create a free account to track your points and unlock every tier below.</p>
+                <p className="font-heading text-lg sm:text-xl font-semibold text-charcoal">Start earning points today</p>
+                <p className="text-sm text-charcoal-lighter mt-1">Create a free account to track your points and unlock every tier below.</p>
               </div>
               <Link href="/register"><Button variant="secondary" className="!text-white shrink-0">Create Account</Button></Link>
             </CardContent>
@@ -141,9 +141,9 @@ export default function MembershipBenefitsPage() {
         )}
 
         {/* All tiers */}
-        <Card>
-          <CardContent className="p-4 sm:p-5">
-            <h3 className="text-sm font-semibold text-charcoal mb-3">Membership Levels</h3>
+        <Card className="rounded-2xl shadow-card">
+          <CardContent className="p-6 sm:p-8">
+            <h3 className="font-heading text-lg sm:text-xl font-semibold text-charcoal mb-5">Membership Levels</h3>
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-6 w-6 animate-spin text-charcoal-lighter" />
@@ -151,7 +151,7 @@ export default function MembershipBenefitsPage() {
             ) : tiers.length === 0 ? (
               <EmptyState icon={Crown} title="No membership tiers yet" description="Membership levels and their perks will show up here once configured." />
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {tiers.map((tier, i) => {
                   const isCurrent = isAuthenticated && tier.id === currentTierId;
                   const isExpanded = tier.id === expandedId;
@@ -161,31 +161,31 @@ export default function MembershipBenefitsPage() {
                       key={tier.id}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.03 }}
+                      transition={{ delay: i * 0.05 }}
                     >
                       <div
                         className={cn(
-                          "rounded-xl border transition-colors cursor-pointer",
-                          isCurrent ? "border-secondary/40 bg-secondary/5" : "border-border/20 hover:bg-pearl/50"
+                          "rounded-2xl border transition-colors cursor-pointer",
+                          isCurrent ? "border-secondary/40 bg-secondary/5 shadow-card" : "border-border/20 hover:bg-pearl/50"
                         )}
                         onClick={() => setExpandedId(isExpanded ? null : tier.id)}
                       >
-                        <div className="flex items-center gap-3 p-4">
-                          <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl shrink-0", rowTierColor.className)} style={rowTierColor.style}>
+                        <div className="flex items-center gap-4 p-5">
+                          <div className={cn("flex h-12 w-12 items-center justify-center rounded-xl shrink-0", rowTierColor.className)} style={rowTierColor.style}>
                             {tier.badge_enabled && tier.badge_color ? (
-                              <VerifiedBadge color={tier.badge_color} opacity={tier.badge_opacity} size={22} tooltip={tier.badge_name} />
+                              <VerifiedBadge color={tier.badge_color} opacity={tier.badge_opacity} size={24} tooltip={tier.badge_name} />
                             ) : (
                               <Crown className="h-5 w-5" />
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <p className="text-sm font-semibold text-charcoal">{tier.name}</p>
+                              <p className="font-heading text-base font-semibold text-charcoal">{tier.name}</p>
                               {isCurrent && (
-                                <Badge className="text-[9px] bg-secondary/15 text-secondary">Your tier</Badge>
+                                <Badge className="text-[10px] bg-secondary/15 text-secondary">Your tier</Badge>
                               )}
                             </div>
-                            <p className="text-[10px] text-charcoal-lighter mt-0.5">
+                            <p className="text-xs text-charcoal-lighter mt-1">
                               {tier.min_points.toLocaleString()}
                               {tier.max_points > 0 ? ` – ${tier.max_points.toLocaleString()}` : "+"} points
                               {tier.points_multiplier !== 1 ? ` · ${tier.points_multiplier}x points` : ""}
@@ -194,9 +194,9 @@ export default function MembershipBenefitsPage() {
                         </div>
 
                         {isExpanded && (
-                          <div className="px-4 pb-4">
+                          <div className="px-5 pb-5">
                             {tier.benefits && tier.benefits.length > 0 ? (
-                              <ul className="space-y-1.5 pl-1">
+                              <ul className="space-y-2 pl-1">
                                 {tier.benefits.map((benefit, bi) => (
                                   <li key={bi} className="flex items-start gap-2 text-xs text-charcoal-light">
                                     {isCurrent ? (

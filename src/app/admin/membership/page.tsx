@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import {
   Crown, Edit, Trash2, Plus, Save, Loader2, Star,
   Settings, Award, TrendingUp, X
@@ -11,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { EmptyState } from "@/components/ui/empty-state";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { FieldLabel } from "@/components/admin/shared/field-label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -252,17 +254,24 @@ export default function AdminMembershipPage() {
         </div>
       ) : tiers.length === 0 ? (
         <Card>
-          <CardContent className="py-16 text-center">
-            <Award className="h-12 w-12 text-charcoal-lighter mx-auto mb-3" />
-            <h3 className="font-medium text-charcoal mb-1">No tiers configured</h3>
-            <p className="text-sm text-charcoal-lighter mb-4">Create membership tiers to reward your customers</p>
-            <AdminButton size="sm" onClick={openCreate}><Plus className="h-3.5 w-3.5" /> Add First Tier</AdminButton>
-          </CardContent>
+          <EmptyState
+            icon={Award}
+            title="No tiers configured"
+            description="Create membership tiers to reward your customers"
+            actionLabel={canAddTier ? "Add First Tier" : undefined}
+            onAction={canAddTier ? openCreate : undefined}
+          />
         </Card>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {tiers.map((tier) => (
-            <Card key={tier.id} className={cn("relative overflow-hidden transition-opacity", !tier.is_active && "opacity-60")}>
+          {tiers.map((tier, i) => (
+            <motion.div
+              key={tier.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+            >
+            <Card className={cn("relative overflow-hidden transition-opacity h-full", !tier.is_active && "opacity-60")}>
               <CardContent className="p-5">
                 {/* Tier Header */}
                 <div className="flex items-start justify-between mb-3">
@@ -277,7 +286,7 @@ export default function AdminMembershipPage() {
                       {!tier.color.startsWith("#") && <Badge className={cn("text-xs font-semibold", tier.color)}>{tier.name}</Badge>}
                       {tier.color.startsWith("#") && tier.name}
                     </span>
-                    <p className="text-[10px] text-charcoal-lighter">
+                    <p className="text-[10px] text-charcoal-lighter [font-variant-numeric:tabular-nums]">
                       {tier.min_points.toLocaleString()} — {tier.max_points.toLocaleString()} points
                     </p>
                   </div>
@@ -287,7 +296,7 @@ export default function AdminMembershipPage() {
                 {/* Multiplier */}
                 <div className="flex items-center gap-1.5 mb-2">
                   <TrendingUp className="h-3.5 w-3.5 text-secondary" />
-                  <span className="text-sm font-semibold text-charcoal">{tier.points_multiplier}x</span>
+                  <span className="text-sm font-semibold text-charcoal [font-variant-numeric:tabular-nums]">{tier.points_multiplier}x</span>
                   <span className="text-[10px] text-charcoal-lighter">points multiplier</span>
                 </div>
 
@@ -328,6 +337,7 @@ export default function AdminMembershipPage() {
                 )}
               </CardContent>
             </Card>
+            </motion.div>
           ))}
         </div>
       )}
@@ -376,7 +386,7 @@ export default function AdminMembershipPage() {
                 </span>
               </div>
               {showNameColorPicker && (
-                <div className="mt-2 p-3 rounded-xl border border-border/30 bg-white shadow-lg relative">
+                <div className="mt-2 p-3 rounded-lg border border-border/30 bg-white shadow-lg relative">
                   <button type="button" onClick={() => setShowNameColorPicker(false)} className="absolute top-2 right-2 p-1 hover:bg-pearl rounded-full text-charcoal-lighter hover:text-charcoal transition-colors">
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -389,7 +399,7 @@ export default function AdminMembershipPage() {
             </div>
 
             {/* Verified Badge */}
-            <div className="space-y-3 p-3 rounded-xl bg-pearl/40 border border-border/20">
+            <div className="space-y-3 p-3 rounded-lg bg-pearl/40 border border-border/20">
               <label className="flex items-center gap-2.5 cursor-pointer">
                 <Switch checked={formBadgeEnabled} onCheckedChange={setFormBadgeEnabled} />
                 <span className="text-sm font-medium text-charcoal">Enable Verified Badge</span>
@@ -411,7 +421,7 @@ export default function AdminMembershipPage() {
                     </div>
                   </div>
                   {showBadgeColorPicker && (
-                    <div className="p-3 rounded-xl border border-border/30 bg-white shadow-lg relative">
+                    <div className="p-3 rounded-lg border border-border/30 bg-white shadow-lg relative">
                       <button type="button" onClick={() => setShowBadgeColorPicker(false)} className="absolute top-2 right-2 p-1 hover:bg-pearl rounded-full text-charcoal-lighter hover:text-charcoal transition-colors">
                         <X className="h-3.5 w-3.5" />
                       </button>
