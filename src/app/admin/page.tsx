@@ -453,13 +453,13 @@ export default function AdminDashboard() {
             <Badge variant="warning" className="text-[9px] px-1.5">{lowStockProducts.length}</Badge>
           </CardHeader>
           <CardContent className="space-y-2.5">
-            {lowStockProducts.map((p) => (
+            {lowStockProducts.slice(0, 5).map((p) => (
               <div key={p.name} className="flex items-center gap-2.5">
                 <div className="relative h-9 w-9 rounded-lg overflow-hidden bg-pearl shrink-0"><Image src={p.image} alt={p.name} fill className="object-cover" sizes="36px" /></div>
                 <div className="flex-1 min-w-0"><p className="text-[11px] text-charcoal truncate">{p.name}</p><p className={cn("text-[10px] font-semibold", p.stock <= 2 ? "text-destructive" : "text-warning")}>{p.stock} left</p></div>
               </div>
             ))}
-            <Link href="/admin/products"><AdminButton variant="ghost" size="sm" className="w-full text-secondary text-[11px] h-7">Manage <ArrowRight className="h-3 w-3 ml-1" /></AdminButton></Link>
+            <Link href="/admin/stock"><AdminButton variant="ghost" size="sm" className="w-full text-secondary text-[11px] h-7">View All <ArrowRight className="h-3 w-3 ml-1" /></AdminButton></Link>
           </CardContent>
         </Card>
 
