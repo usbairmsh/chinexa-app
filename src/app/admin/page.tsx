@@ -8,7 +8,7 @@ import {
   DollarSign, ShoppingCart, Users, Package, TrendingUp, TrendingDown,
   ArrowRight, AlertTriangle, Star, Eye, ShoppingBag,
   Clock, CheckCircle2, Truck, XCircle, MessageSquare, Tag,
-  FileText, BarChart3, Shield, RefreshCw
+  FileText, BarChart3, Shield, RefreshCw, Settings, Image as ImageIcon
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAdminDashboardStats, useAdminOrders, useAdminReviews, useAdminCoupons, useRevenueChartData, useOrdersChartData, useTrafficData, useLowStockProducts } from "@/hooks/queries/use-admin-data";
+import { useAdminDashboardStats, useAdminOrders, useAdminReviews, useAdminCoupons, useRevenueChartData, useOrdersChartData, useTrafficData, useLowStockProducts, useActivityLog } from "@/hooks/queries/use-admin-data";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatCurrency, formatDateShort, getInitials, cn } from "@/lib/utils";
 
@@ -38,6 +38,22 @@ const orderStatusConfig: Record<string, { color: string; icon: typeof Clock }> =
   on_delivery: { color: "text-indigo-500 bg-indigo-50", icon: Truck },
   received: { color: "text-success bg-success/10", icon: CheckCircle2 },
   not_received: { color: "text-destructive bg-destructive/10", icon: XCircle },
+};
+
+// Same entity_type -> icon/color mapping as src/app/admin/activity-log/page.tsx,
+// so the dashboard's preview card and the full log page read as one feature.
+const activityEntityIcons: Record<string, typeof Package> = {
+  product: Package, order: ShoppingCart, customer: Users, review: Star,
+  settings: Settings, coupon: Shield, blog: FileText, banner: ImageIcon,
+  category: Tag, stock: Package, fraud: Shield, membership: Star,
+};
+const activityEntityColors: Record<string, string> = {
+  product: "bg-secondary/10 text-secondary", order: "bg-blue-50 text-blue-500",
+  customer: "bg-violet-50 text-violet-500", review: "bg-gold/10 text-gold",
+  settings: "bg-charcoal/5 text-charcoal-lighter", coupon: "bg-emerald-50 text-emerald-500",
+  blog: "bg-orange-50 text-orange-500", banner: "bg-pink-50 text-pink-500",
+  category: "bg-cyan-50 text-cyan-500", stock: "bg-amber-50 text-amber-600",
+  fraud: "bg-red-50 text-red-500", membership: "bg-violet-50 text-violet-500",
 };
 
 const tooltipStyle = { borderRadius: "12px", border: "1px solid #F3DFEC", fontSize: "12px", boxShadow: "0 4px 30px rgba(0,0,0,0.04)" };
@@ -63,6 +79,7 @@ export default function AdminDashboard() {
   const { data: trafficChartData } = useTrafficData();
   const { data: lowStockData } = useLowStockProducts();
   const { data: dbCoupons } = useAdminCoupons();
+  const { data: dbActivityLog } = useActivityLog(5);
 
   // Refresh handler — invalidates all admin queries
   const handleRefresh = useCallback(async () => {
@@ -480,27 +497,38 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Live Activity */}
+        {/* Live Activity — mirrors /admin/activity-log's entity icon/color
+            convention so the preview here and the full log read as one
+            feature, just truncated to the 5 most recent entries. */}
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-1.5"><Eye className="h-3.5 w-3.5 text-blue-500" /> Activity</CardTitle>
             <Link href="/admin/activity-log" className="text-[10px] text-secondary flex items-center gap-0.5">Log <ArrowRight className="h-2.5 w-2.5" /></Link>
           </CardHeader>
           <CardContent>
-            {false ? (
+            {!dbActivityLog ? (
               <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-7 w-full" />)}</div>
+            ) : dbActivityLog.length === 0 ? (
+              <p className="text-[11px] text-charcoal-lighter text-center py-4">No recent activity</p>
             ) : (
               <div className="space-y-2.5">
-                {recentDbOrders.slice(0, 5).map((order) => (
-                  <div key={order.id} className="flex items-start gap-2">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full shrink-0 mt-0.5 bg-secondary/10 text-secondary">
-                      <ShoppingCart className="h-2.5 w-2.5" />
+                {dbActivityLog.slice(0, 5).map((log) => {
+                  const entityType = log.entity_type as string;
+                  const Icon = activityEntityIcons[entityType] || Package;
+                  const color = activityEntityColors[entityType] || "bg-pearl text-charcoal-lighter";
+                  return (
+                    <div key={log.id as number} className="flex items-start gap-2">
+                      <div className={cn("flex h-6 w-6 items-center justify-center rounded-full shrink-0 mt-0.5", color)}>
+                        <Icon className="h-2.5 w-2.5" />
+                      </div>
+                      <p className="text-[10px] text-charcoal leading-tight line-clamp-2">
+                        <span className="font-medium">{(log.user_name as string) || "System"}</span>{" "}
+                        <span className="text-charcoal-lighter">{log.action as string}</span>
+                        {log.details ? <span className="font-medium"> {log.details as string}</span> : null}
+                      </p>
                     </div>
-                    <p className="text-[10px] text-charcoal leading-tight line-clamp-2">
-                      Order {order.id} by {order.customer} — {formatCurrency(order.total)}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
