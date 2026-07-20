@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { Suspense } from "react";
 import { Header } from "@/components/layout/header/header";
 import { Footer } from "@/components/layout/footer/footer";
-import { CartDrawer } from "@/components/storefront/cart/cart-drawer";
+import { CartDrawer } from "@/components/storefront/cart/cart-drawer-lazy";
 import { ScrollToTop } from "@/components/shared/scroll-to-top";
 import { PageLoader } from "@/components/shared/page-loader";
 import { OrganizationJsonLd, WebsiteJsonLd } from "@/components/seo/json-ld";

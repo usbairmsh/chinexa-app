@@ -16,26 +16,14 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ProductCard } from "@/components/storefront/product/product-card";
 import { useProducts } from "@/hooks/queries/use-products";
+import { useBrand } from "@/hooks/queries/use-brands";
 import type { ProductListParams } from "@/types/product";
 import { normalizeWebsite } from "@/lib/utils";
-
-interface Brand {
-  id: string;
-  name: string;
-  slug: string;
-  logo?: string;
-  country?: string;
-  description?: string;
-  website?: string;
-  certifications: string[];
-  is_active: boolean;
-}
 
 export default function BrandPage() {
   const shouldReduceMotion = useReducedMotion();
   const { slug } = useParams<{ slug: string }>();
-  const [brand, setBrand] = useState<Brand | null>(null);
-  const [brandLoading, setBrandLoading] = useState(true);
+  const { data: brand, isLoading: brandLoading } = useBrand(slug);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [priceRange, setPriceRange] = useState([0, 30000]);
   const [params, setParams] = useState<ProductListParams>({
@@ -44,21 +32,14 @@ export default function BrandPage() {
     sort_by: "featured",
   });
 
-  // Fetch brand details
+  // Once the brand resolves, filter the product grid to it (products API
+  // matches on brand_name) — mirrors the previous setParams-on-fetch timing,
+  // just driven off useBrand's cache instead of a local useEffect+fetch.
   useEffect(() => {
-    if (!slug) return;
-    fetch(`/api/brands/${slug}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data && !data.error) {
-          setBrand(data);
-          // Set brand filter using brand name (products API matches on brand_name)
-          setParams((prev) => ({ ...prev, brand: data.name }));
-        }
-      })
-      .catch(() => {})
-      .finally(() => setBrandLoading(false));
-  }, [slug]);
+    if (brand?.name) {
+      setParams((prev) => (prev.brand === brand.name ? prev : { ...prev, brand: brand.name }));
+    }
+  }, [brand?.name]);
 
   const { data, isLoading, isFetching } = useProducts(params);
 
@@ -306,7 +287,7 @@ export default function BrandPage() {
                 className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:gap-6"
               >
                 {data.data.map((product, index) => (
-                  <ProductCard key={product.id} product={product} index={index} />
+                  <ProductCard key={product.id} product={product} index={index} priority={index === 0} />
                 ))}
               </motion.div>
             )}

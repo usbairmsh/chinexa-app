@@ -1,169 +1,45 @@
-"use client";
+import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import { HomeClient } from "@/components/storefront/home/home-client";
 
-import { useState, useEffect } from "react";
-import { HeroSection } from "@/components/storefront/home/hero-section";
-import { CategoryShowcase } from "@/components/storefront/home/category-showcase";
-import { ProductSection } from "@/components/storefront/home/product-section";
-import { BrandStory } from "@/components/storefront/home/brand-story";
-import { TrustBadges } from "@/components/storefront/home/trust-badges";
-import { ReviewsMarquee } from "@/components/storefront/home/reviews-marquee";
-import { InstagramFeed } from "@/components/storefront/home/instagram-feed";
-import { BrandsMarquee } from "@/components/storefront/home/brands-marquee";
-import { FaqSection } from "@/components/storefront/home/faq-section";
-import { PromoBannerStrip, CategoryBanner, PopupBanner } from "@/components/storefront/home/promo-banner";
-import { useNewArrivals, useBestsellers, useTrendingProducts, usePreorderProducts } from "@/hooks/queries/use-products";
+// Loopback, not the public domain — fetching the public domain from inside
+// the container can fail (hairpin NAT), same reasoning as sitemap.ts.
+const internalUrl = `http://127.0.0.1:${process.env.PORT || 3000}`;
 
-interface SectionConfig {
-  id: string;
-  type: string;
-  title: string;
-  subtitle: string;
-  visible: boolean;
-  order: number;
-}
+// Server-side prefetch for the two above-the-fold sections only (hero banner,
+// category grid) — these are what the homepage's first Lighthouse run showed
+// as the actual LCP candidates, both client-fetched with nothing in the
+// initial HTML for the browser to preload. Below-the-fold sections (new
+// arrivals, bestsellers, etc.) are intentionally left as pure client fetches;
+// prefetching those too would only delay this response for content that
+// isn't on the critical rendering path. Query keys below must stay in sync
+// with useBanners("hero") (queryKey: ["banners", "hero"]) and useCategories()
+// (queryKey: ["categories"]) — if either hook's key changes, update here too.
+export default async function HomePage() {
+  const queryClient = new QueryClient();
 
-interface TrustBadgeConfig {
-  title: string;
-  description: string;
-}
+  await Promise.all([
+    queryClient.prefetchQuery({
+      queryKey: ["banners", "hero"],
+      queryFn: async () => {
+        const res = await fetch(`${internalUrl}/api/banners?position=hero`, { cache: "no-store" });
+        if (!res.ok) return [];
+        return res.json();
+      },
+    }),
+    queryClient.prefetchQuery({
+      queryKey: ["categories"],
+      queryFn: async () => {
+        const res = await fetch(`${internalUrl}/api/categories`, { cache: "no-store" });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+      },
+    }),
+  ]);
 
-interface HomepageConfig {
-  sections: SectionConfig[];
-  trust_badges: TrustBadgeConfig[];
-}
-
-// Default config — used if DB has no config yet
-const defaultSections: SectionConfig[] = [
-  { id: "s1", type: "hero", title: "", subtitle: "", visible: true, order: 1 },
-  { id: "s2", type: "categories", title: "", subtitle: "", visible: true, order: 2 },
-  { id: "s3", type: "new_arrivals", title: "New Arrivals", subtitle: "The latest additions to our collection", visible: true, order: 3 },
-  { id: "s4", type: "trust_badges", title: "", subtitle: "", visible: true, order: 4 },
-  { id: "s5", type: "bestsellers", title: "Best Sellers", subtitle: "Loved by our customers", visible: true, order: 5 },
-  { id: "s6", type: "brand_story", title: "", subtitle: "", visible: true, order: 6 },
-  { id: "s7", type: "trending", title: "Trending Now", subtitle: "What everyone is talking about", visible: true, order: 7 },
-  { id: "s8", type: "preorder", title: "Pre-Order", subtitle: "Be the first to own the latest launches", visible: true, order: 8 },
-  { id: "s9", type: "promo_banner", title: "", subtitle: "", visible: true, order: 9 },
-  { id: "s10", type: "category_banner", title: "", subtitle: "", visible: true, order: 10 },
-  { id: "s11", type: "reviews", title: "", subtitle: "", visible: true, order: 11 },
-  { id: "s12", type: "instagram", title: "", subtitle: "", visible: true, order: 12 },
-  { id: "s13", type: "brands", title: "", subtitle: "", visible: true, order: 13 },
-  { id: "s14", type: "faq", title: "", subtitle: "", visible: false, order: 14 },
-  { id: "s15", type: "popup_banner", title: "", subtitle: "", visible: true, order: 15 },
-];
-
-export default function HomePage() {
-  const { data: newArrivals, isLoading: loadingNew } = useNewArrivals(8);
-  const { data: bestsellers, isLoading: loadingBest } = useBestsellers(8);
-  const { data: trending, isLoading: loadingTrending } = useTrendingProducts(8);
-  const { data: preorders, isLoading: loadingPreorder } = usePreorderProducts(4);
-
-  const [config, setConfig] = useState<HomepageConfig | null>(null);
-
-  useEffect(() => {
-    fetch("/api/settings?key=homepage_config")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.value) setConfig(data.value);
-      })
-      .catch(() => {});
-  }, []);
-
-  // Merge saved config with defaults so new section types (e.g. brands) appear
-  const sections = (() => {
-    if (!config?.sections?.length) return defaultSections;
-    const savedTypes = new Set(config.sections.map((s) => s.type));
-    const newSections = defaultSections.filter((s) => !savedTypes.has(s.type));
-    if (newSections.length === 0) return config.sections;
-    const usedIds = new Set(config.sections.map((s) => s.id));
-    const maxOrder = Math.max(...config.sections.map((s) => s.order), 0);
-    return [
-      ...config.sections,
-      ...newSections.map((s, i) => ({
-        ...s,
-        id: usedIds.has(s.id) ? `s${Date.now()}-${i}` : s.id,
-        order: maxOrder + i + 1,
-      })),
-    ];
-  })();
-  const trustBadges = config?.trust_badges;
-  const visibleSections = sections.filter((s) => s.visible).sort((a, b) => a.order - b.order);
-
-  const getSection = (type: string) => visibleSections.find((s) => s.type === type);
-
-  const renderSection = (section: SectionConfig) => {
-    switch (section.type) {
-      case "hero":
-        return <HeroSection key={section.id} />;
-      case "categories":
-        return <CategoryShowcase key={section.id} />;
-      case "new_arrivals":
-        return (
-          <ProductSection
-            key={section.id}
-            title={section.title || "New Arrivals"}
-            subtitle={section.subtitle || "The latest additions to our collection"}
-            products={newArrivals}
-            isLoading={loadingNew}
-            viewAllHref="/collections/new-arrivals"
-          />
-        );
-      case "trust_badges":
-        return <TrustBadges key={section.id} badges={trustBadges} />;
-      case "bestsellers":
-        return (
-          <ProductSection
-            key={section.id}
-            title={section.title || "Best Sellers"}
-            subtitle={section.subtitle || "Loved by our customers"}
-            products={bestsellers}
-            isLoading={loadingBest}
-            viewAllHref="/collections/bestsellers"
-          />
-        );
-      case "brand_story":
-        return <BrandStory key={section.id} />;
-      case "trending":
-        return (
-          <ProductSection
-            key={section.id}
-            title={section.title || "Trending Now"}
-            subtitle={section.subtitle || "What everyone is talking about"}
-            products={trending}
-            isLoading={loadingTrending}
-            viewAllHref="/collections/trending"
-          />
-        );
-      case "preorder":
-        return (
-          <div key={section.id} className="bg-pearl">
-            <ProductSection
-              title={section.title || "Pre-Order"}
-              subtitle={section.subtitle || "Be the first to own the latest launches"}
-              products={preorders}
-              isLoading={loadingPreorder}
-              viewAllHref="/categories/pre-orders"
-              columns={4}
-            />
-          </div>
-        );
-      case "promo_banner":
-        return <PromoBannerStrip key={section.id} />;
-      case "category_banner":
-        return <CategoryBanner key={section.id} />;
-      case "popup_banner":
-        return <PopupBanner key={section.id} />;
-      case "reviews":
-        return <ReviewsMarquee key={section.id} />;
-      case "instagram":
-        return <InstagramFeed key={section.id} />;
-      case "brands":
-        return <BrandsMarquee key={section.id} />;
-      case "faq":
-        return <FaqSection key={section.id} />;
-      default:
-        return null;
-    }
-  };
-
-  return <>{visibleSections.map(renderSection)}</>;
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <HomeClient />
+    </HydrationBoundary>
+  );
 }

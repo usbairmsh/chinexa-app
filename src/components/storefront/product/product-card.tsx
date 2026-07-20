@@ -16,9 +16,11 @@ import type { Product } from "@/types/product";
 interface ProductCardProps {
   product: Product;
   index?: number;
+  /** Set true only for the first (largest/likely-LCP) card in an above-the-fold grid — hints the browser to fetch this image immediately instead of lazily. */
+  priority?: boolean;
 }
 
-export function ProductCard({ product, index = 0 }: ProductCardProps) {
+export function ProductCard({ product, index = 0, priority = false }: ProductCardProps) {
   const addToCart = useCartStore((s) => s.addItem);
   const toggleItem = useWishlistStore((s) => s.toggleItem);
   // Selector on the one boolean this card actually needs — a whole-store
@@ -95,6 +97,8 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               src={product.images[0]?.url || `https://picsum.photos/seed/${product.slug}/600/750`}
               alt={product.name}
               fill
+              priority={priority}
+              fetchPriority={priority ? "high" : undefined}
               className="object-cover transition-all duration-700 group-hover:scale-105"
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             />

@@ -1,6 +1,19 @@
 import type { Metadata } from "next";
+import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import { getProductsList } from "@/lib/products";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
+
+// Mirrors the buildUrl() params each service method
+// (getNewArrivals/getBestsellers/getTrending) sends, so the prefetched cache
+// entry lines up with whichever of useNewArrivals/useBestsellers/
+// useTrendingProducts CollectionPage calls for this slug (queryKey:
+// ["products", "<slug>", 24] — the page always requests limit 24).
+const COLLECTION_FETCH: Record<string, () => Promise<import("@/types/product").Product[]>> = {
+  "new-arrivals": async () => (await getProductsList(new URLSearchParams({ badges: "new", sort_by: "newest", limit: "24" }))).data,
+  bestsellers: async () => (await getProductsList(new URLSearchParams({ badges: "bestseller", limit: "24" }))).data,
+  trending: async () => (await getProductsList(new URLSearchParams({ badges: "trending", limit: "24" }))).data,
+};
 
 const COLLECTION_META: Record<string, { title: string; description: string }> = {
   "new-arrivals": {
@@ -37,6 +50,29 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export default function CollectionLayout({ children }: { children: React.ReactNode }) {
-  return children;
+export default async function CollectionLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const fetchFn = COLLECTION_FETCH[slug];
+
+  if (!fetchFn) {
+    return children;
+  }
+
+  const queryClient = new QueryClient();
+  await queryClient.prefetchQuery({
+    queryKey: ["products", slug, 24],
+    queryFn: fetchFn,
+  });
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      {children}
+    </HydrationBoundary>
+  );
 }

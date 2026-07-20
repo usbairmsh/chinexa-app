@@ -3,7 +3,7 @@ import { fraunces, manrope } from "@/lib/fonts";
 import { Providers } from "@/providers";
 import { InstallPrompt } from "@/components/shared/install-prompt";
 import { CookieConsent } from "@/components/shared/cookie-consent";
-import { ChatWidget } from "@/components/shared/chat-widget";
+import { ChatWidget } from "@/components/shared/chat-widget-lazy";
 import { ServiceWorkerRegister } from "@/components/shared/sw-register";
 import { RouteScrollReset } from "@/components/shared/route-scroll-reset";
 import "./globals.css";

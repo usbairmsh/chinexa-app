@@ -85,7 +85,7 @@ export default function CollectionPage() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
             {products?.map((product, index) => (
-              <ProductCard key={product.id} product={product} index={index} />
+              <ProductCard key={product.id} product={product} index={index} priority={index === 0} />
             ))}
           </div>
         )}

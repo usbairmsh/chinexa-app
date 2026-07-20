@@ -55,6 +55,8 @@ export function CategoryShowcase() {
                   src={category.image || `https://picsum.photos/seed/cat-${category.slug}/600/750`}
                   alt={category.name}
                   fill
+                  priority={index === 0}
+                  fetchPriority={index === 0 ? "high" : undefined}
                   className="object-cover transition-transform duration-700 group-hover:scale-105"
                   sizes={index === 0 ? "(max-width: 640px) 100vw, 50vw" : "(max-width: 640px) 50vw, 25vw"}
                 />

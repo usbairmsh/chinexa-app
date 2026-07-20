@@ -186,7 +186,7 @@ export default function ProductsPage() {
                 className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:gap-6"
               >
                 {data.data.map((product, index) => (
-                  <ProductCard key={product.id} product={product} index={index} />
+                  <ProductCard key={product.id} product={product} index={index} priority={index === 0} />
                 ))}
               </motion.div>
             ) : (
