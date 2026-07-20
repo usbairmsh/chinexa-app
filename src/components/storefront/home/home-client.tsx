@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { HeroSection } from "@/components/storefront/home/hero-section";
 import { CategoryShowcase } from "@/components/storefront/home/category-showcase";
-import { ProductSection } from "@/components/storefront/home/product-section";
+import { ProductSection, clampRows, clampColumns } from "@/components/storefront/home/product-section";
 import { BrandStory } from "@/components/storefront/home/brand-story";
 import { TrustBadges } from "@/components/storefront/home/trust-badges";
 import { PromoBannerStrip, CategoryBanner, PopupBanner } from "@/components/storefront/home/promo-banner";
@@ -26,6 +26,12 @@ interface SectionConfig {
   subtitle: string;
   visible: boolean;
   order: number;
+  /** Product-listing sections only (Homepage Builder): grid rows to show. */
+  rows?: number;
+  /** Product-listing sections only: desktop column count (clamped 2–6). */
+  columns?: number;
+  /** Product-listing sections only: continuous right-to-left auto-scroll instead of the grid. */
+  scroll?: boolean;
 }
 
 interface TrustBadgeConfig {
@@ -42,12 +48,12 @@ interface HomepageConfig {
 const defaultSections: SectionConfig[] = [
   { id: "s1", type: "hero", title: "", subtitle: "", visible: true, order: 1 },
   { id: "s2", type: "categories", title: "", subtitle: "", visible: true, order: 2 },
-  { id: "s3", type: "new_arrivals", title: "New Arrivals", subtitle: "The latest additions to our collection", visible: true, order: 3 },
+  { id: "s3", type: "new_arrivals", title: "New Arrivals", subtitle: "The latest additions to our collection", visible: true, order: 3, rows: 2, columns: 4, scroll: false },
   { id: "s4", type: "trust_badges", title: "", subtitle: "", visible: true, order: 4 },
-  { id: "s5", type: "bestsellers", title: "Best Sellers", subtitle: "Loved by our customers", visible: true, order: 5 },
+  { id: "s5", type: "bestsellers", title: "Best Sellers", subtitle: "Loved by our customers", visible: true, order: 5, rows: 2, columns: 4, scroll: false },
   { id: "s6", type: "brand_story", title: "", subtitle: "", visible: true, order: 6 },
-  { id: "s7", type: "trending", title: "Trending Now", subtitle: "What everyone is talking about", visible: true, order: 7 },
-  { id: "s8", type: "preorder", title: "Pre-Order", subtitle: "Be the first to own the latest launches", visible: true, order: 8 },
+  { id: "s7", type: "trending", title: "Trending Now", subtitle: "What everyone is talking about", visible: true, order: 7, rows: 2, columns: 4, scroll: false },
+  { id: "s8", type: "preorder", title: "Pre-Order", subtitle: "Be the first to own the latest launches", visible: true, order: 8, rows: 1, columns: 4, scroll: false },
   { id: "s9", type: "promo_banner", title: "", subtitle: "", visible: true, order: 9 },
   { id: "s10", type: "category_banner", title: "", subtitle: "", visible: true, order: 10 },
   { id: "s11", type: "reviews", title: "", subtitle: "", visible: true, order: 11 },
@@ -58,11 +64,6 @@ const defaultSections: SectionConfig[] = [
 ];
 
 export function HomeClient() {
-  const { data: newArrivals, isLoading: loadingNew } = useNewArrivals(8);
-  const { data: bestsellers, isLoading: loadingBest } = useBestsellers(8);
-  const { data: trending, isLoading: loadingTrending } = useTrendingProducts(8);
-  const { data: preorders, isLoading: loadingPreorder } = usePreorderProducts(4);
-
   const [config, setConfig] = useState<HomepageConfig | null>(null);
 
   useEffect(() => {
@@ -96,6 +97,28 @@ export function HomeClient() {
 
   const getSection = (type: string) => visibleSections.find((s) => s.type === type);
 
+  // Per-section layout settings from the Homepage Builder, with per-type
+  // defaults for configs saved before these fields existed. The fetch limit
+  // follows the layout: exactly rows × columns for a grid, a capped 24 for
+  // scroll mode (its marquee shows everything fetched, and 24 keeps the
+  // duplicated-content loop from turning into hundreds of DOM nodes).
+  const layoutFor = (type: string, defRows: number) => {
+    const s = sections.find((x) => x.type === type);
+    const rows = clampRows(s?.rows, defRows);
+    const columns = clampColumns(s?.columns, 4);
+    const scroll = !!s?.scroll;
+    return { rows, columns, scroll, limit: scroll ? 24 : rows * columns };
+  };
+  const newLayout = layoutFor("new_arrivals", 2);
+  const bestLayout = layoutFor("bestsellers", 2);
+  const trendLayout = layoutFor("trending", 2);
+  const preorderLayout = layoutFor("preorder", 1);
+
+  const { data: newArrivals, isLoading: loadingNew } = useNewArrivals(newLayout.limit);
+  const { data: bestsellers, isLoading: loadingBest } = useBestsellers(bestLayout.limit);
+  const { data: trending, isLoading: loadingTrending } = useTrendingProducts(trendLayout.limit);
+  const { data: preorders, isLoading: loadingPreorder } = usePreorderProducts(preorderLayout.limit);
+
   const renderSection = (section: SectionConfig) => {
     switch (section.type) {
       case "hero":
@@ -111,6 +134,9 @@ export function HomeClient() {
             products={newArrivals}
             isLoading={loadingNew}
             viewAllHref="/collections/new-arrivals"
+            rows={newLayout.rows}
+            columns={newLayout.columns}
+            scroll={newLayout.scroll}
           />
         );
       case "trust_badges":
@@ -124,6 +150,9 @@ export function HomeClient() {
             products={bestsellers}
             isLoading={loadingBest}
             viewAllHref="/collections/bestsellers"
+            rows={bestLayout.rows}
+            columns={bestLayout.columns}
+            scroll={bestLayout.scroll}
           />
         );
       case "brand_story":
@@ -137,6 +166,9 @@ export function HomeClient() {
             products={trending}
             isLoading={loadingTrending}
             viewAllHref="/collections/trending"
+            rows={trendLayout.rows}
+            columns={trendLayout.columns}
+            scroll={trendLayout.scroll}
           />
         );
       case "preorder":
@@ -148,7 +180,9 @@ export function HomeClient() {
               products={preorders}
               isLoading={loadingPreorder}
               viewAllHref="/categories/pre-orders"
-              columns={4}
+              rows={preorderLayout.rows}
+              columns={preorderLayout.columns}
+              scroll={preorderLayout.scroll}
             />
           </div>
         );

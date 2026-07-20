@@ -6,10 +6,15 @@ import { motion } from "framer-motion";
 import { GripVertical, ChevronDown, ChevronUp, Save, Loader2, Check, RotateCcw, ExternalLink } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+// Single source of truth for layout bounds — the storefront ProductSection
+// clamps with the same values, so admin input limits can't drift from what
+// the homepage actually renders.
+import { MIN_ROWS, MAX_ROWS, MIN_COLUMNS, MAX_COLUMNS, clampRows, clampColumns } from "@/components/storefront/home/product-section";
 
 interface SectionConfig {
   id: string;
@@ -21,6 +26,12 @@ interface SectionConfig {
   order: number;
   /** Where this section's actual content is set up/edited/deleted — undefined when it's fully configured inline on this page (e.g. trust badges). */
   link?: string;
+  /** Product-listing sections only: grid rows shown on the homepage. */
+  rows?: number;
+  /** Product-listing sections only: desktop column count. */
+  columns?: number;
+  /** Product-listing sections only: right-to-left auto-scroll instead of the grid. */
+  scroll?: boolean;
 }
 
 interface TrustBadge {
@@ -36,12 +47,12 @@ interface HomepageConfig {
 const defaultSections: SectionConfig[] = [
   { id: "s1", type: "hero", title: "Hero Carousel", subtitle: "", description: "Full-width hero banner slider", visible: true, order: 1, link: "/admin/banners" },
   { id: "s2", type: "categories", title: "Category Showcase", subtitle: "", description: "Grid of product categories", visible: true, order: 2, link: "/admin/categories" },
-  { id: "s3", type: "new_arrivals", title: "New Arrivals", subtitle: "The latest additions to our collection", description: "Latest products added to the store", visible: true, order: 3, link: "/admin/products" },
+  { id: "s3", type: "new_arrivals", title: "New Arrivals", subtitle: "The latest additions to our collection", description: "Latest products added to the store", visible: true, order: 3, link: "/admin/products", rows: 2, columns: 4, scroll: false },
   { id: "s4", type: "trust_badges", title: "Trust Badges", subtitle: "", description: "Authenticity, shipping, returns, support", visible: true, order: 4 },
-  { id: "s5", type: "bestsellers", title: "Best Sellers", subtitle: "Loved by our customers", description: "Most popular products", visible: true, order: 5, link: "/admin/products" },
+  { id: "s5", type: "bestsellers", title: "Best Sellers", subtitle: "Loved by our customers", description: "Most popular products", visible: true, order: 5, link: "/admin/products", rows: 2, columns: 4, scroll: false },
   { id: "s6", type: "brand_story", title: "Brand Story", subtitle: "", description: "About ChineXa and our mission", visible: true, order: 6, link: "/admin/settings?tab=store" },
-  { id: "s7", type: "trending", title: "Trending Now", subtitle: "What everyone is talking about", description: "Currently trending products", visible: true, order: 7, link: "/admin/products" },
-  { id: "s8", type: "preorder", title: "Pre-Order", subtitle: "Be the first to own the latest launches", description: "Upcoming product launches", visible: true, order: 8, link: "/admin/products" },
+  { id: "s7", type: "trending", title: "Trending Now", subtitle: "What everyone is talking about", description: "Currently trending products", visible: true, order: 7, link: "/admin/products", rows: 2, columns: 4, scroll: false },
+  { id: "s8", type: "preorder", title: "Pre-Order", subtitle: "Be the first to own the latest launches", description: "Upcoming product launches", visible: true, order: 8, link: "/admin/products", rows: 1, columns: 4, scroll: false },
   { id: "s9", type: "promo_banner", title: "Promo Banners", subtitle: "", description: "Promotional banner cards (set in Banners > position: promo)", visible: true, order: 9, link: "/admin/banners" },
   { id: "s10", type: "category_banner", title: "Category Banner", subtitle: "", description: "Full-width category banner (set in Banners > position: category)", visible: true, order: 10, link: "/admin/banners" },
   { id: "s11", type: "reviews", title: "Customer Reviews", subtitle: "", description: "Scrolling customer reviews", visible: true, order: 11, link: "/admin/reviews" },
@@ -81,6 +92,11 @@ export default function AdminHomepageBuilder() {
               ...s,
               description: s.description || defaultByType.get(s.type)?.description || "",
               link: s.link || defaultByType.get(s.type)?.link,
+              // Layout fields didn't exist in older saved configs — backfill
+              // from defaults so the inputs show what the storefront renders.
+              rows: s.rows ?? defaultByType.get(s.type)?.rows,
+              columns: s.columns ?? defaultByType.get(s.type)?.columns,
+              scroll: s.scroll ?? defaultByType.get(s.type)?.scroll,
             }));
             const savedTypes = new Set(config.sections.map((s) => s.type));
             const usedIds = new Set(savedWithDesc.map((s) => s.id));
@@ -123,6 +139,10 @@ export default function AdminHomepageBuilder() {
     setSections((prev) => prev.map((s) => s.id === id ? { ...s, [field]: value } : s));
   };
 
+  const updateSectionLayout = (id: string, patch: Partial<Pick<SectionConfig, "rows" | "columns" | "scroll">>) => {
+    setSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  };
+
   const updateBadge = (index: number, field: "title" | "description", value: string) => {
     setTrustBadges((prev) => prev.map((b, i) => i === index ? { ...b, [field]: value } : b));
   };
@@ -130,7 +150,13 @@ export default function AdminHomepageBuilder() {
   const handleSave = async () => {
     setSaving(true);
     const config: HomepageConfig = {
-      sections,
+      // Clamp layout values on the way out so nothing out of range can be
+      // persisted, whatever path it arrived by.
+      sections: sections.map((s) =>
+        s.rows !== undefined || s.columns !== undefined || s.scroll !== undefined
+          ? { ...s, rows: clampRows(s.rows), columns: clampColumns(s.columns), scroll: !!s.scroll }
+          : s
+      ),
       trust_badges: trustBadges,
     };
     try {
@@ -280,7 +306,7 @@ export default function AdminHomepageBuilder() {
                   </div>
                 )}
                 {isExpanded && isEditable && (
-                  <div className="px-4 pb-4 border-t border-border/20 pt-3">
+                  <div className="px-4 pb-4 border-t border-border/20 pt-3 space-y-4">
                     <div className="grid sm:grid-cols-2 gap-3">
                       <Input
                         label="Section Title"
@@ -295,6 +321,45 @@ export default function AdminHomepageBuilder() {
                         placeholder="Section subtitle"
                       />
                     </div>
+
+                    {/* Product layout: rows × columns grid, or a right-to-left
+                        auto-scroll of all the section's products. */}
+                    <div className="grid sm:grid-cols-3 gap-3 items-end">
+                      <Input
+                        type="number"
+                        label={`Rows (${MIN_ROWS}–${MAX_ROWS})`}
+                        min={MIN_ROWS}
+                        max={MAX_ROWS}
+                        value={section.scroll ? "" : String(section.rows ?? 2)}
+                        placeholder={section.scroll ? "—" : undefined}
+                        disabled={!!section.scroll}
+                        onChange={(e) => updateSectionLayout(section.id, { rows: clampRows(Number(e.target.value)) })}
+                        className="disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                      <Input
+                        type="number"
+                        label={`Columns (${MIN_COLUMNS}–${MAX_COLUMNS})`}
+                        min={MIN_COLUMNS}
+                        max={MAX_COLUMNS}
+                        value={section.scroll ? "" : String(section.columns ?? 4)}
+                        placeholder={section.scroll ? "—" : undefined}
+                        disabled={!!section.scroll}
+                        onChange={(e) => updateSectionLayout(section.id, { columns: clampColumns(Number(e.target.value)) })}
+                        className="disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                      <label className="flex items-center gap-2.5 cursor-pointer h-11 px-3 rounded-luxury bg-pearl/60 border border-border/30">
+                        <Checkbox
+                          checked={!!section.scroll}
+                          onCheckedChange={(v) => updateSectionLayout(section.id, { scroll: !!v })}
+                        />
+                        <span className="text-sm text-charcoal">Scroll</span>
+                      </label>
+                    </div>
+                    <p className="text-xs text-charcoal-lighter">
+                      {section.scroll
+                        ? "All of this section's products auto-scroll right to left in one continuous row — rows and columns don't apply."
+                        : `Shows ${clampRows(section.rows)} × ${clampColumns(section.columns)} = ${clampRows(section.rows) * clampColumns(section.columns)} products on desktop. Cards resize automatically to fit the column count; phones always show 2 columns.`}
+                    </p>
                   </div>
                 )}
               </CardContent>
