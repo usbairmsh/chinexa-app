@@ -157,6 +157,16 @@ export default function AdminLayout({
     // "which admin is this" — the server is asked directly via "whoami"
     // instead, and its answer (or 401) is authoritative.
     if (adminName) return;
+    // authChecked was already flipped true by the pre-login 401 on
+    // /admin/login itself (see the comment above) — reset it here, the
+    // instant a fresh whoami call actually starts for the new pathname, so
+    // the redirect guard below can't act on that stale "checked, no name"
+    // result while this real check for the post-login pathname is still in
+    // flight. Without this, login→router.push("/admin") landed on a layout
+    // instance that never remounted, still holding authChecked=true from
+    // the login page's own 401, and the guard bounced straight back to
+    // /admin/login before this fetch's answer ever arrived.
+    setAuthChecked(false);
     fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "whoami" }) })
       .then(async (r) => {
         if (!r.ok) { setAuthChecked(true); return; }
