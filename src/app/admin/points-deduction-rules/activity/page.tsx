@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   ArrowLeft, ChevronRight, Loader2, AlertTriangle, Undo2, X, Check, Zap, Clock, PlayCircle, Trash2, Search, History, Inbox,
 } from "lucide-react";
@@ -58,6 +58,7 @@ const TRIGGER_META: Record<string, { label: string; icon: typeof Clock; classNam
 
 export default function EngineActivityLogPage() {
   const router = useRouter();
+  const shouldReduceMotion = useReducedMotion();
   const { can } = useAdmin();
   const canEdit = can("points_deduction_rules", "edit");
   const canDelete = can("points_deduction_rules", "delete");
@@ -155,7 +156,7 @@ export default function EngineActivityLogPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <button onClick={() => router.push("/admin/points-deduction-rules")} className="p-2 rounded-lg hover:bg-pearl">
+        <button onClick={() => router.push("/admin/points-deduction-rules")} className="p-2 rounded-lg hover:bg-pearl transition-colors active:scale-[0.96]">
           <ArrowLeft className="h-4 w-4 text-charcoal-lighter" />
         </button>
         <div>
@@ -192,8 +193,8 @@ export default function EngineActivityLogPage() {
                 return (
                   <motion.div
                     key={key}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                    animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.03 }}
                     className={cn(
                       "w-full flex items-center gap-2 rounded-lg border transition-colors",
@@ -230,7 +231,7 @@ export default function EngineActivityLogPage() {
                           }
                         }}
                         disabled={deletingKey === key}
-                        className="p-2 mr-2 rounded-md text-charcoal-lighter/60 hover:text-destructive hover:bg-destructive/5 transition-colors shrink-0"
+                        className="p-2 mr-2 rounded-md text-charcoal-lighter/60 hover:text-destructive hover:bg-destructive/5 transition-colors shrink-0 active:scale-[0.96] disabled:active:scale-100"
                         title="Delete this log entry"
                       >
                         {deletingKey === key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
@@ -257,9 +258,9 @@ export default function EngineActivityLogPage() {
             <motion.div
               className="bg-white rounded-luxury shadow-xl max-w-lg w-full max-h-[85vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
-              initial={{ opacity: 0, scale: 0.96, y: 8 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 8 }}
+              animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
+              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 8 }}
               transition={{ type: "spring", damping: 26, stiffness: 400 }}
             >
               <div className="flex items-center justify-between gap-3 p-5 pb-3 shrink-0">
@@ -267,7 +268,7 @@ export default function EngineActivityLogPage() {
                   <h3 className="font-heading text-lg font-semibold text-charcoal truncate">{selected.ruleName} — Matched Customers</h3>
                   <p className="text-xs text-charcoal-lighter mt-0.5">{formatDate(selected.ranAt)}</p>
                 </div>
-                <button onClick={closeEntry} className="p-1.5 rounded-md hover:bg-pearl shrink-0"><X className="h-4 w-4 text-charcoal-lighter" /></button>
+                <button onClick={closeEntry} className="p-1.5 rounded-md hover:bg-pearl transition-colors active:scale-[0.96] shrink-0"><X className="h-4 w-4 text-charcoal-lighter" /></button>
               </div>
 
               {customers.length > 0 && (
@@ -299,10 +300,16 @@ export default function EngineActivityLogPage() {
                   <p className="text-sm text-charcoal-lighter py-6 text-center">No customer matches &ldquo;{customerSearch}&rdquo;.</p>
                 ) : (
                   <div className="space-y-2">
-                    {filteredCustomers.map((row) => {
+                    {filteredCustomers.map((row, i) => {
                       const meta = OUTCOME_META[row.outcome];
                       return (
-                        <div key={row.id} className="p-3 rounded-lg border border-border/30 space-y-2">
+                        <motion.div
+                          key={row.id}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: Math.min(i, 8) * 0.025 }}
+                          className="p-3 rounded-lg border border-border/30 hover:border-secondary/20 transition-colors space-y-2"
+                        >
                           <div className="flex items-center justify-between gap-3 flex-wrap">
                             <div className="min-w-0">
                               <p className="text-sm font-medium text-charcoal">{row.customerName}</p>
@@ -329,7 +336,7 @@ export default function EngineActivityLogPage() {
                               </AdminButton>
                             )}
                           </div>
-                        </div>
+                        </motion.div>
                       );
                     })}
                   </div>

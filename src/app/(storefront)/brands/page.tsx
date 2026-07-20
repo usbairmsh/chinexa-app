@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Award, Globe } from "lucide-react";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +25,7 @@ interface Brand {
 export default function BrandsPage() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
+  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
     fetch("/api/brands")
@@ -85,13 +86,13 @@ export default function BrandsPage() {
             {brands.map((brand, index) => (
               <motion.div
                 key={brand.id}
-                initial={{ opacity: 0, y: 20 }}
+                initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
               >
                 <Link
                   href={`/brands/${brand.slug}`}
-                  className="group block rounded-2xl border border-border/30 bg-white p-5 shadow-card hover:border-primary/30 hover:shadow-luxury-hover transition-all duration-300"
+                  className="group block rounded-2xl border border-border/30 bg-white p-5 shadow-card hover:border-primary/30 hover:shadow-luxury-hover hover:-translate-y-px active:scale-[0.98] transition-all duration-300"
                 >
                   {/* Logo */}
                   <div className="flex items-center justify-center h-20 mb-4">

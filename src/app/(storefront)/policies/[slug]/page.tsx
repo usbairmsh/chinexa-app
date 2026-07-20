@@ -36,13 +36,17 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug: s
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <Breadcrumb items={[{ label: policy.title }]} className="mb-8" />
 
-        <div className="rounded-2xl border border-border/60 shadow-card p-6 sm:p-10">
+        <div className="rounded-2xl border border-border/60 shadow-card p-6 sm:p-10 animate-fade-up">
           <h1 className="font-heading text-3xl sm:text-4xl font-bold text-charcoal mb-3">{policy.title}</h1>
           <p className="text-charcoal-lighter mb-10">{policy.intro}</p>
 
           <div className="space-y-8">
-            {policy.sections.map((section) => (
-              <section key={section.heading}>
+            {policy.sections.map((section, si) => (
+              <section
+                key={section.heading}
+                className="animate-fade-up"
+                style={{ animationDelay: `${Math.min(si * 60, 300)}ms`, animationFillMode: "backwards" }}
+              >
                 <h2 className="font-heading text-xl font-semibold text-charcoal mb-3">{section.heading}</h2>
                 <ul className="space-y-2">
                   {section.body.map((line, i) => (

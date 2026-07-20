@@ -227,7 +227,7 @@ export default function AdminAnalyticsPage() {
             ) : (
               <div className="divide-y divide-border/20">
                 {topProducts.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between px-4 py-3">
+                  <div key={p.id} className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-primary-light/30">
                     <span className="text-sm text-charcoal truncate max-w-[180px]">{p.name}</span>
                     <div className="text-right">
                       <p className="text-sm font-medium text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(p.revenue)}</p>
@@ -251,7 +251,7 @@ export default function AdminAnalyticsPage() {
             ) : (
               <div className="divide-y divide-border/20">
                 {lowStock.map((p) => (
-                  <div key={p.name} className="flex items-center justify-between px-4 py-3">
+                  <div key={p.name} className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-primary-light/30">
                     <span className="text-sm text-charcoal truncate max-w-[200px]">{p.name}</span>
                     <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive [font-variant-numeric:tabular-nums]">{p.stock} left</span>
                   </div>

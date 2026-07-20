@@ -292,7 +292,7 @@ export default function SupportInboxPage() {
                 type="button"
                 onClick={() => toggleSort("time")}
                 className={cn(
-                  "flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium transition-colors",
+                  "flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium transition-colors active:scale-[0.96]",
                   sortBy === "time" ? "bg-secondary/10 text-secondary" : "text-charcoal-lighter hover:bg-pearl"
                 )}
               >
@@ -302,7 +302,7 @@ export default function SupportInboxPage() {
                 type="button"
                 onClick={() => toggleSort("tier")}
                 className={cn(
-                  "flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium transition-colors",
+                  "flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium transition-colors active:scale-[0.96]",
                   sortBy === "tier" ? "bg-secondary/10 text-secondary" : "text-charcoal-lighter hover:bg-pearl"
                 )}
               >
@@ -325,8 +325,8 @@ export default function SupportInboxPage() {
                 <div
                   key={c.id}
                   className={cn(
-                    "group w-full flex items-center gap-3 px-4 py-3 border-b border-border/10 hover:bg-pearl/50 transition-colors",
-                    activeId === c.id && "bg-primary-light/50"
+                    "group w-full flex items-center gap-3 px-4 py-3 border-b border-l-2 border-l-transparent border-border/10 hover:bg-pearl/50 transition-colors",
+                    activeId === c.id && "bg-primary-light/50 border-l-secondary"
                   )}
                 >
                   <button onClick={() => setActiveId(c.id)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
@@ -352,7 +352,7 @@ export default function SupportInboxPage() {
                   {canDelete && (
                     <button
                       onClick={(e) => { e.stopPropagation(); setDeleteTarget(c); }}
-                      className="shrink-0 rounded-full p-1.5 text-charcoal-lighter opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
+                      className="shrink-0 rounded-full p-1.5 text-charcoal-lighter opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all active:scale-[0.96]"
                       aria-label={`Delete conversation with ${c.display_name}`}
                       title="Delete conversation"
                     >
@@ -389,7 +389,7 @@ export default function SupportInboxPage() {
                 {canDelete && (
                   <button
                     onClick={() => setDeleteTarget(active)}
-                    className="shrink-0 rounded-full p-2 text-charcoal-lighter hover:bg-destructive/10 hover:text-destructive transition-colors"
+                    className="shrink-0 rounded-full p-2 text-charcoal-lighter hover:bg-destructive/10 hover:text-destructive transition-colors active:scale-[0.96]"
                     aria-label="Delete conversation"
                     title="Delete conversation"
                   >
@@ -446,7 +446,7 @@ export default function SupportInboxPage() {
                   <button
                     onClick={handleSend}
                     disabled={!draft.trim() || sending}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary !text-white transition-all hover:bg-secondary-dark disabled:opacity-40"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary !text-white transition-all hover:bg-secondary-dark disabled:opacity-40 active:scale-[0.96] disabled:active:scale-100"
                     aria-label="Send reply"
                   >
                     {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

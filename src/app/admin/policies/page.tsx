@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { FileText, Plus, Trash2, Edit, Save, Loader2, Check, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -145,36 +146,47 @@ export default function AdminPoliciesPage() {
         )}
       </div>
 
-      {saved && <p className="text-xs text-success flex items-center gap-1"><Check className="h-3 w-3" /> Saved</p>}
+      {saved && <p className="text-xs text-success flex items-center gap-1 animate-fade-in"><Check className="h-3 w-3" /> Saved</p>}
 
       <div className="grid sm:grid-cols-2 gap-4">
-        {policies.map((policy) => (
-          <Card key={policy.slug}>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center justify-between">
-                {policy.title}
-                {canEdit && (
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => openEdit(policy)} className="flex items-center justify-center h-8 w-8 rounded-full text-charcoal-lighter hover:text-secondary hover:bg-primary-light transition-colors">
-                      <Edit className="h-3.5 w-3.5" />
-                    </button>
-                    <button onClick={() => setDeleteTarget(policy)} className="flex items-center justify-center h-8 w-8 rounded-full text-charcoal-lighter hover:text-destructive hover:bg-destructive/10 transition-colors">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )}
-              </CardTitle>
-              <CardDescription>/policies/{policy.slug} · {policy.sections.length} section{policy.sections.length !== 1 ? "s" : ""}</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <p className="text-xs text-charcoal-lighter line-clamp-2">{policy.intro}</p>
-            </CardContent>
-          </Card>
-        ))}
+        <AnimatePresence initial={false}>
+          {policies.map((policy, i) => (
+            <motion.div
+              key={policy.slug}
+              layout
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ delay: i * 0.04 }}
+            >
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center justify-between">
+                    {policy.title}
+                    {canEdit && (
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => openEdit(policy)} className="flex items-center justify-center h-8 w-8 rounded-full text-charcoal-lighter hover:text-secondary hover:bg-primary-light transition-colors active:scale-[0.96]">
+                          <Edit className="h-3.5 w-3.5" />
+                        </button>
+                        <button onClick={() => setDeleteTarget(policy)} className="flex items-center justify-center h-8 w-8 rounded-full text-charcoal-lighter hover:text-destructive hover:bg-destructive/10 transition-colors active:scale-[0.96]">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </CardTitle>
+                  <CardDescription>/policies/{policy.slug} · {policy.sections.length} section{policy.sections.length !== 1 ? "s" : ""}</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <p className="text-xs text-charcoal-lighter line-clamp-2">{policy.intro}</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
 
       {policies.length === 0 && (
-        <Card>
+        <Card className="animate-fade-in">
           <EmptyState
             icon={FileText}
             title="No policy pages yet"
@@ -235,7 +247,7 @@ export default function AdminPoliciesPage() {
                       placeholder="Section heading"
                       className="!h-9 flex-1 font-medium"
                     />
-                    <button onClick={() => removeSection(si)} className="shrink-0 flex items-center justify-center h-8 w-8 rounded-full text-charcoal-lighter hover:text-destructive hover:bg-destructive/10 transition-colors">
+                    <button onClick={() => removeSection(si)} className="shrink-0 flex items-center justify-center h-8 w-8 rounded-full text-charcoal-lighter hover:text-destructive hover:bg-destructive/10 transition-colors active:scale-[0.96]">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -249,12 +261,12 @@ export default function AdminPoliciesPage() {
                           placeholder="Bullet point text"
                           className="!h-8 text-xs flex-1"
                         />
-                        <button onClick={() => removeSectionLine(si, li)} className="shrink-0 flex items-center justify-center h-7 w-7 rounded-full text-charcoal-lighter hover:text-destructive hover:bg-destructive/10 transition-colors">
+                        <button onClick={() => removeSectionLine(si, li)} className="shrink-0 flex items-center justify-center h-7 w-7 rounded-full text-charcoal-lighter hover:text-destructive hover:bg-destructive/10 transition-colors active:scale-[0.96]">
                           <X className="h-3 w-3" />
                         </button>
                       </div>
                     ))}
-                    <button onClick={() => addSectionLine(si)} className="text-[11px] text-secondary hover:underline flex items-center gap-1">
+                    <button onClick={() => addSectionLine(si)} className="text-[11px] text-secondary hover:underline flex items-center gap-1 transition-colors active:scale-[0.97]">
                       <Plus className="h-3 w-3" /> Add bullet point
                     </button>
                   </div>

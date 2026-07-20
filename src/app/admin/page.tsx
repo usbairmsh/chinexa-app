@@ -172,7 +172,7 @@ export default function AdminDashboard() {
             onClick={handleRefresh}
             disabled={refreshing}
             className={cn(
-              "inline-flex items-center gap-1.5 h-9 px-3 sm:px-4 rounded-full border text-[12px] font-body font-medium tracking-wide transition-all duration-200 cursor-pointer",
+              "inline-flex items-center gap-1.5 h-9 px-3 sm:px-4 rounded-full border text-[12px] font-body font-medium tracking-wide transition-all duration-200 cursor-pointer active:scale-[0.96]",
               refreshing ? "border-secondary text-secondary bg-secondary/5" : "border-border text-charcoal-lighter hover:text-charcoal hover:border-charcoal"
             )}
           >
@@ -180,7 +180,7 @@ export default function AdminDashboard() {
             {refreshing ? "Refreshing..." : "Refresh"}
           </button>
           <Link href="/admin/analytics">
-            <span className="inline-flex items-center gap-1.5 h-9 px-3 sm:px-5 rounded-full border border-border text-charcoal text-[12px] font-body font-medium tracking-wide hover:bg-charcoal hover:!text-white hover:border-charcoal transition-all duration-200 cursor-pointer">
+            <span className="inline-flex items-center gap-1.5 h-9 px-3 sm:px-5 rounded-full border border-border text-charcoal text-[12px] font-body font-medium tracking-wide hover:bg-charcoal hover:!text-white hover:border-charcoal transition-all duration-200 cursor-pointer active:scale-[0.96]">
               <BarChart3 className="h-3.5 w-3.5" /> Analytics
             </span>
           </Link>
@@ -409,7 +409,7 @@ export default function AdminDashboard() {
                   const config = orderStatusConfig[order.status] || orderStatusConfig.pending;
                   const StatusIcon = config.icon;
                   return (
-                    <tr key={order.id} className="border-b border-border/10 hover:bg-pearl/50 transition-colors">
+                    <tr key={order.id} className="border-b border-border/10 hover:bg-pearl/50 hover:border-secondary/20 transition-colors">
                       <td className="px-5 py-3"><p className="font-medium text-charcoal">{order.id}</p><p className="text-[10px] text-charcoal-lighter">{order.time}</p></td>
                       <td className="px-5 py-3 max-w-[140px] sm:max-w-none"><div className="flex items-center gap-2 min-w-0"><Avatar className="h-7 w-7 shrink-0"><AvatarFallback className="text-[9px]">{getInitials(order.customer)}</AvatarFallback></Avatar><span className="text-charcoal truncate">{order.customer}</span></div></td>
                       <td className="px-5 py-3 text-charcoal-lighter hidden sm:table-cell">{order.items} items</td>

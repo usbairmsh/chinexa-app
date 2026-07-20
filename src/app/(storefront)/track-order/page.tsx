@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Search, Package, Truck, CheckCircle2, Clock, MapPin, PackageCheck, CreditCard, Loader2, ShoppingBag } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -76,6 +76,7 @@ export default function TrackOrderPage() {
 
 function TrackOrderContent() {
   const searchParams = useSearchParams();
+  const shouldReduceMotion = useReducedMotion();
   const [orderId, setOrderId] = useState("");
   const [phone, setPhone] = useState("");
   const [order, setOrder] = useState<OrderData | null>(null);
@@ -180,13 +181,24 @@ function TrackOrderContent() {
 
         {/* Not Found */}
         {notFound && (
-          <EmptyState icon={ShoppingBag} title="Order not found" description="Please check the order number and try again." />
+          <motion.div
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          >
+            <EmptyState icon={ShoppingBag} title="Order not found" description="Please check the order number and try again." />
+          </motion.div>
         )}
 
         {/* Result */}
         {order && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
             {/* Order Summary */}
+            <motion.div
+              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut", delay: 0.05 }}
+            >
             <Card>
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-2 mb-4">
@@ -221,8 +233,14 @@ function TrackOrderContent() {
                 </div>
               </CardContent>
             </Card>
+            </motion.div>
 
             {/* Timeline */}
+            <motion.div
+              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut", delay: 0.1 }}
+            >
             <Card>
               <CardContent className="p-5">
                 <h3 className="font-heading text-base font-semibold text-charcoal mb-5">Delivery Progress</h3>
@@ -232,10 +250,16 @@ function TrackOrderContent() {
                     const Icon = step.icon;
 
                     return (
-                      <div key={step.key} className="flex gap-4">
+                      <motion.div
+                        key={step.key}
+                        className="flex gap-4"
+                        initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.25, ease: "easeOut", delay: 0.15 + i * 0.06 }}
+                      >
                         <div className="flex flex-col items-center">
                           <div className={cn(
-                            "flex h-8 w-8 items-center justify-center rounded-full border-2 flex-shrink-0",
+                            "flex h-8 w-8 items-center justify-center rounded-full border-2 flex-shrink-0 transition-colors duration-300",
                             step.done
                               ? "bg-secondary border-secondary text-white"
                               : "bg-white border-border text-charcoal-lighter"
@@ -243,7 +267,7 @@ function TrackOrderContent() {
                             <Icon className="h-3.5 w-3.5" />
                           </div>
                           {!isLast && (
-                            <div className={cn("w-0.5 h-8", step.done ? "bg-secondary" : "bg-border")} />
+                            <div className={cn("w-0.5 h-8 transition-colors duration-300", step.done ? "bg-secondary" : "bg-border")} />
                           )}
                         </div>
                         <div className="pb-6">
@@ -254,23 +278,34 @@ function TrackOrderContent() {
                             <p className="text-xs text-charcoal-lighter">{formatDateTime(step.date)}</p>
                           )}
                         </div>
-                      </div>
+                      </motion.div>
                     );
                   })}
                 </div>
 
                 {/* Not Received notice */}
                 {order.status === "not_received" && (
-                  <div className="mt-4 p-4 rounded-2xl bg-destructive/5 border border-destructive/10">
+                  <motion.div
+                    initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
+                    className="mt-4 p-4 rounded-2xl bg-destructive/5 border border-destructive/10"
+                  >
                     <p className="text-sm font-medium text-destructive">Delivery could not be completed</p>
                     <p className="text-xs text-destructive/70 mt-0.5">Please contact support for assistance.</p>
-                  </div>
+                  </motion.div>
                 )}
               </CardContent>
             </Card>
+            </motion.div>
 
             {/* Shipping Address */}
             {order.shipping_address && (
+              <motion.div
+                initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut", delay: 0.15 }}
+              >
               <Card>
                 <CardContent className="p-5">
                   <h3 className="font-heading text-base font-semibold text-charcoal mb-3 flex items-center gap-2">
@@ -286,9 +321,15 @@ function TrackOrderContent() {
                   )}
                 </CardContent>
               </Card>
+              </motion.div>
             )}
 
             {/* Payment Info */}
+            <motion.div
+              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut", delay: 0.2 }}
+            >
             <Card>
               <CardContent className="p-5">
                 <h3 className="font-heading text-base font-semibold text-charcoal mb-3 flex items-center gap-2">
@@ -306,6 +347,7 @@ function TrackOrderContent() {
                 </div>
               </CardContent>
             </Card>
+            </motion.div>
           </motion.div>
         )}
       </div>

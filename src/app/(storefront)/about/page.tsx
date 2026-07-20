@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import type { OurStoryContent } from "@/types/our-story";
 import { OUR_STORY_ICON_MAP } from "@/lib/our-story-icons";
@@ -10,6 +10,7 @@ import { OUR_STORY_ICON_MAP } from "@/lib/our-story-icons";
 export default function AboutPage() {
   const [story, setStory] = useState<OurStoryContent | null>(null);
   const [checked, setChecked] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
     fetch("/api/settings?key=our_story")
@@ -62,12 +63,20 @@ export default function AboutPage() {
                 ))}
               </div>
             </motion.div>
-            <motion.div initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="relative overflow-hidden">
-              <div className="relative aspect-[4/5] rounded-3xl overflow-hidden">
-                <Image src={content.image} alt="ChineXa team" fill className="object-cover" sizes="(max-width: 1024px) 100vw, 50vw" />
+            <motion.div initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="relative overflow-hidden group">
+              <div className="relative aspect-[4/5] rounded-3xl overflow-hidden shadow-card">
+                <Image
+                  src={content.image}
+                  alt="ChineXa team"
+                  fill
+                  className="object-cover transition-transform duration-700 group-hover:scale-105"
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                />
               </div>
               <div className="absolute -bottom-4 -left-4 w-40 h-40 rounded-2xl bg-primary/30 -z-10" />
-              <div className="absolute -top-4 -right-4 w-28 h-28 rounded-full bg-secondary/20 -z-10" />
+              <div
+                className={`absolute -top-4 -right-4 w-28 h-28 rounded-full bg-secondary/20 -z-10 ${shouldReduceMotion ? "" : "animate-float"}`}
+              />
             </motion.div>
           </div>
         </div>
@@ -91,9 +100,9 @@ export default function AboutPage() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.1 }}
-                    className="bg-white rounded-2xl p-6 text-center shadow-card"
+                    className="group bg-white rounded-2xl p-6 text-center shadow-card hover:shadow-card-hover hover:-translate-y-px transition-all duration-300"
                   >
-                    <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-light mb-4">
+                    <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-light mb-4 transition-transform duration-300 group-hover:scale-105">
                       <Icon className="h-6 w-6 text-secondary" />
                     </div>
                     <h3 className="font-heading text-base font-semibold text-charcoal mb-2">{value.title}</h3>

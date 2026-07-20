@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { ArrowLeft, Package, Truck, CheckCircle2, Clock, MapPin, CreditCard, Copy, PackageCheck, Loader2, ShoppingBag, RotateCcw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +67,7 @@ interface OrderData {
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const user = useAuthStore((s) => s.user);
+  const shouldReduceMotion = useReducedMotion();
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -160,8 +161,8 @@ export default function OrderDetailPage() {
   return (
     <div className="space-y-6">
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
+        animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }}
         className="flex items-start sm:items-center gap-3 flex-wrap"
       >
@@ -178,8 +179,8 @@ export default function OrderDetailPage() {
       <div className="grid lg:grid-cols-5 gap-4 sm:gap-5">
         {/* Main — Items + Timeline */}
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 16 }}
+          animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
           transition={{ duration: 0.35, delay: 0.05, ease: "easeOut" }}
           className="lg:col-span-3 space-y-4 sm:space-y-5"
         >
@@ -188,9 +189,15 @@ export default function OrderDetailPage() {
             <CardHeader className="pb-3"><CardTitle className="text-base">Order Items</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               {(order.items || []).map((item, i) => (
-                <div key={i} className="flex gap-3 sm:gap-4">
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: i * 0.05, ease: "easeOut" }}
+                  className="flex gap-3 sm:gap-4 group"
+                >
                   <div className="relative h-16 w-16 sm:h-20 sm:w-20 rounded-xl overflow-hidden bg-pearl shrink-0">
-                    <Image src={item.product_image || "https://placehold.co/80x80"} alt={item.product_name} fill className="object-cover" sizes="80px" />
+                    <Image src={item.product_image || "https://placehold.co/80x80"} alt={item.product_name} fill className="object-cover transition-transform duration-300 group-hover:scale-105" sizes="80px" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs sm:text-sm font-medium text-charcoal line-clamp-2">{item.product_name}</p>
@@ -200,7 +207,7 @@ export default function OrderDetailPage() {
                       <p className="text-xs sm:text-sm font-semibold text-charcoal">{formatCurrency(Number(item.total_price))}</p>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               ))}
               <Separator />
               <div className="space-y-1.5 text-sm">
@@ -222,21 +229,27 @@ export default function OrderDetailPage() {
                   const isLast = i === builtTimeline.length - 1;
                   const Icon = step.icon;
                   return (
-                    <div key={step.key} className="flex gap-4">
+                    <motion.div
+                      key={step.key}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: i * 0.06, ease: "easeOut" }}
+                      className="flex gap-4"
+                    >
                       <div className="flex flex-col items-center">
                         <div className={cn(
-                          "flex h-9 w-9 items-center justify-center rounded-full border-2 shrink-0",
+                          "flex h-9 w-9 items-center justify-center rounded-full border-2 shrink-0 transition-colors duration-300",
                           step.done ? "bg-secondary border-secondary text-white" : "bg-white border-border text-charcoal-lighter"
                         )}>
                           <Icon className="h-4 w-4" />
                         </div>
-                        {!isLast && <div className={cn("w-0.5 h-8", step.done ? "bg-secondary" : "bg-border")} />}
+                        {!isLast && <div className={cn("w-0.5 h-8 transition-colors duration-300", step.done ? "bg-secondary" : "bg-border")} />}
                       </div>
                       <div className="pb-6 pt-1.5">
                         <p className={cn("text-sm font-medium", step.done ? "text-charcoal" : "text-charcoal-lighter")}>{step.label}</p>
                         {step.date && <p className="text-xs text-charcoal-lighter">{formatDateTime(step.date)}</p>}
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>
@@ -254,8 +267,8 @@ export default function OrderDetailPage() {
 
         {/* Sidebar — Address + Payment */}
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 16 }}
+          animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
           transition={{ duration: 0.35, delay: 0.1, ease: "easeOut" }}
           className="lg:col-span-2 space-y-4 sm:space-y-5"
         >
@@ -291,10 +304,23 @@ export default function OrderDetailPage() {
                   <span className="text-charcoal-lighter shrink-0">Transaction ID</span>
                   <div className="flex items-center gap-1 min-w-0">
                     <code className="text-xs font-mono text-charcoal truncate">{order.transaction_id}</code>
-                    <button onClick={() => handleCopy(order.transaction_id!)} className="text-charcoal-lighter hover:text-secondary shrink-0 p-2">
+                    <motion.button
+                      onClick={() => handleCopy(order.transaction_id!)}
+                      whileTap={{ scale: 0.85 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                      className="text-charcoal-lighter hover:text-secondary shrink-0 p-2"
+                    >
                       <Copy className="h-3.5 w-3.5" />
-                    </button>
-                    {copied && <span className="text-[9px] text-success">Copied</span>}
+                    </motion.button>
+                    {copied && (
+                      <motion.span
+                        initial={{ opacity: 0, y: 2 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-[9px] text-success"
+                      >
+                        Copied
+                      </motion.span>
+                    )}
                   </div>
                 </div>
               )}

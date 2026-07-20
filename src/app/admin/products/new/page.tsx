@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowLeft, Save, Upload, X, Plus, Trash2, GripVertical,
   ImagePlus, Tag, Globe, Sparkles, Package, BarChart3, Copy, Check, Shield
@@ -55,6 +55,7 @@ type ImageRow = {
 export default function AddProductPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const shouldReduceMotion = useReducedMotion();
   const { can } = useAdmin();
   const canAddProduct = can("products", "add");
   const [activeTab, setActiveTab] = useState<"basic" | "media" | "variants" | "seo">("basic");
@@ -335,7 +336,7 @@ export default function AddProductPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/admin/products" className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors">
+          <Link href="/admin/products" className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96]">
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
@@ -354,13 +355,13 @@ export default function AddProductPage() {
 
       {/* Alerts */}
       {saved && (
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+        <motion.div initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }} animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
           className="flex items-center gap-2 p-3 rounded-luxury bg-success/10 border border-success/20 text-success text-sm font-medium">
           <Save className="h-4 w-4" /> Product saved successfully! Redirecting to product list...
         </motion.div>
       )}
       {error && (
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+        <motion.div initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }} animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
           className="flex items-center gap-2 p-3 rounded-luxury bg-destructive/10 border border-destructive/20 text-destructive text-sm font-medium">
           <X className="h-4 w-4" /> {error}
         </motion.div>
@@ -373,7 +374,7 @@ export default function AddProductPage() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 transition-all duration-200",
+              "flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 transition-all duration-200 active:scale-[0.97]",
               activeTab === tab.id
                 ? "bg-white text-charcoal shadow-card"
                 : "text-charcoal-lighter hover:text-charcoal"
@@ -389,7 +390,7 @@ export default function AddProductPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Basic Info */}
           {activeTab === "basic" && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+            <motion.div initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }} animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }} className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Product Information</CardTitle>
@@ -423,7 +424,7 @@ export default function AddProductPage() {
 
           {/* Variants, Media & Stock */}
           {activeTab === "variants" && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+            <motion.div initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }} animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }} className="space-y-6">
               <Card>
                 <CardHeader className="flex-row items-center justify-between space-y-0">
                   <div>
@@ -437,11 +438,11 @@ export default function AddProductPage() {
                 <CardContent>
                     <div className="space-y-4">
                       {variants.map((variant, i) => (
-                        <div key={variant.id} className="rounded-luxury border border-border/30 overflow-hidden">
+                        <motion.div key={variant.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, ease: "easeOut" }} className="rounded-luxury border border-border/30 overflow-hidden">
                           <div className="flex items-center justify-between px-4 py-2.5 bg-pearl/50 border-b border-border/20">
                             <span className="text-xs font-bold text-charcoal">Variant {i + 1} {i === 0 && <span className="text-[9px] text-secondary font-normal ml-1">(default)</span>}</span>
                             {variants.length > 1 && (
-                              <button onClick={() => removeVariant(variant.id)} className="p-1 rounded-full hover:bg-destructive/10 text-charcoal-lighter hover:text-destructive transition-colors">
+                              <button onClick={() => removeVariant(variant.id)} className="p-1 rounded-full hover:bg-destructive/10 text-charcoal-lighter hover:text-destructive transition-colors active:scale-[0.96]">
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
                             )}
@@ -505,7 +506,7 @@ export default function AddProductPage() {
                             </div>
 
                           </div>
-                        </div>
+                        </motion.div>
                       ))}
                     </div>
                 </CardContent>
@@ -515,7 +516,7 @@ export default function AddProductPage() {
 
           {/* Media */}
           {activeTab === "media" && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+            <motion.div initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }} animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }} className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Product Images</CardTitle>
@@ -524,10 +525,10 @@ export default function AddProductPage() {
                 <CardContent>
                   <div className="space-y-4">
                     {images.map((img, i) => (
-                      <div key={img.id} className="p-4 rounded-luxury border border-border/30 bg-pearl/20">
+                      <motion.div key={img.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, ease: "easeOut" }} className="p-4 rounded-luxury border border-border/30 bg-pearl/20">
                         <div className="flex items-center justify-between mb-3">
                           <span className="text-xs font-bold text-charcoal">Image {i + 1} {i === 0 && <span className="text-[9px] text-secondary font-normal ml-1">(main)</span>}</span>
-                          <button onClick={() => removeImage(img.id)} className="p-1 rounded-full hover:bg-destructive/10 text-charcoal-lighter hover:text-destructive transition-colors">
+                          <button onClick={() => removeImage(img.id)} className="p-1 rounded-full hover:bg-destructive/10 text-charcoal-lighter hover:text-destructive transition-colors active:scale-[0.96]">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -563,12 +564,12 @@ export default function AddProductPage() {
                             )}
                           </div>
                         </div>
-                      </div>
+                      </motion.div>
                     ))}
 
                     {images.length < 8 && (
                       <button onClick={addImage}
-                        className="w-full py-6 rounded-luxury border-2 border-dashed border-border/40 hover:border-secondary/40 hover:bg-primary-light/20 transition-all flex items-center justify-center gap-2 text-charcoal-lighter hover:text-secondary">
+                        className="w-full py-6 rounded-luxury border-2 border-dashed border-border/40 hover:border-secondary/40 hover:bg-primary-light/20 transition-all flex items-center justify-center gap-2 text-charcoal-lighter hover:text-secondary active:scale-[0.99]">
                         <Plus className="h-5 w-5" /> <span className="text-sm font-medium">Add Image</span>
                       </button>
                     )}
@@ -580,7 +581,7 @@ export default function AddProductPage() {
 
           {/* SEO */}
           {activeTab === "seo" && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+            <motion.div initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }} animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }} className="space-y-6">
               {/* Trust Badges */}
               <Card>
                 <CardHeader>
@@ -609,7 +610,7 @@ export default function AddProductPage() {
                           }}
                           disabled={!isSelected && selectedTrustBadges.length >= 3}
                           className={cn(
-                            "flex items-center gap-2 p-3 rounded-luxury border text-left transition-all",
+                            "flex items-center gap-2 p-3 rounded-luxury border text-left transition-all active:scale-[0.98]",
                             isSelected ? "border-secondary bg-secondary/5" : "border-border/30 hover:border-secondary/40",
                             !isSelected && selectedTrustBadges.length >= 3 && "opacity-40 cursor-not-allowed"
                           )}
@@ -638,7 +639,7 @@ export default function AddProductPage() {
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-charcoal-lighter">Paste from ChatGPT / Gemini, or write manually</p>
-                    <button type="button" onClick={() => setSeoPromptOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary/10 text-secondary text-[11px] font-medium hover:bg-secondary/20 transition-colors">
+                    <button type="button" onClick={() => setSeoPromptOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary/10 text-secondary text-[11px] font-medium hover:bg-secondary/20 transition-colors active:scale-[0.96]">
                       <Copy className="h-3 w-3" /> Copy for AI
                     </button>
                   </div>
@@ -737,7 +738,7 @@ export default function AddProductPage() {
                     key={badge}
                     onClick={() => toggleBadge(badge)}
                     className={cn(
-                      "px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 capitalize",
+                      "px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 capitalize active:scale-[0.96]",
                       selectedBadges.includes(badge)
                         ? "bg-secondary !text-white border-secondary"
                         : "bg-white text-charcoal-lighter border-border hover:border-charcoal hover:text-charcoal"

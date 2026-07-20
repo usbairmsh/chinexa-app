@@ -126,7 +126,7 @@ export default function AdminRolesPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.push("/admin/users")} className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-charcoal-lighter hover:text-charcoal hover:border-charcoal transition-all">
+          <button onClick={() => router.push("/admin/users")} className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-charcoal-lighter hover:text-charcoal hover:border-charcoal transition-all active:scale-[0.96]">
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div>
@@ -178,7 +178,7 @@ export default function AdminRolesPage() {
                       </td>
                       <td className="px-4 py-3">
                         <DropdownMenu>
-                          <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
+                          <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md transition-colors active:scale-[0.96]"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => openEdit(role)}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
                             <DropdownMenuSeparator />

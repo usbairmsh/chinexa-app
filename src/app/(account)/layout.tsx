@@ -8,7 +8,7 @@ import {
   ShoppingBag, Heart, MapPin, UserCircle,
   LogOut, ChevronRight, HelpCircle, Tag, Crown, MessageCircle, Star
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Header } from "@/components/layout/header/header";
 import { PageLoader } from "@/components/shared/page-loader";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
@@ -60,6 +60,7 @@ export default function AccountLayout({
   const { user: storeUser, isAuthenticated: storeAuthenticated, logout } = useAuthStore();
   const badge = useCustomerBadge();
   const openChat = useChatStore((s) => s.openChat);
+  const shouldReduceMotion = useReducedMotion();
 
   // The auth store rehydrates from localStorage on the client, so its values
   // differ from the server-rendered HTML on hard refresh. Rendering them before
@@ -126,8 +127,8 @@ export default function AccountLayout({
               the compact profile strip below, which already carries the name. */}
           <div className="hidden lg:block mb-6 lg:mb-8">
             <motion.h1
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+              animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
               className="font-heading text-2xl sm:text-3xl font-semibold text-charcoal"
             >
               My Account
@@ -179,7 +180,7 @@ export default function AccountLayout({
                     <button
                       key={item.href}
                       onClick={() => openChat("help_and_support")}
-                      className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-md text-charcoal/70 hover:bg-pearl hover:text-charcoal transition-colors"
+                      className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-md text-charcoal/70 hover:bg-pearl hover:text-charcoal active:scale-[0.93] transition-all duration-150"
                     >
                       <item.icon className="h-5 w-5" />
                       <span className="text-[10px] font-medium leading-none text-center">{item.label}</span>
@@ -189,7 +190,7 @@ export default function AccountLayout({
                       key={item.href}
                       href={item.href}
                       className={cn(
-                        "flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-md transition-colors",
+                        "flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-md active:scale-[0.93] transition-all duration-150",
                         isActive(item.href)
                           ? "bg-secondary/10 text-secondary"
                           : "text-charcoal/70 hover:bg-pearl hover:text-charcoal"
@@ -197,11 +198,20 @@ export default function AccountLayout({
                     >
                       <span className="relative">
                         <item.icon className="h-5 w-5" />
-                        {item.countKey && navCounts[item.countKey] > 0 && (
-                          <span className="absolute -top-1 -right-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-secondary px-0.5 text-[8px] font-bold text-white ring-2 ring-white">
-                            {navCounts[item.countKey]}
-                          </span>
-                        )}
+                        <AnimatePresence>
+                          {item.countKey && navCounts[item.countKey] > 0 && (
+                            <motion.span
+                              key={navCounts[item.countKey]}
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              exit={{ scale: 0 }}
+                              transition={{ type: "spring", stiffness: 500, damping: 12 }}
+                              className="absolute -top-1 -right-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-secondary px-0.5 text-[8px] font-bold text-white ring-2 ring-white"
+                            >
+                              {navCounts[item.countKey]}
+                            </motion.span>
+                          )}
+                        </AnimatePresence>
                       </span>
                       <span className="text-[10px] font-medium leading-none text-center">{item.label}</span>
                     </Link>
@@ -210,7 +220,7 @@ export default function AccountLayout({
                 {isAuthenticated ? (
                   <button
                     onClick={handleLogout}
-                    className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-md text-charcoal/70 hover:bg-destructive/5 hover:text-destructive transition-colors"
+                    className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-md text-charcoal/70 hover:bg-destructive/5 hover:text-destructive active:scale-[0.93] transition-all duration-150"
                   >
                     <LogOut className="h-5 w-5" />
                     <span className="text-[10px] font-medium leading-none">Sign Out</span>
@@ -218,7 +228,7 @@ export default function AccountLayout({
                 ) : (
                   <Link
                     href="/login"
-                    className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-md text-secondary transition-colors"
+                    className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-md text-secondary active:scale-[0.93] transition-all duration-150"
                   >
                     <LogOut className="h-5 w-5 rotate-180" />
                     <span className="text-[10px] font-medium leading-none">Sign In</span>
@@ -265,7 +275,7 @@ export default function AccountLayout({
 
                   <Link
                     href="/dashboard/profile"
-                    className="mt-4 w-full py-2 rounded-xl bg-white/90 text-charcoal text-sm font-medium hover:bg-white transition-colors"
+                    className="mt-4 w-full py-2 rounded-xl bg-white/90 text-charcoal text-sm font-medium hover:bg-white hover:shadow-card active:scale-[0.97] transition-all duration-200"
                   >
                     View Profile
                   </Link>
@@ -277,7 +287,7 @@ export default function AccountLayout({
                       <button
                         key={item.href}
                         onClick={() => openChat("help_and_support")}
-                        className="flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-normal font-body text-charcoal/70 transition-all duration-150 hover:bg-pearl hover:text-charcoal"
+                        className="flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-normal font-body text-charcoal/70 transition-all duration-150 hover:bg-pearl hover:text-charcoal active:scale-[0.98]"
                       >
                         <item.icon className="h-[18px] w-[18px] shrink-0" />
                         <span className="flex-1 text-left font-normal">{item.label}</span>
@@ -287,7 +297,7 @@ export default function AccountLayout({
                         key={item.href}
                         href={item.href}
                         className={cn(
-                          "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150",
+                          "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150 active:scale-[0.98]",
                           isActive(item.href)
                             ? "bg-secondary/10 text-secondary font-medium"
                             : "text-charcoal/70 hover:bg-pearl hover:text-charcoal"
@@ -295,11 +305,20 @@ export default function AccountLayout({
                       >
                         <item.icon className="h-[18px] w-[18px] shrink-0" />
                         <span className="flex-1">{item.label}</span>
-                        {item.countKey && navCounts[item.countKey] > 0 && (
-                          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-secondary px-1 text-[9px] font-bold text-white">
-                            {navCounts[item.countKey]}
-                          </span>
-                        )}
+                        <AnimatePresence>
+                          {item.countKey && navCounts[item.countKey] > 0 && (
+                            <motion.span
+                              key={navCounts[item.countKey]}
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              exit={{ scale: 0 }}
+                              transition={{ type: "spring", stiffness: 500, damping: 12 }}
+                              className="flex h-4 min-w-4 items-center justify-center rounded-full bg-secondary px-1 text-[9px] font-bold text-white"
+                            >
+                              {navCounts[item.countKey]}
+                            </motion.span>
+                          )}
+                        </AnimatePresence>
                         {isActive(item.href) && (
                           <ChevronRight className="h-3.5 w-3.5 text-secondary" />
                         )}
@@ -312,7 +331,7 @@ export default function AccountLayout({
                   {isAuthenticated ? (
                     <button
                       onClick={handleLogout}
-                      className="flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-normal font-body text-charcoal/70 transition-all duration-150 hover:bg-destructive/5 hover:text-destructive"
+                      className="flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-normal font-body text-charcoal/70 transition-all duration-150 hover:bg-destructive/5 hover:text-destructive active:scale-[0.98]"
                     >
                       <LogOut className="h-[18px] w-[18px]" />
                       <span className="font-normal">Sign Out</span>
@@ -320,7 +339,7 @@ export default function AccountLayout({
                   ) : (
                     <Link
                       href="/login"
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-secondary font-medium hover:bg-secondary/5 transition-all duration-150"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-secondary font-medium hover:bg-secondary/5 active:scale-[0.98] transition-all duration-150"
                     >
                       <LogOut className="h-[18px] w-[18px] rotate-180" />
                       <span>Sign In</span>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, X, Loader2, Tag } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
@@ -18,6 +18,7 @@ export default function CartPage() {
   const { items, removeItem, updateQuantity, getSubtotal, getShipping, getItemCount, couponCode, applyCoupon, removeCoupon, refreshOffers } = useCartStore();
   const storeUser = useAuthStore((s) => s.user);
   const storeAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const shouldReduceMotion = useReducedMotion();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   // Persisted auth store differs from server HTML on hard refresh — gate on
@@ -106,21 +107,25 @@ export default function CartPage() {
                 <motion.div
                   key={item.id}
                   layout
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 20 }}
+                  animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
                   transition={{ delay: i * 0.05 }}
                   className="flex gap-3 sm:gap-6 py-4 sm:py-6 border-b border-border/30"
                 >
-                  <div className="relative h-24 w-[68px] sm:h-40 sm:w-32 flex-shrink-0 rounded-xl overflow-hidden bg-pearl">
+                  <Link
+                    href={`/products/${item.product_slug}`}
+                    prefetch={false}
+                    className="group relative h-24 w-[68px] sm:h-40 sm:w-32 flex-shrink-0 rounded-xl overflow-hidden bg-pearl"
+                  >
                     <Image
                       src={item.product_image || `https://picsum.photos/seed/${item.product_slug}/300/375`}
                       alt={item.product_name}
                       fill
-                      className="object-cover"
+                      className="object-cover transition-transform duration-700 group-hover:scale-105"
                       sizes="128px"
                     />
-                  </div>
+                  </Link>
                   <div className="flex-1 min-w-0">
                     <Link
                       href={`/products/${item.product_slug}`}
@@ -139,21 +144,21 @@ export default function CartPage() {
                       <div className="flex items-center gap-1.5 sm:gap-2">
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full border border-border hover:border-secondary transition-colors"
+                          className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full border border-border hover:border-secondary active:scale-90 transition-[colors,transform] duration-150"
                         >
                           <Minus className="h-3 w-3" />
                         </button>
                         <span className="w-7 sm:w-8 text-center text-sm font-medium">{item.quantity}</span>
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full border border-border hover:border-secondary transition-colors"
+                          className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full border border-border hover:border-secondary active:scale-90 transition-[colors,transform] duration-150"
                         >
                           <Plus className="h-3 w-3" />
                         </button>
                       </div>
                       <button
                         onClick={() => removeItem(item.id)}
-                        className="text-charcoal-lighter hover:text-destructive transition-colors p-2 sm:p-3"
+                        className="text-charcoal-lighter hover:text-destructive active:scale-90 transition-[colors,transform] duration-150 p-2 sm:p-3"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -178,19 +183,24 @@ export default function CartPage() {
               {isAuthenticated && (
               <div className="mt-5">
                 {couponCode ? (
-                  <div className="p-3 rounded-xl bg-success/5 border border-success/20">
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                    className="p-3 rounded-xl bg-success/5 border border-success/20"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Tag className="h-3.5 w-3.5 text-success" />
                         <span className="text-sm font-semibold text-success">{couponCode}</span>
                         <span className="text-xs text-success/70">applied</span>
                       </div>
-                      <button onClick={handleRemoveCoupon} className="text-charcoal-lighter hover:text-destructive transition-colors">
+                      <button onClick={handleRemoveCoupon} className="text-charcoal-lighter hover:text-destructive active:scale-90 transition-[colors,transform] duration-150">
                         <X className="h-4 w-4" />
                       </button>
                     </div>
                     {couponSuccess && <p className="text-xs text-success mt-1">{couponSuccess}</p>}
-                  </div>
+                  </motion.div>
                 ) : (
                   <div>
                     <div className="flex gap-2">

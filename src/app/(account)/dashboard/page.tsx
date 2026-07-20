@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   ShoppingBag, Heart, MapPin, Star, Package, Truck,
   CheckCircle2, Clock, ArrowRight, Gift, Loader2, Crown, MessageCircle
@@ -37,6 +37,7 @@ interface OrderData {
 }
 
 export default function AccountDashboard() {
+  const shouldReduceMotion = useReducedMotion();
   const user = useAuthStore((s) => s.user);
   const badgeData = useCustomerBadge();
   const wishlistCount = useWishlistStore((s) => s.items.length);
@@ -108,7 +109,7 @@ export default function AccountDashboard() {
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+      <motion.div initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }} animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}>
         <Card className="rounded-2xl bg-gradient-to-r from-secondary/10 via-primary-light to-coral-light border-0 overflow-hidden relative">
           <CardContent className="p-4 sm:p-6 lg:p-8">
             <div className="relative z-10">
@@ -143,7 +144,7 @@ export default function AccountDashboard() {
               )}
             </div>
             <div className="absolute right-6 top-1/2 -translate-y-1/2 opacity-[0.07] hidden sm:block">
-              <Gift className="h-40 w-40" />
+              <Gift className="h-40 w-40 animate-float" />
             </div>
           </CardContent>
         </Card>
@@ -152,11 +153,11 @@ export default function AccountDashboard() {
       {/* Quick Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {stats.map((stat, i) => (
-          <motion.div key={stat.label} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+          <motion.div key={stat.label} initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 15 }} animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <Link href={stat.href}>
-              <Card className="hover:shadow-card-hover transition-all cursor-pointer group">
+              <Card className="hover:shadow-card-hover hover:-translate-y-px active:scale-[0.98] transition-all cursor-pointer group">
                 <CardContent className="p-4 text-center">
-                  <div className={cn("inline-flex h-10 w-10 items-center justify-center rounded-xl mb-2", stat.color)}>
+                  <div className={cn("inline-flex h-10 w-10 items-center justify-center rounded-xl mb-2 transition-transform duration-300 group-hover:scale-110", stat.color)}>
                     <stat.icon className="h-5 w-5" />
                   </div>
                   <p className="text-xl font-bold text-charcoal group-hover:text-secondary transition-colors">{stat.value}</p>
@@ -199,7 +200,7 @@ export default function AccountDashboard() {
               <Link
                 key={order.id}
                 href={`/dashboard/orders/${displayId}`}
-                className="flex items-center gap-4 p-3 rounded-xl hover:bg-pearl/70 transition-colors group"
+                className="flex items-center gap-4 p-3 rounded-xl hover:bg-pearl/70 active:scale-[0.99] transition-all group"
               >
                 <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-pearl shrink-0">
                   <Package className="h-6 w-6 text-charcoal-lighter" />
@@ -226,9 +227,9 @@ export default function AccountDashboard() {
       {/* Quick Actions */}
       <div className="grid sm:grid-cols-2 gap-3">
         <Link href="/dashboard/membership">
-          <Card className="hover:shadow-card-hover transition-all cursor-pointer group h-full">
+          <Card className="hover:shadow-card-hover hover:-translate-y-px active:scale-[0.98] transition-all cursor-pointer group h-full">
             <CardContent className="p-5 flex items-center gap-4">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gold/10 shrink-0">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gold/10 shrink-0 transition-transform duration-300 group-hover:scale-110">
                 <Crown className="h-5 w-5 text-gold" />
               </div>
               <div>
@@ -239,9 +240,9 @@ export default function AccountDashboard() {
           </Card>
         </Link>
         <button onClick={() => openChat("help_and_support")} className="text-left">
-          <Card className="hover:shadow-card-hover transition-all cursor-pointer group h-full">
+          <Card className="hover:shadow-card-hover hover:-translate-y-px active:scale-[0.98] transition-all cursor-pointer group h-full">
             <CardContent className="p-5 flex items-center gap-4">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-secondary/10 shrink-0">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-secondary/10 shrink-0 transition-transform duration-300 group-hover:scale-110">
                 <MessageCircle className="h-5 w-5 text-secondary" />
               </div>
               <div>

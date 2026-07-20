@@ -159,7 +159,7 @@ export default function TrustBadgesPage() {
                     onClick={() => setFormIcon(item.id)}
                     title={item.name}
                     className={cn(
-                      "flex items-center justify-center h-9 w-9 sm:h-10 sm:w-10 rounded-lg border transition-all",
+                      "flex items-center justify-center h-9 w-9 sm:h-10 sm:w-10 rounded-lg border transition-all active:scale-[0.96]",
                       formIcon === item.id ? "border-secondary bg-secondary/10 text-secondary scale-110" : "border-border/30 text-charcoal-lighter hover:border-secondary/40 hover:text-secondary"
                     )}
                   >

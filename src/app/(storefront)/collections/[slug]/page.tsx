@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { PackageSearch } from "lucide-react";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,6 +26,7 @@ const collectionMeta: Record<string, { title: string; description: string }> = {
 
 export default function CollectionPage() {
   const { slug } = useParams<{ slug: string }>();
+  const shouldReduceMotion = useReducedMotion();
 
   const { data: newArrivals, isLoading: loadingNew } = useNewArrivals(24);
   const { data: bestsellers, isLoading: loadingBest } = useBestsellers(24);
@@ -47,15 +48,15 @@ export default function CollectionPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Breadcrumb items={[{ label: meta.title }]} />
           <motion.h1
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 15 }}
+            animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
             className="font-heading text-3xl sm:text-4xl lg:text-5xl font-semibold text-charcoal mt-4"
           >
             {meta.title}
           </motion.h1>
           <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+            animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             className="text-charcoal-lighter mt-3 max-w-2xl"
           >
@@ -66,7 +67,12 @@ export default function CollectionPage() {
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
         {isLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6"
+          >
             {Array.from({ length: 12 }).map((_, i) => (
               <div key={i} className="space-y-3">
                 <Skeleton className="aspect-[3/4] rounded-2xl" />
@@ -75,7 +81,7 @@ export default function CollectionPage() {
                 <Skeleton className="h-4 w-24" />
               </div>
             ))}
-          </div>
+          </motion.div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
             {products?.map((product, index) => (
@@ -85,17 +91,23 @@ export default function CollectionPage() {
         )}
 
         {products?.length === 0 && !isLoading && (
-          <EmptyState
-            icon={PackageSearch}
-            title={isKnownCollection ? "No products in this collection yet" : "Collection not found"}
-            description={
-              isKnownCollection
-                ? "Check back soon — we're adding new products all the time."
-                : "The collection you are looking for does not exist."
-            }
-            actionLabel="Browse all products"
-            actionHref="/products"
-          />
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <EmptyState
+              icon={PackageSearch}
+              title={isKnownCollection ? "No products in this collection yet" : "Collection not found"}
+              description={
+                isKnownCollection
+                  ? "Check back soon — we're adding new products all the time."
+                  : "The collection you are looking for does not exist."
+              }
+              actionLabel="Browse all products"
+              actionHref="/products"
+            />
+          </motion.div>
         )}
       </div>
     </div>

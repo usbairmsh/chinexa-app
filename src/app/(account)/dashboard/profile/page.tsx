@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Check, Shield, Loader2, AlertTriangle, Crown, Lock, Cake } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ const deactivationReasons = [
 ];
 
 export default function ProfilePage() {
+  const shouldReduceMotion = useReducedMotion();
   const storeUser = useAuthStore((s) => s.user);
   const updateUser = useAuthStore((s) => s.updateUser);
   const logout = useAuthStore((s) => s.logout);
@@ -280,7 +281,14 @@ export default function ProfilePage() {
                 <div className="flex items-center flex-wrap gap-2 mt-2 justify-center sm:justify-start">
                   {badgeData?.tier_name && (
                     <Badge className={cn("text-[10px]", tierColor.className)} style={tierColor.style}>
-                      <Crown className="h-3 w-3 mr-1" /> {badgeData.tier_name} Member
+                      <motion.span
+                        className="inline-flex mr-1"
+                        animate={shouldReduceMotion ? undefined : { y: [0, -2, 0] }}
+                        transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+                      >
+                        <Crown className="h-3 w-3" />
+                      </motion.span>
+                      {badgeData.tier_name} Member
                     </Badge>
                   )}
                   <Badge variant="outline" className="text-[10px]">
@@ -404,8 +412,15 @@ export default function ProfilePage() {
       {/* Deactivation Dialog */}
       <Dialog open={deactivateOpen} onOpenChange={(open) => { if (!open && deactivateStep !== 3) { setDeactivateOpen(false); } }}>
         <DialogContent className="max-w-md">
+          <AnimatePresence mode="wait">
           {deactivateStep === 1 && (
-            <>
+            <motion.div
+              key="step-1"
+              initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: -6 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+            >
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-destructive">
                   <AlertTriangle className="h-5 w-5" /> Deactivate Account
@@ -444,11 +459,17 @@ export default function ProfilePage() {
                   Continue
                 </Button>
               </DialogFooter>
-            </>
+            </motion.div>
           )}
 
           {deactivateStep === 2 && (
-            <>
+            <motion.div
+              key="step-2"
+              initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: -6 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+            >
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-destructive">
                   <Shield className="h-5 w-5" /> Verify Your Identity
@@ -484,11 +505,17 @@ export default function ProfilePage() {
                   Deactivate Account
                 </Button>
               </DialogFooter>
-            </>
+            </motion.div>
           )}
 
           {deactivateStep === 3 && (
-            <div className="py-8 text-center">
+            <motion.div
+              key="step-3"
+              initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="py-8 text-center"
+            >
               <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", damping: 15 }}>
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10 mx-auto mb-4">
                   <Check className="h-8 w-8 text-destructive" />
@@ -501,8 +528,9 @@ export default function ProfilePage() {
               <p className="text-xs text-charcoal-lighter mt-2">
                 Contact support to reactivate your account anytime.
               </p>
-            </div>
+            </motion.div>
           )}
+          </AnimatePresence>
         </DialogContent>
       </Dialog>
     </div>

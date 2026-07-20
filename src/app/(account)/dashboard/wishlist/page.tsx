@@ -49,9 +49,13 @@ export default function AccountWishlistPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-16">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex items-center justify-center py-16"
+        >
           <Loader2 className="h-6 w-6 animate-spin text-charcoal-lighter" />
-        </div>
+        </motion.div>
       ) : products.length === 0 ? (
         <EmptyState
           icon={Heart}
@@ -62,8 +66,8 @@ export default function AccountWishlistPage() {
         />
       ) : (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
           className="grid grid-cols-2 sm:grid-cols-3 gap-4"
         >
           {products.map((product, i) => (

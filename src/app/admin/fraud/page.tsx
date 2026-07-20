@@ -133,7 +133,7 @@ export default function AdminFraudPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
           >
-            <Card>
+            <Card className="hover:border-secondary/20">
               <CardContent className="p-4 text-center">
                 <stat.icon className={cn("h-5 w-5 mx-auto mb-1", stat.iconColor)} />
                 <p className="text-2xl font-bold text-charcoal [font-variant-numeric:tabular-nums]">{stat.value}</p>
@@ -159,7 +159,7 @@ export default function AdminFraudPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.03 }}
               >
-              <Card>
+              <Card className="hover:border-secondary/20">
                 <CardContent className="p-5">
                   <div className="flex flex-col sm:flex-row sm:items-start gap-4">
                     <div className="flex-1">

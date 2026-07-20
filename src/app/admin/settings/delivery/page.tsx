@@ -7,7 +7,7 @@ import {
   Edit, MoreHorizontal, ExternalLink, Clock, DollarSign, Shield,
   Sparkles, AlertTriangle
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -21,6 +21,7 @@ import { useDeliveryStore } from "@/stores/delivery.store";
 import { formatCurrency, cn, randomId } from "@/lib/utils";
 
 export default function DeliverySettingsPage() {
+  const shouldReduceMotion = useReducedMotion();
   const {
     freeDeliveryEnabled, freeDeliveryThreshold, zones, partners,
     setFreeDelivery, setFreeDeliveryThreshold, updateZone, addZone, removeZone,
@@ -129,7 +130,7 @@ export default function DeliverySettingsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Link href="/admin/settings" className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors shrink-0">
+          <Link href="/admin/settings" className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96] shrink-0">
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div className="min-w-0">
@@ -146,7 +147,7 @@ export default function DeliverySettingsPage() {
       {/* Saved toast */}
       <AnimatePresence>
         {saved && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+          <motion.div initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }} animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }} exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
             className="flex items-center gap-2 p-3 rounded-luxury bg-success/10 border border-success/20 text-success text-sm font-medium">
             <Check className="h-4 w-4" /> Settings saved! Changes are live on the storefront.
           </motion.div>
@@ -173,7 +174,7 @@ export default function DeliverySettingsPage() {
           </div>
 
           {freeDeliveryEnabled && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="space-y-3">
+            <motion.div initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }} animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, height: "auto" }} exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }} className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-charcoal-light mb-1.5">Minimum Order Amount for Free Delivery</label>
                 <div className="flex items-center gap-2">
@@ -248,10 +249,10 @@ export default function DeliverySettingsPage() {
                           <button onClick={() => {
                             updateZone(zone.id, { name: editZoneData.name, areas: editZoneData.areas, charge: Number(editZoneData.charge), estimatedDays: editZoneData.estimatedDays });
                             setEditingZone(null); showSaved();
-                          }} className="h-7 w-7 flex items-center justify-center rounded-full bg-success !text-white hover:bg-success/90 transition-colors">
+                          }} className="h-7 w-7 flex items-center justify-center rounded-full bg-success !text-white hover:bg-success/90 transition-colors active:scale-[0.96]">
                             <Check className="h-3 w-3" />
                           </button>
-                          <button onClick={() => setEditingZone(null)} className="h-7 w-7 flex items-center justify-center rounded-full hover:bg-destructive/10 text-charcoal-lighter hover:text-destructive transition-colors">
+                          <button onClick={() => setEditingZone(null)} className="h-7 w-7 flex items-center justify-center rounded-full hover:bg-destructive/10 text-charcoal-lighter hover:text-destructive transition-colors active:scale-[0.96]">
                             <span className="text-xs font-bold">✕</span>
                           </button>
                         </div>
@@ -279,7 +280,7 @@ export default function DeliverySettingsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <DropdownMenu>
-                          <DropdownMenuTrigger className="p-1.5 hover:bg-pearl rounded-lg"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
+                          <DropdownMenuTrigger className="p-1.5 hover:bg-pearl rounded-lg transition-colors active:scale-[0.96]"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => { setEditingZone(zone.id); setEditZoneData({ name: zone.name, areas: zone.areas, charge: String(zone.charge), estimatedDays: zone.estimatedDays }); }}>
                               <Edit className="h-3.5 w-3.5 mr-2" /> Edit Zone
@@ -312,8 +313,16 @@ export default function DeliverySettingsPage() {
         </CardHeader>
         <CardContent>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {partners.map((partner) => (
-              <div key={partner.id} className={cn("flex items-center justify-between p-4 rounded-luxury border border-border/30 shadow-card", !partner.isActive && "opacity-50 bg-pearl/30")}>
+            <AnimatePresence initial={false}>
+            {partners.map((partner, i) => (
+              <motion.div
+                key={partner.id}
+                layout
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ delay: i * 0.04 }}
+                className={cn("flex items-center justify-between p-4 rounded-luxury border border-border/30 shadow-card hover:shadow-card-hover transition-shadow", !partner.isActive && "opacity-50 bg-pearl/30")}>
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10 shrink-0">
                     <Truck className="h-5 w-5 text-secondary" />
@@ -331,15 +340,16 @@ export default function DeliverySettingsPage() {
                 <div className="flex items-center gap-2">
                   <Switch checked={partner.isActive} onCheckedChange={(v) => { updatePartner(partner.id, { isActive: v }); showSaved(); }} />
                   <DropdownMenu>
-                    <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-lg"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
+                    <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-lg transition-colors active:scale-[0.96]"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
                       <DropdownMenuItem className="text-destructive" onClick={() => { removePartner(partner.id); showSaved(); }}><Trash2 className="h-3.5 w-3.5 mr-2" /> Delete</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-              </div>
+              </motion.div>
             ))}
+            </AnimatePresence>
           </div>
         </CardContent>
       </Card>

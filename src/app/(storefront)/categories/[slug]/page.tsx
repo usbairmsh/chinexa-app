@@ -174,7 +174,7 @@ export default function CategoryPage() {
             <div className="flex gap-2 overflow-x-auto pb-1">
               <button
                 onClick={() => setSelectedBrands([])}
-                className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 active:scale-[0.96] ${
                   selectedBrands.length === 0
                     ? "bg-secondary !text-white shadow-luxury"
                     : "bg-pearl text-charcoal-lighter hover:bg-primary-light hover:text-charcoal"
@@ -186,7 +186,7 @@ export default function CategoryPage() {
                 <button
                   key={brand.id}
                   onClick={() => toggleBrand(brand.name)}
-                  className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                  className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 active:scale-[0.96] ${
                     selectedBrands.includes(brand.name)
                       ? "bg-secondary !text-white shadow-luxury"
                       : "bg-pearl text-charcoal-lighter hover:bg-primary-light hover:text-charcoal"

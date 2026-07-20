@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Star, Loader2, Package, MessageSquareText } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +29,7 @@ interface MyReview {
 }
 
 export default function MyReviewsPage() {
+  const shouldReduceMotion = useReducedMotion();
   const storeUser = useAuthStore((s) => s.user);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -119,13 +120,13 @@ export default function MyReviewsPage() {
             <EmptyState icon={MessageSquareText} title="Nothing to review" description="Once an order is delivered, you'll be able to review each product here." />
           ) : (
             <div className="space-y-3">
-              {pending.map((item) => (
-                <motion.div key={item.product_id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                  <Card>
+              {pending.map((item, i) => (
+                <motion.div key={item.product_id} initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }} animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                  <Card className="group">
                     <CardContent className="p-4 flex items-center gap-4">
                       <div className="relative h-14 w-14 rounded-xl bg-pearl overflow-hidden shrink-0">
                         {item.product_image ? (
-                          <Image src={item.product_image} alt={item.product_name} fill className="object-cover" sizes="56px" unoptimized={item.product_image.includes("/uploads/")} />
+                          <Image src={item.product_image} alt={item.product_name} fill className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="56px" unoptimized={item.product_image.includes("/uploads/")} />
                         ) : (
                           <div className="h-full w-full flex items-center justify-center"><Package className="h-5 w-5 text-charcoal-lighter" /></div>
                         )}
@@ -151,7 +152,7 @@ export default function MyReviewsPage() {
           ) : (
             <div className="space-y-3">
               {myReviews.map((review, i) => (
-                <motion.div key={review.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                <motion.div key={review.id} initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }} animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                   <Card>
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-2 mb-2">

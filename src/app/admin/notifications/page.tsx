@@ -196,7 +196,7 @@ export default function AdminNotificationsPage() {
                     type="button"
                     onClick={() => setAudience(opt.key)}
                     className={cn(
-                      "sm:flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-medium border transition-all",
+                      "sm:flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-medium border transition-all active:scale-[0.97]",
                       audience === opt.key ? "border-secondary bg-secondary/10 text-secondary" : "border-border/30 text-charcoal-lighter hover:bg-pearl"
                     )}
                   >
@@ -217,7 +217,7 @@ export default function AdminNotificationsPage() {
                     type="button"
                     onClick={() => toggleTier(tier.id)}
                     className={cn(
-                      "w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left",
+                      "w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left active:scale-[0.98]",
                       selectedTiers.includes(tier.id) ? "border-secondary bg-secondary/5" : "border-border/30 hover:bg-pearl/50"
                     )}
                   >
@@ -237,7 +237,7 @@ export default function AdminNotificationsPage() {
                     {selectedCustomers.map((c) => (
                       <span key={c.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary/10 text-secondary text-[11px] font-medium">
                         {c.name}
-                        <button type="button" onClick={() => toggleCustomer(c)} className="hover:text-destructive transition-colors">
+                        <button type="button" onClick={() => toggleCustomer(c)} className="hover:text-destructive transition-colors active:scale-[0.92]">
                           <X className="h-3 w-3" />
                         </button>
                       </span>
@@ -264,7 +264,7 @@ export default function AdminNotificationsPage() {
                           key={cust.id}
                           type="button"
                           onClick={() => toggleCustomer({ id: cust.id, name: cust.name })}
-                          className={cn("w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-pearl transition-colors", isSelected && "bg-secondary/5")}
+                          className={cn("w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-pearl transition-colors active:scale-[0.99]", isSelected && "bg-secondary/5")}
                         >
                           <div>
                             <p className="text-xs font-medium text-charcoal">{cust.name}</p>

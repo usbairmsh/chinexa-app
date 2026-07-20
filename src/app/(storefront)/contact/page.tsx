@@ -49,10 +49,10 @@ export default function ContactPage() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
               >
-                <a href={item.href} className="group">
-                  <Card>
+                <a href={item.href} className="group block active:scale-[0.98] transition-transform duration-150">
+                  <Card className="hover:-translate-y-px">
                     <CardContent className="p-4 flex items-center gap-4">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-light group-hover:bg-secondary/10 transition-colors">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-light group-hover:bg-secondary/10 group-hover:scale-105 transition-all duration-300">
                         <item.icon className="h-5 w-5 text-secondary" />
                       </div>
                       <div className="min-w-0 flex-1">

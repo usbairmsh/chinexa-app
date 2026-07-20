@@ -172,7 +172,7 @@ export default function StockManagementPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
         {stats.map((s) => (
-          <Card key={s.label}><CardContent className="p-3 flex items-center gap-2.5">
+          <Card key={s.label} className="transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]"><CardContent className="p-3 flex items-center gap-2.5">
             <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg shrink-0", s.bg)}><s.icon className={cn("h-3.5 w-3.5", s.color)} /></div>
             <div><p className="text-base font-bold text-charcoal leading-tight [font-variant-numeric:tabular-nums]">{s.value}</p><p className="text-[9px] text-charcoal-lighter">{s.label}</p></div>
           </CardContent></Card>
@@ -183,7 +183,7 @@ export default function StockManagementPage() {
       <div className="flex gap-1 overflow-x-auto pb-1">
         {filterTabs.map((tab) => (
           <button key={tab.id} onClick={() => { setFilter(tab.id); setPage(1); }}
-            className={cn("flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all",
+            className={cn("flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all active:scale-[0.96]",
               filter === tab.id ? "bg-charcoal !text-white" : "bg-pearl text-charcoal-lighter hover:text-charcoal")}>
             {tab.label}
             <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full", filter === tab.id ? "bg-white/20" : "bg-white")}>{tab.count}</span>
@@ -248,7 +248,7 @@ export default function StockManagementPage() {
                 products.map((product) => (
                   <tr key={product.id}
                     onClick={() => openEdit(product)}
-                    className={cn("border-b border-border/10 hover:bg-primary-light/30 transition-colors cursor-pointer", product.stock === 0 && "bg-destructive/3")}>
+                    className={cn("group border-b border-border/10 hover:bg-primary-light/30 transition-colors cursor-pointer", product.stock === 0 && "bg-destructive/3")}>
                     {/* Product */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -281,7 +281,7 @@ export default function StockManagementPage() {
                     </td>
                     {/* Edit hint */}
                     <td className="px-4 py-3">
-                      <Edit className="h-3.5 w-3.5 text-charcoal-lighter" />
+                      <Edit className="h-3.5 w-3.5 text-charcoal-lighter transition-colors group-hover:text-charcoal" />
                     </td>
                   </tr>
                 ))
@@ -319,7 +319,7 @@ export default function StockManagementPage() {
                     <p className="text-[10px] text-charcoal-lighter">{editProduct.sku} · {editProduct.category}</p>
                   </div>
                 </div>
-                <button onClick={() => setEditProduct(null)} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors">
+                <button onClick={() => setEditProduct(null)} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96]">
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -330,8 +330,8 @@ export default function StockManagementPage() {
                 <div>
                   <label className="text-xs font-semibold text-charcoal uppercase tracking-wider mb-3 block">Stock Quantity</label>
                   <div className="flex items-center justify-center gap-1.5 sm:gap-3 mb-3">
-                    <button onClick={() => adjustStock(-10)} className="h-8 w-8 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center rounded-lg border border-border hover:bg-pearl text-xs sm:text-sm font-medium text-charcoal-lighter hover:text-charcoal transition-colors">-10</button>
-                    <button onClick={() => adjustStock(-1)} className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 flex items-center justify-center rounded-lg border border-border hover:bg-pearl transition-colors">
+                    <button onClick={() => adjustStock(-10)} className="h-8 w-8 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center rounded-lg border border-border hover:bg-pearl text-xs sm:text-sm font-medium text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96]">-10</button>
+                    <button onClick={() => adjustStock(-1)} className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 flex items-center justify-center rounded-lg border border-border hover:bg-pearl transition-colors active:scale-[0.96]">
                       <Minus className="h-4 w-4 sm:h-5 sm:w-5 text-charcoal-lighter" />
                     </button>
                     <input
@@ -344,16 +344,16 @@ export default function StockManagementPage() {
                         "border-border text-charcoal focus:border-secondary focus:ring-secondary/20"
                       )}
                     />
-                    <button onClick={() => adjustStock(1)} className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 flex items-center justify-center rounded-lg border border-border hover:bg-pearl transition-colors">
+                    <button onClick={() => adjustStock(1)} className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 flex items-center justify-center rounded-lg border border-border hover:bg-pearl transition-colors active:scale-[0.96]">
                       <Plus className="h-4 w-4 sm:h-5 sm:w-5 text-charcoal-lighter" />
                     </button>
-                    <button onClick={() => adjustStock(10)} className="h-8 w-8 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center rounded-lg border border-border hover:bg-pearl text-xs sm:text-sm font-medium text-charcoal-lighter hover:text-charcoal transition-colors">+10</button>
+                    <button onClick={() => adjustStock(10)} className="h-8 w-8 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center rounded-lg border border-border hover:bg-pearl text-xs sm:text-sm font-medium text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96]">+10</button>
                   </div>
                   {/* Quick set buttons */}
                   <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2">
                     {[0, 5, 10, 25, 50, 100].map((v) => (
                       <button key={v} onClick={() => setEditStock(String(v))}
-                        className={cn("px-2.5 sm:px-3 py-1.5 rounded-luxury text-xs font-medium transition-all [font-variant-numeric:tabular-nums]",
+                        className={cn("px-2.5 sm:px-3 py-1.5 rounded-luxury text-xs font-medium transition-all active:scale-[0.96] [font-variant-numeric:tabular-nums]",
                           Number(editStock) === v ? "bg-charcoal !text-white" : "bg-pearl text-charcoal-lighter hover:bg-charcoal/5 hover:text-charcoal"
                         )}>
                         {v}

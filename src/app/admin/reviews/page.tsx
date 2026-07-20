@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { Star, Check, X, MessageSquare, Trash2, Loader2 } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -81,7 +82,8 @@ export default function AdminReviewsPage() {
     return <div className="flex items-center justify-center py-24"><Loader2 className="h-8 w-8 text-secondary animate-spin" /></div>;
   }
 
-  const ReviewCard = ({ review }: { review: ReviewData }) => (
+  const ReviewCard = ({ review, index = 0 }: { review: ReviewData; index?: number }) => (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}>
     <Card>
       <CardContent className="p-5">
         <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
@@ -136,6 +138,7 @@ export default function AdminReviewsPage() {
         </div>
       </CardContent>
     </Card>
+    </motion.div>
   );
 
   return (
@@ -168,9 +171,9 @@ export default function AdminReviewsPage() {
             <TabsTrigger value="pending">Pending ({pendingReviews.length})</TabsTrigger>
             <TabsTrigger value="approved">Approved ({approvedReviews.length})</TabsTrigger>
           </TabsList>
-          <TabsContent value="all"><div className="grid sm:grid-cols-2 gap-4">{reviews.map((r) => <ReviewCard key={r.id} review={r} />)}</div></TabsContent>
-          <TabsContent value="pending"><div className="grid sm:grid-cols-2 gap-4">{pendingReviews.map((r) => <ReviewCard key={r.id} review={r} />)}</div></TabsContent>
-          <TabsContent value="approved"><div className="grid sm:grid-cols-2 gap-4">{approvedReviews.map((r) => <ReviewCard key={r.id} review={r} />)}</div></TabsContent>
+          <TabsContent value="all"><div className="grid sm:grid-cols-2 gap-4">{reviews.map((r, i) => <ReviewCard key={r.id} review={r} index={i} />)}</div></TabsContent>
+          <TabsContent value="pending"><div className="grid sm:grid-cols-2 gap-4">{pendingReviews.map((r, i) => <ReviewCard key={r.id} review={r} index={i} />)}</div></TabsContent>
+          <TabsContent value="approved"><div className="grid sm:grid-cols-2 gap-4">{approvedReviews.map((r, i) => <ReviewCard key={r.id} review={r} index={i} />)}</div></TabsContent>
         </Tabs>
       )}
 

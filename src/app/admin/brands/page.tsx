@@ -154,7 +154,7 @@ export default function AdminBrandsPage() {
                   </div>
                   {(canEditBrand || canDeleteBrand) && (
                   <DropdownMenu>
-                    <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md shrink-0"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
+                    <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md shrink-0 transition-colors active:scale-[0.96]"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       {canEditBrand && <DropdownMenuItem onClick={() => openEdit(brand)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>}
                       {canEditBrand && canDeleteBrand && <DropdownMenuSeparator />}
@@ -202,13 +202,13 @@ export default function AdminBrandsPage() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-charcoal-lighter">Certifications</label>
-                <button type="button" onClick={() => setFCerts([...fCerts, ""])} className="text-[10px] text-secondary hover:text-secondary-dark font-medium">+ Add</button>
+                <button type="button" onClick={() => setFCerts([...fCerts, ""])} className="text-[10px] text-secondary hover:text-secondary-dark font-medium transition-colors active:scale-[0.96]">+ Add</button>
               </div>
               <div className="space-y-2">
                 {fCerts.map((c, i) => (
                   <div key={i} className="flex gap-2">
                     <Input value={c} onChange={(e) => { const n = [...fCerts]; n[i] = e.target.value; setFCerts(n); }} placeholder="e.g., Cruelty-Free, Halal, Vegan" className="flex-1" />
-                    {fCerts.length > 1 && <button type="button" onClick={() => setFCerts(fCerts.filter((_, idx) => idx !== i))} className="p-2 text-charcoal-lighter hover:text-destructive"><X className="h-3.5 w-3.5" /></button>}
+                    {fCerts.length > 1 && <button type="button" onClick={() => setFCerts(fCerts.filter((_, idx) => idx !== i))} className="p-2 text-charcoal-lighter hover:text-destructive transition-colors active:scale-[0.96]"><X className="h-3.5 w-3.5" /></button>}
                   </div>
                 ))}
               </div>

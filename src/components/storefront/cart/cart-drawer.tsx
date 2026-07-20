@@ -66,13 +66,14 @@ export function CartDrawer() {
                 <ShoppingBag className="h-5 w-5 text-secondary" />
                 Shopping Bag ({getItemCount()})
               </h2>
-              <button
+              <motion.button
                 onClick={() => setCartDrawerOpen(false)}
+                whileTap={{ scale: 0.9 }}
                 className="rounded-full p-2.5 text-charcoal-lighter hover:text-charcoal hover:bg-primary-light transition-colors"
                 aria-label="Close cart"
               >
                 <X className="h-4 w-4" />
-              </button>
+              </motion.button>
             </div>
 
             {items.length === 0 ? (
@@ -112,12 +113,12 @@ export function CartDrawer() {
                         transition={{ delay: index * 0.05 }}
                         className="flex gap-4 py-4 border-b border-border/30 last:border-0"
                       >
-                        <div className="relative h-24 w-20 flex-shrink-0 rounded-lg overflow-hidden bg-pearl">
+                        <div className="relative h-24 w-20 flex-shrink-0 rounded-lg overflow-hidden bg-pearl group">
                           <Image
                             src={item.product_image || `https://picsum.photos/seed/${item.product_slug}/160/192`}
                             alt={item.product_name}
                             fill
-                            className="object-cover"
+                            className="object-cover transition-transform duration-700 group-hover:scale-105"
                             sizes="80px"
                           />
                         </div>
@@ -135,33 +136,36 @@ export function CartDrawer() {
                           )}
                           <div className="flex items-center justify-between mt-2">
                             <div className="flex items-center gap-2">
-                              <button
+                              <motion.button
                                 onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                whileTap={{ scale: 0.9 }}
                                 className="flex h-9 w-9 items-center justify-center rounded-full border border-border hover:border-secondary transition-colors"
                                 aria-label="Decrease quantity"
                               >
                                 <Minus className="h-3 w-3" />
-                              </button>
+                              </motion.button>
                               <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
-                              <button
+                              <motion.button
                                 onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                whileTap={{ scale: 0.9 }}
                                 className="flex h-9 w-9 items-center justify-center rounded-full border border-border hover:border-secondary transition-colors"
                                 aria-label="Increase quantity"
                               >
                                 <Plus className="h-3 w-3" />
-                              </button>
+                              </motion.button>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-semibold text-charcoal">
                                 {formatCurrency(item.price * item.quantity)}
                               </span>
-                              <button
+                              <motion.button
                                 onClick={() => removeItem(item.id)}
+                                whileTap={{ scale: 0.88 }}
                                 className="p-2 text-charcoal-lighter hover:text-destructive transition-colors"
                                 aria-label="Remove item"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
-                              </button>
+                              </motion.button>
                             </div>
                           </div>
                         </div>

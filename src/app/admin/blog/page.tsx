@@ -151,7 +151,7 @@ export default function AdminBlogPage() {
       ) : (
         <div className="space-y-3">
           {posts.map((post) => (
-            <Card key={post.id} className={!post.is_published ? "opacity-60" : ""}>
+            <Card key={post.id} className={`hover:border-secondary/20 ${!post.is_published ? "opacity-60" : ""}`}>
               <CardContent className="p-0">
                 <div className="flex gap-4 p-4">
                   {post.featured_image && (
@@ -166,7 +166,7 @@ export default function AdminBlogPage() {
                         {post.excerpt && <p className="text-xs text-charcoal-lighter line-clamp-2 mb-2">{post.excerpt}</p>}
                       </div>
                       <DropdownMenu>
-                        <DropdownMenuTrigger className="p-1.5 hover:bg-pearl rounded-lg flex-shrink-0">
+                        <DropdownMenuTrigger className="p-1.5 hover:bg-pearl rounded-lg flex-shrink-0 transition-colors active:scale-[0.96]">
                           <MoreHorizontal className="h-4 w-4 text-charcoal-lighter" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Bell, Package, Tag, Star, Gift } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,7 @@ const typeConfig: Record<string, { icon: typeof Bell; color: string }> = {
 
 export default function NotificationsPage() {
   const router = useRouter();
+  const shouldReduceMotion = useReducedMotion();
   const user = useAuthStore((s) => s.user);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,9 +103,19 @@ export default function NotificationsPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h2 className="font-heading text-xl font-semibold text-charcoal">Notifications</h2>
-          {unreadCount > 0 && (
-            <Badge variant="secondary" className="text-[10px]">{unreadCount} new</Badge>
-          )}
+          <AnimatePresence mode="popLayout">
+            {unreadCount > 0 && (
+              <motion.div
+                key={unreadCount}
+                initial={{ scale: 0.6, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.6, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 500, damping: 20 }}
+              >
+                <Badge variant="secondary" className="text-[10px]">{unreadCount} new</Badge>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
         {unreadCount > 0 && (
           <Button variant="ghost" size="sm" className="text-xs text-charcoal-lighter" onClick={handleMarkAllRead}>
@@ -123,12 +134,12 @@ export default function NotificationsPage() {
             return (
               <motion.div
                 key={notif.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.03 }}
               >
                 <Card
-                  className={cn("cursor-pointer", !notif.is_read && "bg-primary-50/50 border-secondary/10")}
+                  className={cn("cursor-pointer active:scale-[0.99]", !notif.is_read && "bg-primary-50/50 border-secondary/10")}
                   onClick={() => {
                     if (!notif.is_read) handleMarkRead(notif.id);
                     // Navigate straight to what the notification refers to.
@@ -148,9 +159,17 @@ export default function NotificationsPage() {
                         <p className={cn("text-sm", notif.is_read ? "text-charcoal" : "font-semibold text-charcoal")}>
                           {notif.title}
                         </p>
-                        {!notif.is_read && (
-                          <span className="h-2 w-2 rounded-full bg-secondary shrink-0 mt-1.5" />
-                        )}
+                        <AnimatePresence>
+                          {!notif.is_read && (
+                            <motion.span
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              exit={{ scale: 0 }}
+                              transition={{ type: "spring", stiffness: 500, damping: 12 }}
+                              className="h-2 w-2 rounded-full bg-secondary shrink-0 mt-1.5"
+                            />
+                          )}
+                        </AnimatePresence>
                       </div>
                       <p className="text-xs text-charcoal-lighter mt-0.5 line-clamp-2">{notif.message}</p>
                       <p className="text-[10px] text-charcoal-lighter mt-1.5">{timeAgo(notif.created_at)}</p>

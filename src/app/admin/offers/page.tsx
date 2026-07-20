@@ -269,14 +269,14 @@ export default function AdminOffersPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
               >
-              <Card className={cn("transition-opacity", (!offer.is_active || isExpired) && "opacity-60")}>
+              <Card className={cn("transition-opacity hover:border-secondary/20", (!offer.is_active || isExpired) && "opacity-60")}>
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between mb-3">
                     <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", config.color)}>
                       <Icon className="h-5 w-5" />
                     </div>
                     <DropdownMenu>
-                      <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
+                      <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md transition-transform active:scale-[0.96]"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         {canEditOffer && (
                           <DropdownMenuItem onClick={() => openEdit(offer)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
@@ -356,7 +356,7 @@ export default function AdminOffersPage() {
                     {formSelectedIds.map((item) => (
                       <span key={item.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary/10 text-secondary text-[11px] font-medium max-w-full">
                         <span className="truncate">{item.name}</span>
-                        <button type="button" onClick={() => removeSelected(item.id)} className="hover:text-destructive transition-colors shrink-0">
+                        <button type="button" onClick={() => removeSelected(item.id)} className="hover:text-destructive transition-all active:scale-[0.96] shrink-0">
                           <X className="h-3 w-3" />
                         </button>
                       </span>
@@ -384,7 +384,7 @@ export default function AdminOffersPage() {
                           const isSelected = formSelectedIds.some((s) => s.id === r.id);
                           return (
                             <button key={r.id} type="button" onClick={() => toggleSelected({ id: r.id, name: r.name })}
-                              className={cn("w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-pearl transition-colors", isSelected && "bg-secondary/5")}>
+                              className={cn("w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-pearl transition-colors active:scale-[0.99]", isSelected && "bg-secondary/5")}>
                               <div className="min-w-0">
                                 <p className="text-xs font-medium text-charcoal truncate">{r.name}</p>
                                 <p className="text-[10px] text-charcoal-lighter truncate">{r.extra}</p>
@@ -407,7 +407,7 @@ export default function AdminOffersPage() {
                       const isSelected = formSelectedIds.some((s) => s.id === opt.id);
                       return (
                         <button key={opt.id} type="button" onClick={() => toggleSelected(opt)}
-                          className={cn("w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-pearl transition-colors border-b border-border/10 last:border-0", isSelected && "bg-secondary/5")}>
+                          className={cn("w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-pearl transition-colors active:scale-[0.99] border-b border-border/10 last:border-0", isSelected && "bg-secondary/5")}>
                           <span className="text-xs text-charcoal">{opt.name}</span>
                           {isSelected && <Check className="h-4 w-4 text-secondary shrink-0" />}
                         </button>

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   Heart, ShoppingBag, Minus, Plus, Share2, Shield, Truck, RotateCcw,
   ChevronLeft, ChevronRight, Star, Check, Clock, Package, Globe, Sparkles, Copy, Loader2, X, Zap
@@ -69,6 +69,7 @@ interface ReviewData {
 
 export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
+  const shouldReduceMotion = useReducedMotion();
   const { data: product, isLoading } = useProduct(slug);
   const { data: relatedProducts } = useRelatedProducts(product?.id || "", product?.category_id);
   const addToCart = useCartStore((s) => s.addItem);
@@ -252,7 +253,7 @@ export default function ProductDetailPage() {
                     key={img.id}
                     onClick={() => setSelectedImage(i)}
                     className={cn(
-                      "relative h-16 w-16 sm:h-[72px] sm:w-[72px] shrink-0 rounded-xl overflow-hidden border-2 transition-all duration-200",
+                      "relative h-16 w-16 sm:h-[72px] sm:w-[72px] shrink-0 rounded-xl overflow-hidden border-2 transition-all duration-200 active:scale-[0.96]",
                       selectedImage === i
                         ? "border-secondary ring-1 ring-secondary/30 opacity-100"
                         : "border-transparent opacity-50 hover:opacity-100"
@@ -312,14 +313,14 @@ export default function ProductDetailPage() {
                 <>
                   <button
                     onClick={() => setSelectedImage((p) => (p - 1 + product.images.length) % product.images.length)}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-white z-10"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-white active:scale-[0.92] z-10"
                     aria-label="Previous image"
                   >
                     <ChevronLeft className="h-5 w-5 text-charcoal" />
                   </button>
                   <button
                     onClick={() => setSelectedImage((p) => (p + 1) % product.images.length)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-white z-10"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-white active:scale-[0.92] z-10"
                     aria-label="Next image"
                   >
                     <ChevronRight className="h-5 w-5 text-charcoal" />
@@ -333,7 +334,7 @@ export default function ProductDetailPage() {
                   <button
                     key={i}
                     onClick={() => setSelectedImage(i)}
-                    className="flex items-center justify-center h-7 w-7"
+                    className="flex items-center justify-center h-7 w-7 active:scale-90 transition-transform"
                     aria-label={`View image ${i + 1}`}
                   >
                     <span className={cn("rounded-full transition-all", i === selectedImage ? "w-5 h-1.5 bg-white" : "w-1.5 h-1.5 bg-white/50")} />
@@ -435,7 +436,7 @@ export default function ProductDetailPage() {
                         }}
                         disabled={variant.stock === 0}
                         className={cn(
-                          "relative flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all duration-200",
+                          "relative flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all duration-200 active:scale-[0.96]",
                           selectedVariant === variant.id
                             ? "border-secondary bg-secondary !text-white shadow-[0_6px_25px_rgba(122,79,160,0.3)]"
                             : "border-border text-charcoal hover:border-secondary hover:text-secondary",
@@ -463,7 +464,7 @@ export default function ProductDetailPage() {
                     <div className="flex items-center h-12 border border-border rounded-full overflow-hidden shrink-0">
                       <button
                         onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                        className="flex items-center justify-center w-11 h-full text-charcoal-lighter hover:text-charcoal hover:bg-pearl transition-colors"
+                        className="flex items-center justify-center w-11 h-full text-charcoal-lighter hover:text-charcoal hover:bg-pearl active:scale-[0.9] transition-all"
                         aria-label="Decrease quantity"
                       >
                         <Minus className="h-4 w-4" />
@@ -471,7 +472,7 @@ export default function ProductDetailPage() {
                       <span className="w-10 text-center text-sm font-semibold text-charcoal select-none">{quantity}</span>
                       <button
                         onClick={() => setQuantity(Math.min(10, quantity + 1))}
-                        className="flex items-center justify-center w-11 h-full text-charcoal-lighter hover:text-charcoal hover:bg-pearl transition-colors"
+                        className="flex items-center justify-center w-11 h-full text-charcoal-lighter hover:text-charcoal hover:bg-pearl active:scale-[0.9] transition-all"
                         aria-label="Increase quantity"
                       >
                         <Plus className="h-4 w-4" />
@@ -485,7 +486,7 @@ export default function ProductDetailPage() {
                         "flex-1 h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
                         addedToCart
                           ? "bg-charcoal !text-white"
-                          : "bg-secondary !text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px]"
+                          : "bg-secondary !text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px] active:scale-[0.97]"
                       )}
                     >
                       <AnimatePresence mode="wait">
@@ -511,7 +512,7 @@ export default function ProductDetailPage() {
                     <button
                       onClick={() => toggleItem(product.id)}
                       className={cn(
-                        "flex items-center gap-2 h-11 px-3 sm:px-5 rounded-full border text-xs sm:text-sm font-medium transition-all duration-200 flex-1 sm:flex-initial justify-center",
+                        "flex items-center gap-2 h-11 px-3 sm:px-5 rounded-full border text-xs sm:text-sm font-medium transition-all duration-200 flex-1 sm:flex-initial justify-center active:scale-[0.96]",
                         wishlisted
                           ? "border-secondary bg-secondary/5 text-secondary"
                           : "border-border text-charcoal-light hover:border-charcoal hover:text-charcoal"
@@ -523,7 +524,7 @@ export default function ProductDetailPage() {
                     <button
                       onClick={handleShare}
                       className={cn(
-                        "flex items-center gap-2 h-11 px-3 sm:px-5 rounded-full border text-xs sm:text-sm font-medium transition-all duration-300 shrink-0",
+                        "flex items-center gap-2 h-11 px-3 sm:px-5 rounded-full border text-xs sm:text-sm font-medium transition-all duration-300 shrink-0 active:scale-[0.96]",
                         shared
                           ? "border-success bg-success !text-white"
                           : "border-border text-charcoal-light hover:border-charcoal hover:text-charcoal"
@@ -543,7 +544,7 @@ export default function ProductDetailPage() {
                   <button
                     onClick={() => toggleItem(product.id)}
                     className={cn(
-                      "w-full h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-200 cursor-pointer flex items-center justify-center gap-2",
+                      "w-full h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 active:scale-[0.97]",
                       wishlisted
                         ? "bg-secondary !text-white hover:bg-secondary-dark"
                         : "bg-secondary !text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px]"
@@ -555,7 +556,7 @@ export default function ProductDetailPage() {
                   <button
                     onClick={handleShare}
                     className={cn(
-                      "flex items-center justify-center gap-2 w-full h-10 rounded-full border text-sm font-medium transition-all duration-300",
+                      "flex items-center justify-center gap-2 w-full h-10 rounded-full border text-sm font-medium transition-all duration-300 active:scale-[0.97]",
                       shared
                         ? "border-success bg-success text-white"
                         : "border-border text-charcoal-light hover:border-charcoal hover:text-charcoal"
@@ -687,8 +688,14 @@ export default function ProductDetailPage() {
                     </div>
 
                     {/* Real Reviews */}
-                    {productReviews.map((review) => (
-                      <div key={review.id} className="p-4 rounded-xl border border-border/20 shadow-card">
+                    {productReviews.map((review, reviewIdx) => (
+                      <motion.div
+                        key={review.id}
+                        initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: Math.min(reviewIdx, 5) * 0.05 }}
+                        className="p-4 rounded-xl border border-border/20 shadow-card"
+                      >
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
                             <div className="h-8 w-8 rounded-full bg-secondary/10 flex items-center justify-center text-xs font-bold text-secondary">
@@ -719,7 +726,7 @@ export default function ProductDetailPage() {
                             <p className="text-xs text-charcoal-light">{review.admin_reply}</p>
                           </div>
                         )}
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                 ) : (
@@ -743,7 +750,7 @@ export default function ProductDetailPage() {
                       <label className="text-xs font-medium text-charcoal-light mb-1.5 block">Rating</label>
                       <div className="flex gap-1">
                         {[1, 2, 3, 4, 5].map((s) => (
-                          <button key={s} type="button" onClick={() => setReviewRating(s)} className="p-1.5">
+                          <button key={s} type="button" onClick={() => setReviewRating(s)} className="p-1.5 active:scale-[0.85] transition-transform">
                             <Star className={cn("h-6 w-6 transition-colors", s <= reviewRating ? "text-gold fill-gold" : "text-border hover:text-gold/50")} />
                           </button>
                         ))}
@@ -799,12 +806,17 @@ export default function ProductDetailPage() {
         {/* ═══════ RELATED PRODUCTS ═══════ */}
         {relatedProducts && relatedProducts.length > 0 && (
           <div className="mt-20">
-            <div className="flex items-center justify-between mb-8">
+            <motion.div
+              initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="flex items-center justify-between mb-8"
+            >
               <h3 className="font-heading text-2xl font-semibold text-charcoal">You Might Also Like</h3>
               <Link href={`/categories/${product.category_id}`} className="text-sm text-secondary hover:text-secondary-dark flex items-center gap-1 transition-colors">
                 View all <ChevronRight className="h-4 w-4" />
               </Link>
-            </div>
+            </motion.div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
               {relatedProducts.slice(0, 4).map((p, i) => (
                 <ProductCard key={p.id} product={p} index={i} />
@@ -827,7 +839,7 @@ export default function ProductDetailPage() {
             {/* Close */}
             <button
               onClick={() => setLightboxOpen(false)}
-              className="absolute top-4 right-4 z-50 h-10 w-10 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+              className="absolute top-4 right-4 z-50 h-10 w-10 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 active:scale-90 transition-all"
             >
               <X className="h-5 w-5" />
             </button>
@@ -837,13 +849,13 @@ export default function ProductDetailPage() {
               <>
                 <button
                   onClick={(e) => { e.stopPropagation(); setSelectedImage((prev) => (prev - 1 + product.images.length) % product.images.length); }}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 z-50 h-10 w-10 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 z-50 h-10 w-10 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 active:scale-90 transition-all"
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); setSelectedImage((prev) => (prev + 1) % product.images.length); }}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 z-50 h-10 w-10 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 z-50 h-10 w-10 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 active:scale-90 transition-all"
                 >
                   <ChevronRight className="h-5 w-5" />
                 </button>
@@ -876,7 +888,7 @@ export default function ProductDetailPage() {
                   <button
                     key={i}
                     onClick={(e) => { e.stopPropagation(); setSelectedImage(i); }}
-                    className="flex items-center justify-center h-8 w-8"
+                    className="flex items-center justify-center h-8 w-8 active:scale-90 transition-transform"
                     aria-label={`View image ${i + 1}`}
                   >
                     <span className={cn("rounded-full transition-all", i === selectedImage ? "w-6 h-2 bg-white" : "w-2 h-2 bg-white/40")} />

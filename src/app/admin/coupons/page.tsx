@@ -281,7 +281,7 @@ export default function AdminCouponsPage() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 min-w-0">
                           <code className="font-mono font-bold text-charcoal text-sm truncate">{coupon.code}</code>
-                          <button onClick={() => handleCopy(coupon.code)} className="text-charcoal-lighter hover:text-secondary transition-colors shrink-0">
+                          <button onClick={() => handleCopy(coupon.code)} className="text-charcoal-lighter hover:text-secondary transition-colors shrink-0 active:scale-[0.96]">
                             {copied === coupon.code ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
                           </button>
                         </div>
@@ -289,7 +289,7 @@ export default function AdminCouponsPage() {
                       </div>
                     </div>
                     <DropdownMenu>
-                      <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
+                      <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md transition-colors active:scale-[0.96]"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         {canEditCoupon && (
                           <DropdownMenuItem onClick={() => openEdit(coupon)}><Edit className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
@@ -371,7 +371,7 @@ export default function AdminCouponsPage() {
                     {formSelectedIds.map((item) => (
                       <span key={item.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary/10 text-secondary text-[11px] font-medium">
                         {item.name}
-                        <button type="button" onClick={() => setFormSelectedIds((prev) => prev.filter((s) => s.id !== item.id))} className="hover:text-destructive transition-colors">
+                        <button type="button" onClick={() => setFormSelectedIds((prev) => prev.filter((s) => s.id !== item.id))} className="hover:text-destructive transition-colors active:scale-[0.96]">
                           <X className="h-3 w-3" />
                         </button>
                       </span>

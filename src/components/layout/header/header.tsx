@@ -501,12 +501,13 @@ export function Header() {
                 {/* Mobile Header */}
                 <div className="flex items-center justify-between mb-2 pb-4 border-b border-border/20">
                   <Image src="/logo.png" alt="ChineXa" width={120} height={46} className="h-10 w-auto" />
-                  <button
+                  <motion.button
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-center h-10 w-10 rounded-full hover:bg-pearl text-charcoal-lighter"
+                    whileTap={{ scale: 0.9 }}
+                    className="flex items-center justify-center h-10 w-10 rounded-full hover:bg-pearl text-charcoal-lighter transition-colors"
                   >
                     <X className="h-4 w-4" />
-                  </button>
+                  </motion.button>
                 </div>
 
                 {/* Profile card — same tier-tinted card used across the account
@@ -586,22 +587,24 @@ export function Header() {
 
                 {/* Mobile Footer Actions */}
                 <div className="mt-6 pt-5 border-t border-border/20 space-y-2">
-                  <Link
-                    href="/wishlist"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 py-2.5 px-2 rounded-xl text-sm text-charcoal-light hover:bg-primary-light transition-colors"
-                  >
-                    <Heart className="h-4 w-4" /> Wishlist
-                    {mounted && wishlistCount > 0 && (
-                      <span className="ml-auto text-[10px] bg-secondary text-white px-1.5 py-0.5 rounded-full font-bold">{wishlistCount}</span>
-                    )}
+                  <Link href="/wishlist" onClick={() => setMobileMenuOpen(false)} className="block">
+                    <motion.span
+                      whileTap={{ scale: 0.97 }}
+                      className="flex items-center gap-3 py-2.5 px-2 rounded-xl text-sm text-charcoal-light hover:bg-primary-light transition-colors"
+                    >
+                      <Heart className="h-4 w-4" /> Wishlist
+                      {mounted && wishlistCount > 0 && (
+                        <span className="ml-auto text-[10px] bg-secondary text-white px-1.5 py-0.5 rounded-full font-bold">{wishlistCount}</span>
+                      )}
+                    </motion.span>
                   </Link>
-                  <Link
-                    href="/track-order"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 py-2.5 px-2 rounded-xl text-sm text-charcoal-light hover:bg-primary-light transition-colors"
-                  >
-                    <ShoppingBag className="h-4 w-4" /> Track Order
+                  <Link href="/track-order" onClick={() => setMobileMenuOpen(false)} className="block">
+                    <motion.span
+                      whileTap={{ scale: 0.97 }}
+                      className="flex items-center gap-3 py-2.5 px-2 rounded-xl text-sm text-charcoal-light hover:bg-primary-light transition-colors"
+                    >
+                      <ShoppingBag className="h-4 w-4" /> Track Order
+                    </motion.span>
                   </Link>
                   {!isAuthenticated && (
                     <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="block mt-2">

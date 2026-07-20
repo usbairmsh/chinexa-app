@@ -331,7 +331,7 @@ export default function AdminAccountingPage() {
                       </thead>
                       <tbody>
                         {data?.transactions.map((txn) => (
-                          <tr key={txn.id} className="border-b border-border/20 hover:bg-pearl/50 transition-colors">
+                          <tr key={txn.id} className="border-b border-border/20 hover:border-secondary/20 hover:bg-pearl/50 transition-colors">
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
                                 <div className={cn(
@@ -461,7 +461,7 @@ export default function AdminAccountingPage() {
                     </div>
                     <div className="space-y-2">
                       {(data?.expense_breakdown || []).map((row, i) => (
-                        <div key={row.category} className="flex items-center justify-between text-sm">
+                        <div key={row.category} className="flex items-center justify-between text-sm rounded-lg px-2 py-1 -mx-2 hover:bg-pearl/50 transition-colors">
                           <div className="flex items-center gap-2">
                             <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
                             <span className="text-charcoal-light">{row.category}</span>
@@ -606,7 +606,7 @@ function CashFlowTab({ year }: { year: number }) {
               </thead>
               <tbody>
                 {data.monthly.map((m) => (
-                  <tr key={m.month} className="border-b border-border/20 hover:bg-pearl/50 transition-colors">
+                  <tr key={m.month} className="border-b border-border/20 hover:border-secondary/20 hover:bg-pearl/50 transition-colors">
                     <td className="px-4 py-3 text-charcoal font-medium">{m.month}</td>
                     <td className="px-4 py-3 text-right text-charcoal-lighter [font-variant-numeric:tabular-nums]">{formatCurrency(m.opening_balance)}</td>
                     <td className="px-4 py-3 text-right text-success [font-variant-numeric:tabular-nums]">+{formatCurrency(m.cash_in)}</td>

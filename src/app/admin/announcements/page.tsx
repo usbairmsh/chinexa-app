@@ -212,15 +212,15 @@ export default function AdminAnnouncementsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      <button onClick={() => moveItem(item.id, "up")} disabled={i === 0} className="p-1.5 rounded-md text-charcoal-lighter/60 hover:text-charcoal hover:bg-pearl disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                      <button onClick={() => moveItem(item.id, "up")} disabled={i === 0} className="p-1.5 rounded-md text-charcoal-lighter/60 hover:text-charcoal hover:bg-pearl disabled:opacity-30 disabled:cursor-not-allowed transition-colors active:scale-[0.96] disabled:active:scale-100">
                         <ChevronUp className="h-4 w-4" />
                       </button>
-                      <button onClick={() => moveItem(item.id, "down")} disabled={i === config.items.length - 1} className="p-1.5 rounded-md text-charcoal-lighter/60 hover:text-charcoal hover:bg-pearl disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                      <button onClick={() => moveItem(item.id, "down")} disabled={i === config.items.length - 1} className="p-1.5 rounded-md text-charcoal-lighter/60 hover:text-charcoal hover:bg-pearl disabled:opacity-30 disabled:cursor-not-allowed transition-colors active:scale-[0.96] disabled:active:scale-100">
                         <ChevronDown className="h-4 w-4" />
                       </button>
                       <Switch checked={item.enabled} onCheckedChange={(v) => updateItem(item.id, { enabled: v })} disabled={!canEdit} />
                       {canEdit && (
-                        <button onClick={() => removeItem(item.id)} className="p-1.5 rounded-md text-charcoal-lighter/50 hover:text-destructive hover:bg-destructive/5 transition-colors">
+                        <button onClick={() => removeItem(item.id)} className="p-1.5 rounded-md text-charcoal-lighter/50 hover:text-destructive hover:bg-destructive/5 transition-colors active:scale-[0.96]">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       )}

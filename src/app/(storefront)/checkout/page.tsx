@@ -538,9 +538,9 @@ export default function CheckoutPage() {
                   disabled={!canClick}
                   onClick={() => goToStep(s.id)}
                   className={cn(
-                    "flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full text-xs sm:text-sm font-medium transition-colors",
+                    "flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full text-xs sm:text-sm font-medium transition-all duration-200",
                     step >= s.id ? "bg-secondary !text-white" : "bg-pearl text-charcoal-lighter",
-                    canClick ? "cursor-pointer hover:opacity-80" : "cursor-default"
+                    canClick ? "cursor-pointer hover:opacity-80 active:scale-90" : "cursor-default"
                   )}
                 >
                   {step > s.id ? <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : s.id}
@@ -579,7 +579,7 @@ export default function CheckoutPage() {
                             type="button"
                             onClick={() => handleSelectAddress(addr)}
                             className={cn(
-                              "w-full flex items-start gap-2.5 sm:gap-3 p-3 sm:p-4 rounded-xl border text-left transition-all duration-200",
+                              "w-full flex items-start gap-2.5 sm:gap-3 p-3 sm:p-4 rounded-xl border text-left transition-all duration-200 active:scale-[0.98]",
                               isSelected
                                 ? "border-secondary bg-secondary/5"
                                 : "border-border/50 hover:border-secondary/40"
@@ -605,7 +605,7 @@ export default function CheckoutPage() {
                         type="button"
                         onClick={handleUseNew}
                         className={cn(
-                          "w-full flex items-center gap-2.5 sm:gap-3 p-3 sm:p-4 rounded-xl border text-left transition-all duration-200",
+                          "w-full flex items-center gap-2.5 sm:gap-3 p-3 sm:p-4 rounded-xl border text-left transition-all duration-200 active:scale-[0.98]",
                           useNewAddress
                             ? "border-secondary bg-secondary/5"
                             : "border-dashed border-border/50 hover:border-secondary/40"
@@ -789,7 +789,7 @@ export default function CheckoutPage() {
 
                 <div className="space-y-3">
                   <label className={cn(
-                    "flex items-center justify-between p-3 sm:p-4 rounded-xl border cursor-pointer transition-colors",
+                    "flex items-center justify-between p-3 sm:p-4 rounded-xl border cursor-pointer transition-all duration-200 active:scale-[0.98]",
                     shippingMethod === "standard" ? "border-secondary bg-primary-light" : "border-border hover:border-secondary"
                   )}>
                     <div className="flex items-center gap-2 sm:gap-3">
@@ -803,7 +803,7 @@ export default function CheckoutPage() {
                   </label>
                   {expressEnabled && activeDivision === expressDivision && (
                     <label className={cn(
-                      "flex items-center justify-between p-3 sm:p-4 rounded-xl border cursor-pointer transition-colors",
+                      "flex items-center justify-between p-3 sm:p-4 rounded-xl border cursor-pointer transition-all duration-200 active:scale-[0.98]",
                       shippingMethod === "express" ? "border-secondary bg-primary-light" : "border-border hover:border-secondary"
                     )}>
                       <div className="flex items-center gap-2 sm:gap-3">
@@ -834,7 +834,7 @@ export default function CheckoutPage() {
                           <code className="text-sm font-bold text-success">{couponCode}</code>
                           <span className="text-xs text-success/70">−{formatCurrency(discount)}</span>
                         </div>
-                        <button onClick={handleRemoveCoupon} className="text-charcoal-lighter hover:text-destructive transition-colors">
+                        <button onClick={handleRemoveCoupon} className="text-charcoal-lighter hover:text-destructive transition-colors active:scale-90">
                           <X className="h-4 w-4" />
                         </button>
                       </div>
@@ -903,7 +903,7 @@ export default function CheckoutPage() {
                     <button
                       type="button"
                       onClick={() => { setTransactionIdDraft(transactionId); setPayNowOpen(true); }}
-                      className="animate-blink-urgent flex items-center gap-2 px-8 py-3 rounded-full text-white font-semibold text-sm shadow-lg"
+                      className="animate-blink-urgent flex items-center gap-2 px-8 py-3 rounded-full text-white font-semibold text-sm shadow-lg transition-transform duration-150 active:scale-[0.96]"
                     >
                       <CreditCard className="h-4 w-4" /> Pay Now
                     </button>
@@ -930,7 +930,7 @@ export default function CheckoutPage() {
                     <button
                       type="button"
                       onClick={() => { setTransactionIdDraft(transactionId); setPayNowOpen(true); }}
-                      className="text-xs text-secondary hover:underline"
+                      className="text-xs text-secondary hover:underline active:scale-95 inline-block transition-transform duration-150"
                     >
                       Edit {confirmFieldLabel.toLowerCase()}
                     </button>

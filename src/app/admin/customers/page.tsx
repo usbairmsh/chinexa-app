@@ -558,7 +558,7 @@ export default function AdminCustomersPage() {
     return (
       <div className="space-y-5">
         <div className="flex items-center gap-3">
-          <button onClick={() => { setSelectedCustomer(null); setMembershipData(null); setCustomerCoupons([]); }} className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors">
+          <button onClick={() => { setSelectedCustomer(null); setMembershipData(null); setCustomerCoupons([]); }} className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96]">
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div className="flex-1">
@@ -593,7 +593,7 @@ export default function AdminCustomersPage() {
                   <button
                     type="button"
                     onClick={() => c.avatar && setViewAvatarOpen(true)}
-                    className={cn("group relative mb-3", c.avatar && "cursor-pointer")}
+                    className={cn("group relative mb-3", c.avatar && "cursor-pointer active:scale-[0.97] transition-transform")}
                     aria-label={c.avatar ? "View profile picture" : undefined}
                     disabled={!c.avatar}
                   >
@@ -801,8 +801,8 @@ export default function AdminCustomersPage() {
             <div className="space-y-3 py-2">
               {pointsMode === "give" && (
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => setPointsType("bonus")} className={cn("flex-1 py-2 rounded-lg text-xs font-medium border transition-all", pointsType === "bonus" ? "border-secondary bg-secondary/10 text-secondary" : "border-border/30 text-charcoal-lighter")}>Bonus</button>
-                  <button type="button" onClick={() => setPointsType("admin_adjustment")} className={cn("flex-1 py-2 rounded-lg text-xs font-medium border transition-all", pointsType === "admin_adjustment" ? "border-secondary bg-secondary/10 text-secondary" : "border-border/30 text-charcoal-lighter")}>Adjustment</button>
+                  <button type="button" onClick={() => setPointsType("bonus")} className={cn("flex-1 py-2 rounded-lg text-xs font-medium border transition-all active:scale-[0.97]", pointsType === "bonus" ? "border-secondary bg-secondary/10 text-secondary" : "border-border/30 text-charcoal-lighter")}>Bonus</button>
+                  <button type="button" onClick={() => setPointsType("admin_adjustment")} className={cn("flex-1 py-2 rounded-lg text-xs font-medium border transition-all active:scale-[0.97]", pointsType === "admin_adjustment" ? "border-secondary bg-secondary/10 text-secondary" : "border-border/30 text-charcoal-lighter")}>Adjustment</button>
                 </div>
               )}
               <Input
@@ -866,7 +866,7 @@ export default function AdminCustomersPage() {
                   type="button"
                   onClick={() => setSelectedCouponId(coupon.id)}
                   className={cn(
-                    "w-full flex items-center justify-between p-3 rounded-lg border transition-all text-left",
+                    "w-full flex items-center justify-between p-3 rounded-lg border transition-all text-left active:scale-[0.98]",
                     selectedCouponId === coupon.id ? "border-secondary bg-secondary/5" : "border-border/30 hover:bg-pearl/50"
                   )}
                 >
@@ -950,14 +950,14 @@ export default function AdminCustomersPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setDeleteCustomerDialog("deactivate")}
-                  className={cn("flex-1 px-3 py-2 rounded-xl border text-xs font-medium transition-all", deleteCustomerDialog === "deactivate" ? "border-secondary bg-secondary/5 text-secondary" : "border-border/40 text-charcoal-lighter")}
+                  className={cn("flex-1 px-3 py-2 rounded-xl border text-xs font-medium transition-all active:scale-[0.97]", deleteCustomerDialog === "deactivate" ? "border-secondary bg-secondary/5 text-secondary" : "border-border/40 text-charcoal-lighter")}
                 >
                   Deactivate (reversible)
                 </button>
                 {isSuperAdminUser && (
                   <button
                     onClick={() => setDeleteCustomerDialog("hard")}
-                    className={cn("flex-1 px-3 py-2 rounded-xl border text-xs font-medium transition-all", deleteCustomerDialog === "hard" ? "border-destructive bg-destructive/5 text-destructive" : "border-border/40 text-charcoal-lighter")}
+                    className={cn("flex-1 px-3 py-2 rounded-xl border text-xs font-medium transition-all active:scale-[0.97]", deleteCustomerDialog === "hard" ? "border-destructive bg-destructive/5 text-destructive" : "border-border/40 text-charcoal-lighter")}
                   >
                     Delete Permanently
                   </button>
@@ -1062,23 +1062,23 @@ export default function AdminCustomersPage() {
                 <TableHead>Customer</TableHead>
                 <TableHead className="hidden sm:table-cell">Account</TableHead>
                 <TableHead className="hidden sm:table-cell">
-                  <button onClick={() => toggleSort("orders")} className="flex items-center gap-1 hover:text-charcoal transition-colors">
+                  <button onClick={() => toggleSort("orders")} className="flex items-center gap-1 hover:text-charcoal transition-colors active:scale-[0.96]">
                     Orders <ArrowUpDown className={cn("h-3 w-3", sortBy === "orders" && "text-secondary")} />
                   </button>
                 </TableHead>
                 <TableHead>
-                  <button onClick={() => toggleSort("spent")} className="flex items-center gap-1 hover:text-charcoal transition-colors">
+                  <button onClick={() => toggleSort("spent")} className="flex items-center gap-1 hover:text-charcoal transition-colors active:scale-[0.96]">
                     Spent <ArrowUpDown className={cn("h-3 w-3", sortBy === "spent" && "text-secondary")} />
                   </button>
                 </TableHead>
                 <TableHead className="hidden md:table-cell">Tier</TableHead>
                 <TableHead className="hidden lg:table-cell">
-                  <button onClick={() => toggleSort("lastOrder")} className="flex items-center gap-1 hover:text-charcoal transition-colors">
+                  <button onClick={() => toggleSort("lastOrder")} className="flex items-center gap-1 hover:text-charcoal transition-colors active:scale-[0.96]">
                     Last Order <ArrowUpDown className={cn("h-3 w-3", sortBy === "lastOrder" && "text-secondary")} />
                   </button>
                 </TableHead>
                 <TableHead className="hidden xl:table-cell">
-                  <button onClick={() => toggleSort("joined")} className="flex items-center gap-1 hover:text-charcoal transition-colors">
+                  <button onClick={() => toggleSort("joined")} className="flex items-center gap-1 hover:text-charcoal transition-colors active:scale-[0.96]">
                     Joined <ArrowUpDown className={cn("h-3 w-3", sortBy === "joined" && "text-secondary")} />
                   </button>
                 </TableHead>
@@ -1088,7 +1088,7 @@ export default function AdminCustomersPage() {
             </TableHeader>
             <TableBody>
               {filtered.map((c) => (
-                <TableRow key={c.id} onClick={() => handleSelectCustomer(c)} className="cursor-pointer">
+                <TableRow key={c.id} onClick={() => handleSelectCustomer(c)} className="cursor-pointer group">
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-9 w-9 shrink-0">{c.avatar && <AvatarImage src={c.avatar} alt={c.name} />}<AvatarFallback className="text-[10px] font-semibold">{getInitials(c.name)}</AvatarFallback></Avatar>
@@ -1127,7 +1127,7 @@ export default function AdminCustomersPage() {
                     <Badge variant={c.isActive ? "success" : "destructive"} className="text-[9px]">{c.isActive ? "Active" : "Inactive"}</Badge>
                   </TableCell>
                   <TableCell>
-                    <ChevronRight className="h-4 w-4 text-charcoal-lighter" />
+                    <ChevronRight className="h-4 w-4 text-charcoal-lighter transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-secondary" />
                   </TableCell>
                 </TableRow>
               ))}
@@ -1185,7 +1185,7 @@ export default function AdminCustomersPage() {
                 {smsSelected.map((c) => (
                   <span key={c.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary/10 text-secondary text-[11px] font-medium">
                     {c.name}
-                    <button type="button" onClick={() => toggleSmsSelected(c)} className="hover:text-destructive transition-colors">
+                    <button type="button" onClick={() => toggleSmsSelected(c)} className="hover:text-destructive transition-colors active:scale-[0.9]">
                       <X className="h-3 w-3" />
                     </button>
                   </span>
@@ -1208,7 +1208,7 @@ export default function AdminCustomersPage() {
                   const isSelected = smsSelected.some((s) => s.id === r.id);
                   return (
                     <button key={r.id} type="button" onClick={() => toggleSmsSelected(r)}
-                      className={cn("w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-pearl transition-colors", isSelected && "bg-secondary/5")}>
+                      className={cn("w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-pearl transition-colors active:scale-[0.99]", isSelected && "bg-secondary/5")}>
                       <div className="min-w-0">
                         <p className="text-xs font-medium text-charcoal truncate">{r.name}</p>
                         <p className="text-[10px] text-charcoal-lighter truncate">{r.phone}</p>

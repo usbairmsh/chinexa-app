@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Clock, Eye, ArrowLeft, Share2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { formatDateShort } from "@/lib/utils";
 export default function BlogPostPage() {
   const { slug } = useParams<{ slug: string }>();
   const { data: post, isLoading } = useBlogPost(slug);
+  const shouldReduceMotion = useReducedMotion();
 
   if (isLoading) {
     return (
@@ -44,11 +45,15 @@ export default function BlogPostPage() {
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8">
         <Breadcrumb items={[{ label: "Blog", href: "/blog" }, { label: post.title }]} className="mb-6" />
 
-        <Link href="/blog" className="inline-flex items-center gap-1 text-sm text-charcoal-lighter hover:text-secondary transition-colors mb-6">
-          <ArrowLeft className="h-4 w-4" /> Back to Blog
+        <Link href="/blog" className="group inline-flex items-center gap-1 text-sm text-charcoal-lighter hover:text-secondary transition-colors mb-6">
+          <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-0.5" /> Back to Blog
         </Link>
 
-        <motion.article initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.article
+          initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+        >
           {/* Featured Image */}
           <div className="relative aspect-[16/9] rounded-2xl overflow-hidden bg-pearl mb-8 shadow-card">
             <Image

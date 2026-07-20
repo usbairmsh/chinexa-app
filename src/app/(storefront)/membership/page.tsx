@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Loader2, Crown, Check, Star, Sparkles } from "lucide-react";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,6 +24,7 @@ import type { MembershipTier } from "@/types/membership";
  * "Membership Benefits" link points to.
  */
 export default function MembershipBenefitsPage() {
+  const shouldReduceMotion = useReducedMotion();
   const storeUser = useAuthStore((s) => s.user);
   const storeAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [mounted, setMounted] = useState(false);
@@ -77,7 +78,7 @@ export default function MembershipBenefitsPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Breadcrumb items={[{ label: "Membership Benefits" }]} />
           <h1 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-semibold text-charcoal mt-4 flex items-center gap-3">
-            <Crown className="h-8 w-8 sm:h-10 sm:w-10 text-gold" /> Membership Benefits
+            <Crown className={cn("h-8 w-8 sm:h-10 sm:w-10 text-gold", !shouldReduceMotion && "animate-float")} /> Membership Benefits
           </h1>
           <p className="text-charcoal-lighter mt-3 max-w-lg">
             Earn points with every purchase and unlock better perks as you climb the tiers.
@@ -129,15 +130,20 @@ export default function MembershipBenefitsPage() {
 
         {/* Guests — nudge to create an account instead of a personal summary */}
         {!isAuthenticated && (
-          <Card className="rounded-2xl bg-gradient-to-r from-secondary/10 via-primary-light to-coral-light border-0 shadow-card">
-            <CardContent className="p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="text-center sm:text-left">
-                <p className="font-heading text-lg sm:text-xl font-semibold text-charcoal">Start earning points today</p>
-                <p className="text-sm text-charcoal-lighter mt-1">Create a free account to track your points and unlock every tier below.</p>
-              </div>
-              <Link href="/register"><Button variant="secondary" className="!text-white shrink-0">Create Account</Button></Link>
-            </CardContent>
-          </Card>
+          <motion.div
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Card className="rounded-2xl bg-gradient-to-r from-secondary/10 via-primary-light to-coral-light border-0 shadow-card">
+              <CardContent className="p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-center sm:text-left">
+                  <p className="font-heading text-lg sm:text-xl font-semibold text-charcoal">Start earning points today</p>
+                  <p className="text-sm text-charcoal-lighter mt-1">Create a free account to track your points and unlock every tier below.</p>
+                </div>
+                <Link href="/register"><Button variant="secondary" className="!text-white shrink-0">Create Account</Button></Link>
+              </CardContent>
+            </Card>
+          </motion.div>
         )}
 
         {/* All tiers */}
@@ -162,6 +168,7 @@ export default function MembershipBenefitsPage() {
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.05 }}
+                      whileTap={{ scale: 0.99 }}
                     >
                       <div
                         className={cn(
@@ -193,26 +200,36 @@ export default function MembershipBenefitsPage() {
                           </div>
                         </div>
 
-                        {isExpanded && (
-                          <div className="px-5 pb-5">
-                            {tier.benefits && tier.benefits.length > 0 ? (
-                              <ul className="space-y-2 pl-1">
-                                {tier.benefits.map((benefit, bi) => (
-                                  <li key={bi} className="flex items-start gap-2 text-xs text-charcoal-light">
-                                    {isCurrent ? (
-                                      <Check className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" />
-                                    ) : (
-                                      <Star className="h-3.5 w-3.5 text-gold shrink-0 mt-0.5" />
-                                    )}
-                                    <span>{benefit}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p className="text-xs text-charcoal-lighter italic">No specific perks listed for this tier.</p>
-                            )}
-                          </div>
-                        )}
+                        <AnimatePresence initial={false}>
+                          {isExpanded && (
+                            <motion.div
+                              initial={shouldReduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                              animate={shouldReduceMotion ? { opacity: 1 } : { height: "auto", opacity: 1 }}
+                              exit={shouldReduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                              transition={{ duration: 0.25, ease: "easeOut" }}
+                              className="overflow-hidden"
+                            >
+                              <div className="px-5 pb-5">
+                                {tier.benefits && tier.benefits.length > 0 ? (
+                                  <ul className="space-y-2 pl-1">
+                                    {tier.benefits.map((benefit, bi) => (
+                                      <li key={bi} className="flex items-start gap-2 text-xs text-charcoal-light">
+                                        {isCurrent ? (
+                                          <Check className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" />
+                                        ) : (
+                                          <Star className="h-3.5 w-3.5 text-gold shrink-0 mt-0.5" />
+                                        )}
+                                        <span>{benefit}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p className="text-xs text-charcoal-lighter italic">No specific perks listed for this tier.</p>
+                                )}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     </motion.div>
                   );

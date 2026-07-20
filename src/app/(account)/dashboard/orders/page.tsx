@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Package, Truck, CheckCircle2, Clock, XCircle, MapPin, PackageCheck, ThumbsDown, LocateFixed } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -107,6 +107,7 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
@@ -184,7 +185,12 @@ export default function OrdersPage() {
             {orders.length === 0 ? (
               <EmptyState icon={Package} title="No orders yet" description="Your orders will appear here when you shop" actionLabel="Start Shopping" actionHref="/products" />
             ) : orders.map((order, i) => (
-              <motion.div key={order.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+              <motion.div
+                key={order.id}
+                initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04 }}
+              >
                 <OrderCard order={order} />
               </motion.div>
             ))}
@@ -194,21 +200,48 @@ export default function OrdersPage() {
           <div className="space-y-4">
             {activeOrders.length === 0 ? (
               <EmptyState icon={Package} title="No active orders" description="Your active orders will appear here" actionLabel="Start Shopping" actionHref="/products" />
-            ) : activeOrders.map((o) => <OrderCard key={o.id} order={o} />)}
+            ) : activeOrders.map((o, i) => (
+              <motion.div
+                key={o.id}
+                initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04 }}
+              >
+                <OrderCard order={o} />
+              </motion.div>
+            ))}
           </div>
         </TabsContent>
         <TabsContent value="completed">
           <div className="space-y-4">
             {completedOrders.length === 0 ? (
               <EmptyState icon={PackageCheck} title="No deliveries yet" description="Completed orders will show here" />
-            ) : completedOrders.map((o) => <OrderCard key={o.id} order={o} />)}
+            ) : completedOrders.map((o, i) => (
+              <motion.div
+                key={o.id}
+                initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04 }}
+              >
+                <OrderCard order={o} />
+              </motion.div>
+            ))}
           </div>
         </TabsContent>
         <TabsContent value="failed">
           <div className="space-y-4">
             {failedOrders.length === 0 ? (
               <EmptyState icon={ThumbsDown} title="No issues" description="All your orders have been received successfully" />
-            ) : failedOrders.map((o) => <OrderCard key={o.id} order={o} />)}
+            ) : failedOrders.map((o, i) => (
+              <motion.div
+                key={o.id}
+                initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04 }}
+              >
+                <OrderCard order={o} />
+              </motion.div>
+            ))}
           </div>
         </TabsContent>
       </Tabs>

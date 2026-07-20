@@ -269,7 +269,7 @@ export default function AdminLayout({
         )}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="hidden lg:flex p-1.5 rounded-lg text-charcoal-lighter hover:text-charcoal hover:bg-primary-light transition-colors"
+          className="hidden lg:flex p-1.5 rounded-lg text-charcoal-lighter hover:text-charcoal hover:bg-primary-light transition-colors active:scale-[0.96]"
         >
           <ChevronLeft className={cn("h-4 w-4 transition-transform", collapsed && "rotate-180")} />
         </button>
@@ -318,7 +318,7 @@ export default function AdminLayout({
       <div className="border-t border-border/30 p-3">
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-charcoal-lighter hover:bg-pearl hover:text-charcoal transition-colors w-full"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-charcoal-lighter hover:bg-pearl hover:text-charcoal transition-colors w-full active:scale-[0.98]"
         >
           <LogOut className="h-4 w-4" />
           {!collapsed && <span>Logout</span>}
@@ -379,7 +379,7 @@ export default function AdminLayout({
       <div className="border-t border-border/30 p-3">
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-charcoal-lighter hover:bg-pearl hover:text-charcoal transition-colors w-full"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-charcoal-lighter hover:bg-pearl hover:text-charcoal transition-colors w-full active:scale-[0.98]"
         >
           <LogOut className="h-4 w-4" />
           <span>Logout</span>
@@ -406,8 +406,8 @@ export default function AdminLayout({
       {/* Mobile Sidebar Overlay */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-charcoal/40" onClick={() => setMobileOpen(false)} />
-          <div className="absolute inset-y-0 left-0 w-60 bg-white shadow-luxury-hover">
+          <div className="absolute inset-0 bg-charcoal/40 animate-fade-in" onClick={() => setMobileOpen(false)} />
+          <div className="absolute inset-y-0 left-0 w-60 bg-white shadow-luxury-hover animate-slide-in-left">
             {mobileSidebarContent}
           </div>
         </div>
@@ -420,7 +420,7 @@ export default function AdminLayout({
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileOpen(true)}
-              className="lg:hidden p-2 text-charcoal-lighter hover:text-charcoal"
+              className="lg:hidden p-2 text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96]"
             >
               <Menu className="h-5 w-5" />
             </button>
@@ -429,7 +429,7 @@ export default function AdminLayout({
             <AdminNotificationBell />
             <Separator orientation="vertical" className="h-8" />
             <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center gap-2 hover:bg-pearl rounded-lg px-2 py-1.5 transition-colors">
+              <DropdownMenuTrigger className="flex items-center gap-2 hover:bg-pearl rounded-lg px-2 py-1.5 transition-colors active:scale-[0.98]">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="text-xs">{adminName ? getInitials(adminName) : adminUsername ? getInitials(adminUsername) : "AD"}</AvatarFallback>
                 </Avatar>

@@ -318,7 +318,7 @@ export default function OrderDetailPage() {
               {order.transaction_id ? (
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-charcoal-lighter shrink-0">TXN ID</span>
-                  <div className="flex items-center gap-1 min-w-0"><code className="text-xs font-mono text-charcoal truncate">{String(order.transaction_id)}</code><button className="text-charcoal-lighter hover:text-secondary shrink-0"><Copy className="h-3 w-3" /></button></div>
+                  <div className="flex items-center gap-1 min-w-0"><code className="text-xs font-mono text-charcoal truncate">{String(order.transaction_id)}</code><button className="text-charcoal-lighter hover:text-secondary shrink-0 transition-colors active:scale-[0.96]"><Copy className="h-3 w-3" /></button></div>
                 </div>
               ) : null}
               <div className="flex justify-between"><span className="text-charcoal-lighter">Status</span><Badge variant={String(order.payment_status) === "paid" ? "success" : "warning"} className="text-[9px]">{String(order.payment_status)}</Badge></div>
@@ -413,7 +413,7 @@ export default function OrderDetailPage() {
                 <button
                   type="button"
                   onClick={() => setEditItems((prev) => [...prev, { product_id: null, variant_id: null, product_name: "New Item", product_image: null, product_slug: null, variant: null, quantity: 1, unit_price: 0 }])}
-                  className="flex items-center gap-1 text-xs text-secondary hover:text-secondary-dark font-medium"
+                  className="flex items-center gap-1 text-xs text-secondary hover:text-secondary-dark font-medium transition-colors active:scale-[0.96]"
                 >
                   <Plus className="h-3 w-3" /> Add Item
                 </button>
@@ -445,7 +445,7 @@ export default function OrderDetailPage() {
                       placeholder="Unit price"
                     />
                     <span className="w-20 shrink-0 text-xs text-charcoal-lighter text-right [font-variant-numeric:tabular-nums]">{formatCurrency(item.quantity * item.unit_price)}</span>
-                    <button type="button" onClick={() => removeEditItem(i)} className="shrink-0 text-charcoal-lighter hover:text-destructive">
+                    <button type="button" onClick={() => removeEditItem(i)} className="shrink-0 text-charcoal-lighter hover:text-destructive transition-colors active:scale-[0.96]">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>

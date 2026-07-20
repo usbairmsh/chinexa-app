@@ -42,7 +42,10 @@ export default function ProductsPage() {
         <h4 className="text-sm font-semibold text-charcoal mb-3">Categories</h4>
         <div className="space-y-2">
           {mainCategories.map((cat) => (
-            <label key={cat.id} className="flex items-center gap-2 cursor-pointer">
+            <label
+              key={cat.id}
+              className="flex items-center gap-2 cursor-pointer rounded-lg px-1.5 py-1 -mx-1.5 transition-colors hover:bg-pearl"
+            >
               <Checkbox
                 checked={params.category === cat.id}
                 onCheckedChange={(checked) =>
@@ -102,12 +105,21 @@ export default function ProductsPage() {
       <div className="bg-hero-gradient py-8 sm:py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Breadcrumb items={[{ label: "All Products" }]} />
-          <h1 className="font-heading text-3xl sm:text-4xl font-semibold text-charcoal mt-4">
+          <motion.h1
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="font-heading text-3xl sm:text-4xl font-semibold text-charcoal mt-4"
+          >
             All Products
-          </h1>
-          <p className="text-charcoal-lighter mt-2">
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="text-charcoal-lighter mt-2"
+          >
             {data?.total || 0} products to explore
-          </p>
+          </motion.p>
         </div>
       </div>
 

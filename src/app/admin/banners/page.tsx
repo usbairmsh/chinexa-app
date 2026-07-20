@@ -145,28 +145,28 @@ function ImagePositionEditor({ imageUrl, crop, onChange }: { imageUrl: string; c
         {/* Zoom controls */}
         <div className="flex items-center gap-1 bg-pearl/60 rounded-lg p-0.5">
           <button type="button" onClick={() => adjustZoom(-0.1)} disabled={crop.zoom <= 1}
-            className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white text-charcoal-lighter hover:text-charcoal disabled:opacity-30 transition-all">
+            className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white text-charcoal-lighter hover:text-charcoal disabled:opacity-30 transition-all active:scale-[0.96]">
             <ZoomOut className="h-3.5 w-3.5" />
           </button>
           <span className="text-[10px] font-mono text-charcoal-lighter w-10 text-center">{Math.round(crop.zoom * 100)}%</span>
           <button type="button" onClick={() => adjustZoom(0.1)} disabled={crop.zoom >= 3}
-            className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white text-charcoal-lighter hover:text-charcoal disabled:opacity-30 transition-all">
+            className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white text-charcoal-lighter hover:text-charcoal disabled:opacity-30 transition-all active:scale-[0.96]">
             <ZoomIn className="h-3.5 w-3.5" />
           </button>
         </div>
 
         {/* Position nudge */}
         <div className="flex items-center gap-0.5 bg-pearl/60 rounded-lg p-0.5">
-          <button type="button" onClick={() => nudge(-5, 0)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white text-charcoal-lighter hover:text-charcoal transition-all text-[10px] font-bold">
+          <button type="button" onClick={() => nudge(-5, 0)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white text-charcoal-lighter hover:text-charcoal transition-all active:scale-[0.96] text-[10px] font-bold">
             ←
           </button>
-          <button type="button" onClick={() => nudge(0, -5)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white text-charcoal-lighter hover:text-charcoal transition-all text-[10px] font-bold">
+          <button type="button" onClick={() => nudge(0, -5)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white text-charcoal-lighter hover:text-charcoal transition-all active:scale-[0.96] text-[10px] font-bold">
             ↑
           </button>
-          <button type="button" onClick={() => nudge(0, 5)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white text-charcoal-lighter hover:text-charcoal transition-all text-[10px] font-bold">
+          <button type="button" onClick={() => nudge(0, 5)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white text-charcoal-lighter hover:text-charcoal transition-all active:scale-[0.96] text-[10px] font-bold">
             ↓
           </button>
-          <button type="button" onClick={() => nudge(5, 0)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white text-charcoal-lighter hover:text-charcoal transition-all text-[10px] font-bold">
+          <button type="button" onClick={() => nudge(5, 0)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white text-charcoal-lighter hover:text-charcoal transition-all active:scale-[0.96] text-[10px] font-bold">
             →
           </button>
         </div>
@@ -339,7 +339,7 @@ export default function AdminBannersPage() {
                         <Switch checked={banner.is_active} onCheckedChange={() => handleToggleActive(banner)} />
                         <DropdownMenu modal={false}>
                           <DropdownMenuTrigger asChild>
-                            <button type="button" className="p-1 hover:bg-pearl rounded-md">
+                            <button type="button" className="p-1 hover:bg-pearl rounded-md transition-colors active:scale-[0.96]">
                               <MoreHorizontal className="h-4 w-4 text-charcoal-lighter" />
                             </button>
                           </DropdownMenuTrigger>

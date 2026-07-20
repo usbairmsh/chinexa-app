@@ -117,7 +117,7 @@ export default function CouponsOffersPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
                 onClick={() => setSelected({ kind: "coupon", data: c })}
-                className="text-left p-4 rounded-2xl border border-dashed border-secondary/40 bg-secondary/5 shadow-card hover:bg-secondary/10 hover:border-secondary transition-all"
+                className="text-left p-4 rounded-2xl border border-dashed border-secondary/40 bg-secondary/5 shadow-card hover:bg-secondary/10 hover:border-secondary hover:shadow-card-hover hover:-translate-y-px active:scale-[0.98] transition-all"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -149,7 +149,7 @@ export default function CouponsOffersPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
                 onClick={() => setSelected({ kind: "offer", data: o })}
-                className="text-left p-4 rounded-2xl border border-border bg-white shadow-card hover:border-secondary hover:shadow-card-hover transition-all"
+                className="text-left p-4 rounded-2xl border border-border bg-white shadow-card hover:border-secondary hover:shadow-card-hover hover:-translate-y-px active:scale-[0.98] transition-all"
               >
                 <p className="font-heading text-lg font-semibold text-charcoal">{o.discount || discountLabel(o.discount_type, o.discount_value)}</p>
                 <p className="text-sm font-medium text-charcoal mt-1">{o.title}</p>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Heart } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,6 +15,7 @@ export default function WishlistPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => setMounted(true), []);
 
@@ -46,14 +47,27 @@ export default function WishlistPage() {
   return (
     <div className="bg-white min-h-screen">
       <div className="bg-hero-gradient py-10">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative">
           <Breadcrumb items={[{ label: "Wishlist" }]} />
-          <h1 className="font-heading text-3xl sm:text-4xl font-semibold text-charcoal mt-4">
-            My Wishlist
-          </h1>
-          <p className="text-charcoal-lighter mt-2">
-            <span className="font-semibold text-charcoal">{count}</span> saved item{count === 1 ? "" : "s"}
-          </p>
+          <motion.div
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 20 }}
+            animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="relative"
+          >
+            <h1 className="font-heading text-3xl sm:text-4xl font-semibold text-charcoal mt-4">
+              My Wishlist
+            </h1>
+            <p className="text-charcoal-lighter mt-2">
+              <span className="font-semibold text-charcoal">{count}</span> saved item{count === 1 ? "" : "s"}
+            </p>
+          </motion.div>
+          {!shouldReduceMotion && (
+            <Heart
+              className="hidden sm:block absolute top-6 right-4 sm:right-6 lg:right-8 h-10 w-10 text-primary-dark/40 fill-primary-dark/10 animate-float pointer-events-none"
+              aria-hidden="true"
+            />
+          )}
         </div>
       </div>
 

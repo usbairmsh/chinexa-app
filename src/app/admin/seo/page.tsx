@@ -286,7 +286,7 @@ export default function AdminSeoPage() {
                   </thead>
                   <tbody>
                     {DEFAULT_PAGES.map((page) => (
-                      <tr key={page.path} className="border-b border-border/20 hover:bg-pearl/50 transition-colors">
+                      <tr key={page.path} className="border-b border-border/20 hover:border-secondary/20 hover:bg-pearl/50 transition-colors">
                         <td className="px-4 py-3 font-medium text-charcoal">{page.path}</td>
                         <td className="px-4 py-3 text-charcoal-light">{page.title}</td>
                         <td className="px-4 py-3">

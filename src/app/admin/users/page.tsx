@@ -298,7 +298,7 @@ export default function AdminUsersPage() {
                   const normPerms = normalizePermissions(admin.permissions);
                   const grantedSections = Object.entries(normPerms).filter(([, actions]) => actions.length > 0);
                   return (
-                  <tr key={admin.id} className={cn("border-b border-border/20 last:border-0 hover:bg-pearl/60 transition-colors", admin.id === currentAdminId && "bg-primary-light/30")}>
+                  <tr key={admin.id} className={cn("border-b border-border/20 last:border-0 hover:bg-pearl/60 hover:border-secondary/15 transition-colors", admin.id === currentAdminId && "bg-primary-light/30")}>
                     <td className="px-4 py-3 align-middle">
                       <div className="flex items-center gap-3 min-w-0">
                         <Avatar className="h-9 w-9 shrink-0"><AvatarFallback className="text-xs">{getInitials(admin.name)}</AvatarFallback></Avatar>
@@ -344,7 +344,7 @@ export default function AdminUsersPage() {
                     <td className="px-4 py-3 align-middle">
                       {isSuperAdmin && (
                         <DropdownMenu>
-                          <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
+                          <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md transition-colors active:scale-[0.96]"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => openEditDialog(admin)}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit Admin</DropdownMenuItem>
                             {admin.role !== "superadmin" && admin.id !== currentAdminId && (

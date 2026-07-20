@@ -298,7 +298,7 @@ export default function EditProductPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/admin/products" className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors">
+          <Link href="/admin/products" className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96]">
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
@@ -418,7 +418,7 @@ export default function EditProductPage() {
       <div className="flex gap-1 bg-pearl/60 p-1 rounded-luxury overflow-x-auto scrollbar-hide">
         {tabs.map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={cn("flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 transition-all duration-200",
+            className={cn("flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 transition-all duration-200 active:scale-[0.97]",
               activeTab === tab.id ? "bg-white text-charcoal shadow-card" : "text-charcoal-lighter hover:text-charcoal")}>
             <tab.icon className="h-4 w-4 shrink-0" /> {tab.label}
           </button>
@@ -468,7 +468,7 @@ export default function EditProductPage() {
                           <div className="flex items-center justify-between px-4 py-2.5 bg-pearl/50 border-b border-border/20">
                             <span className="text-xs font-bold text-charcoal">Variant {i + 1} {i === 0 && <span className="text-[9px] text-secondary font-normal ml-1">(default)</span>}</span>
                             {variants.length > 1 && (
-                              <button onClick={() => removeVariant(variant.id)} className="p-1 rounded-full hover:bg-destructive/10 text-charcoal-lighter hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => removeVariant(variant.id)} className="p-1 rounded-full hover:bg-destructive/10 text-charcoal-lighter hover:text-destructive transition-colors active:scale-[0.96]"><Trash2 className="h-3.5 w-3.5" /></button>
                             )}
                           </div>
                           <div className="p-4 space-y-4">
@@ -544,7 +544,7 @@ export default function EditProductPage() {
                       <div key={img.id} className="p-4 rounded-luxury border border-border/30 bg-pearl/20">
                         <div className="flex items-center justify-between mb-3">
                           <span className="text-xs font-bold text-charcoal">Image {i + 1} {i === 0 && <span className="text-[9px] text-secondary font-normal ml-1">(main)</span>}</span>
-                          <button onClick={() => removeImage(img.id)} className="p-1 rounded-full hover:bg-destructive/10 text-charcoal-lighter hover:text-destructive transition-colors">
+                          <button onClick={() => removeImage(img.id)} className="p-1 rounded-full hover:bg-destructive/10 text-charcoal-lighter hover:text-destructive transition-colors active:scale-[0.96]">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -577,7 +577,7 @@ export default function EditProductPage() {
                       </div>
                     ))}
                     {images.length < 8 && (
-                      <button onClick={addImage} className="w-full py-6 rounded-luxury border-2 border-dashed border-border/40 hover:border-secondary/40 hover:bg-primary-light/20 transition-all flex items-center justify-center gap-2 text-charcoal-lighter hover:text-secondary">
+                      <button onClick={addImage} className="w-full py-6 rounded-luxury border-2 border-dashed border-border/40 hover:border-secondary/40 hover:bg-primary-light/20 transition-all flex items-center justify-center gap-2 text-charcoal-lighter hover:text-secondary active:scale-[0.99]">
                         <Plus className="h-5 w-5" /> <span className="text-sm font-medium">Add Image</span>
                       </button>
                     )}
@@ -615,7 +615,7 @@ export default function EditProductPage() {
                             else if (selectedTrustBadges.length < 3) setSelectedTrustBadges((prev) => [...prev, badge.id]);
                           }}
                           disabled={!isSelected && selectedTrustBadges.length >= 3}
-                          className={cn("flex items-center gap-2 p-3 rounded-luxury border text-left transition-all",
+                          className={cn("flex items-center gap-2 p-3 rounded-luxury border text-left transition-all active:scale-[0.98]",
                             isSelected ? "border-secondary bg-secondary/5" : "border-border/30 hover:border-secondary/40",
                             !isSelected && selectedTrustBadges.length >= 3 && "opacity-40 cursor-not-allowed"
                           )}>
@@ -707,7 +707,7 @@ export default function EditProductPage() {
               <div className="flex flex-wrap gap-2">
                 {["new", "sale", "bestseller", "preorder", "limited", "trending"].map((badge) => (
                   <button key={badge} onClick={() => toggleBadge(badge)}
-                    className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-all capitalize",
+                    className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-all capitalize active:scale-[0.96]",
                       selectedBadges.includes(badge) ? "bg-secondary !text-white border-secondary" : "bg-white text-charcoal-lighter border-border hover:border-charcoal hover:text-charcoal")}>
                     {badge === "preorder" ? "Pre-order" : badge}
                   </button>

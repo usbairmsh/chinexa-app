@@ -186,7 +186,7 @@ function RuleEditor({ rule, tiers, onChange, canEdit }: { rule: DeductionRule; t
                     type="button"
                     disabled={!canEdit}
                     onClick={() => p({ tierIds: selected ? rule.tierIds.filter((id) => id !== t.id) : [...rule.tierIds, t.id] } as Partial<DeductionRule>)}
-                    className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-all disabled:cursor-not-allowed disabled:opacity-50", selected ? "border-secondary bg-secondary/10 text-secondary" : "border-border/30 text-charcoal-lighter")}
+                    className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-all active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100", selected ? "border-secondary bg-secondary/10 text-secondary" : "border-border/30 text-charcoal-lighter")}
                   >
                     {t.name}
                   </button>
@@ -508,7 +508,7 @@ export default function AdminPointsDeductionRulesPage() {
           return (
             <Card key={item.id} className={cn(errors.length > 0 && "border-destructive/40")}>
               <CardHeader className="flex-row items-center justify-between space-y-0">
-                <button type="button" onClick={() => toggleCollapsed(item.id)} className="flex items-center gap-3 min-w-0 text-left flex-1">
+                <button type="button" onClick={() => toggleCollapsed(item.id)} className="flex items-center gap-3 min-w-0 text-left flex-1 active:scale-[0.99] transition-transform">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-light shrink-0"><Icon className="h-4 w-4 text-secondary" /></div>
                   <div className="min-w-0">
                     <CardTitle className="text-sm flex items-center gap-1.5">
@@ -522,7 +522,7 @@ export default function AdminPointsDeductionRulesPage() {
                 <div className="flex items-center gap-1 shrink-0 pl-2">
                   <Switch checked={item.enabled} onCheckedChange={(v) => updateItem(item.id, { enabled: v })} disabled={!canEdit} />
                   {canDelete && (
-                    <button onClick={() => removeItem(item.id)} className="p-1.5 rounded-md text-charcoal-lighter/50 hover:text-destructive hover:bg-destructive/5 transition-colors">
+                    <button onClick={() => removeItem(item.id)} className="p-1.5 rounded-md text-charcoal-lighter/50 hover:text-destructive hover:bg-destructive/5 transition-colors active:scale-[0.96]">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   )}

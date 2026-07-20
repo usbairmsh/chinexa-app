@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { ArrowLeft, Loader2, Crown, Check, Star, Sparkles, ChevronDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ import { resolveTierColorStyle } from "@/lib/tier-color";
 import type { MembershipTier } from "@/types/membership";
 
 export default function MembershipBenefitsPage() {
+  const shouldReduceMotion = useReducedMotion();
   const storeUser = useAuthStore((s) => s.user);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -94,7 +95,7 @@ export default function MembershipBenefitsPage() {
                 </div>
               </div>
               <p className="font-heading text-3xl font-bold text-charcoal flex items-center gap-2">
-                <Sparkles className="h-6 w-6 text-gold" /> {totalPoints.toLocaleString()} <span className="text-sm font-normal text-charcoal-lighter">points</span>
+                <Sparkles className={cn("h-6 w-6 text-gold", !shouldReduceMotion && "animate-float")} /> {totalPoints.toLocaleString()} <span className="text-sm font-normal text-charcoal-lighter">points</span>
               </p>
             </div>
             {nextTierAt > 0 && (
@@ -136,7 +137,7 @@ export default function MembershipBenefitsPage() {
                   >
                     <div
                       className={cn(
-                        "rounded-xl border transition-colors cursor-pointer",
+                        "rounded-xl border cursor-pointer transition-colors active:scale-[0.99] duration-150",
                         isCurrent ? "border-secondary/40 bg-secondary/5" : "border-border/20 hover:bg-pearl/50"
                       )}
                       onClick={() => setExpandedId(isExpanded ? null : tier.id)}
@@ -170,26 +171,43 @@ export default function MembershipBenefitsPage() {
                         />
                       </div>
 
-                      {isExpanded && (
-                        <div className="px-4 pb-4">
-                          {tier.benefits && tier.benefits.length > 0 ? (
-                            <ul className="space-y-1.5 pl-1">
-                              {tier.benefits.map((benefit, bi) => (
-                                <li key={bi} className="flex items-start gap-2 text-xs text-charcoal-light">
-                                  {isCurrent ? (
-                                    <Check className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" />
-                                  ) : (
-                                    <Star className="h-3.5 w-3.5 text-gold shrink-0 mt-0.5" />
-                                  )}
-                                  <span>{benefit}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="text-xs text-charcoal-lighter italic">No specific perks listed for this tier.</p>
-                          )}
-                        </div>
-                      )}
+                      <AnimatePresence initial={false}>
+                        {isExpanded && (
+                          <motion.div
+                            key="content"
+                            initial={shouldReduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                            animate={shouldReduceMotion ? { opacity: 1 } : { height: "auto", opacity: 1 }}
+                            exit={shouldReduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25, ease: "easeOut" }}
+                            className="overflow-hidden"
+                          >
+                            <div className="px-4 pb-4">
+                              {tier.benefits && tier.benefits.length > 0 ? (
+                                <ul className="space-y-1.5 pl-1">
+                                  {tier.benefits.map((benefit, bi) => (
+                                    <motion.li
+                                      key={bi}
+                                      initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 4 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      transition={{ delay: shouldReduceMotion ? 0 : Math.min(bi, 8) * 0.03, duration: 0.2 }}
+                                      className="flex items-start gap-2 text-xs text-charcoal-light"
+                                    >
+                                      {isCurrent ? (
+                                        <Check className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" />
+                                      ) : (
+                                        <Star className="h-3.5 w-3.5 text-gold shrink-0 mt-0.5" />
+                                      )}
+                                      <span>{benefit}</span>
+                                    </motion.li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="text-xs text-charcoal-lighter italic">No specific perks listed for this tier.</p>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </motion.div>
                 );

@@ -257,7 +257,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               {/* Close */}
               <button
                 onClick={() => setModalOpen(false)}
-                className="absolute top-3 right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors"
+                className="absolute top-3 right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96]"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -299,7 +299,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                           onClick={() => setSelectedVariant(variant.id === selectedVariant ? null : variant.id)}
                           disabled={variant.stock === 0}
                           className={cn(
-                            "flex items-center gap-1.5 px-4 py-2 rounded-full border text-sm font-medium transition-all duration-200",
+                            "flex items-center gap-1.5 px-4 py-2 rounded-full border text-sm font-medium transition-all duration-200 active:scale-[0.96]",
                             selectedVariant === variant.id
                               ? "border-secondary bg-secondary !text-white"
                               : "border-border text-charcoal hover:border-charcoal",
@@ -325,14 +325,14 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                   <div className="flex items-center h-10 border border-border rounded-full overflow-hidden w-fit">
                     <button
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="flex items-center justify-center w-10 h-full text-charcoal-lighter hover:text-charcoal hover:bg-pearl transition-colors"
+                      className="flex items-center justify-center w-10 h-full text-charcoal-lighter hover:text-charcoal hover:bg-pearl transition-colors active:scale-[0.9]"
                     >
                       <Minus className="h-3.5 w-3.5" />
                     </button>
                     <span className="w-10 text-center text-sm font-semibold text-charcoal select-none">{quantity}</span>
                     <button
                       onClick={() => setQuantity(Math.min(10, quantity + 1))}
-                      className="flex items-center justify-center w-10 h-full text-charcoal-lighter hover:text-charcoal hover:bg-pearl transition-colors"
+                      className="flex items-center justify-center w-10 h-full text-charcoal-lighter hover:text-charcoal hover:bg-pearl transition-colors active:scale-[0.9]"
                     >
                       <Plus className="h-3.5 w-3.5" />
                     </button>
@@ -346,7 +346,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
                   onClick={handleConfirmAdd}
                   disabled={added || (product.variants.length > 0 && !selectedVariant)}
                   className={cn(
-                    "w-full h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2",
+                    "w-full h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:enabled:scale-[0.97]",
                     added
                       ? "bg-success !text-white"
                       : "bg-secondary !text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px]"

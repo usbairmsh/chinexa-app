@@ -79,7 +79,7 @@ export default function PointsHistoryPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
-        <Link href="/dashboard" className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors">
+        <Link href="/dashboard" className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors active:scale-90">
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div>

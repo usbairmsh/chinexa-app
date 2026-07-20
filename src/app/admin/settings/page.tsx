@@ -80,7 +80,7 @@ function DeliveryApplicabilityPicker({
               {selectedIds.map((item) => (
                 <span key={item.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary/10 text-secondary text-[11px] font-medium">
                   {item.name}
-                  <button type="button" onClick={() => onRemoveSelected(item.id)} className="hover:text-destructive transition-colors">
+                  <button type="button" onClick={() => onRemoveSelected(item.id)} className="hover:text-destructive transition-colors active:scale-[0.96]">
                     <X className="h-3 w-3" />
                   </button>
                 </span>
@@ -481,7 +481,7 @@ function AdminSettingsPageInner() {
       <div className="flex gap-1 bg-pearl/60 p-1 rounded-lg overflow-x-auto">
         {tabList.map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={cn("flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all", activeTab === tab.id ? "bg-white text-charcoal shadow-card" : "text-charcoal-lighter hover:text-charcoal")}>
+            className={cn("flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all active:scale-[0.97]", activeTab === tab.id ? "bg-white text-charcoal shadow-card" : "text-charcoal-lighter hover:text-charcoal")}>
             <tab.icon className="h-4 w-4" /> {tab.label}
           </button>
         ))}
@@ -537,7 +537,7 @@ function AdminSettingsPageInner() {
                     const platform = getPlatform(link.platform);
                     return (
                       <div key={i} className="relative p-3 rounded-lg border border-border/30 bg-pearl/20 space-y-2">
-                        <button onClick={() => setSocialLinks((prev) => prev.filter((_, idx) => idx !== i))} className="absolute top-2 right-2 p-0.5 text-charcoal-lighter/40 hover:text-destructive transition-colors">
+                        <button onClick={() => setSocialLinks((prev) => prev.filter((_, idx) => idx !== i))} className="absolute top-2 right-2 p-0.5 text-charcoal-lighter/40 hover:text-destructive transition-colors active:scale-[0.96]">
                           <X className="h-3 w-3" />
                         </button>
                         <div className="flex items-center gap-2">
@@ -572,7 +572,7 @@ function AdminSettingsPageInner() {
                           type="button"
                           onClick={() => setNewSocialPlatform(p.id)}
                           className={cn(
-                            "flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all",
+                            "flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all active:scale-[0.96]",
                             newSocialPlatform === p.id ? "border-secondary bg-secondary/5 shadow-sm" : "border-border/30 hover:border-secondary/40"
                           )}
                         >
@@ -623,7 +623,7 @@ function AdminSettingsPageInner() {
                   {ourStory.paragraphs.map((p, i) => (
                     <div key={i} className="flex items-start gap-2">
                       <Textarea value={p} onChange={(e) => updateParagraph(i, e.target.value)} className="min-h-[70px] flex-1" placeholder={`Paragraph ${i + 1}`} />
-                      <button onClick={() => removeParagraph(i)} className="mt-2 p-1.5 rounded-md text-charcoal-lighter/50 hover:text-destructive hover:bg-destructive/5 transition-colors shrink-0">
+                      <button onClick={() => removeParagraph(i)} className="mt-2 p-1.5 rounded-md text-charcoal-lighter/50 hover:text-destructive hover:bg-destructive/5 transition-colors active:scale-[0.96] shrink-0">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -660,7 +660,7 @@ function AdminSettingsPageInner() {
                           </div>
                           <Textarea value={value.description} onChange={(e) => updateValue(i, { description: e.target.value })} placeholder="Description" className="min-h-[60px]" />
                         </div>
-                        <button onClick={() => removeValue(i)} className="p-1.5 rounded-md text-charcoal-lighter/50 hover:text-destructive hover:bg-destructive/5 transition-colors shrink-0">
+                        <button onClick={() => removeValue(i)} className="p-1.5 rounded-md text-charcoal-lighter/50 hover:text-destructive hover:bg-destructive/5 transition-colors active:scale-[0.96] shrink-0">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
@@ -677,7 +677,7 @@ function AdminSettingsPageInner() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {ourStory.stats.map((stat, i) => (
                     <div key={i} className="relative p-3 rounded-lg border border-border/30 bg-pearl/20 space-y-2">
-                      <button onClick={() => removeStat(i)} className="absolute top-2 right-2 p-0.5 text-charcoal-lighter/40 hover:text-destructive transition-colors">
+                      <button onClick={() => removeStat(i)} className="absolute top-2 right-2 p-0.5 text-charcoal-lighter/40 hover:text-destructive transition-colors active:scale-[0.96]">
                         <X className="h-3 w-3" />
                       </button>
                       <Input value={stat.value} onChange={(e) => updateStat(i, { value: e.target.value })} placeholder="300+" className="h-9 text-center font-semibold" />
@@ -706,7 +706,7 @@ function AdminSettingsPageInner() {
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {instagramPosts.map((post, i) => (
                     <div key={post.id} className="relative p-3 rounded-lg border border-border/30 bg-pearl/20 space-y-2">
-                      <button onClick={() => removeInstagramPost(i)} className="absolute top-2 right-2 z-10 p-1 rounded-md bg-white/90 text-charcoal-lighter/60 hover:text-destructive transition-colors">
+                      <button onClick={() => removeInstagramPost(i)} className="absolute top-2 right-2 z-10 p-1 rounded-md bg-white/90 text-charcoal-lighter/60 hover:text-destructive transition-colors active:scale-[0.96]">
                         <X className="h-3 w-3" />
                       </button>
                       <ImageUpload label="Image" value={post.image} onChange={(v) => updateInstagramPost(i, { image: v })} aspectRatio="square" folder="general" />
@@ -736,7 +736,7 @@ function AdminSettingsPageInner() {
                       <Input value={item.question} onChange={(e) => updateFaqItem(i, { question: e.target.value })} placeholder="Question" className="h-9" />
                       <Textarea value={item.answer} onChange={(e) => updateFaqItem(i, { answer: e.target.value })} placeholder="Answer" className="min-h-[70px]" />
                     </div>
-                    <button onClick={() => removeFaqItem(i)} className="mt-2 p-1.5 rounded-md text-charcoal-lighter/50 hover:text-destructive hover:bg-destructive/5 transition-colors shrink-0">
+                    <button onClick={() => removeFaqItem(i)} className="mt-2 p-1.5 rounded-md text-charcoal-lighter/50 hover:text-destructive hover:bg-destructive/5 transition-colors active:scale-[0.96] shrink-0">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -823,9 +823,9 @@ function AdminSettingsPageInner() {
                     <Switch checked={z.isActive} onCheckedChange={(v) => delivery.updateZone(z.id, { isActive: v })} />
                     <button
                       onClick={() => { setEditZoneId(z.id); setZoneName(z.name); setZoneAreas(z.areas); setZoneCharge(String(z.charge)); setZoneDays(z.estimatedDays); setZoneDialog(true); }}
-                      className="p-1 text-charcoal-lighter hover:text-secondary"
+                      className="p-1 text-charcoal-lighter hover:text-secondary transition-colors active:scale-[0.96]"
                     ><Edit className="h-3.5 w-3.5" /></button>
-                    <button onClick={() => delivery.removeZone(z.id)} className="p-1 text-charcoal-lighter hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => delivery.removeZone(z.id)} className="p-1 text-charcoal-lighter hover:text-destructive transition-colors active:scale-[0.96]"><Trash2 className="h-3.5 w-3.5" /></button>
                   </div>
                 </div>
               ))}
@@ -915,7 +915,7 @@ function AdminSettingsPageInner() {
                       <button
                         type="button"
                         onClick={() => setPaymentMethods((p) => p.filter((pm) => pm.id !== m.id))}
-                        className="flex items-center justify-center h-8 w-8 rounded-full text-charcoal-lighter hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        className="flex items-center justify-center h-8 w-8 rounded-full text-charcoal-lighter hover:text-destructive hover:bg-destructive/10 transition-colors active:scale-[0.96]"
                         aria-label={`Remove ${m.name}`}
                       >
                         <Trash2 className="h-4 w-4" />

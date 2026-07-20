@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Search, X, Clock, TrendingUp } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useSearchProducts } from "@/hooks/queries/use-products";
 import { useTrendingSearches } from "@/hooks/queries/use-trending-searches";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -89,13 +89,13 @@ function SuggestionChips({ state }: { state: SearchState }) {
         <div>
           <div className="flex items-center justify-between mb-2 px-1">
             <span className="text-[11px] font-medium text-charcoal-lighter flex items-center gap-1.5"><Clock className="h-3 w-3" /> Recent</span>
-            <button onClick={clearRecent} className="text-[11px] text-charcoal-lighter hover:text-secondary transition-colors">Clear</button>
+            <button onClick={clearRecent} className="text-[11px] text-charcoal-lighter hover:text-secondary transition-colors active:scale-95">Clear</button>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {recentSearches.map((term) => (
-              <button key={term} onClick={() => setQuery(term)} className="px-3 py-1.5 rounded-full bg-pearl text-xs text-charcoal-light hover:bg-primary-light transition-colors">
+              <motion.button key={term} whileTap={{ scale: 0.94 }} onClick={() => setQuery(term)} className="px-3 py-1.5 rounded-full bg-pearl text-xs text-charcoal-light hover:bg-primary-light transition-colors">
                 {term}
-              </button>
+              </motion.button>
             ))}
           </div>
         </div>
@@ -105,9 +105,9 @@ function SuggestionChips({ state }: { state: SearchState }) {
           <span className="text-[11px] font-medium text-charcoal-lighter flex items-center gap-1.5 mb-2 px-1"><TrendingUp className="h-3 w-3" /> Trending</span>
           <div className="flex flex-wrap gap-1.5">
             {trendingTerms.map((term) => (
-              <button key={term} onClick={() => setQuery(term)} className="px-3 py-1.5 rounded-full bg-pearl text-xs text-charcoal-light capitalize hover:bg-primary-light transition-colors">
+              <motion.button key={term} whileTap={{ scale: 0.94 }} onClick={() => setQuery(term)} className="px-3 py-1.5 rounded-full bg-pearl text-xs text-charcoal-light capitalize hover:bg-primary-light transition-colors">
                 {term}
-              </button>
+              </motion.button>
             ))}
           </div>
         </div>
@@ -123,10 +123,10 @@ function ResultRow({ product, active, onNavigate }: { product: { id: string; slu
       prefetch={false}
       onClick={onNavigate}
       data-index={product.id}
-      className={cn("flex items-center gap-3 p-2 rounded-xl transition-colors", active ? "bg-pearl" : "hover:bg-pearl/60")}
+      className={cn("group flex items-center gap-3 p-2 rounded-xl transition-colors", active ? "bg-pearl" : "hover:bg-pearl/60")}
     >
       <div className="relative h-11 w-11 rounded-lg overflow-hidden bg-pearl shrink-0">
-        <Image src={product.images[0]?.url || `https://picsum.photos/seed/${product.slug}/100/100`} alt={product.name} fill className="object-cover" sizes="44px" />
+        <Image src={product.images[0]?.url || `https://picsum.photos/seed/${product.slug}/100/100`} alt={product.name} fill className="object-cover transition-transform duration-300 group-hover:scale-105" sizes="44px" />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm text-charcoal truncate">{product.name}</p>
@@ -279,6 +279,7 @@ export function MobileSearchBar() {
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const state = useSearchState();
+  const shouldReduceMotion = useReducedMotion();
 
   const close = () => { setOpen(false); state.setQuery(""); };
 
@@ -296,18 +297,24 @@ export function MobileSearchBar() {
 
   if (!open) {
     return (
-      <button
+      <motion.button
+        whileTap={{ scale: 0.9 }}
         onClick={() => setOpen(true)}
         className="sm:hidden flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors ml-1"
         aria-label="Search"
       >
         <Search className="h-4 w-4" />
-      </button>
+      </motion.button>
     );
   }
 
   return (
-    <div className="sm:hidden fixed inset-0 z-50 bg-white flex flex-col">
+    <motion.div
+      initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+      className="sm:hidden fixed inset-0 z-50 bg-white flex flex-col"
+    >
       <div className="flex items-center gap-2 h-[52px] px-4 border-b border-border/50 shrink-0">
         <Search className="h-4 w-4 text-charcoal-lighter shrink-0" />
         <input
@@ -319,13 +326,13 @@ export function MobileSearchBar() {
           className="flex-1 min-w-0 text-base text-charcoal placeholder:text-charcoal-lighter outline-none bg-transparent"
           autoComplete="off"
         />
-        <button onClick={close} className="p-1.5 rounded-full hover:bg-pearl text-charcoal-lighter shrink-0" aria-label="Close search">
+        <motion.button whileTap={{ scale: 0.88 }} onClick={close} className="p-1.5 rounded-full hover:bg-pearl text-charcoal-lighter shrink-0" aria-label="Close search">
           <X className="h-4 w-4" />
-        </button>
+        </motion.button>
       </div>
       <div className="flex-1 overflow-y-auto p-4">
         <ResultsList state={state} onNavigate={() => { state.rememberSearch(state.query); close(); }} />
       </div>
-    </div>
+    </motion.div>
   );
 }

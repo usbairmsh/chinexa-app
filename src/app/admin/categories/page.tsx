@@ -254,14 +254,14 @@ export default function AdminCategoriesPage() {
                           <button
                             onClick={() => moveCategory(cat.id, "up")}
                             disabled={index === 0}
-                            className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-pearl disabled:opacity-20 transition-colors"
+                            className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-pearl disabled:opacity-20 transition-colors active:scale-[0.96]"
                           >
                             <ChevronUp className="h-3.5 w-3.5 text-charcoal-lighter" />
                           </button>
                           <button
                             onClick={() => moveCategory(cat.id, "down")}
                             disabled={index === allCategories.length - 1}
-                            className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-pearl disabled:opacity-20 transition-colors"
+                            className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-pearl disabled:opacity-20 transition-colors active:scale-[0.96]"
                           >
                             <ChevronDown className="h-3.5 w-3.5 text-charcoal-lighter" />
                           </button>
@@ -291,7 +291,7 @@ export default function AdminCategoriesPage() {
 
                         {/* Actions */}
                         <DropdownMenu>
-                          <DropdownMenuTrigger className="p-1.5 hover:bg-pearl rounded-lg transition-colors shrink-0">
+                          <DropdownMenuTrigger className="p-1.5 hover:bg-pearl rounded-lg transition-colors shrink-0 active:scale-[0.96]">
                             <MoreHorizontal className="h-4 w-4 text-charcoal-lighter" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
@@ -329,14 +329,14 @@ export default function AdminCategoriesPage() {
                                   <button
                                     onClick={(e) => { e.stopPropagation(); moveSubcategory(cat, subIdx, "up"); }}
                                     disabled={subIdx === 0}
-                                    className="h-5 w-5 flex items-center justify-center rounded hover:bg-white disabled:opacity-20 transition-colors"
+                                    className="h-5 w-5 flex items-center justify-center rounded hover:bg-white disabled:opacity-20 transition-colors active:scale-[0.96]"
                                   >
                                     <ChevronUp className="h-3 w-3 text-charcoal-lighter" />
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); moveSubcategory(cat, subIdx, "down"); }}
                                     disabled={subIdx === cat.children!.length - 1}
-                                    className="h-5 w-5 flex items-center justify-center rounded hover:bg-white disabled:opacity-20 transition-colors"
+                                    className="h-5 w-5 flex items-center justify-center rounded hover:bg-white disabled:opacity-20 transition-colors active:scale-[0.96]"
                                   >
                                     <ChevronDown className="h-3 w-3 text-charcoal-lighter" />
                                   </button>
@@ -351,7 +351,7 @@ export default function AdminCategoriesPage() {
                                   {canEditCategory && (
                                     <button
                                       onClick={(e) => { e.stopPropagation(); openEditSub({ ...sub, parent_id: cat.id }); }}
-                                      className="ml-0.5 text-charcoal-lighter/50 hover:text-secondary transition-colors opacity-0 group-hover:opacity-100"
+                                      className="ml-0.5 text-charcoal-lighter/50 hover:text-secondary transition-colors opacity-0 group-hover:opacity-100 active:scale-[0.96]"
                                     >
                                       <Edit className="h-2.5 w-2.5" />
                                     </button>
@@ -359,7 +359,7 @@ export default function AdminCategoriesPage() {
                                   {canDeleteCategory && (
                                     <button
                                       onClick={(e) => { e.stopPropagation(); setDeleteDialog(sub as Category); }}
-                                      className="text-charcoal-lighter/50 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                                      className="text-charcoal-lighter/50 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100 active:scale-[0.96]"
                                     >
                                       <Trash2 className="h-2.5 w-2.5" />
                                     </button>
@@ -387,7 +387,7 @@ export default function AdminCategoriesPage() {
                                     <span className="text-charcoal-lighter">({brand.product_count})</span>
                                     <button
                                       onClick={(e) => { e.stopPropagation(); const next = catBrandIds.filter((id) => id !== brand.id); fetch(`/api/categories/${cat.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ brand_ids: next }) }).then((r) => { if (r.ok) window.location.reload(); else alert("Failed to remove brand"); }).catch(() => alert("Network error")); }}
-                                      className="text-charcoal-lighter/50 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                                      className="text-charcoal-lighter/50 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100 active:scale-[0.96]"
                                     >
                                       <Trash2 className="h-2.5 w-2.5" />
                                     </button>

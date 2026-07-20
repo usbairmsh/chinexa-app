@@ -68,7 +68,7 @@ function SearchContent() {
           </div>
         ) : (
           <>
-            <p className={cn("text-sm text-charcoal-lighter mb-6", isFetching && "opacity-60")}>
+            <p className={cn("text-sm text-charcoal-lighter mb-6 transition-opacity duration-200 ease-out", isFetching && "opacity-60")}>
               <span className="font-semibold text-charcoal text-base">{data?.total || 0}</span> results for &ldquo;<span className="font-medium text-charcoal">{query}</span>&rdquo;
             </p>
             {data && data.data.length > 0 ? (

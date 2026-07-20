@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { SlidersHorizontal, X, Award, Globe, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -31,6 +31,7 @@ interface Brand {
 }
 
 export default function BrandPage() {
+  const shouldReduceMotion = useReducedMotion();
   const { slug } = useParams<{ slug: string }>();
   const [brand, setBrand] = useState<Brand | null>(null);
   const [brandLoading, setBrandLoading] = useState(true);
@@ -143,25 +144,27 @@ export default function BrandPage() {
             {/* Brand Logo */}
             {brand.logo && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="hidden sm:block relative h-20 w-20 lg:h-24 lg:w-24 rounded-2xl bg-white border border-border/20 overflow-hidden shrink-0 shadow-sm"
+                initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.9 }}
+                animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1 }}
+                className="hidden sm:block shrink-0"
               >
-                <Image
-                  src={brand.logo}
-                  alt={brand.name}
-                  fill
-                  className="object-contain p-2"
-                  sizes="96px"
-                  unoptimized={brand.logo.includes("/uploads/")}
-                />
+                <div className="animate-float relative h-20 w-20 lg:h-24 lg:w-24 rounded-2xl bg-white border border-border/20 overflow-hidden shadow-sm">
+                  <Image
+                    src={brand.logo}
+                    alt={brand.name}
+                    fill
+                    className="object-contain p-2"
+                    sizes="96px"
+                    unoptimized={brand.logo.includes("/uploads/")}
+                  />
+                </div>
               </motion.div>
             )}
 
             <div className="flex-1 min-w-0">
               <motion.h1
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 15 }}
+                animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
                 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-semibold text-charcoal"
               >
                 {brand.name}
@@ -169,8 +172,8 @@ export default function BrandPage() {
 
               {brand.description && (
                 <motion.p
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+                  animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
                   className="text-charcoal-lighter mt-2 max-w-2xl"
                 >
@@ -179,8 +182,8 @@ export default function BrandPage() {
               )}
 
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+                animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
                 className="flex flex-wrap items-center gap-3 mt-3"
               >
@@ -197,7 +200,7 @@ export default function BrandPage() {
                     href={brand.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-sm text-secondary hover:text-secondary-dark transition-colors"
+                    className="flex items-center gap-1 text-sm text-secondary hover:text-secondary-dark active:scale-[0.97] transition-all"
                   >
                     <ExternalLink className="h-3.5 w-3.5" /> Website
                   </a>
@@ -206,8 +209,8 @@ export default function BrandPage() {
 
               {brand.certifications.length > 0 && (
                 <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+                  animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
                   className="flex flex-wrap gap-1.5 mt-3"
                 >

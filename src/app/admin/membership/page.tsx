@@ -271,7 +271,7 @@ export default function AdminMembershipPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
             >
-            <Card className={cn("relative overflow-hidden transition-opacity h-full", !tier.is_active && "opacity-60")}>
+            <Card className={cn("relative overflow-hidden transition-opacity h-full hover:border-secondary/20", !tier.is_active && "opacity-60")}>
               <CardContent className="p-5">
                 {/* Tier Header */}
                 <div className="flex items-start justify-between mb-3">
@@ -369,7 +369,7 @@ export default function AdminMembershipPage() {
                 <button
                   type="button"
                   onClick={() => setShowNameColorPicker(!showNameColorPicker)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:border-secondary transition-colors shrink-0"
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:border-secondary transition-colors active:scale-[0.96] shrink-0"
                 >
                   <span className="h-5 w-5 rounded-full border border-border/30 shrink-0" style={{ backgroundColor: formColor.startsWith("#") ? formColor : "#6B7280" }} />
                   <span className="text-xs font-mono text-charcoal">{formColor.startsWith("#") ? formColor : "#6B7280"}</span>
@@ -387,7 +387,7 @@ export default function AdminMembershipPage() {
               </div>
               {showNameColorPicker && (
                 <div className="mt-2 p-3 rounded-lg border border-border/30 bg-white shadow-lg relative">
-                  <button type="button" onClick={() => setShowNameColorPicker(false)} className="absolute top-2 right-2 p-1 hover:bg-pearl rounded-full text-charcoal-lighter hover:text-charcoal transition-colors">
+                  <button type="button" onClick={() => setShowNameColorPicker(false)} className="absolute top-2 right-2 p-1 hover:bg-pearl rounded-full text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96]">
                     <X className="h-3.5 w-3.5" />
                   </button>
                   <div className="flex items-center gap-3">
@@ -410,7 +410,7 @@ export default function AdminMembershipPage() {
                     <button
                       type="button"
                       onClick={() => setShowBadgeColorPicker(!showBadgeColorPicker)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:border-secondary transition-colors shrink-0"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:border-secondary transition-colors active:scale-[0.96] shrink-0"
                     >
                       <span className="h-5 w-5 rounded-full border border-border/30 shrink-0" style={{ backgroundColor: formBadgeColor }} />
                       <span className="text-xs font-mono text-charcoal">{formBadgeColor}</span>
@@ -422,7 +422,7 @@ export default function AdminMembershipPage() {
                   </div>
                   {showBadgeColorPicker && (
                     <div className="p-3 rounded-lg border border-border/30 bg-white shadow-lg relative">
-                      <button type="button" onClick={() => setShowBadgeColorPicker(false)} className="absolute top-2 right-2 p-1 hover:bg-pearl rounded-full text-charcoal-lighter hover:text-charcoal transition-colors">
+                      <button type="button" onClick={() => setShowBadgeColorPicker(false)} className="absolute top-2 right-2 p-1 hover:bg-pearl rounded-full text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96]">
                         <X className="h-3.5 w-3.5" />
                       </button>
                       <div className="flex items-center gap-3">
@@ -444,7 +444,7 @@ export default function AdminMembershipPage() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-charcoal-lighter">Benefits</label>
-                <button type="button" onClick={addBenefit} className="text-[10px] text-secondary hover:text-secondary-dark font-medium">+ Add</button>
+                <button type="button" onClick={addBenefit} className="text-[10px] text-secondary hover:text-secondary-dark font-medium transition-colors active:scale-[0.96]">+ Add</button>
               </div>
               <div className="space-y-2">
                 {formBenefits.map((b, i) => (
@@ -456,7 +456,7 @@ export default function AdminMembershipPage() {
                       className="flex-1"
                     />
                     {formBenefits.length > 1 && (
-                      <button type="button" onClick={() => removeBenefit(i)} className="p-2 text-charcoal-lighter hover:text-destructive">
+                      <button type="button" onClick={() => removeBenefit(i)} className="p-2 text-charcoal-lighter hover:text-destructive transition-colors active:scale-[0.96]">
                         <X className="h-3.5 w-3.5" />
                       </button>
                     )}

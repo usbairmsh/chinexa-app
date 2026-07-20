@@ -325,7 +325,7 @@ export default function OrderManagementPage() {
                             </Link>
                             <button
                               onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.id); setCopiedId(order.id); setTimeout(() => setCopiedId(""), 1500); }}
-                              className="p-1 rounded hover:bg-pearl text-charcoal-lighter hover:text-secondary transition-colors shrink-0"
+                              className="p-1 rounded hover:bg-pearl text-charcoal-lighter hover:text-secondary transition-colors shrink-0 active:scale-[0.96]"
                               title="Copy Order ID"
                             >
                               {copiedId === order.id ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
@@ -353,7 +353,7 @@ export default function OrderManagementPage() {
                           <div className="flex items-center justify-end gap-1.5">
                             {/* View */}
                             <Link href={`/admin/orders/${order.id}`}
-                              className="flex h-8 items-center gap-1 px-2.5 rounded-lg border border-border text-[10px] font-medium text-charcoal-lighter hover:text-charcoal hover:border-charcoal transition-all">
+                              className="flex h-8 items-center gap-1 px-2.5 rounded-lg border border-border text-[10px] font-medium text-charcoal-lighter hover:text-charcoal hover:border-charcoal transition-all active:scale-[0.96]">
                               <Eye className="h-3 w-3" /> <span className="hidden xl:inline">View</span>
                             </Link>
 
@@ -367,7 +367,7 @@ export default function OrderManagementPage() {
 
                             {/* More */}
                             <DropdownMenu>
-                              <DropdownMenuTrigger className="flex h-8 w-8 items-center justify-center rounded-lg border border-border hover:bg-pearl transition-colors">
+                              <DropdownMenuTrigger className="flex h-8 w-8 items-center justify-center rounded-lg border border-border hover:bg-pearl transition-colors active:scale-[0.96]">
                                 <MoreHorizontal className="h-3.5 w-3.5 text-charcoal-lighter" />
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
@@ -420,7 +420,7 @@ export default function OrderManagementPage() {
                   const sc = statusConfig[s];
                   return (
                     <button key={s} onClick={() => setNewStatus(s)} disabled={s === statusDialog.status}
-                      className={cn("flex items-center gap-2 p-3 rounded-lg border text-sm font-medium transition-all",
+                      className={cn("flex items-center gap-2 p-3 rounded-lg border text-sm font-medium transition-all active:scale-[0.97]",
                         newStatus === s ? "border-secondary bg-secondary/5 text-secondary" : "border-border text-charcoal-light hover:border-charcoal",
                         s === statusDialog.status && "opacity-30 cursor-not-allowed")}>
                       <sc.icon className="h-4 w-4" /> {sc.label}

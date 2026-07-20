@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { GripVertical, ChevronDown, ChevronUp, Save, Loader2, Check, RotateCcw, ExternalLink } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -214,15 +215,22 @@ export default function AdminHomepageBuilder() {
           const isTrustBadge = section.type === "trust_badges";
 
           return (
-            <Card key={section.id} className={cn("transition-opacity", !section.visible && "opacity-50")}>
+            <motion.div
+              key={section.id}
+              layout
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.03 }}
+            >
+              <Card className={cn("transition-opacity", !section.visible && "opacity-50")}>
               <CardContent className="p-0">
                 <div className="flex items-center gap-3 p-3 sm:p-4">
                   {/* Up/Down buttons — left side */}
                   <div className="flex flex-col gap-0.5 shrink-0">
-                    <button onClick={() => moveSection(section.id, "up")} disabled={index === 0} className="p-0.5 hover:bg-pearl rounded disabled:opacity-30 transition-colors">
+                    <button onClick={() => moveSection(section.id, "up")} disabled={index === 0} className="p-0.5 hover:bg-pearl rounded disabled:opacity-30 transition-colors active:scale-[0.96] disabled:active:scale-100">
                       <ChevronUp className="h-3.5 w-3.5 text-charcoal-lighter" />
                     </button>
-                    <button onClick={() => moveSection(section.id, "down")} disabled={index === sections.length - 1} className="p-0.5 hover:bg-pearl rounded disabled:opacity-30 transition-colors">
+                    <button onClick={() => moveSection(section.id, "down")} disabled={index === sections.length - 1} className="p-0.5 hover:bg-pearl rounded disabled:opacity-30 transition-colors active:scale-[0.96] disabled:active:scale-100">
                       <ChevronDown className="h-3.5 w-3.5 text-charcoal-lighter" />
                     </button>
                   </div>
@@ -255,7 +263,7 @@ export default function AdminHomepageBuilder() {
                     {(isEditable || isTrustBadge) && (
                       <button
                         onClick={() => setExpandedSection(isExpanded ? null : section.id)}
-                        className={cn("p-1.5 rounded-lg transition-colors", isExpanded ? "bg-secondary/10 text-secondary" : "hover:bg-pearl text-charcoal-lighter")}
+                        className={cn("p-1.5 rounded-lg transition-colors active:scale-[0.96]", isExpanded ? "bg-secondary/10 text-secondary" : "hover:bg-pearl text-charcoal-lighter")}
                       >
                         <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
                       </button>
@@ -291,6 +299,7 @@ export default function AdminHomepageBuilder() {
                 )}
               </CardContent>
             </Card>
+            </motion.div>
           );
         })}
       </div>

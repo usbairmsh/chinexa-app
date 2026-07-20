@@ -167,7 +167,7 @@ export default function AddressesPage() {
                         </div>
                       </div>
                       <DropdownMenu>
-                        <DropdownMenuTrigger className="p-2.5 -m-1 hover:bg-pearl rounded-lg">
+                        <DropdownMenuTrigger className="p-2.5 -m-1 hover:bg-pearl rounded-lg transition-colors duration-200 active:scale-[0.92]">
                           <MoreHorizontal className="h-4 w-4 text-charcoal-lighter" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -192,8 +192,8 @@ export default function AddressesPage() {
           })}
 
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            <button onClick={openCreate} className="w-full h-full min-h-[200px] rounded-2xl border-2 border-dashed border-border/40 hover:border-secondary/40 hover:bg-primary-light/30 transition-all flex flex-col items-center justify-center gap-2 text-charcoal-lighter hover:text-secondary">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-pearl"><Plus className="h-5 w-5" /></div>
+            <button onClick={openCreate} className="group w-full h-full min-h-[200px] rounded-2xl border-2 border-dashed border-border/40 hover:border-secondary/40 hover:bg-primary-light/30 hover:-translate-y-px active:scale-[0.98] transition-all duration-300 ease-out flex flex-col items-center justify-center gap-2 text-charcoal-lighter hover:text-secondary">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-pearl transition-transform duration-300 group-hover:scale-105"><Plus className="h-5 w-5" /></div>
               <span className="text-sm font-medium">Add New Address</span>
             </button>
           </motion.div>

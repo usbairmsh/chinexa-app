@@ -124,12 +124,13 @@ export default function AdminProductsPage() {
 
     return (
       <>
-        <tr className={cn("border-b border-border/10 hover:bg-pearl/50 transition-colors", !product.is_active && "opacity-70")}>
+        <motion.tr layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className={cn("border-b border-border/10 hover:bg-pearl/50 transition-colors", !product.is_active && "opacity-70")}>
           {/* Expand toggle + Product */}
           <td className="px-4 py-3">
             <div className="flex items-center gap-2">
               {hasVariants ? (
-                <button onClick={() => toggleExpand(product.id)} className="p-0.5 hover:bg-pearl rounded transition-colors shrink-0">
+                <button onClick={() => toggleExpand(product.id)} className="p-0.5 hover:bg-pearl rounded transition-colors active:scale-[0.96] shrink-0">
                   {isExpanded ? <ChevronDown className="h-4 w-4 text-charcoal-lighter" /> : <ChevronRight className="h-4 w-4 text-charcoal-lighter" />}
                 </button>
               ) : (
@@ -144,7 +145,7 @@ export default function AdminProductsPage() {
                   <p className="font-medium text-charcoal truncate max-w-[200px] group-hover:text-secondary transition-colors">{product.name}</p>
                   <div className="flex items-center gap-1">
                     <p className="text-[10px] text-charcoal-lighter">{product.sku}{hasVariants ? ` · ${product.variants.length} variants` : ""}</p>
-                    <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(product.sku); setCopiedSku(product.sku); setTimeout(() => setCopiedSku(""), 1500); }} className="p-0.5 rounded hover:bg-pearl text-charcoal-lighter hover:text-secondary transition-colors" title="Copy SKU">
+                    <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(product.sku); setCopiedSku(product.sku); setTimeout(() => setCopiedSku(""), 1500); }} className="p-0.5 rounded hover:bg-pearl text-charcoal-lighter hover:text-secondary transition-colors active:scale-[0.96]" title="Copy SKU">
                       {copiedSku === product.sku ? <Check className="h-2.5 w-2.5 text-success" /> : <Copy className="h-2.5 w-2.5" />}
                     </button>
                   </div>
@@ -202,7 +203,7 @@ export default function AdminProductsPage() {
           {/* Actions */}
           <td className="px-4 py-3">
             <DropdownMenu>
-              <DropdownMenuTrigger className="p-1.5 hover:bg-pearl rounded-lg transition-colors">
+              <DropdownMenuTrigger className="p-1.5 hover:bg-pearl rounded-lg transition-colors active:scale-[0.96]">
                 <MoreHorizontal className="h-4 w-4 text-charcoal-lighter" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -228,11 +229,11 @@ export default function AdminProductsPage() {
               </DropdownMenuContent>
             </DropdownMenu>
           </td>
-        </tr>
+        </motion.tr>
 
         {/* Expanded Variants */}
         {hasVariants && isExpanded && product.variants.map((v) => (
-          <tr key={v.id} className="bg-pearl/30 border-b border-border/10">
+          <motion.tr key={v.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-pearl/30 border-b border-border/10">
             <td className="px-4 py-2.5" colSpan={2}>
               <div className="flex items-center gap-3 ml-7">
                 <div className="relative h-9 w-9 rounded-lg overflow-hidden bg-pearl shrink-0 border border-border/20">
@@ -268,22 +269,22 @@ export default function AdminProductsPage() {
             <td className="px-4 py-2.5 hidden md:table-cell" />
             <td className="px-4 py-2.5">
               <div className="flex items-center gap-1">
-                <button onClick={() => setViewVariant({ variant: v, product })} className="p-1 hover:bg-white rounded text-charcoal-lighter hover:text-charcoal transition-colors" title="View">
+                <button onClick={() => setViewVariant({ variant: v, product })} className="p-1 hover:bg-white rounded text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96]" title="View">
                   <Eye className="h-3.5 w-3.5" />
                 </button>
                 {canEditProduct && (
-                  <button onClick={() => openEditVariant(v, product)} className="p-1 hover:bg-white rounded text-charcoal-lighter hover:text-secondary transition-colors" title="Edit">
+                  <button onClick={() => openEditVariant(v, product)} className="p-1 hover:bg-white rounded text-charcoal-lighter hover:text-secondary transition-colors active:scale-[0.96]" title="Edit">
                     <Edit className="h-3.5 w-3.5" />
                   </button>
                 )}
                 {canDeleteProduct && (
-                  <button onClick={() => setDeleteVariant({ variant: v, product })} className="p-1 hover:bg-white rounded text-charcoal-lighter hover:text-destructive transition-colors" title="Delete">
+                  <button onClick={() => setDeleteVariant({ variant: v, product })} className="p-1 hover:bg-white rounded text-charcoal-lighter hover:text-destructive transition-colors active:scale-[0.96]" title="Delete">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
             </td>
-          </tr>
+          </motion.tr>
         ))}
       </>
     );
