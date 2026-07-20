@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from "react";
 import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Lock, User, Loader2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -17,7 +17,6 @@ export default function AdminLoginPage() {
 }
 
 function AdminLoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -50,8 +49,15 @@ function AdminLoginForm() {
       // The session cookie is set server-side now (httpOnly, signed — see
       // admin-session.ts) as part of the login response, so there's nothing
       // left for the client to write here.
+      //
+      // Full document navigation, NOT router.push: auth state just changed
+      // fundamentally, and a client-side transition kept the already-mounted
+      // admin layout's pre-login state alive (its redirect guard bounced the
+      // user straight back here — the "must log in twice" bug). A full load
+      // lets proxy.ts validate the fresh cookie server-side and remounts the
+      // layout from scratch with clean state.
       const redirect = searchParams.get("redirect");
-      router.push(redirect && redirect.startsWith("/admin") ? redirect : "/admin");
+      window.location.assign(redirect && redirect.startsWith("/admin") ? redirect : "/admin");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {

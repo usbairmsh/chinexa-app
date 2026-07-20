@@ -114,10 +114,16 @@ export default function AdminLayout({
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPhone, setAdminPhone] = useState("");
   const [adminUsername, setAdminUsername] = useState("");
-  // Only meaningful once the whoami request has actually resolved — used to
-  // gate the "no session, redirect to login" decision so we never redirect
-  // during the brief window before we've even asked the server yet.
-  const [authChecked, setAuthChecked] = useState(false);
+  // The pathname the last completed whoami check was performed FOR (null =
+  // no check has resolved yet). Pathname-keyed on purpose: a plain "checked"
+  // boolean caused the double-login bug — after login's router.push, both
+  // effects below ran in the same React commit closing over the login page's
+  // stale "checked, unauthenticated" result, and the redirect guard bounced
+  // the user straight back to /admin/login before the fresh check (which now
+  // had the session cookie) could resolve. Keying the result by pathname
+  // makes stale answers structurally inert: a 401 measured on /admin/login
+  // can never justify redirecting away from /admin.
+  const [authCheckedFor, setAuthCheckedFor] = useState<string | null>(null);
 
   // Profile dialog
   const [profileOpen, setProfileOpen] = useState(false);
@@ -157,19 +163,9 @@ export default function AdminLayout({
     // "which admin is this" — the server is asked directly via "whoami"
     // instead, and its answer (or 401) is authoritative.
     if (adminName) return;
-    // authChecked was already flipped true by the pre-login 401 on
-    // /admin/login itself (see the comment above) — reset it here, the
-    // instant a fresh whoami call actually starts for the new pathname, so
-    // the redirect guard below can't act on that stale "checked, no name"
-    // result while this real check for the post-login pathname is still in
-    // flight. Without this, login→router.push("/admin") landed on a layout
-    // instance that never remounted, still holding authChecked=true from
-    // the login page's own 401, and the guard bounced straight back to
-    // /admin/login before this fetch's answer ever arrived.
-    setAuthChecked(false);
     fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "whoami" }) })
       .then(async (r) => {
-        if (!r.ok) { setAuthChecked(true); return; }
+        if (!r.ok) { setAuthCheckedFor(pathname); return; }
         const me = await r.json();
         setAdminId(me.id as string);
         setAdminName(me.name as string);
@@ -182,20 +178,23 @@ export default function AdminLayout({
         // per-section action grants (handles both the legacy flat-array
         // shape and the current action-map shape transparently).
         setAdminPermissionsMap(normalizePermissions(me.permissions));
-        setAuthChecked(true);
-      }).catch(() => setAuthChecked(true));
+        setAuthCheckedFor(pathname);
+      }).catch(() => setAuthCheckedFor(pathname));
   }, [pathname, adminName]);
 
   // proxy.ts already blocks unauthenticated requests at the edge, but it only
   // runs on the initial navigation — client-side transitions between admin
   // pages (Link clicks) don't re-hit it. If whoami comes back unauthenticated
   // (e.g. the session expired mid-visit), bounce to login here too, same as
-  // the (account) customer layout already does for its own auth guard.
+  // the (account) customer layout already does for its own auth guard. The
+  // authCheckedFor === pathname condition is load-bearing: only a check that
+  // was performed for THIS pathname may trigger the redirect (see the state
+  // declaration comment for the double-login bug a plain boolean caused).
   useEffect(() => {
-    if (authChecked && !adminName && pathname !== "/admin/login") {
+    if (authCheckedFor === pathname && !adminName && pathname !== "/admin/login") {
       router.push(`/admin/login?redirect=${encodeURIComponent(pathname)}`);
     }
-  }, [authChecked, adminName, pathname, router]);
+  }, [authCheckedFor, adminName, pathname, router]);
 
   const handleSaveProfile = async () => {
     setProfileSaving(true);
