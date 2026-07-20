@@ -113,5 +113,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error("[sitemap] failed to load dynamic entries:", err);
   }
 
+  // Drop any page the admin marked noindex (SEO Management → Page Meta) — a
+  // sitemap must never advertise URLs that carry a noindex tag, or Search
+  // Console flags the contradiction ("Sitemap contains noindexed URL").
+  try {
+    const seoRes = await fetch(`${internalUrl}/api/seo`, { cache: "no-store" }).catch(() => null);
+    if (seoRes?.ok) {
+      const rows = await seoRes.json();
+      if (Array.isArray(rows)) {
+        const noIndexPaths = new Set(
+          rows.filter((r) => r.no_index).map((r) => r.page_path as string)
+        );
+        if (noIndexPaths.size > 0) {
+          return entries.filter((e) => {
+            try { return !noIndexPaths.has(new URL(e.url).pathname); } catch { return true; }
+          });
+        }
+      }
+    }
+  } catch {}
+
   return entries;
 }

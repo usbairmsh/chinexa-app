@@ -1,5 +1,13 @@
+import type { Metadata } from "next";
 import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { HomeClient } from "@/components/storefront/home/home-client";
+import { pageMetadata } from "@/lib/seo";
+
+// Admin-entered overrides for "/" (SEO Management → Page Meta) apply on top
+// of the site-wide defaults the root layout already provides.
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMetadata("/");
+}
 
 // Loopback, not the public domain — fetching the public domain from inside
 // the container can fail (hairpin NAT), same reasoning as sitemap.ts.

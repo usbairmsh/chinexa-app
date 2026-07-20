@@ -3,6 +3,7 @@ import pool from "@/lib/db";
 import { type RowDataPacket } from "mysql2/promise";
 import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { getBlogPostBySlug } from "@/lib/blog";
+import { pageMetadata } from "@/lib/seo";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
 
@@ -22,7 +23,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     const image = (post.featured_image as string) || `${siteUrl}/logo.png`;
     const fullImage = image.startsWith("http") ? image : `${siteUrl}${image}`;
 
-    return {
+    // Admin overrides (SEO Management → Page Meta) for this exact post URL
+    // win over the post's own computed metadata.
+    return pageMetadata(`/blog/${slug}`, {
       title,
       description,
       alternates: { canonical: `${siteUrl}/blog/${slug}` },
@@ -42,7 +45,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         description,
         images: [fullImage],
       },
-    };
+    });
   } catch {
     return { title: "Blog Post" };
   }

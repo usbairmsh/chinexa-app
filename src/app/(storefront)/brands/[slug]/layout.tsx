@@ -5,6 +5,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { BrandJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { getBrandBySlug } from "@/lib/brands";
+import { pageMetadata, getSchemaConfig } from "@/lib/seo";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
 
@@ -41,7 +42,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     const fullLogo = logo.startsWith("http") ? logo : `${siteUrl}${logo}`;
     const url = `${siteUrl}/brands/${slug}`;
 
-    return {
+    // Admin overrides (SEO Management → Page Meta) for this exact brand URL
+    // win over the brand's own computed metadata.
+    return pageMetadata(`/brands/${slug}`, {
       title,
       description: description.slice(0, 160),
       // en-BD tells Google this page specifically targets Bangladesh — a
@@ -68,7 +71,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         "geo.placename": "Dhaka",
         "ICBM": "23.8103, 90.4125",
       },
-    };
+    });
   } catch {
     return { title: "Brand" };
   }
@@ -97,22 +100,29 @@ export default async function BrandLayout({
   const queryClient = new QueryClient();
   queryClient.setQueryData(["brand", slug], brand);
 
+  // Admin-controlled structured-data toggles (SEO Management → Schema).
+  const schema = await getSchemaConfig();
+
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       {brand && (
         <>
-          <BrandJsonLd
-            name={brand.name}
-            description={brand.description || `${brand.name} products, authentic and shipped within Bangladesh.`}
-            logo={brand.logo}
-            url={`/brands/${slug}`}
-            sameAs={brand.website ? [brand.website] : undefined}
-          />
-          <BreadcrumbJsonLd items={[
-            { name: "Home", url: "/" },
-            { name: "Brands", url: "/brands" },
-            { name: brand.name, url: `/brands/${slug}` },
-          ]} />
+          {schema.brand && (
+            <BrandJsonLd
+              name={brand.name}
+              description={brand.description || `${brand.name} products, authentic and shipped within Bangladesh.`}
+              logo={brand.logo}
+              url={`/brands/${slug}`}
+              sameAs={brand.website ? [brand.website] : undefined}
+            />
+          )}
+          {schema.breadcrumb && (
+            <BreadcrumbJsonLd items={[
+              { name: "Home", url: "/" },
+              { name: "Brands", url: "/brands" },
+              { name: brand.name, url: `/brands/${slug}` },
+            ]} />
+          )}
         </>
       )}
       {children}

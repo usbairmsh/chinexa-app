@@ -70,3 +70,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
   }
 }
+
+// DELETE /api/seo?page_path=... — remove a page's override so it falls back
+// to its built-in default metadata.
+export async function DELETE(req: NextRequest) {
+  try {
+    const denied = await requirePermission(req, "seo", "edit");
+    if (denied) return denied;
+
+    const pagePath = req.nextUrl.searchParams.get("page_path");
+    if (!pagePath) {
+      return NextResponse.json({ error: "page_path is required" }, { status: 400 });
+    }
+    // The _global row is the site's base title/description — it's edited from
+    // the Global tab, never deleted out from under the root layout.
+    if (pagePath === "_global") {
+      return NextResponse.json({ error: "The global settings row cannot be deleted" }, { status: 400 });
+    }
+
+    await execute("DELETE FROM seo_metadata WHERE page_path = ?", [pagePath]);
+    await logActivity("Removed SEO override", "settings", undefined, `Page: ${pagePath}`);
+    return NextResponse.json({ success: true });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+  }
+}

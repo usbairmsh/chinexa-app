@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { getProductsList } from "@/lib/products";
+import { pageMetadata } from "@/lib/seo";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
 
@@ -37,7 +38,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     // Unknown collection slugs must not be indexed (thin/empty pages)
     return { title: "Collection Not Found", robots: { index: false, follow: true } };
   }
-  return {
+  // Admin overrides (SEO Management → Page Meta) apply on top of these defaults.
+  return pageMetadata(`/collections/${slug}`, {
     title: meta.title,
     description: meta.description,
     alternates: { canonical: `${siteUrl}/collections/${slug}` },
@@ -47,7 +49,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       url: `${siteUrl}/collections/${slug}`,
       type: "website",
     },
-  };
+  });
 }
 
 export default async function CollectionLayout({

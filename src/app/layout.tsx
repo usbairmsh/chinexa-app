@@ -6,6 +6,7 @@ import { CookieConsent } from "@/components/shared/cookie-consent";
 import { ChatWidget } from "@/components/shared/chat-widget-lazy";
 import { ServiceWorkerRegister } from "@/components/shared/sw-register";
 import { RouteScrollReset } from "@/components/shared/route-scroll-reset";
+import { TrackingScripts } from "@/components/shared/tracking-scripts";
 import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
@@ -23,25 +24,33 @@ const DEFAULT_DESCRIPTION =
   "Shop authentic Korean skincare, luxury bags, exquisite jewelry, fine perfumes & imported beauty products in Bangladesh. Free delivery on orders over ৳3,000. Genuine products with cash on delivery.";
 
 export async function generateMetadata(): Promise<Metadata> {
-  // Pull admin-managed SEO overrides + verification codes (best-effort; fall back to defaults)
+  // Pull admin-managed SEO overrides + verification codes (best-effort; fall
+  // back to defaults). getSeoOverride/getTrackingConfig are request-cached, so
+  // these dedupe with the body's TrackingScripts read of the same config.
   let title = DEFAULT_TITLE;
   let description = DEFAULT_DESCRIPTION;
+  let ogImageUrl = `${siteUrl}/logo.png`;
   let googleVerification: string | undefined;
+  let bingVerification: string | undefined;
+  let pinterestVerification: string | undefined;
   try {
-    const { query } = await import("@/lib/db");
-    const rows = await query(
-      "SELECT title, meta_description FROM seo_metadata WHERE page_path = '_global' LIMIT 1"
-    );
-    if (rows.length > 0) {
-      if (rows[0].title) title = rows[0].title as string;
-      if (rows[0].meta_description) description = rows[0].meta_description as string;
+    const { getSeoOverride, getTrackingConfig } = await import("@/lib/seo");
+    const [globalRow, tracking] = await Promise.all([getSeoOverride("_global"), getTrackingConfig()]);
+    if (globalRow) {
+      if (globalRow.title) title = globalRow.title;
+      if (globalRow.meta_description) description = globalRow.meta_description;
+      if (globalRow.og_image) {
+        ogImageUrl = globalRow.og_image.startsWith("http") ? globalRow.og_image : `${siteUrl}${globalRow.og_image}`;
+      }
     }
-    const settingRows = await query("SELECT value FROM settings WHERE `key` = 'tracking_config' LIMIT 1");
-    if (settingRows.length > 0) {
-      const cfg = typeof settingRows[0].value === "string" ? JSON.parse(settingRows[0].value) : settingRows[0].value;
-      if (cfg?.search_console) googleVerification = cfg.search_console as string;
-    }
+    if (tracking.search_console) googleVerification = tracking.search_console;
+    if (tracking.bing_verify) bingVerification = tracking.bing_verify;
+    if (tracking.pinterest_verify) pinterestVerification = tracking.pinterest_verify;
   } catch {}
+
+  const otherVerification: Record<string, string> = {};
+  if (bingVerification) otherVerification["msvalidate.01"] = bingVerification;
+  if (pinterestVerification) otherVerification["p:domain_verify"] = pinterestVerification;
 
   return {
     metadataBase: new URL(siteUrl),
@@ -73,7 +82,7 @@ export async function generateMetadata(): Promise<Metadata> {
         "Shop authentic Korean skincare, luxury bags, jewelry, perfumes & imported beauty products. Free delivery on ৳3,000+.",
       images: [
         {
-          url: `${siteUrl}/logo.png`,
+          url: ogImageUrl,
           width: 1200,
           height: 630,
           alt: "ChineXa — Premium Beauty & Lifestyle",
@@ -85,7 +94,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title: "ChineXa — Premium Beauty & Lifestyle",
       description:
         "Shop authentic Korean skincare, luxury bags, jewelry & imported beauty products in Bangladesh.",
-      images: [`${siteUrl}/logo.png`],
+      images: [ogImageUrl],
     },
     robots: {
       index: true,
@@ -98,7 +107,12 @@ export async function generateMetadata(): Promise<Metadata> {
         "max-snippet": -1,
       },
     },
-    verification: googleVerification ? { google: googleVerification } : undefined,
+    verification: googleVerification || Object.keys(otherVerification).length > 0
+      ? {
+          ...(googleVerification ? { google: googleVerification } : {}),
+          ...(Object.keys(otherVerification).length > 0 ? { other: otherVerification } : {}),
+        }
+      : undefined,
     icons: {
       icon: [
         { url: "/favicon.ico", sizes: "48x48" },
@@ -164,6 +178,7 @@ export default function RootLayout({
         <InstallPrompt />
         <CookieConsent />
         <ChatWidget />
+        <TrackingScripts />
       </body>
     </html>
   );

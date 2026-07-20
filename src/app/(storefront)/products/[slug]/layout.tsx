@@ -5,6 +5,7 @@ import { query } from "@/lib/db";
 import { type RowDataPacket } from "mysql2/promise";
 import { ProductJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { getProductBySlugOrId } from "@/lib/products";
+import { pageMetadata, getSchemaConfig } from "@/lib/seo";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
 
@@ -56,7 +57,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       ? (imageUrl.startsWith("http") ? imageUrl : `${siteUrl}${imageUrl}`)
       : `${siteUrl}/logo.png`;
 
-    return {
+    // Admin overrides (SEO Management → Page Meta) for this exact product URL
+    // win over the product's own computed metadata.
+    return pageMetadata(`/products/${slug}`, {
       title,
       description,
       alternates: { canonical: `${siteUrl}/products/${slug}` },
@@ -73,7 +76,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         description,
         images: [fullImageUrl],
       },
-    };
+    });
   } catch {
     return { title: "Product" };
   }
@@ -128,15 +131,24 @@ async function ProductStructuredData({ slug }: { slug: string }) {
 
   if (!productData) return null;
 
+  // Admin-controlled structured-data toggles (SEO Management → Schema):
+  // product rich results, star ratings, and breadcrumbs can each be disabled.
+  const schema = await getSchemaConfig();
+  if (!schema.review) {
+    productData = { ...productData, rating: undefined, reviewCount: undefined };
+  }
+
   return (
     <>
-      <ProductJsonLd {...productData} />
-      <BreadcrumbJsonLd items={[
-        { name: "Home", url: "/" },
-        { name: "Products", url: "/products" },
-        ...(productData.category ? [{ name: productData.category, url: `/products?category=${encodeURIComponent(productData.category)}` }] : []),
-        { name: productData.name, url: `/products/${slug}` },
-      ]} />
+      {schema.product && <ProductJsonLd {...productData} />}
+      {schema.breadcrumb && (
+        <BreadcrumbJsonLd items={[
+          { name: "Home", url: "/" },
+          { name: "Products", url: "/products" },
+          ...(productData.category ? [{ name: productData.category, url: `/products?category=${encodeURIComponent(productData.category)}` }] : []),
+          { name: productData.name, url: `/products/${slug}` },
+        ]} />
+      )}
     </>
   );
 }

@@ -16,6 +16,7 @@ const SETTINGS_KEY_PERMISSIONS: Record<string, { section: string; action: "edit"
   homepage_config: { section: "homepage", action: "edit" },
   announcements: { section: "announcements", action: "edit" },
   tracking_config: { section: "seo", action: "edit" },
+  schema_config: { section: "seo", action: "edit" },
   // NOTE: trust_badges_config is intentionally NOT listed here. It has no
   // sidebar entry and no dedicated PERMISSION_SECTIONS key today (it's only
   // reachable via a direct link from the product edit/new pages) — it falls

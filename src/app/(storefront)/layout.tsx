@@ -7,6 +7,7 @@ import { CartDrawer } from "@/components/storefront/cart/cart-drawer-lazy";
 import { ScrollToTop } from "@/components/shared/scroll-to-top";
 import { PageLoader } from "@/components/shared/page-loader";
 import { OrganizationJsonLd, WebsiteJsonLd } from "@/components/seo/json-ld";
+import { getSchemaConfig } from "@/lib/seo";
 import pool from "@/lib/db";
 import { type RowDataPacket } from "mysql2/promise";
 import Image from "next/image";
@@ -52,10 +53,13 @@ export default async function StorefrontLayout({
     );
   }
 
+  // Admin-controlled structured-data toggles (SEO Management → Schema).
+  const schema = await getSchemaConfig();
+
   return (
     <>
-      <OrganizationJsonLd />
-      <WebsiteJsonLd />
+      {schema.organization && <OrganizationJsonLd />}
+      {schema.website && <WebsiteJsonLd />}
       <Suspense><PageLoader /></Suspense>
       <Header />
       <main className="flex-1 overflow-x-hidden">{children}</main>

@@ -3,6 +3,7 @@ import pool from "@/lib/db";
 import { type RowDataPacket } from "mysql2/promise";
 import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { getProductsList } from "@/lib/products";
+import { pageMetadata } from "@/lib/seo";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
 
@@ -25,7 +26,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     const image = (cat.image as string) || `${siteUrl}/logo.png`;
     const fullImage = image.startsWith("http") ? image : `${siteUrl}${image}`;
 
-    return {
+    // Admin overrides (SEO Management → Page Meta) for this exact category URL
+    // win over the category's own computed metadata.
+    return pageMetadata(`/categories/${slug}`, {
       title,
       description: description.slice(0, 160),
       // Canonical is the clean category URL — ?sub= filter variations all point here
@@ -37,7 +40,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         type: "website",
         images: [{ url: fullImage, width: 800, height: 600, alt: cat.name as string }],
       },
-    };
+    });
   } catch {
     return { title: "Category" };
   }
