@@ -8,6 +8,7 @@ import { notifyAdmin } from "@/lib/notify";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { ensureAccountingTables } from "@/lib/migrate-accounting";
 import { enrichCartItems, getActiveOffers, bestOfferPerLine, validateCoupon, getCustomerTier, type PromoContext } from "@/lib/promotions";
+import { ensureOrderArchiveColumns } from "@/lib/migrate-order-archive";
 
 interface OrderRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -48,8 +49,15 @@ function normalizePhone(phone: string): string {
 export async function GET(req: NextRequest) {
   try {
     await ensureColumns();
+    await ensureOrderArchiveColumns();
     await ensureAccountingTables();
     const { searchParams } = new URL(req.url);
+
+    // Archived orders live in their own tab, entirely separate from the
+    // status tabs (Pending/Confirmed/etc.) — default is "not archived" so
+    // every existing caller (dashboard stats, the default order list) keeps
+    // working unchanged unless it explicitly asks to see the archive.
+    const archived = searchParams.get("archived") === "1";
 
     // Lightweight per-status counts + received/paid revenue for the admin tab
     // bar and stat cards — deliberately separate from the paginated/filtered
@@ -57,8 +65,8 @@ export async function GET(req: NextRequest) {
     // in total" (or total revenue) from a filtered/paginated page.
     if (searchParams.get("count_by_status") === "1") {
       const search = searchParams.get("search");
-      let cwhere = "WHERE 1=1";
-      const cparams: (string | number)[] = [];
+      let cwhere = "WHERE is_archived = ?";
+      const cparams: (string | number)[] = [archived ? 1 : 0];
       if (search) { cwhere += " AND (order_number LIKE ? OR customer_name LIKE ? OR customer_phone LIKE ?)"; const q = `%${escapeLike(search)}%`; cparams.push(q, q, q); }
       const rows = await query<RowDataPacket[]>(
         `SELECT status, COUNT(*) AS count FROM orders ${cwhere} GROUP BY status`,
@@ -74,7 +82,16 @@ export async function GET(req: NextRequest) {
       );
       const revenue = Number(revenueRows[0]?.revenue) || 0;
 
-      return NextResponse.json({ counts, total, revenue });
+      // Archived count shown on the tab itself regardless of which tab
+      // (active/archived) is currently selected, so it's always fetched
+      // alongside the counts for whichever tab search is scoped to.
+      const archivedCountRows = await query<RowDataPacket[]>(
+        `SELECT COUNT(*) AS c FROM orders WHERE is_archived = 1${search ? " AND (order_number LIKE ? OR customer_name LIKE ? OR customer_phone LIKE ?)" : ""}`,
+        search ? [`%${escapeLike(search)}%`, `%${escapeLike(search)}%`, `%${escapeLike(search)}%`] : []
+      );
+      const archivedCount = Number(archivedCountRows[0]?.c) || 0;
+
+      return NextResponse.json({ counts, total, revenue, archived_count: archivedCount });
     }
 
     const page = Number(searchParams.get("page")) || 1;
@@ -83,8 +100,8 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get("search");
     const payment = searchParams.get("payment");
 
-    let where = "WHERE 1=1";
-    const params: (string | number)[] = [];
+    let where = "WHERE is_archived = ?";
+    const params: (string | number)[] = [archived ? 1 : 0];
     if (status) { where += " AND status = ?"; params.push(status); }
     if (search) { where += " AND (order_number LIKE ? OR customer_name LIKE ? OR customer_phone LIKE ?)"; const q = `%${escapeLike(search)}%`; params.push(q, q, q); }
     if (payment) { where += " AND payment_method = ?"; params.push(payment.toUpperCase()); }

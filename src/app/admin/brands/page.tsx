@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { Plus, Edit, Trash2, MoreHorizontal, Loader2, AlertTriangle, Save, X, Globe, Award, Package, Home } from "lucide-react";
+import { Plus, Edit, Trash2, MoreHorizontal, Loader2, AlertTriangle, Save, X, Globe, Award, Package, Home, BarChart3 } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +23,7 @@ interface Brand {
   id: string; name: string; slug: string; logo?: string; country?: string;
   description?: string; website?: string; certifications: string[];
   is_active: boolean; show_on_homepage: boolean; product_count: number; created_at: string;
+  seo_title?: string; seo_description?: string;
 }
 
 export default function AdminBrandsPage() {
@@ -47,6 +49,8 @@ export default function AdminBrandsPage() {
   const [fActive, setFActive] = useState(true);
   const [fHomepage, setFHomepage] = useState(false);
   const [autoSlug, setAutoSlug] = useState(true);
+  const [fSeoTitle, setFSeoTitle] = useState("");
+  const [fSeoDesc, setFSeoDesc] = useState("");
 
   const fetchBrands = async () => {
     try {
@@ -61,6 +65,7 @@ export default function AdminBrandsPage() {
   const resetForm = () => {
     setFName(""); setFSlug(""); setFLogo(""); setFCountry(""); setFDesc("");
     setFWebsite(""); setFCerts([""]); setFActive(true); setFHomepage(false); setAutoSlug(true);
+    setFSeoTitle(""); setFSeoDesc("");
     setEditBrand(null);
   };
 
@@ -73,6 +78,7 @@ export default function AdminBrandsPage() {
     setFWebsite(brand.website || "");
     setFCerts(brand.certifications.length > 0 ? brand.certifications : [""]);
     setFActive(brand.is_active); setFHomepage(brand.show_on_homepage); setAutoSlug(false);
+    setFSeoTitle(brand.seo_title || ""); setFSeoDesc(brand.seo_description || "");
     setDialogOpen(true);
   };
 
@@ -85,6 +91,7 @@ export default function AdminBrandsPage() {
         logo: fLogo || null, country: fCountry || null, description: fDesc.trim() || null,
         website: fWebsite.trim() || null, certifications: fCerts.filter((c) => c.trim()),
         is_active: fActive, show_on_homepage: fHomepage,
+        seo_title: fSeoTitle.trim() || null, seo_description: fSeoDesc.trim() || null,
       };
       if (editBrand) {
         await fetch(`/api/brands/${editBrand.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -211,6 +218,46 @@ export default function AdminBrandsPage() {
                 <label className="text-sm text-charcoal-lighter flex items-center gap-1"><Home className="h-3 w-3" /> Show on Homepage</label>
               </div>
             </div>
+
+            <Separator />
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-secondary" /> Search Engine Optimization
+                </CardTitle>
+                <CardDescription>
+                  Optimize how this brand's page appears in search results. Targeted at Bangladesh (en-BD) —
+                  geo tags, locale, and structured data all pin this page to the BD market, alongside whatever
+                  title/description you set here.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Input label="SEO Title" placeholder={`${fName || "Brand Name"} — Authentic Products in Bangladesh`} value={fSeoTitle} onChange={(e) => setFSeoTitle(e.target.value)} />
+                <div>
+                  <Textarea label="Meta Description" placeholder="A compelling description for search results..." className="min-h-[80px]" value={fSeoDesc} onChange={(e) => setFSeoDesc(e.target.value)} />
+                  <p className={cn("text-[10px] mt-1 text-right", fSeoDesc.length === 0 ? "text-charcoal-lighter" : fSeoDesc.length >= 150 && fSeoDesc.length <= 160 ? "text-success font-medium" : fSeoDesc.length > 160 ? "text-destructive" : "text-warning")}>
+                    {fSeoDesc.length}/160 chars {fSeoDesc.length >= 150 && fSeoDesc.length <= 160 ? "— Perfect!" : fSeoDesc.length > 160 ? "— Too long" : fSeoDesc.length > 0 ? "— Aim for 150-160" : ""}
+                  </p>
+                </div>
+
+                <Separator />
+
+                {/* Live Search Preview */}
+                <div>
+                  <p className="text-xs font-semibold text-charcoal-lighter uppercase tracking-wider mb-2">Google Search Preview</p>
+                  <div className="p-4 rounded-xl border border-border/30 bg-white">
+                    <p className="text-blue-600 text-base font-medium truncate">
+                      {fSeoTitle || (fName ? `${fName} — Authentic Products in Bangladesh` : "Brand Name")}
+                    </p>
+                    <p className="text-green-700 text-xs">chinexabd.com/brands/{fSlug || (fName ? slugify(fName) : "brand-slug")}</p>
+                    <p className="text-sm text-charcoal-light mt-1 line-clamp-2">
+                      {fSeoDesc || fDesc || "Your meta description will appear here..."}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
           <DialogFooter className="shrink-0 pt-3">
             <AdminButton variant="outline" size="sm" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</AdminButton>

@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/log-activity";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
 import { normalizePermissions } from "@/lib/admin-permissions";
+import { createAdminSessionToken, getVerifiedAdminId } from "@/lib/admin-session";
 
 // Admin credentials guard the whole store — cap login attempts per
 // username+IP so a password can't just be ground through with unlimited
@@ -16,16 +17,18 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { action } = body;
-    // The acting admin's identity must come from the cookie the browser sends
-    // automatically, never from body.requester_id — that field is fully
-    // client-controlled, so trusting it let anyone who merely knew (or
-    // guessed) any superadmin's id perform every privileged action below by
-    // just typing that id into the request body themselves.
-    const requesterId = req.cookies.get("chinexa-admin-id")?.value || null;
+    // The acting admin's identity must come from the signed session cookie
+    // the browser sends automatically, never from body.requester_id (fully
+    // client-controlled) and never from the raw cookie value alone (that used
+    // to be just the admin's plain database id, which any client-side JS
+    // could rewrite via document.cookie to impersonate a different admin —
+    // see admin-session.ts). getVerifiedAdminId() only returns an id whose
+    // HMAC signature actually matches, so a tampered/forged cookie yields null.
+    const requesterId = getVerifiedAdminId(req);
 
     // ─── LOGIN ───
     if (action === "login") {
-      const { username, password } = body;
+      const { username, password, remember_me } = body;
       if (!username || !password) return NextResponse.json({ error: "Username and password are required" }, { status: 400 });
 
       const ip = getClientIp(req);
@@ -48,7 +51,7 @@ export async function POST(req: NextRequest) {
       await execute("UPDATE admin_users SET last_login = NOW() WHERE id = ?", [admin.id]);
       await logActivity("Admin logged in", "admin", admin.id as string, admin.username as string, admin.id as string);
 
-      return NextResponse.json({
+      const res = NextResponse.json({
         success: true,
         user: {
           id: admin.id,
@@ -59,6 +62,31 @@ export async function POST(req: NextRequest) {
           role: admin.role,
         },
       });
+
+      // The session cookie is now set here (server-side, httpOnly) instead of
+      // the login page writing document.cookie — httpOnly means client-side
+      // JS (and therefore an attacker's injected script, or someone just
+      // opening devtools) can no longer read or rewrite it, and its value is
+      // a signed token (see admin-session.ts), not the raw admin id, so it
+      // can't be forged to impersonate a different admin either.
+      res.cookies.set("chinexa-admin-id", createAdminSessionToken(admin.id as string), {
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: remember_me ? 7 * 24 * 60 * 60 : undefined,
+      });
+      // Display-only, non-sensitive — still readable client-side so the admin
+      // shell can show a name/role badge without an extra round trip.
+      res.cookies.set("chinexa-role", admin.role as string, {
+        path: "/", sameSite: "lax", secure: process.env.NODE_ENV === "production",
+        maxAge: remember_me ? 7 * 24 * 60 * 60 : undefined,
+      });
+      res.cookies.set("chinexa-admin-name", encodeURIComponent(admin.name as string), {
+        path: "/", sameSite: "lax", secure: process.env.NODE_ENV === "production",
+        maxAge: remember_me ? 7 * 24 * 60 * 60 : undefined,
+      });
+      return res;
     }
 
     // ─── ADD ADMIN (superadmin only) ───
@@ -166,14 +194,46 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // ─── LIST ADMINS (superadmin only) ───
+    // ─── WHOAMI (any authenticated admin) — returns only the caller's own
+    // record, for the admin shell to load its own name/role/permissions
+    // without needing the full roster (which "list" below still restricts
+    // to any logged-in admin, matching prior behavior, just no longer
+    // completely unauthenticated). ───
+    if (action === "whoami") {
+      if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      const rows = await query<RowDataPacket[]>(
+        "SELECT id, username, name, email, phone, role, permissions FROM admin_users WHERE id = ? AND is_active = 1 LIMIT 1",
+        [requesterId]
+      );
+      if (rows.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
+      const r = rows[0];
+      let raw: unknown = null;
+      try { raw = r.permissions ? JSON.parse(r.permissions as string) : null; } catch { raw = null; }
+      return NextResponse.json({ ...r, permissions: r.role === "superadmin" ? null : normalizePermissions(raw) });
+    }
+
+    // ─── LIST ADMINS (any authenticated admin — was previously reachable
+    // with zero auth check at all, leaking every admin's username/email/
+    // phone/permissions to anyone) ───
     if (action === "list") {
+      if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       const rows = await query<RowDataPacket[]>("SELECT id, username, name, email, phone, role, permissions, is_active, last_login, created_at FROM admin_users ORDER BY created_at");
       return NextResponse.json(rows.map((r) => {
         let raw: unknown = null;
         try { raw = r.permissions ? JSON.parse(r.permissions as string) : null; } catch { raw = null; }
         return { ...r, is_active: !!r.is_active, permissions: r.role === "superadmin" ? null : normalizePermissions(raw) };
       }));
+    }
+
+    // ─── LOGOUT ─── clears all three auth cookies server-side. chinexa-admin-id
+    // is httpOnly (see admin-session.ts login branch), so client-side
+    // document.cookie writes can no longer clear it themselves.
+    if (action === "logout") {
+      const res = NextResponse.json({ success: true });
+      res.cookies.set("chinexa-admin-id", "", { path: "/", maxAge: 0 });
+      res.cookies.set("chinexa-role", "", { path: "/", maxAge: 0 });
+      res.cookies.set("chinexa-admin-name", "", { path: "/", maxAge: 0 });
+      return res;
     }
 
     // ─── DELETE ADMIN (superadmin only) ───

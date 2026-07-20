@@ -6,10 +6,12 @@ import { deleteUploadedFile } from "@/lib/delete-upload";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { publicServerError } from "@/lib/validate";
 import { requirePermission } from "@/lib/admin-permissions-server";
+import { ensureBrandColumns } from "../route";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await ensurePromotionColumns();
+    await ensureBrandColumns();
     const { id } = await params;
     const rows = await query<RowDataPacket[]>(
       "SELECT * FROM brands WHERE slug = ? OR id = ? LIMIT 1",
@@ -37,7 +39,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const body = await req.json();
     const fields: string[] = [];
     const values: (string | number | null)[] = [];
-    for (const [k, col] of Object.entries({ name: "name", slug: "slug", logo: "logo", country: "country", description: "description", website: "website" })) {
+    await ensureBrandColumns();
+    for (const [k, col] of Object.entries({ name: "name", slug: "slug", logo: "logo", country: "country", description: "description", website: "website", seo_title: "seo_title", seo_description: "seo_description" })) {
       if (body[k] !== undefined) { fields.push(`${col} = ?`); values.push(body[k]); }
     }
     if (body.certifications !== undefined) { fields.push("certifications = ?"); values.push(JSON.stringify(body.certifications)); }

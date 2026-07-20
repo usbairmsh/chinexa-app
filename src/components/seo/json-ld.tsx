@@ -134,6 +134,42 @@ export function ProductJsonLd({
   );
 }
 
+interface BrandJsonLdProps {
+  name: string;
+  description: string;
+  logo?: string;
+  url: string;
+  sameAs?: string[];
+}
+
+/** Marks a brand's storefront page as the Bangladesh source for that brand's products — same BD address/shipping signal ProductJsonLd already sends per-product, just at the brand-page level. */
+export function BrandJsonLd({ name, description, logo, url, sameAs }: BrandJsonLdProps) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
+  const fullLogo = logo ? (logo.startsWith("http") ? logo : `${siteUrl}${logo}`) : `${siteUrl}/logo.png`;
+
+  const schema: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Brand",
+    name,
+    description: description?.slice(0, 300),
+    logo: fullLogo,
+    url: `${siteUrl}${url}`,
+    // areaServed pins this brand's storefront presence to Bangladesh, same
+    // signal as ProductJsonLd's shippingDestination — reinforces to Google
+    // that this page is the BD-market source for the brand, not a generic
+    // international listing.
+    areaServed: { "@type": "Country", name: "Bangladesh" },
+    ...(sameAs && sameAs.length > 0 ? { sameAs } : {}),
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
 interface BreadcrumbItem {
   name: string;
   url: string;

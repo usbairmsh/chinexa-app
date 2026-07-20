@@ -1,16 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Lock, User, Loader2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { authCookieOpts } from "@/lib/auth-cookie";
 
 export default function AdminLoginPage() {
+  return (
+    <Suspense>
+      <AdminLoginForm />
+    </Suspense>
+  );
+}
+
+function AdminLoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -30,7 +38,7 @@ export default function AdminLoginPage() {
       const res = await fetch("/api/admin-auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "login", username: username.trim(), password }),
+        body: JSON.stringify({ action: "login", username: username.trim(), password, remember_me: rememberMe }),
       });
       const data = await res.json();
 
@@ -39,13 +47,11 @@ export default function AdminLoginPage() {
         return;
       }
 
-      // Remember Me: 7 days. Otherwise: session cookie (no max-age)
-      const cookieOpts = authCookieOpts(rememberMe);
-      document.cookie = `chinexa-role=${data.user.role}; ${cookieOpts}`;
-      document.cookie = `chinexa-admin-id=${data.user.id}; ${cookieOpts}`;
-      document.cookie = `chinexa-admin-name=${encodeURIComponent(data.user.name)}; ${cookieOpts}`;
-
-      router.push("/admin");
+      // The session cookie is set server-side now (httpOnly, signed — see
+      // admin-session.ts) as part of the login response, so there's nothing
+      // left for the client to write here.
+      const redirect = searchParams.get("redirect");
+      router.push(redirect && redirect.startsWith("/admin") ? redirect : "/admin");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {

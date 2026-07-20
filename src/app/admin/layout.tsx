@@ -108,11 +108,16 @@ export default function AdminLayout({
   }, [pathname]);
 
   // Admin profile state
+  const [adminId, setAdminId] = useState("");
   const [adminName, setAdminName] = useState("");
   const [adminRole, setAdminRole] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPhone, setAdminPhone] = useState("");
   const [adminUsername, setAdminUsername] = useState("");
+  // Only meaningful once the whoami request has actually resolved — used to
+  // gate the "no session, redirect to login" decision so we never redirect
+  // during the brief window before we've even asked the server yet.
+  const [authChecked, setAuthChecked] = useState(false);
 
   // Profile dialog
   const [profileOpen, setProfileOpen] = useState(false);
@@ -138,42 +143,54 @@ export default function AdminLayout({
     // This layout wraps /admin/login too (it just hides its own chrome there
     // — see the `pathname === "/admin/login"` early return below — rather
     // than unmounting), so it was already mounted BEFORE login with no
-    // cookie yet. Login sets the cookie and does a client-side router.push,
-    // which never remounts this component, so a one-shot `useEffect(..., [])`
-    // ran once too early, found no cookie, and never tried again — the admin
-    // name/role in the header stayed blank until a full page reload
-    // recreated everything from scratch. Depending on `pathname` re-runs this
-    // right after the login→/admin transition lands, and `adminName` in the
-    // guard skips redundant refetches on ordinary in-app navigation once the
-    // profile is already loaded.
+    // session yet. Login sets the session cookie server-side and does a
+    // client-side router.push, which never remounts this component, so a
+    // one-shot `useEffect(..., [])` ran once too early, found no session, and
+    // never tried again — the admin name/role in the header stayed blank
+    // until a full page reload recreated everything from scratch. Depending
+    // on `pathname` re-runs this right after the login→/admin transition
+    // lands, and `adminName` in the guard skips redundant refetches on
+    // ordinary in-app navigation once the profile is already loaded.
+    //
+    // The session cookie is httpOnly now (see admin-session.ts), so the
+    // client can no longer read it itself to check "is there a session" or
+    // "which admin is this" — the server is asked directly via "whoami"
+    // instead, and its answer (or 401) is authoritative.
     if (adminName) return;
-    const adminId = getCookie("chinexa-admin-id");
-    if (!adminId) return;
-    fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "list" }) })
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          const me = data.find((a: Record<string, unknown>) => a.id === adminId);
-          if (me) {
-            setAdminName(me.name as string);
-            setAdminRole(me.role as string);
-            setAdminEmail((me.email as string) || "");
-            setAdminPhone((me.phone as string) || "");
-            setAdminUsername((me.username as string) || "");
-            // Superadmin has full access regardless of this map (canDo()
-            // short-circuits on role); regular admins get the normalized
-            // per-section action grants (handles both the legacy flat-array
-            // shape and the current action-map shape transparently).
-            setAdminPermissionsMap(normalizePermissions(me.permissions));
-          }
-        }
-      }).catch(() => {});
+    fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "whoami" }) })
+      .then(async (r) => {
+        if (!r.ok) { setAuthChecked(true); return; }
+        const me = await r.json();
+        setAdminId(me.id as string);
+        setAdminName(me.name as string);
+        setAdminRole(me.role as string);
+        setAdminEmail((me.email as string) || "");
+        setAdminPhone((me.phone as string) || "");
+        setAdminUsername((me.username as string) || "");
+        // Superadmin has full access regardless of this map (canDo()
+        // short-circuits on role); regular admins get the normalized
+        // per-section action grants (handles both the legacy flat-array
+        // shape and the current action-map shape transparently).
+        setAdminPermissionsMap(normalizePermissions(me.permissions));
+        setAuthChecked(true);
+      }).catch(() => setAuthChecked(true));
   }, [pathname, adminName]);
+
+  // proxy.ts already blocks unauthenticated requests at the edge, but it only
+  // runs on the initial navigation — client-side transitions between admin
+  // pages (Link clicks) don't re-hit it. If whoami comes back unauthenticated
+  // (e.g. the session expired mid-visit), bounce to login here too, same as
+  // the (account) customer layout already does for its own auth guard.
+  useEffect(() => {
+    if (authChecked && !adminName && pathname !== "/admin/login") {
+      router.push(`/admin/login?redirect=${encodeURIComponent(pathname)}`);
+    }
+  }, [authChecked, adminName, pathname, router]);
 
   const handleSaveProfile = async () => {
     setProfileSaving(true);
     try {
-      await fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update_profile", admin_id: getCookie("chinexa-admin-id"), name: profileName.trim(), email: profileEmail.trim(), phone: profilePhone.trim() }) });
+      await fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update_profile", name: profileName.trim(), email: profileEmail.trim(), phone: profilePhone.trim() }) });
       setAdminName(profileName.trim());
       setAdminEmail(profileEmail.trim());
       setAdminPhone(profilePhone.trim());
@@ -189,7 +206,7 @@ export default function AdminLayout({
     if (newPw !== confirmPw) { setPwError("Passwords do not match"); return; }
     setPwSaving(true);
     try {
-      const res = await fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "change_password", admin_id: getCookie("chinexa-admin-id"), current_password: currentPw, new_password: newPw }) });
+      const res = await fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "change_password", current_password: currentPw, new_password: newPw }) });
       const data = await res.json();
       if (!res.ok) { setPwError(data.error); return; }
       setPwSuccess(true);
@@ -198,10 +215,13 @@ export default function AdminLayout({
     } catch {} finally { setPwSaving(false); }
   };
 
-  const handleLogout = () => {
-    document.cookie = "chinexa-role=; path=/; max-age=0";
-    document.cookie = "chinexa-admin-id=; path=/; max-age=0";
-    document.cookie = "chinexa-admin-name=; path=/; max-age=0";
+  const handleLogout = async () => {
+    // chinexa-admin-id is httpOnly now (see admin-session.ts) — client-side
+    // document.cookie writes can no longer see or clear it, so logout has to
+    // go through the server, which clears all three cookies on the response.
+    try {
+      await fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "logout" }) });
+    } catch {}
     window.location.href = "/admin/login";
   };
 
@@ -213,7 +233,7 @@ export default function AdminLayout({
   };
 
   const adminContextValue = {
-    adminId: getCookie("chinexa-admin-id"),
+    adminId,
     role: adminRole,
     permissions: adminPermissionsMap,
     name: adminName,

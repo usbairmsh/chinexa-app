@@ -86,6 +86,8 @@ CREATE TABLE IF NOT EXISTS brands (
   is_active BOOLEAN DEFAULT TRUE,
   show_on_homepage BOOLEAN DEFAULT FALSE,
   product_count INT DEFAULT 0,
+  seo_title VARCHAR(255),
+  seo_description TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
@@ -232,18 +234,24 @@ CREATE TABLE IF NOT EXISTS reviews (
   id VARCHAR(50) PRIMARY KEY,
   product_id VARCHAR(50) NOT NULL,
   product_name VARCHAR(255),
+  order_id VARCHAR(50),
   customer_id VARCHAR(50),
   customer_name VARCHAR(255) NOT NULL,
   customer_avatar VARCHAR(500),
   rating TINYINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
   title VARCHAR(255),
   comment TEXT NOT NULL,
+  images JSON,
   is_verified_purchase BOOLEAN DEFAULT FALSE,
   is_approved BOOLEAN DEFAULT FALSE,
   admin_reply TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-  FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
+  FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+  -- One review per product per customer. NULL customer_id (anonymous/guest
+  -- reviews) is exempt — MySQL treats NULLs as distinct in a unique index, so
+  -- this only actually constrains real, logged-in customers.
+  UNIQUE KEY uniq_customer_product_review (customer_id, product_id)
 ) ENGINE=InnoDB;
 
 -- Coupons

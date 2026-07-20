@@ -20,7 +20,12 @@ export function FieldLabel({ label, hint, required }: { label: React.ReactNode; 
         <TooltipProvider delayDuration={150}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button type="button" tabIndex={-1} className="text-charcoal-lighter/60 hover:text-secondary transition-colors">
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={(e) => e.preventDefault()}
+                className="text-charcoal-lighter/60 hover:text-secondary transition-colors"
+              >
                 <HelpCircle className="h-3.5 w-3.5" />
               </button>
             </TooltipTrigger>

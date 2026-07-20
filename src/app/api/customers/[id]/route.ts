@@ -6,13 +6,16 @@ import { logActivity } from "@/lib/log-activity";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { validate, validationError, publicServerError } from "@/lib/validate";
 import { requirePermission } from "@/lib/admin-permissions-server";
+import { getVerifiedAdminId } from "@/lib/admin-session";
 
-/** True only when the request carries a cookie for a currently-superadmin
- * account — the client-side "canEditCustomer" check in the admin panel is
- * just a UI convenience, not a security boundary, since a direct API call
- * bypasses any client check entirely. */
+/** True only when the request carries a verified session for a currently-
+ * superadmin account — the client-side "canEditCustomer" check in the admin
+ * panel is just a UI convenience, not a security boundary, since a direct API
+ * call bypasses any client check entirely. Must use the verified session id,
+ * not the raw cookie value — that used to be a plain, client-writable admin
+ * id, so anyone could forge it to any known admin's id and pass this check. */
 async function isSuperadmin(req: NextRequest): Promise<boolean> {
-  const adminId = req.cookies.get("chinexa-admin-id")?.value;
+  const adminId = getVerifiedAdminId(req);
   if (!adminId) return false;
   const rows = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [adminId]);
   return rows.length > 0 && rows[0].role === "superadmin";
@@ -117,10 +120,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       if (body.new_password.length > 128) {
         return validationError("Password must be at most 128 characters");
       }
-    } else if (req.cookies.get("chinexa-admin-id")?.value) {
+    } else if (getVerifiedAdminId(req)) {
       // This route is also called by the customer's own self-service profile
       // page (no admin cookie present) — only gate on the admin permission
-      // when the request is actually coming from the admin panel.
+      // when the request is actually coming from the admin panel. Verified,
+      // not just truthy — an unsigned/forged cookie must not count as "admin".
       const denied = await requirePermission(req, "customers", "edit");
       if (denied) return denied;
     }
@@ -167,8 +171,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       // Soft delete — deactivate the account. Also reachable unauthenticated
       // as the customer's own self-service "delete my account" action, so
       // only gate this on the admin permission when the request is actually
-      // coming from the admin panel (carries the admin cookie).
-      if (req.cookies.get("chinexa-admin-id")?.value) {
+      // coming from the admin panel (verified session, not just a raw cookie).
+      if (getVerifiedAdminId(req)) {
         const denied = await requirePermission(req, "customers", "delete");
         if (denied) return denied;
       }

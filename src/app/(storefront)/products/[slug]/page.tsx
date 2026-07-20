@@ -26,6 +26,8 @@ import { formatCurrency, cn } from "@/lib/utils";
 import { getCountryFlag } from "@/lib/countries";
 import { useStoreSettings } from "@/hooks/use-store-settings";
 import { getIconById, type TrustBadge } from "@/lib/trust-badges";
+import { ReviewImageUpload } from "@/components/storefront/reviews/review-image-upload";
+import { ReviewImageGallery } from "@/components/storefront/reviews/review-image-gallery";
 
 function StorefrontTrustBadges({ badgeIds }: { badgeIds: string[] }) {
   const [badges, setBadges] = useState<TrustBadge[]>([]);
@@ -62,7 +64,7 @@ function StorefrontTrustBadges({ badgeIds }: { badgeIds: string[] }) {
 
 interface ReviewData {
   id: string; customer_name: string; rating: number; title: string | null;
-  comment: string; is_verified_purchase: boolean; admin_reply: string | null; created_at: string;
+  comment: string; images?: string[]; is_verified_purchase: boolean; admin_reply: string | null; created_at: string;
 }
 
 export default function ProductDetailPage() {
@@ -100,8 +102,10 @@ export default function ProductDetailPage() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewTitle, setReviewTitle] = useState("");
   const [reviewComment, setReviewComment] = useState("");
+  const [reviewImages, setReviewImages] = useState<string[]>([]);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewSuccess, setReviewSuccess] = useState(false);
+  const [reviewError, setReviewError] = useState("");
 
   // Fetch approved reviews for this product
   useEffect(() => {
@@ -115,8 +119,9 @@ export default function ProductDetailPage() {
   const handleSubmitReview = async () => {
     if (!product || !reviewComment.trim()) return;
     setReviewSubmitting(true);
+    setReviewError("");
     try {
-      await fetch("/api/reviews", {
+      const res = await fetch("/api/reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -127,15 +132,17 @@ export default function ProductDetailPage() {
           rating: reviewRating,
           title: reviewTitle.trim() || null,
           comment: reviewComment.trim(),
-          is_verified_purchase: !!authUser,
+          images: reviewImages,
           is_approved: false,
         }),
       });
+      const data = await res.json();
+      if (!res.ok) { setReviewError(data.error || "Failed to submit review"); return; }
       setReviewSuccess(true);
       setShowReviewForm(false);
-      setReviewTitle(""); setReviewComment(""); setReviewRating(5);
+      setReviewTitle(""); setReviewComment(""); setReviewRating(5); setReviewImages([]);
       setTimeout(() => setReviewSuccess(false), 4000);
-    } catch {} finally { setReviewSubmitting(false); }
+    } catch { setReviewError("Failed to submit review"); } finally { setReviewSubmitting(false); }
   };
 
   // Compute rating distribution from real reviews
@@ -705,6 +712,7 @@ export default function ProductDetailPage() {
                         </div>
                         {review.title && <h4 className="text-sm font-medium text-charcoal mb-1">{review.title}</h4>}
                         <p className="text-sm text-charcoal-light">{review.comment}</p>
+                        {review.images && review.images.length > 0 && <ReviewImageGallery images={review.images} />}
                         {review.admin_reply && (
                           <div className="mt-3 p-3 rounded-lg bg-primary-light">
                             <p className="text-[10px] font-medium text-secondary mb-0.5">ChineXa Reply</p>
@@ -760,6 +768,13 @@ export default function ProductDetailPage() {
                       maxLength={5000}
                       className="min-h-[80px]"
                     />
+
+                    <div>
+                      <label className="text-xs font-medium text-charcoal-light mb-1.5 block">Add Photos (optional)</label>
+                      <ReviewImageUpload value={reviewImages} onChange={setReviewImages} />
+                    </div>
+
+                    {reviewError && <p className="text-xs text-destructive">{reviewError}</p>}
 
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" onClick={() => setShowReviewForm(false)}>Cancel</Button>

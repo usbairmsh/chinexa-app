@@ -12,10 +12,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn, getInitials, formatDateShort } from "@/lib/utils";
 import { useAdmin } from "@/contexts/admin-context";
+import { ReviewImageGallery } from "@/components/storefront/reviews/review-image-gallery";
 
 interface ReviewData {
   id: string; customer_name: string; product_name: string; rating: number;
-  title: string | null; comment: string; is_verified_purchase: boolean;
+  title: string | null; comment: string; images?: string[]; is_verified_purchase: boolean;
   is_approved: boolean; admin_reply: string | null; created_at: string;
 }
 
@@ -106,6 +107,7 @@ export default function AdminReviewsPage() {
         <p className="text-xs text-charcoal-lighter mb-1">Product: <span className="text-charcoal font-medium">{review.product_name || "Unknown"}</span></p>
         {review.title && <h4 className="text-sm font-medium text-charcoal mb-1">{review.title}</h4>}
         <p className="text-sm text-charcoal-light leading-relaxed mb-3">{review.comment}</p>
+        {review.images && review.images.length > 0 && <div className="mb-3"><ReviewImageGallery images={review.images} /></div>}
 
         {review.admin_reply && (
           <div className="bg-primary-light rounded-lg p-3 mb-3">

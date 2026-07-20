@@ -1,14 +1,18 @@
 import { execute, query } from "./db";
 import { type RowDataPacket } from "mysql2/promise";
 import { cookies } from "next/headers";
+import { verifyAdminSessionToken } from "./admin-session";
 
 async function resolveAdmin(adminId?: string): Promise<{ id: string; name: string }> {
-  // Try passed adminId first, then cookie
+  // Try passed adminId first, then the signed session cookie. The cookie's
+  // value is now a signed token (see admin-session.ts), not the raw id, so
+  // it must be verified/decoded here too — a raw read would just be the
+  // opaque token string, which no longer matches any admin_users.id.
   let id = adminId;
   if (!id) {
     try {
       const cookieStore = await cookies();
-      id = cookieStore.get("chinexa-admin-id")?.value;
+      id = verifyAdminSessionToken(cookieStore.get("chinexa-admin-id")?.value) || undefined;
     } catch {}
   }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query } from "@/lib/db";
 import { normalizePermissions, canDo, type PermissionAction, type PermissionsMap } from "@/lib/admin-permissions";
+import { getVerifiedAdminId } from "@/lib/admin-session";
 
 interface RequesterInfo {
   id: string;
@@ -10,12 +11,13 @@ interface RequesterInfo {
 }
 
 /**
- * Fetches the calling admin's role+permissions from the DB via the
- * chinexa-admin-id cookie. Returns null if there's no cookie or no matching
- * active row — callers treat that as "not authenticated as an admin."
+ * Fetches the calling admin's role+permissions from the DB via the signed
+ * chinexa-admin-id session cookie. Returns null if there's no cookie, the
+ * signature doesn't verify, or there's no matching active row — callers
+ * treat that as "not authenticated as an admin."
  */
 export async function getRequester(req: NextRequest): Promise<RequesterInfo | null> {
-  const adminId = req.cookies.get("chinexa-admin-id")?.value;
+  const adminId = getVerifiedAdminId(req);
   if (!adminId) return null;
   const rows = await query<RowDataPacket[]>(
     "SELECT role, permissions FROM admin_users WHERE id = ? AND is_active = 1 LIMIT 1",

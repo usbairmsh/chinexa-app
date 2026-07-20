@@ -7,6 +7,8 @@ import { ensureAccountingTables } from "@/lib/migrate-accounting";
 import { insertCustomerPoints } from "@/lib/points";
 import { publicServerError } from "@/lib/validate";
 import { requirePermission } from "@/lib/admin-permissions-server";
+import { getVerifiedAdminId } from "@/lib/admin-session";
+import { ensureOrderArchiveColumns } from "@/lib/migrate-order-archive";
 
 function normalizePhone(phone: string): string {
   const cleaned = phone.replace(/[\s-]/g, "");
@@ -69,10 +71,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // Order numbers are sequential/guessable, and this endpoint returns full
     // customer PII (name, phone, addresses) — it must not be fetchable by
     // anyone who can guess an id. Three legitimate callers:
-    //   1. Admin panel (browser sends the chinexa-admin-id cookie automatically)
+    //   1. Admin panel (browser sends the signed chinexa-admin-id session cookie)
     //   2. The logged-in customer's own dashboard (?customer_id=<their id>)
     //   3. The public Track Order page for guests (?phone=<the phone on the order>)
-    const isAdmin = !!req.cookies.get("chinexa-admin-id")?.value;
+    // Verified, not just truthy — an unsigned/forged cookie must not count as "admin".
+    const isAdmin = !!getVerifiedAdminId(req);
     if (!isAdmin) {
       const { searchParams } = new URL(req.url);
       const requestCustomerId = searchParams.get("customer_id");
@@ -111,6 +114,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await ensureAccountingTables();
+    await ensureOrderArchiveColumns();
     const { id: paramId } = await params;
     const body = await req.json();
 
@@ -138,6 +142,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
     if (!Array.isArray(body.items) && (body.payment_status !== undefined || body.notes !== undefined)) {
       const denied = await requirePermission(req, "orders", "edit");
+      if (denied) return denied;
+    }
+    if (body.is_archived !== undefined) {
+      const denied = await requirePermission(req, "orders", "handle_orders");
       if (denied) return denied;
     }
 
@@ -336,6 +344,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     // Direct field updates (no status change)
     if (body.payment_status) await execute("UPDATE orders SET payment_status = ? WHERE id = ?", [body.payment_status, id]);
     if (body.notes !== undefined) await execute("UPDATE orders SET notes = ? WHERE id = ?", [body.notes, id]);
+    if (body.is_archived !== undefined) {
+      const archiving = !!body.is_archived;
+      await execute(
+        `UPDATE orders SET is_archived = ?, archived_at = ${archiving ? "NOW()" : "NULL"} WHERE id = ?`,
+        [archiving ? 1 : 0, id]
+      );
+      await logActivity(archiving ? "Archived order" : "Unarchived order", "order", id, `Order ${order.order_number}`);
+    }
 
     // ─── Full order edit: items/quantities/prices/discount/shipping/address (requires orders:edit — enforced above) ───
     if (Array.isArray(body.items)) {

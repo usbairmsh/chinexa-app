@@ -20,6 +20,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { getInitials, formatDateShort, cn, collectMissingFields } from "@/lib/utils";
 import { ALL_PERMISSIONS } from "../layout";
 import { normalizePermissions, type PermissionAction, type PermissionsMap } from "@/lib/admin-permissions";
+import { useAdmin } from "@/contexts/admin-context";
 
 interface AdminUser {
   id: string; username: string; name: string; email: string; phone: string;
@@ -32,6 +33,18 @@ const ACTION_LABELS: Record<PermissionAction, string> = {
   handle_orders: "Handle Orders", approve: "Approve/Reject",
 };
 
+// Explains what each checkbox actually grants — shown as a "?" tooltip next
+// to the action label in the permission grid, since "Edit" alone doesn't say
+// whether that covers just details or also pricing/status changes.
+const ACTION_HINTS: Record<PermissionAction, string> = {
+  view: "See this section in the sidebar and view its list/detail pages. Without this, the section is hidden entirely.",
+  add: "Create new records in this section (e.g. add a product, add a coupon).",
+  edit: "Modify existing records in this section (e.g. update details, pricing, or content).",
+  delete: "Permanently remove records in this section.",
+  handle_orders: "Change order status (shipped, delivered, cancelled) and approve/refund returns — without granting full order editing.",
+  approve: "Approve or reject submissions (e.g. customer reviews, return requests) without granting delete or full edit access.",
+};
+
 interface AdminRole {
   id: string;
   name: string;
@@ -39,14 +52,9 @@ interface AdminRole {
   permissions: PermissionsMap;
 }
 
-function getCookie(name: string): string {
-  if (typeof document === "undefined") return "";
-  const match = document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`));
-  return match ? match[2] : "";
-}
-
 export default function AdminUsersPage() {
   const router = useRouter();
+  const { adminId: currentAdminId, role: currentRole } = useAdmin();
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [roles, setRoles] = useState<AdminRole[]>([]);
   const [selectedRoleId, setSelectedRoleId] = useState<string>("");
@@ -60,8 +68,6 @@ export default function AdminUsersPage() {
   const [editError, setEditError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const currentAdminId = getCookie("chinexa-admin-id");
-  const currentRole = getCookie("chinexa-role");
   const isSuperAdmin = currentRole === "superadmin";
 
   // Add form
@@ -120,7 +126,7 @@ export default function AdminUsersPage() {
     try {
       const res = await fetch("/api/admin-auth", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "add_admin", requester_id: currentAdminId, username: formUsername.trim(), password: formPassword, name: formName.trim(), email: formEmail.trim() || null, phone: formPhone.trim() || null, role: formRole, permissions: formRole === "superadmin" ? null : formPerms }),
+        body: JSON.stringify({ action: "add_admin", username: formUsername.trim(), password: formPassword, name: formName.trim(), email: formEmail.trim() || null, phone: formPhone.trim() || null, role: formRole, permissions: formRole === "superadmin" ? null : formPerms }),
       });
       const data = await res.json();
       if (!res.ok) { setAddError(data.error || "Something went wrong"); return; }
@@ -154,7 +160,7 @@ export default function AdminUsersPage() {
     try {
       const res = await fetch("/api/admin-auth", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "update_admin", requester_id: currentAdminId, admin_id: editDialog.id, name: editName.trim(), email: editEmail.trim() || null, phone: editPhone.trim() || null, username: editUsername.trim(), role: editRole }),
+        body: JSON.stringify({ action: "update_admin", admin_id: editDialog.id, name: editName.trim(), email: editEmail.trim() || null, phone: editPhone.trim() || null, username: editUsername.trim(), role: editRole }),
       });
       const data = await res.json();
       if (!res.ok) { setEditError(data.error || "Something went wrong"); return; }
@@ -165,33 +171,45 @@ export default function AdminUsersPage() {
     } catch {} finally { setSaving(false); }
   };
 
+  const [deleteError, setDeleteError] = useState("");
   const handleDelete = async () => {
     if (!deleteDialog) return;
-    await fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete_admin", requester_id: currentAdminId, admin_id: deleteDialog.id }) });
-    setAdmins((prev) => prev.filter((a) => a.id !== deleteDialog.id));
-    setDeleteDialog(null);
+    setDeleteError("");
+    try {
+      const res = await fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete_admin", admin_id: deleteDialog.id }) });
+      const data = await res.json();
+      if (!res.ok) { setDeleteError(data.error || "Failed to remove admin"); return; }
+      setAdmins((prev) => prev.filter((a) => a.id !== deleteDialog.id));
+      setDeleteDialog(null);
+    } catch { setDeleteError("Failed to remove admin"); }
   };
 
   const handleToggleActive = async (admin: AdminUser) => {
-    await fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "toggle_active", requester_id: currentAdminId, admin_id: admin.id, is_active: !admin.is_active }) });
+    const res = await fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "toggle_active", admin_id: admin.id, is_active: !admin.is_active }) });
+    if (!res.ok) return;
     setAdmins((prev) => prev.map((a) => a.id === admin.id ? { ...a, is_active: !a.is_active } : a));
   };
 
+  const [accessError, setAccessError] = useState("");
   const openAccessDialog = (admin: AdminUser) => {
     setAccessDialog(admin);
+    setAccessError("");
     setEditPerms(normalizePermissions(admin.permissions));
   };
 
   const handleSaveAccess = async () => {
     if (!accessDialog) return;
+    setAccessError("");
     setSaving(true);
     try {
-      await fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update_permissions", requester_id: currentAdminId, admin_id: accessDialog.id, permissions: editPerms }) });
+      const res = await fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update_permissions", admin_id: accessDialog.id, permissions: editPerms }) });
+      const data = await res.json();
+      if (!res.ok) { setAccessError(data.error || "Failed to save access"); return; }
       setAdmins((prev) => prev.map((a) => a.id === accessDialog.id ? { ...a, permissions: editPerms } : a));
       setAccessDialog(null);
       setSuccess("Access updated");
       setTimeout(() => setSuccess(""), 3000);
-    } catch {} finally { setSaving(false); }
+    } catch { setAccessError("Failed to save access"); } finally { setSaving(false); }
   };
 
   const toggleAction = (
@@ -232,7 +250,7 @@ export default function AdminUsersPage() {
                         checked={(perms[section.key] || []).includes(action)}
                         onCheckedChange={(v) => toggleAction(setPerms, section.key, action, !!v)}
                       />
-                      {ACTION_LABELS[action]}
+                      <FieldLabel label={ACTION_LABELS[action]} hint={ACTION_HINTS[action]} />
                     </label>
                   ))}
                 </div>
@@ -335,7 +353,7 @@ export default function AdminUsersPage() {
                             {admin.id !== currentAdminId && (
                               <>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDialog(admin)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Remove</DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive" onClick={() => { setDeleteDialog(admin); setDeleteError(""); }}><Trash2 className="h-3.5 w-3.5 mr-2" /> Remove</DropdownMenuItem>
                               </>
                             )}
                           </DropdownMenuContent>
@@ -456,6 +474,7 @@ export default function AdminUsersPage() {
           </DialogHeader>
           <div className="flex-1 overflow-y-auto overflow-x-hidden py-2 pr-1">
             {renderPermGrid(editPerms, setEditPerms)}
+            {accessError && <p className="text-xs text-destructive mt-2">{accessError}</p>}
           </div>
           <DialogFooter className="shrink-0 pt-2 border-t border-border/20">
             <AdminButton variant="outline" onClick={() => setAccessDialog(null)}>Cancel</AdminButton>
@@ -471,6 +490,7 @@ export default function AdminUsersPage() {
         <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-destructive" /> Remove Admin</DialogTitle><DialogDescription>This will permanently remove this admin account.</DialogDescription></DialogHeader>
           {deleteDialog && <p className="text-sm text-charcoal-light"><strong>{deleteDialog.name}</strong> (@{deleteDialog.username})</p>}
+          {deleteError && <p className="text-xs text-destructive">{deleteError}</p>}
           <DialogFooter>
             <AdminButton variant="outline" onClick={() => setDeleteDialog(null)}>Cancel</AdminButton>
             <AdminButton variant="danger" onClick={handleDelete}><Trash2 className="h-3.5 w-3.5" /> Remove</AdminButton>

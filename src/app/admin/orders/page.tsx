@@ -7,12 +7,14 @@ import { triggerDashboardRefresh } from "@/lib/dashboard-events";
 import {
   Search, MoreHorizontal, Eye, Truck, Package, Clock, CheckCircle2,
   XCircle, DollarSign, ArrowUpRight, Check,
-  Download, Printer, ShoppingCart, PackageCheck, MapPin, ThumbsDown, Copy
+  Download, Printer, ShoppingCart, PackageCheck, MapPin, ThumbsDown, Copy,
+  Archive, ArchiveRestore
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -28,7 +30,7 @@ type PaymentStatus = "pending" | "paid" | "refunded";
 
 interface Order {
   id: string; dbId: string; customer: string; phone: string; total: number; status: OrderStatus;
-  payment: string; payment_status: PaymentStatus; items: number; date: string;
+  payment: string; payment_status: PaymentStatus; items: number; date: string; archived: boolean;
 }
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; bg: string; icon: typeof Clock }> = {
@@ -50,6 +52,10 @@ const PAGE_SIZE = 20;
 export default function OrderManagementPage() {
   const { can } = useAdmin();
   const canHandleOrders = can("orders", "handle_orders");
+  // Top-level Active/Archived split — independent of the status sub-tabs
+  // below, since an archived order is "done" regardless of what status it
+  // was in when archived.
+  const [archiveTab, setArchiveTab] = useState<"active" | "archived">("active");
   const [activeTab, setActiveTab] = useState<"all" | OrderStatus>("all");
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState(""); // debounced value actually sent to the API
@@ -59,6 +65,7 @@ export default function OrderManagementPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   const [totalCount, setTotalCount] = useState(0);
+  const [archivedCount, setArchivedCount] = useState(0);
   const [revenue, setRevenue] = useState(0);
   const [copiedId, setCopiedId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -66,6 +73,7 @@ export default function OrderManagementPage() {
   const [newStatus, setNewStatus] = useState<OrderStatus | "">("");
   const [cancelDialog, setCancelDialog] = useState<Order | null>(null);
   const [advanceDialog, setAdvanceDialog] = useState<Order | null>(null);
+  const [archiveDialog, setArchiveDialog] = useState<Order | null>(null);
 
   // Debounce the search box — avoid firing a request on every keystroke
   useEffect(() => {
@@ -74,13 +82,17 @@ export default function OrderManagementPage() {
   }, [searchInput]);
 
   // Reset to page 1 whenever a filter changes
-  useEffect(() => { setPage(1); }, [activeTab, searchQuery, paymentFilter]);
+  useEffect(() => { setPage(1); }, [archiveTab, activeTab, searchQuery, paymentFilter]);
+  // Switching Active/Archived resets the status sub-filter — "Shipped" from
+  // the Active tab has no meaning carried over into the Archived tab.
+  useEffect(() => { setActiveTab("all"); }, [archiveTab]);
 
   // Fetch the current page of orders — filtered/paginated server-side
   const fetchOrders = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
+      if (archiveTab === "archived") params.set("archived", "1");
       if (activeTab !== "all") params.set("status", activeTab);
       if (searchQuery) params.set("search", searchQuery);
       if (paymentFilter !== "all") params.set("payment", paymentFilter);
@@ -98,17 +110,20 @@ export default function OrderManagementPage() {
         payment_status: (o.payment_status as PaymentStatus) || "pending",
         items: Number(o.item_count) || 0,
         date: (o.created_at as string) || new Date().toISOString(),
+        archived: !!o.is_archived,
       })));
       setTotalPages(Number(data?.total_pages) || 1);
     } catch {} finally { setLoading(false); }
   };
 
   // Separate lightweight query for tab counts + revenue — these reflect the
-  // search term (so tab counts stay meaningful while searching) but NOT the
-  // active tab/payment filter, since the counts describe every tab at once.
+  // search term (so tab counts stay meaningful while searching) and the
+  // active/archived split, but NOT the status sub-tab/payment filter, since
+  // the counts describe every status sub-tab at once.
   const fetchCounts = async () => {
     try {
       const params = new URLSearchParams({ count_by_status: "1" });
+      if (archiveTab === "archived") params.set("archived", "1");
       if (searchQuery) params.set("search", searchQuery);
       const res = await fetch(`/api/orders?${params.toString()}`);
       const data = await res.json();
@@ -116,12 +131,13 @@ export default function OrderManagementPage() {
         setStatusCounts(data.counts || {});
         setTotalCount(Number(data.total) || 0);
         setRevenue(Number(data.revenue) || 0);
+        setArchivedCount(Number(data.archived_count) || 0);
       }
     } catch {}
   };
 
-  useEffect(() => { fetchOrders(); }, [page, activeTab, searchQuery, paymentFilter]);
-  useEffect(() => { fetchCounts(); }, [searchQuery]);
+  useEffect(() => { fetchOrders(); }, [page, archiveTab, activeTab, searchQuery, paymentFilter]);
+  useEffect(() => { fetchCounts(); }, [archiveTab, searchQuery]);
 
   // A status change can move an order out of the currently active tab's
   // filter (e.g. advancing a "pending" order while viewing the Pending tab),
@@ -168,6 +184,17 @@ export default function OrderManagementPage() {
     fetchOrders(); fetchCounts();
   };
 
+  const handleArchiveToggle = async () => {
+    if (!archiveDialog) return;
+    const archiving = archiveDialog.archived !== true;
+    await fetch(`/api/orders/${archiveDialog.dbId}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_archived: archiving }),
+    }).catch(() => {});
+    setArchiveDialog(null);
+    fetchOrders(); fetchCounts();
+  };
+
   // Filters
   // `orders` is already the current page of server-filtered/paginated results
   const filtered = orders;
@@ -188,12 +215,27 @@ export default function OrderManagementPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-charcoal">Order Management</h1>
-          <p className="text-sm text-charcoal-lighter">{totalCount} orders · {formatCurrency(revenue)} revenue</p>
+          <p className="text-sm text-charcoal-lighter">
+            {archiveTab === "archived" ? `${totalCount} archived orders` : `${totalCount} orders · ${formatCurrency(revenue)} revenue`}
+          </p>
         </div>
         <AdminButton variant="outline" size="sm"><Download className="h-3.5 w-3.5" /> Export</AdminButton>
       </div>
 
-      {/* Stats */}
+      {/* Active / Archived */}
+      <Tabs value={archiveTab} onValueChange={(v) => setArchiveTab(v as "active" | "archived")}>
+        <TabsList>
+          <TabsTrigger value="active">Active</TabsTrigger>
+          <TabsTrigger value="archived" className="gap-1.5">
+            Archived
+            {archivedCount > 0 && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/70">{archivedCount}</span>}
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {/* Stats — active-order breakdown only; archived orders are done, so
+          these operational stat cards don't apply to that tab. */}
+      {archiveTab === "active" && (
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
         {[
           { label: "Pending", value: statusCounts.pending || 0, icon: Clock, color: "text-warning", bg: "bg-warning/10" },
@@ -209,8 +251,11 @@ export default function OrderManagementPage() {
           </CardContent></Card>
         ))}
       </div>
+      )}
 
-      {/* Tabs */}
+      {/* Status sub-tabs — only meaningful within the Active tab; archived
+          orders are shown as a flat list regardless of their status. */}
+      {archiveTab === "active" && (
       <div className="flex gap-1 overflow-x-auto pb-1">
         {tabs.map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
@@ -221,6 +266,7 @@ export default function OrderManagementPage() {
           </button>
         ))}
       </div>
+      )}
 
       {/* Table */}
       <Card>
@@ -332,6 +378,14 @@ export default function OrderManagementPage() {
                                 {canHandleOrders && !["not_received", "received"].includes(order.status) && (
                                   <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive" onClick={() => setCancelDialog(order)}><ThumbsDown className="h-3.5 w-3.5 mr-2" /> Not Received</DropdownMenuItem></>
                                 )}
+                                {canHandleOrders && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => setArchiveDialog(order)}>
+                                      {order.archived ? <><ArchiveRestore className="h-3.5 w-3.5 mr-2" /> Unarchive</> : <><Archive className="h-3.5 w-3.5 mr-2" /> Archive</>}
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -440,6 +494,29 @@ export default function OrderManagementPage() {
           <DialogFooter>
             <AdminButton variant="outline" onClick={() => setAdvanceDialog(null)}>Cancel</AdminButton>
             <AdminButton onClick={confirmAdvance}><Check className="h-3.5 w-3.5" /> Confirm</AdminButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Archive / Unarchive Confirmation */}
+      <Dialog open={!!archiveDialog} onOpenChange={(open) => !open && setArchiveDialog(null)}>
+        <DialogContent className="w-[95vw] max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {archiveDialog?.archived ? <><ArchiveRestore className="h-5 w-5 text-secondary" /> Unarchive Order</> : <><Archive className="h-5 w-5 text-secondary" /> Archive Order</>}
+            </DialogTitle>
+            <DialogDescription>
+              {archiveDialog?.archived
+                ? "This order will move back to the Active tab."
+                : "This order will move to the Archived tab and won't appear in the active list or status counts."}
+            </DialogDescription>
+          </DialogHeader>
+          {archiveDialog && <p className="text-sm text-charcoal-light">{archiveDialog.id} — {archiveDialog.customer} — {formatCurrency(archiveDialog.total)}</p>}
+          <DialogFooter>
+            <AdminButton variant="outline" onClick={() => setArchiveDialog(null)}>Cancel</AdminButton>
+            <AdminButton onClick={handleArchiveToggle}>
+              {archiveDialog?.archived ? <><ArchiveRestore className="h-3.5 w-3.5" /> Unarchive</> : <><Archive className="h-3.5 w-3.5" /> Archive</>}
+            </AdminButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>

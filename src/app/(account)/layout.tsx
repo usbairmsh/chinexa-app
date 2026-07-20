@@ -6,7 +6,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ShoppingBag, Heart, MapPin, UserCircle,
-  LogOut, ChevronRight, HelpCircle, Tag, Crown, MessageCircle
+  LogOut, ChevronRight, HelpCircle, Tag, Crown, MessageCircle, Star
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Header } from "@/components/layout/header/header";
@@ -40,6 +40,7 @@ function SquareDashboardIcon({ className }: { className?: string }) {
 const accountNav = [
   { icon: SquareDashboardIcon, label: "Dashboard", href: "/dashboard" },
   { icon: ShoppingBag, label: "My Orders", href: "/dashboard/orders" },
+  { icon: Star, label: "Reviews", href: "/dashboard/reviews", countKey: "pendingReviews" as const },
   { icon: Heart, label: "Wishlist", href: "/dashboard/wishlist" },
   { icon: MapPin, label: "Addresses", href: "/dashboard/addresses" },
   { icon: Tag, label: "Offers & Coupons", href: "/dashboard/coupons" },
@@ -69,6 +70,18 @@ export default function AccountLayout({
   useEffect(() => setMounted(true), []);
   const user = mounted ? storeUser : null;
   const isAuthenticated = mounted ? storeAuthenticated : false;
+
+  // Pending-review count for the sidebar's "Reviews" badge — products from
+  // delivered orders this customer hasn't reviewed yet.
+  const [pendingReviewsCount, setPendingReviewsCount] = useState(0);
+  useEffect(() => {
+    if (!mounted || !user?.id) return;
+    fetch(`/api/customers/${user.id}/pending-reviews`)
+      .then((r) => r.json())
+      .then((data) => setPendingReviewsCount(Number(data?.count) || 0))
+      .catch(() => {});
+  }, [mounted, user?.id, pathname]);
+  const navCounts: Record<string, number> = { pendingReviews: pendingReviewsCount };
 
   // The whole account section is members-only — once the persisted store has
   // rehydrated, bounce anyone who isn't actually signed in to /login.
@@ -182,7 +195,14 @@ export default function AccountLayout({
                           : "text-charcoal/70 hover:bg-pearl hover:text-charcoal"
                       )}
                     >
-                      <item.icon className="h-5 w-5" />
+                      <span className="relative">
+                        <item.icon className="h-5 w-5" />
+                        {item.countKey && navCounts[item.countKey] > 0 && (
+                          <span className="absolute -top-1 -right-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-secondary px-0.5 text-[8px] font-bold text-white ring-2 ring-white">
+                            {navCounts[item.countKey]}
+                          </span>
+                        )}
+                      </span>
                       <span className="text-[10px] font-medium leading-none text-center">{item.label}</span>
                     </Link>
                   )
@@ -275,6 +295,11 @@ export default function AccountLayout({
                       >
                         <item.icon className="h-[18px] w-[18px] shrink-0" />
                         <span className="flex-1">{item.label}</span>
+                        {item.countKey && navCounts[item.countKey] > 0 && (
+                          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-secondary px-1 text-[9px] font-bold text-white">
+                            {navCounts[item.countKey]}
+                          </span>
+                        )}
                         {isActive(item.href) && (
                           <ChevronRight className="h-3.5 w-3.5 text-secondary" />
                         )}

@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSearchProducts } from "@/hooks/queries/use-products";
 import { useTrendingSearches } from "@/hooks/queries/use-trending-searches";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useIconPlay } from "@/hooks/use-icon-play";
 import { formatCurrency, cn } from "@/lib/utils";
 
 const RECENT_KEY = "chinexa-recent-searches";
@@ -196,6 +197,7 @@ export function DesktopSearchBar() {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const state = useSearchState();
+  const searchIcon = useIconPlay<HTMLSpanElement>();
 
   const close = () => { setOpen(false); state.setQuery(""); };
 
@@ -226,13 +228,19 @@ export function DesktopSearchBar() {
     <div ref={containerRef} className="hidden sm:block relative">
       <button
         onClick={() => setOpen(true)}
+        onMouseEnter={() => !open && searchIcon.play({ rotate: [0, -12, 10, 0], scale: [1, 1.1, 1.1, 1] }, 0.45)}
         className={cn(
           "flex items-center gap-2 h-9 rounded-full border transition-colors",
-          open ? "w-64 lg:w-80 px-3 border-border bg-white" : "w-9 justify-center border-transparent text-charcoal/70 hover:text-charcoal hover:bg-primary-light"
+          open ? "w-64 lg:w-80 px-3 border-border bg-white" : "w-9 justify-center border-transparent text-charcoal/60 hover:text-charcoal hover:bg-primary-light"
         )}
         aria-label="Search"
       >
-        <Search className="h-4 w-4 shrink-0 text-charcoal-lighter" strokeWidth={2} />
+        {/* Same imperative hover-play pattern as wishlist/cart/bell — a quick
+            "scanning" tilt-and-settle rather than a generic scale/rotate,
+            and always finishes back to rest instead of snapping mid-motion. */}
+        <motion.span ref={searchIcon.scope} className="flex shrink-0">
+          <Search className="h-4 w-4 sm:h-[18px] sm:w-[18px]" strokeWidth={2} />
+        </motion.span>
         {open ? (
           <input
             ref={inputRef}

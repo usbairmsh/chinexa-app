@@ -5,6 +5,7 @@ import { ensureChatTables, newMessageId } from "@/lib/chat";
 import { notifyAdmin, bulkNotify } from "@/lib/notify";
 import { publicServerError } from "@/lib/validate";
 import { requirePermission } from "@/lib/admin-permissions-server";
+import { getVerifiedAdminId } from "@/lib/admin-session";
 
 export const dynamic = "force-dynamic";
 
@@ -88,8 +89,9 @@ export async function POST(req: NextRequest) {
 
     // This route is also called by the storefront's customer-facing chat
     // widget (no admin cookie present) — only gate on the admin permission
-    // when the request is actually coming from the admin panel.
-    if (req.cookies.get("chinexa-admin-id")?.value) {
+    // when the request is actually coming from the admin panel. Verified,
+    // not just truthy — an unsigned/forged cookie must not count as "admin".
+    if (getVerifiedAdminId(req)) {
       const denied = await requirePermission(req, "support_inbox", "add");
       if (denied) return denied;
     }
