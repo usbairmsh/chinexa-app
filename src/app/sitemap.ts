@@ -113,20 +113,37 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error("[sitemap] failed to load dynamic entries:", err);
   }
 
-  // Drop any page the admin marked noindex (SEO Management → Page Meta) — a
-  // sitemap must never advertise URLs that carry a noindex tag, or Search
-  // Console flags the contradiction ("Sitemap contains noindexed URL").
+  // Honor admin Page Meta overrides (SEO Management → Page Meta):
+  //  1. noindex pages are dropped — a sitemap must never advertise URLs that
+  //     carry a noindex tag, or Search Console flags the contradiction
+  //     ("Sitemap contains noindexed URL").
+  //  2. Pages whose canonical override points at a DIFFERENT URL are dropped
+  //     too — Google's guidance is that sitemaps should list only canonical
+  //     URLs, so advertising a page that declares "the real version of me
+  //     lives elsewhere" is the same class of contradiction.
   try {
     const seoRes = await fetch(`${internalUrl}/api/seo`, { cache: "no-store" }).catch(() => null);
     if (seoRes?.ok) {
       const rows = await seoRes.json();
       if (Array.isArray(rows)) {
-        const noIndexPaths = new Set(
-          rows.filter((r) => r.no_index).map((r) => r.page_path as string)
-        );
-        if (noIndexPaths.size > 0) {
+        const excludedPaths = new Set<string>();
+        for (const r of rows) {
+          if (r.no_index) {
+            excludedPaths.add(r.page_path as string);
+            continue;
+          }
+          if (r.canonical_url) {
+            try {
+              const canon = new URL(r.canonical_url as string, siteUrl);
+              const own = new URL(r.page_path as string, siteUrl);
+              const norm = (u: URL) => u.origin + (u.pathname.length > 1 ? u.pathname.replace(/\/$/, "") : u.pathname);
+              if (norm(canon) !== norm(own)) excludedPaths.add(r.page_path as string);
+            } catch {}
+          }
+        }
+        if (excludedPaths.size > 0) {
           return entries.filter((e) => {
-            try { return !noIndexPaths.has(new URL(e.url).pathname); } catch { return true; }
+            try { return !excludedPaths.has(new URL(e.url).pathname); } catch { return true; }
           });
         }
       }
