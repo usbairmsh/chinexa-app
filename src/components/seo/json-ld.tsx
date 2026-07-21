@@ -90,6 +90,10 @@ export function ProductJsonLd({
         priceCurrency: currency,
         price: price.toFixed(2),
         priceValidUntil,
+        // Google Merchant listing wants validFrom on the offer — the point the
+        // current price became effective. It's rendered fresh each request, so
+        // "now" is accurate for the price being shown.
+        validFrom: new Date().toISOString(),
         availability: `https://schema.org/${availability}`,
         itemCondition: "https://schema.org/NewCondition",
         seller: { "@type": "Organization", name: "ChineXa" },
@@ -110,13 +114,25 @@ export function ProductJsonLd({
           : {}),
         shippingDetails: {
           "@type": "OfferShippingDetails",
+          // Representative standard rate (lowest zone — Dhaka City, ৳60). A
+          // concrete shippingRate is required by Google's Merchant listing;
+          // exact per-zone cost is still computed at checkout.
+          shippingRate: {
+            "@type": "MonetaryAmount",
+            value: 60,
+            currency: currency,
+          },
           shippingDestination: { "@type": "DefinedRegion", addressCountry: "BD" },
           deliveryTime: { "@type": "ShippingDeliveryTime", handlingTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 3, unitCode: "DAY" }, transitTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 5, unitCode: "DAY" } },
         },
         hasMerchantReturnPolicy: {
           "@type": "MerchantReturnPolicy",
+          // ISO 3166-1 alpha-2, as an array per Google's spec.
+          applicableCountry: ["BD"],
           returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
           merchantReturnDays: 7,
+          // Store's 7-day return is free to the customer.
+          returnFees: "https://schema.org/FreeReturn",
           returnMethod: "https://schema.org/ReturnByMail",
         },
       };
