@@ -16,6 +16,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
@@ -131,10 +132,15 @@ export default function AdminSeoPage() {
   const [metaForm, setMetaForm] = useState<MetaForm>(EMPTY_FORM);
   const [savingMeta, setSavingMeta] = useState(false);
   const [deleteMetaPath, setDeleteMetaPath] = useState<string | null>(null);
-  // Auto-fetched real pages (products/categories/brands/blog + core/collections)
+  // Auto-fetch modal: discovered real pages (products/categories/brands/blog
+  // + core/collections), each selectable to add into the managed list.
   const [discovered, setDiscovered] = useState<DiscoveredPage[]>([]);
   const [fetching, setFetching] = useState(false);
-  const [fetchSummary, setFetchSummary] = useState<string>("");
+  const [fetchModalOpen, setFetchModalOpen] = useState(false);
+  const [fetchSearch, setFetchSearch] = useState("");
+  const [fetchTypeFilter, setFetchTypeFilter] = useState<string>("all");
+  const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
+  const [addingSelected, setAddingSelected] = useState(false);
   const [pageTypeFilter, setPageTypeFilter] = useState<string>("all");
 
   // ─── Schema tab state ───
@@ -250,8 +256,8 @@ export default function AdminSeoPage() {
     }
   };
 
-  // Pull every real storefront URL + its default meta, so the table lists
-  // actual products/categories/brands/blog posts rather than a hardcoded 8.
+  // Pull every real storefront URL + its default meta and open the picker
+  // modal. Nothing is stored yet — the admin selects which pages to add.
   const autoFetchPages = async () => {
     setFetching(true); setError("");
     try {
@@ -259,8 +265,10 @@ export default function AdminSeoPage() {
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Failed to fetch pages"); return; }
       setDiscovered(Array.isArray(data.pages) ? data.pages : []);
-      const c = data.counts || {};
-      setFetchSummary(`Found ${c.total} pages — ${c.products} products, ${c.categories} categories, ${c.brands} brands, ${c.blog} blog posts.`);
+      setSelectedPaths(new Set());
+      setFetchSearch("");
+      setFetchTypeFilter("all");
+      setFetchModalOpen(true);
     } catch {
       setError("Network error — could not fetch pages");
     } finally {
@@ -268,28 +276,92 @@ export default function AdminSeoPage() {
     }
   };
 
-  // ─── Page meta: rows shown = discovered pages (once fetched) or the static
-  // fallback set, each merged with any saved override row from the DB, plus
-  // any custom paths added by hand that aren't in either list. ───
+  // Discovered pages that aren't already in the managed list, filtered by the
+  // modal's type dropdown + search box.
+  const managedPaths = new Set(seoRows.map((r) => r.page_path));
+  const discoveredTypes = Array.from(new Set(discovered.map((d) => d.label)));
+  const modalPages = discovered.filter((d) => {
+    if (managedPaths.has(d.path)) return false; // already added
+    if (fetchTypeFilter !== "all" && d.label !== fetchTypeFilter) return false;
+    if (fetchSearch.trim()) {
+      const q = fetchSearch.trim().toLowerCase();
+      return d.path.toLowerCase().includes(q) || d.default_title.toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  const toggleSelected = (path: string) => {
+    setSelectedPaths((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path); else next.add(path);
+      return next;
+    });
+  };
+  const toggleSelectAll = () => {
+    setSelectedPaths((prev) => {
+      const allShown = modalPages.every((p) => prev.has(p.path));
+      if (allShown) {
+        const next = new Set(prev);
+        modalPages.forEach((p) => next.delete(p.path));
+        return next;
+      }
+      const next = new Set(prev);
+      modalPages.forEach((p) => next.add(p.path));
+      return next;
+    });
+  };
+
+  // Bulk-create page-meta overrides for the checked pages, each seeded with
+  // its own default title/description, so they immediately show in the list
+  // AND take effect on those exact pages.
+  const addSelectedToList = async () => {
+    if (selectedPaths.size === 0) return;
+    setAddingSelected(true); setError("");
+    const toAdd = discovered.filter((d) => selectedPaths.has(d.path));
+    let failed = 0;
+    try {
+      for (const d of toAdd) {
+        const res = await fetch("/api/seo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            page_path: d.path,
+            title: d.default_title,
+            meta_title: d.default_title,
+            meta_description: d.default_description,
+            og_title: d.default_title,
+            og_description: d.default_description,
+          }),
+        });
+        if (!res.ok) failed++;
+      }
+      if (failed > 0) setError(`${failed} of ${toAdd.length} pages could not be added.`);
+      setFetchModalOpen(false);
+      await loadSeoRows();
+    } catch {
+      setError("Network error — some pages may not have been added");
+    } finally {
+      setAddingSelected(false);
+    }
+  };
+
+  // ─── Page meta list: ONLY the pages actually added/managed (saved override
+  // rows), each with its type label from the discover data when available. ───
   const rowFor = (path: string) => seoRows.find((r) => r.page_path === path);
   const defaultFor = (path: string) => discovered.find((d) => d.path === path);
-  const basePages: { path: string; label: string }[] =
-    discovered.length > 0
-      ? discovered.map((d) => ({ path: d.path, label: d.label }))
-      : STATIC_PAGES.map((p) => ({ path: p.path, label: p.label ?? "Core" }));
-  const basePaths = new Set(basePages.map((p) => p.path));
-  const customRows = seoRows.filter(
-    (r) => r.page_path !== GLOBAL_PATH && !basePaths.has(r.page_path)
-  );
-  const allTypes = Array.from(new Set(basePages.map((p) => p.label)));
-  const pageList: { path: string; label: string; row?: SeoRow }[] = [
-    ...basePages
-      .filter((p) => pageTypeFilter === "all" || p.label === pageTypeFilter)
-      .map((p) => ({ ...p, row: rowFor(p.path) })),
-    ...(pageTypeFilter === "all" || pageTypeFilter === "Custom"
-      ? customRows.map((r) => ({ path: r.page_path, label: "Custom", row: r }))
-      : []),
-  ];
+  const labelFor = (path: string): string => {
+    const d = discovered.find((x) => x.path === path);
+    if (d) return d.label;
+    const stat = STATIC_PAGES.find((s) => s.path === path);
+    if (stat) return "Core";
+    return "Custom";
+  };
+  const managedRows = seoRows.filter((r) => r.page_path !== GLOBAL_PATH);
+  const allTypes = Array.from(new Set(managedRows.map((r) => labelFor(r.page_path))));
+  const pageList: { path: string; label: string; row?: SeoRow }[] = managedRows
+    .map((r) => ({ path: r.page_path, label: labelFor(r.page_path), row: r }))
+    .filter((p) => pageTypeFilter === "all" || p.label === pageTypeFilter)
+    .sort((a, b) => a.path.localeCompare(b.path));
 
   const openMetaDialog = (path?: string) => {
     setError("");
@@ -654,10 +726,10 @@ export default function AdminSeoPage() {
                 <p>
                   Every page carries hidden tags — a <strong>meta title</strong> (the headline Google shows), a{" "}
                   <strong>meta description</strong> (the summary under it) and <strong>social share tags</strong> (the preview
-                  when shared on Facebook/WhatsApp). Each page ships with sensible defaults; this tab lets you override them
-                  per page. Fields you leave blank keep the page&rsquo;s default, so you only override what you want to change.
-                  Click <strong>Auto-Fetch Pages</strong> to pull in every real product, category, brand and blog URL with its
-                  current default meta — then edit and save only the ones you want to change.
+                  when shared on Facebook/WhatsApp). This list shows the pages you&rsquo;re actively managing. Click{" "}
+                  <strong>Auto-Fetch Pages</strong> to browse every real product, category, brand and blog URL, tick the ones
+                  you want, and add them here — each starts with its current default meta, ready to edit. Deleting a page from
+                  this list removes your override and reverts it to its built-in default across the whole site.
                 </p>
               </CardContent>
             </Card>
@@ -681,23 +753,26 @@ export default function AdminSeoPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                {(fetchSummary || allTypes.length > 1) && (
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-                    {fetchSummary && <p className="text-xs text-success flex items-center gap-1.5"><Check className="h-3.5 w-3.5" /> {fetchSummary}</p>}
-                    {discovered.length > 0 && (
-                      <div className="sm:ml-auto w-full sm:w-44">
-                        <Select value={pageTypeFilter} onValueChange={setPageTypeFilter}>
-                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All page types</SelectItem>
-                            {allTypes.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                            {customRows.length > 0 && <SelectItem value="Custom">Custom</SelectItem>}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
+                {allTypes.length > 1 && (
+                  <div className="flex justify-end mb-4">
+                    <div className="w-full sm:w-44">
+                      <Select value={pageTypeFilter} onValueChange={setPageTypeFilter}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All page types</SelectItem>
+                          {allTypes.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 )}
+                {pageList.length === 0 ? (
+                  <EmptyState
+                    icon={FileText}
+                    title="No pages added yet"
+                    description="Click Auto-Fetch Pages to pick products, categories, brands and blog posts to manage — or Add Page to enter a URL by hand."
+                  />
+                ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -718,7 +793,6 @@ export default function AdminSeoPage() {
                     </thead>
                     <tbody>
                       {pageList.map(({ path, label, row }) => {
-                        const def = defaultFor(path);
                         return (
                         <tr key={path} className="border-b border-border/20 hover:bg-pearl/50 transition-colors">
                           <td className="px-4 py-3">
@@ -730,8 +804,6 @@ export default function AdminSeoPage() {
                           <td className="px-4 py-3 text-charcoal-light max-w-[280px]">
                             {row?.meta_title || row?.title ? (
                               <span className="line-clamp-1">{row.meta_title || row.title}</span>
-                            ) : def ? (
-                              <span className="line-clamp-1 text-charcoal-lighter">{def.default_title} <span className="text-[9px] italic">(default)</span></span>
                             ) : (
                               <span className="text-charcoal-lighter/60 italic">Using page default</span>
                             )}
@@ -768,6 +840,7 @@ export default function AdminSeoPage() {
                     </tbody>
                   </table>
                 </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -1116,6 +1189,86 @@ export default function AdminSeoPage() {
             <AdminButton onClick={saveMeta} disabled={savingMeta || !metaForm.page_path.trim()}>
               {savingMeta ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : null}
               Save Page Meta
+            </AdminButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════════ AUTO-FETCH PICKER MODAL ═══════════ */}
+      <Dialog open={fetchModalOpen} onOpenChange={setFetchModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Add Pages to Manage</DialogTitle>
+            <DialogDescription>
+              Every real page on your site with its current default meta. Tick the ones you want to manage, then add them —
+              each is stored with its default title/description so it&rsquo;s ready to edit and takes effect on that exact page.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-charcoal-lighter" />
+              <input
+                value={fetchSearch}
+                onChange={(e) => setFetchSearch(e.target.value)}
+                placeholder="Search by URL or title…"
+                className="w-full h-9 pl-9 pr-3 rounded-luxury bg-beige-dark/70 shadow-[inset_0_0_0_1px_rgba(58,36,56,0.06)] text-sm text-charcoal placeholder:text-charcoal-lighter/50 focus:bg-white focus:shadow-[inset_0_0_0_1.5px_var(--color-secondary)] focus:outline-none transition-all"
+              />
+            </div>
+            <div className="w-full sm:w-44">
+              <Select value={fetchTypeFilter} onValueChange={setFetchTypeFilter}>
+                <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All page types</SelectItem>
+                  {discoveredTypes.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between px-1 py-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Checkbox
+                checked={modalPages.length > 0 && modalPages.every((p) => selectedPaths.has(p.path))}
+                onCheckedChange={toggleSelectAll}
+              />
+              <span className="text-xs text-charcoal-light">Select all shown ({modalPages.length})</span>
+            </label>
+            <span className="text-xs font-medium text-secondary">{selectedPaths.size} selected</span>
+          </div>
+
+          <div className="flex-1 overflow-y-auto -mx-1 px-1 space-y-1 min-h-0">
+            {modalPages.length === 0 ? (
+              <p className="text-sm text-charcoal-lighter text-center py-8">
+                {discovered.length === 0 ? "No pages found." : "Every matching page is already in your list."}
+              </p>
+            ) : (
+              modalPages.map((p) => (
+                <label
+                  key={p.path}
+                  className={cn(
+                    "flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors",
+                    selectedPaths.has(p.path) ? "border-secondary/40 bg-secondary/5" : "border-border/40 hover:bg-pearl/50"
+                  )}
+                >
+                  <Checkbox checked={selectedPaths.has(p.path)} onCheckedChange={() => toggleSelected(p.path)} className="mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono text-charcoal break-all">{p.path}</span>
+                      <Badge variant="outline" className="text-[8px] shrink-0">{p.label}</Badge>
+                    </div>
+                    <p className="text-[11px] text-charcoal-lighter line-clamp-1 mt-0.5">{p.default_title}</p>
+                  </div>
+                </label>
+              ))
+            )}
+          </div>
+
+          <DialogFooter>
+            <AdminButton variant="outline" onClick={() => setFetchModalOpen(false)}>Cancel</AdminButton>
+            <AdminButton onClick={addSelectedToList} disabled={addingSelected || selectedPaths.size === 0}>
+              {addingSelected ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+              Add {selectedPaths.size > 0 ? `${selectedPaths.size} ` : ""}to List
             </AdminButton>
           </DialogFooter>
         </DialogContent>
