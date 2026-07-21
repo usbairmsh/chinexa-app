@@ -30,8 +30,13 @@ interface CartState {
   appliedOffers: AppliedOffer[];
   offerLines: OfferLine[];
 
-  addItem: (item: CartItem) => void;
+  /** Adds an item. Returns "mixed" (and adds nothing) when the item's
+   *  pre-order mode conflicts with what's already in the cart — pre-order and
+   *  in-stock items must be checked out separately. Returns "ok" otherwise. */
+  addItem: (item: CartItem) => "ok" | "mixed";
   removeItem: (id: string) => void;
+  /** True when the cart currently holds at least one pre-order line. */
+  isPreorderCart: () => boolean;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
   applyCoupon: (code: string, discount: number, type?: "percentage" | "fixed", value?: number, maxDiscount?: number | null) => void;
@@ -62,22 +67,38 @@ export const useCartStore = create<CartState>()(
       offerLines: [],
 
       addItem: (item) => {
-        set((state) => {
-          const existing = state.items.find(
+        const state = get();
+        // Separate-checkout rule: a cart is either all pre-order or all in-stock.
+        // If the incoming item's mode differs from the existing cart, reject it
+        // (the caller surfaces a "check out separately" message) rather than
+        // silently mixing timelines.
+        const incomingPreorder = !!item.isPreorder;
+        const cartHasPreorder = state.items.some((i) => i.isPreorder);
+        const cartHasInStock = state.items.some((i) => !i.isPreorder);
+        if (state.items.length > 0 && ((incomingPreorder && cartHasInStock) || (!incomingPreorder && cartHasPreorder))) {
+          return "mixed";
+        }
+        set((s) => {
+          const existing = s.items.find(
             (i) => i.product_id === item.product_id && i.variant_id === item.variant_id
           );
           if (existing) {
             return {
-              items: state.items.map((i) =>
+              items: s.items.map((i) =>
                 i.product_id === item.product_id && i.variant_id === item.variant_id
-                  ? { ...i, quantity: Math.min(i.quantity + item.quantity, i.stock) }
+                  // Pre-order lines have no real stock to clamp against, so only
+                  // clamp in-stock lines to their available stock.
+                  ? { ...i, quantity: item.isPreorder ? i.quantity + item.quantity : Math.min(i.quantity + item.quantity, i.stock) }
                   : i
               ),
             };
           }
-          return { items: [...state.items, { ...item, id: `cart-${Date.now()}` }] };
+          return { items: [...s.items, { ...item, id: `cart-${Date.now()}` }] };
         });
+        return "ok";
       },
+
+      isPreorderCart: () => get().items.some((i) => i.isPreorder),
 
       removeItem: (id) => {
         set((state) => ({ items: state.items.filter((i) => i.id !== id) }));
@@ -88,7 +109,8 @@ export const useCartStore = create<CartState>()(
           items: quantity <= 0
             ? state.items.filter((i) => i.id !== id)
             : state.items.map((i) =>
-                i.id === id ? { ...i, quantity: Math.min(quantity, i.stock) } : i
+                // Pre-order lines aren't bounded by stock (there is none yet).
+                i.id === id ? { ...i, quantity: i.isPreorder ? quantity : Math.min(quantity, i.stock) } : i
               ),
         }));
       },

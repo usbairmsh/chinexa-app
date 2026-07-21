@@ -14,11 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth.store";
 
 // Admin status → Customer-friendly label
 const customerStatusLabels: Record<string, string> = {
+  preorder: "Pre-order Reserved",
   pending: "Order Placed",
   confirmed: "Order Confirmed",
   processing: "Processing",
@@ -51,6 +52,8 @@ interface OrderData {
   id: string;
   order_number: string;
   status: string;
+  is_preorder?: number | boolean;
+  preorder_expected_date?: string | null;
   payment_method: string;
   payment_status: string;
   transaction_id?: string;
@@ -175,6 +178,19 @@ export default function OrderDetailPage() {
         </div>
         <Badge variant={statusVariant} className="shrink-0">{customerStatus}</Badge>
       </motion.div>
+
+      {order.status === "preorder" && (
+        <div className="flex items-start gap-2.5 rounded-xl border border-secondary/20 bg-secondary/[0.06] px-4 py-3">
+          <Clock className="h-4 w-4 text-secondary shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-semibold text-charcoal">Pre-order reserved · Pay on delivery</p>
+            <p className="text-xs text-charcoal-lighter mt-0.5">
+              You&apos;ll pay the full amount as cash on delivery once this item is in stock and shipped
+              {order.preorder_expected_date ? <> — expected around <span className="font-medium text-charcoal">{formatDateShort(order.preorder_expected_date)}</span></> : ""}.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-5 gap-4 sm:gap-5">
         {/* Main — Items + Timeline */}

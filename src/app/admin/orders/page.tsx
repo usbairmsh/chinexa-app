@@ -25,7 +25,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { formatCurrency, formatDateShort, getInitials, cn } from "@/lib/utils";
 import { useAdmin } from "@/contexts/admin-context";
 
-type OrderStatus = "pending" | "confirmed" | "processing" | "shipped" | "on_delivery" | "received" | "not_received" | "cancelled" | "returned";
+type OrderStatus = "preorder" | "pending" | "confirmed" | "processing" | "shipped" | "on_delivery" | "received" | "not_received" | "cancelled" | "returned";
 type PaymentStatus = "pending" | "paid" | "refunded";
 
 interface Order {
@@ -34,6 +34,7 @@ interface Order {
 }
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; bg: string; icon: typeof Clock }> = {
+  preorder: { label: "Pre-order", color: "text-secondary", bg: "bg-secondary/10", icon: Clock },
   pending: { label: "Pending", color: "text-warning", bg: "bg-warning/10", icon: Clock },
   confirmed: { label: "Confirmed", color: "text-blue-500", bg: "bg-blue-50", icon: CheckCircle2 },
   processing: { label: "Processing", color: "text-secondary", bg: "bg-secondary/10", icon: Package },
@@ -56,7 +57,7 @@ const FALLBACK_STATUS = { label: "Unknown", color: "text-charcoal-lighter", bg: 
 const statusOf = (s: OrderStatus) => statusConfig[s] || FALLBACK_STATUS;
 
 const nextStatus: Partial<Record<OrderStatus, OrderStatus>> = {
-  pending: "confirmed", confirmed: "processing", processing: "shipped", shipped: "on_delivery", on_delivery: "received",
+  preorder: "confirmed", pending: "confirmed", confirmed: "processing", processing: "shipped", shipped: "on_delivery", on_delivery: "received",
 };
 
 const PAGE_SIZE = 20;
@@ -85,6 +86,8 @@ export default function OrderManagementPage() {
   const [newStatus, setNewStatus] = useState<OrderStatus | "">("");
   const [cancelDialog, setCancelDialog] = useState<Order | null>(null);
   const [advanceDialog, setAdvanceDialog] = useState<Order | null>(null);
+  const [advanceError, setAdvanceError] = useState<string>("");
+  const [advancing, setAdvancing] = useState(false);
   const [archiveDialog, setArchiveDialog] = useState<Order | null>(null);
 
   // Debounce the search box — avoid firing a request on every keystroke
@@ -180,6 +183,7 @@ export default function OrderManagementPage() {
   const handleQuickAdvance = (order: Order) => {
     const next = nextStatus[order.status];
     if (!next) return;
+    setAdvanceError("");
     setAdvanceDialog(order);
   };
 
@@ -187,13 +191,31 @@ export default function OrderManagementPage() {
     if (!advanceDialog) return;
     const next = nextStatus[advanceDialog.status];
     if (!next) return;
-    await fetch(`/api/orders/${advanceDialog.dbId}`, {
-      method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: next }),
-    }).catch(() => {});
-    triggerDashboardRefresh();
-    setAdvanceDialog(null);
-    fetchOrders(); fetchCounts();
+    setAdvancing(true);
+    setAdvanceError("");
+    try {
+      const res = await fetch(`/api/orders/${advanceDialog.dbId}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: next }),
+      });
+      if (!res.ok) {
+        // Most important case: fulfilling a pre-order whose product hasn't been
+        // restocked yet → 409 with an "out_of_stock" list. Keep the dialog open
+        // and tell the admin exactly what to restock.
+        const data = await res.json().catch(() => ({}));
+        const detail = Array.isArray(data.out_of_stock) && data.out_of_stock.length > 0 ? ` (${data.out_of_stock.join("; ")})` : "";
+        setAdvanceError((data.error || "Failed to update the order.") + detail);
+        setAdvancing(false);
+        return;
+      }
+      triggerDashboardRefresh();
+      setAdvanceDialog(null);
+      fetchOrders(); fetchCounts();
+    } catch {
+      setAdvanceError("Network error — please try again.");
+    } finally {
+      setAdvancing(false);
+    }
   };
 
   const handleArchiveToggle = async () => {
@@ -213,6 +235,7 @@ export default function OrderManagementPage() {
 
   const tabs: { id: "all" | OrderStatus; label: string; count: number }[] = [
     { id: "all", label: "All", count: totalCount },
+    { id: "preorder", label: "Pre-orders", count: statusCounts.preorder || 0 },
     { id: "pending", label: "Pending", count: statusCounts.pending || 0 },
     { id: "confirmed", label: "Confirmed", count: statusCounts.confirmed || 0 },
     { id: "processing", label: "Processing", count: statusCounts.processing || 0 },
@@ -369,11 +392,13 @@ export default function OrderManagementPage() {
                               <Eye className="h-3 w-3" /> <span className="hidden xl:inline">View</span>
                             </Link>
 
-                            {/* Advance Status */}
+                            {/* Advance Status — for a pre-order this is the
+                                "Fulfil Pre-Order" step (deducts stock, converts
+                                it to a normal confirmed COD order). */}
                             {next && canHandleOrders ? (
                               <AdminButton variant="primary" size="xs" onClick={() => handleQuickAdvance(order)}
                                 className="!h-8 gap-1 px-2.5 text-[10px] !rounded-lg !bg-charcoal hover:!bg-secondary">
-                                <ArrowUpRight className="h-3 w-3" /> <span className="hidden xl:inline">{statusConfig[next].label}</span>
+                                <ArrowUpRight className="h-3 w-3" /> <span className="hidden xl:inline">{order.status === "preorder" ? "Fulfil" : statusConfig[next].label}</span>
                               </AdminButton>
                             ) : null}
 
@@ -468,8 +493,10 @@ export default function OrderManagementPage() {
       <Dialog open={!!advanceDialog} onOpenChange={(open) => !open && setAdvanceDialog(null)}>
         <DialogContent className="w-[95vw] max-w-sm">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><ArrowUpRight className="h-5 w-5 text-secondary" /> Advance Order Status</DialogTitle>
-            <DialogDescription>Confirm status change for this order</DialogDescription>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowUpRight className="h-5 w-5 text-secondary" /> {advanceDialog?.status === "preorder" ? "Fulfil Pre-Order" : "Advance Order Status"}
+            </DialogTitle>
+            <DialogDescription>{advanceDialog?.status === "preorder" ? "Convert this reservation into a confirmed order" : "Confirm status change for this order"}</DialogDescription>
           </DialogHeader>
           {advanceDialog && (() => {
             const next = nextStatus[advanceDialog.status];
@@ -497,15 +524,26 @@ export default function OrderManagementPage() {
                     </span>
                   </div>
                 </div>
-                <p className="text-xs text-charcoal-lighter text-center">
-                  The customer will be notified about this status change.
-                </p>
+                {advanceDialog.status === "preorder" ? (
+                  <p className="text-xs text-secondary text-center bg-secondary/[0.06] rounded-lg px-3 py-2">
+                    This deducts stock for the reserved item and turns it into a normal COD order. Make sure the product is restocked first.
+                  </p>
+                ) : (
+                  <p className="text-xs text-charcoal-lighter text-center">
+                    The customer will be notified about this status change.
+                  </p>
+                )}
+                {advanceError && (
+                  <p className="text-xs text-destructive text-center bg-destructive/5 rounded-lg px-3 py-2">{advanceError}</p>
+                )}
               </div>
             );
           })()}
           <DialogFooter>
             <AdminButton variant="outline" onClick={() => setAdvanceDialog(null)}>Cancel</AdminButton>
-            <AdminButton onClick={confirmAdvance}><Check className="h-3.5 w-3.5" /> Confirm</AdminButton>
+            <AdminButton onClick={confirmAdvance} isLoading={advancing} disabled={advancing}>
+              <Check className="h-3.5 w-3.5" /> {advanceDialog?.status === "preorder" ? "Fulfil Pre-Order" : "Confirm"}
+            </AdminButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>

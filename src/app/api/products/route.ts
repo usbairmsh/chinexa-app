@@ -9,6 +9,7 @@ import { ensureSearchIndexes } from "@/lib/migrate-search";
 import { ensureAccountingTables } from "@/lib/migrate-accounting";
 import { pingIndexNowUrl } from "@/lib/indexnow";
 import { getProductsList } from "@/lib/products";
+import { ensurePreorderColumns } from "@/lib/migrate-preorder";
 
 interface ProductRow extends RowDataPacket {
   id: string; name: string; slug: string; description: string; short_description: string;
@@ -96,6 +97,7 @@ export async function POST(req: NextRequest) {
     if (denied) return denied;
     await ensurePromotionColumns();
     await ensureAccountingTables();
+    await ensurePreorderColumns();
     const body = await req.json();
 
     // Validate required fields
@@ -132,8 +134,8 @@ export async function POST(req: NextRequest) {
     const sku = body.sku || `PRD-${Date.now().toString(36).toUpperCase()}`;
 
     await query(
-      `INSERT INTO products (id, name, slug, description, short_description, sku, price, compare_at_price, cost_price, currency, category_id, category_name, subcategory, brand_id, brand_name, tags, badges, trust_badges, stock_quantity, min_stock, max_stock, is_active, is_featured, country_of_origin, weight, ingredients, how_to_use, seo_title, seo_description)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'BDT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO products (id, name, slug, description, short_description, sku, price, compare_at_price, cost_price, currency, category_id, category_name, subcategory, brand_id, brand_name, tags, badges, trust_badges, stock_quantity, min_stock, max_stock, preorder_release_date, is_active, is_featured, country_of_origin, weight, ingredients, how_to_use, seo_title, seo_description)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'BDT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id, body.name, slug,
         body.description || "", body.short_description || "",
@@ -145,6 +147,7 @@ export async function POST(req: NextRequest) {
         JSON.stringify(body.tags || []), JSON.stringify(body.badges || []),
         JSON.stringify(body.trust_badges || []),
         Number(body.stock_quantity) || 0, Number(body.min_stock) || 10, Number(body.max_stock) || 100,
+        body.preorder_release_date || null,
         body.is_active !== false ? 1 : 0, body.is_featured ? 1 : 0,
         body.country_of_origin || null, body.weight || null,
         body.ingredients || null, body.how_to_use || null,

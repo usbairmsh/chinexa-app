@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Heart, ShoppingBag, Minus, Plus, Check, X } from "lucide-react";
+import { Heart, ShoppingBag, Minus, Plus, Check, X, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -12,6 +12,8 @@ import { useWishlistStore } from "@/stores/wishlist.store";
 import { useUIStore } from "@/stores/ui.store";
 import { formatCurrency, cn } from "@/lib/utils";
 import { backdropClose } from "@/lib/modal-backdrop";
+import { isPreorderable as computeIsPreorderable } from "@/lib/preorder";
+import { useStoreSettings } from "@/hooks/use-store-settings";
 import type { Product } from "@/types/product";
 
 interface ProductCardProps {
@@ -29,10 +31,17 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
   // ANY card's wishlist state changes, not just this one.
   const isWishlisted = useWishlistStore((s) => s.items.includes(product.id));
   const setCartDrawerOpen = useUIStore((s) => s.setCartDrawerOpen);
+  const { preorders_enabled } = useStoreSettings();
   const [mounted, setMounted] = useState(false);
   const wishlisted = mounted && isWishlisted;
 
   useEffect(() => setMounted(true), []);
+
+  // Out of stock + `preorder` badge + feature on → this card offers a Pre-Order
+  // action (linking to the detail page's full reservation flow) instead of a
+  // dead "Out of Stock" state. Uses product-level stock; variant-level nuances
+  // are handled on the detail page.
+  const preorderable = computeIsPreorderable(product, product.stock_quantity, preorders_enabled);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
@@ -158,6 +167,13 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
                       <Heart className={cn("h-[18px] w-[18px]", wishlisted && "fill-current")} />
                     </button>
                   </div>
+                ) : preorderable ? (
+                  // Pre-order: let the click bubble to the parent Link → detail
+                  // page, where quantity/variant selection + expected date live.
+                  <div className="w-full h-12 flex items-center justify-center gap-2 rounded-full bg-secondary text-[14px] font-body font-semibold tracking-wide hover:bg-secondary-dark active:scale-[0.96] transition-all duration-300 !text-white">
+                    <Clock className="h-[18px] w-[18px]" />
+                    Pre-Order
+                  </div>
                 ) : (
                   <div className="w-full h-12 flex items-center justify-center rounded-full bg-charcoal/80 text-white text-[14px] font-semibold cursor-not-allowed">
                     Out of Stock
@@ -229,6 +245,12 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
                   <Heart className={cn("h-3.5 w-3.5 sm:h-4 sm:w-4", wishlisted && "fill-current")} />
                 </button>
               </>
+            ) : preorderable ? (
+              // Bubbles to the parent Link → detail page's pre-order flow.
+              <div className="flex-1 h-9 sm:h-10 flex items-center justify-center gap-1.5 rounded-full bg-secondary !text-white text-[11px] sm:text-xs font-semibold tracking-wide active:scale-[0.96] transition-transform">
+                <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                Pre-Order
+              </div>
             ) : (
               <div className="flex-1 h-9 sm:h-10 flex items-center justify-center rounded-full bg-pearl text-charcoal-lighter text-[11px] sm:text-xs font-semibold">
                 Out of Stock

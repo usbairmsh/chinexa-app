@@ -42,6 +42,8 @@ export interface Product {
   stock_quantity: number;
   min_stock: number;
   max_stock: number;
+  /** Optional "expected availability" date (YYYY-MM-DD) shown for pre-order products. */
+  preorder_release_date?: string;
   is_active: boolean;
   is_featured: boolean;
   average_rating: number;
@@ -92,6 +94,7 @@ export interface CreateProductDTO {
   stock_quantity: number;
   min_stock?: number;
   max_stock?: number;
+  preorder_release_date?: string | null;
   is_active: boolean;
   is_featured: boolean;
   country_of_origin?: string;

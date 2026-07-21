@@ -9,6 +9,7 @@ import { publicServerError } from "@/lib/validate";
 import { requirePermission } from "@/lib/admin-permissions-server";
 import { getVerifiedAdminId } from "@/lib/admin-session";
 import { ensureOrderArchiveColumns } from "@/lib/migrate-order-archive";
+import { ensurePreorderColumns } from "@/lib/migrate-preorder";
 
 function normalizePhone(phone: string): string {
   const cleaned = phone.replace(/[\s-]/g, "");
@@ -136,6 +137,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     await ensureAccountingTables();
     await ensureOrderArchiveColumns();
+    await ensurePreorderColumns();
     const { id: paramId } = await params;
     const body = await req.json();
 
@@ -188,6 +190,34 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       if (denied) return denied;
     }
 
+    // ─── Fulfilling a pre-order (preorder → confirmed) ───
+    // A pre-order reserved an out-of-stock product and deducted nothing. To
+    // fulfil it the stock must ACTUALLY be there now — otherwise deductStock
+    // (which floors at 0) would silently confirm an order against stock that
+    // doesn't exist. Validate real availability first and tell the admin to
+    // restock if short. Cancelling a pre-order needs no such check (nothing
+    // was ever deducted).
+    if (prevStatus === "preorder" && body.status && body.status === "confirmed") {
+      const [items] = await pool.execute<RowDataPacket[]>(
+        "SELECT oi.product_id, oi.variant_id, oi.quantity, oi.product_name, p.stock_quantity AS product_stock, pv.stock AS variant_stock FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id LEFT JOIN product_variants pv ON pv.id = oi.variant_id WHERE oi.order_id = ?",
+        [id]
+      );
+      const short: string[] = [];
+      for (const it of items) {
+        if (!it.product_id) continue;
+        const available = it.variant_id != null ? Number(it.variant_stock) : Number(it.product_stock);
+        if (!Number.isFinite(available) || available < Number(it.quantity)) {
+          short.push(`${it.product_name} (need ${it.quantity}, have ${Number.isFinite(available) ? available : 0})`);
+        }
+      }
+      if (short.length > 0) {
+        return NextResponse.json({
+          error: "Restock the product before fulfilling this pre-order.",
+          out_of_stock: short,
+        }, { status: 409 });
+      }
+    }
+
     if (body.status && body.status !== prevStatus) {
       const newStatus = body.status as string;
       const paymentMethod = (order.payment_method as string || "").toLowerCase();
@@ -195,6 +225,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const stockDeducted = Boolean(order.stock_deducted);
       const revenueCounted = Boolean(order.revenue_counted);
       const orderTotal = Number(order.total) || 0;
+      const wasPreorder = prevStatus === "preorder";
 
       // ─── All stock/financial operations in a single transaction ───
       const conn = await pool.getConnection();
@@ -265,11 +296,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           }
         }
 
-        // ─── CONFIRMED: if stock was restored (e.g. re-confirming after cancel), deduct again ───
+        // ─── CONFIRMED: if stock was restored (e.g. re-confirming after cancel)
+        // OR this is a pre-order being fulfilled, deduct stock now. Stock
+        // availability for a pre-order fulfilment was validated above the
+        // transaction, so GREATEST-flooring can't hide a shortfall here. ───
         if (newStatus === "confirmed") {
           if (!stockDeducted) {
             await deductStock(conn, id);
             await conn.execute("UPDATE orders SET stock_deducted = TRUE WHERE id = ?", [id]);
+          }
+          // Fulfilling a pre-order: it's now an ordinary order, no longer a
+          // reservation. Clear the flag so it leaves the pre-order queue.
+          if (wasPreorder) {
+            await conn.execute("UPDATE orders SET is_preorder = 0 WHERE id = ?", [id]);
           }
           // Non-COD: mark payment as paid on confirmation
           if (!isCOD && order.payment_status !== "paid") {
@@ -308,13 +347,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       // ─── Non-transactional side effects ───
 
       // Timeline
+      const defaultNote = wasPreorder && newStatus === "confirmed"
+        ? "Pre-order fulfilled — stock reserved, ships as COD"
+        : `Status changed to ${newStatus}`;
       await execute("INSERT INTO order_timeline (order_id, status, note) VALUES (?, ?, ?)",
-        [id, newStatus, body.note || `Status changed to ${newStatus}`]);
+        [id, newStatus, body.note || defaultNote]);
 
       // Customer notification
       if (order.customer_id) {
         const notifMessages: Record<string, { title: string; message: string; type: string }> = {
-          confirmed: { title: "Order Confirmed", message: `Your order ${order.order_number} has been confirmed and is being prepared.`, type: "order" },
+          confirmed: wasPreorder
+            ? { title: "Pre-order Available!", message: `Great news — your pre-ordered item on order ${order.order_number} is now in stock and being prepared for delivery.`, type: "order" }
+            : { title: "Order Confirmed", message: `Your order ${order.order_number} has been confirmed and is being prepared.`, type: "order" },
           processing: { title: "Order Processing", message: `Your order ${order.order_number} is being processed.`, type: "order" },
           shipped: { title: "Order Shipped!", message: `Your order ${order.order_number} has been shipped and is on its way.`, type: "order" },
           on_delivery: { title: "Out for Delivery", message: `Your order ${order.order_number} is out for delivery. It will arrive soon!`, type: "order" },

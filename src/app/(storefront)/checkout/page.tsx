@@ -57,7 +57,8 @@ function isValidEmail(email: string): boolean {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, getSubtotal, clearCart, couponCode, getDiscount, getSavings, appliedOffers, applyCoupon, removeCoupon, refreshOffers } = useCartStore();
+  const { items, getSubtotal, clearCart, couponCode, getDiscount, getSavings, appliedOffers, applyCoupon, removeCoupon, refreshOffers, isPreorderCart } = useCartStore();
+  const preorderCart = isPreorderCart();
   const storeSettings = useStoreSettings();
   const dbPaymentMethods = storeSettings.payment_methods.filter((m) => m.enabled);
   // Only fall back to the built-in method list once settings have actually
@@ -72,6 +73,13 @@ export default function CheckoutPage() {
   const { freeDeliveryEnabled, freeDeliveryThreshold, zones, expressEnabled, expressCharge, expressDivision } = useDeliveryStore();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  // Pre-orders are COD-only (reserve now, pay on delivery). Force COD and keep
+  // it locked while the cart is a pre-order cart, so no online-payment step ever
+  // applies to a reservation.
+  useEffect(() => {
+    if (preorderCart) setPaymentMethod("COD");
+  }, [preorderCart]);
 
   const [step, setStep] = useState(1);
   const [highestStep, setHighestStep] = useState(1);
@@ -880,7 +888,19 @@ export default function CheckoutPage() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <h2 className="font-heading text-xl font-semibold text-charcoal">Payment Method</h2>
 
-                {!storeSettings.loaded ? (
+                {preorderCart ? (
+                  // Pre-order carts are Cash on Delivery only — no online payment
+                  // for a reservation. Lock the method and explain why.
+                  <div className="rounded-xl border border-secondary/20 bg-secondary/[0.06] p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Clock className="h-4 w-4 text-secondary" />
+                      <span className="text-sm font-semibold text-charcoal">Pre-order · Cash on Delivery</span>
+                    </div>
+                    <p className="text-xs text-charcoal-lighter">
+                      Nothing is charged now. You&apos;ll pay the full amount on delivery, once your pre-ordered item is in stock and shipped.
+                    </p>
+                  </div>
+                ) : !storeSettings.loaded ? (
                   <div className="h-11 rounded-xl bg-pearl animate-pulse" />
                 ) : (
                   <div>
@@ -1063,7 +1083,7 @@ export default function CheckoutPage() {
                 <div className="flex flex-col-reverse sm:flex-row gap-3">
                   <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
                   <Button variant="secondary" size="lg" className="w-full sm:w-auto !text-white" onClick={handlePlaceOrderClick} isLoading={placing} disabled={placing}>
-                    {placing ? "Placing Order..." : `Place Order — ${formatCurrency(finalTotal)}`}
+                    {placing ? (preorderCart ? "Placing Pre-Order..." : "Placing Order...") : preorderCart ? `Place Pre-Order — ${formatCurrency(finalTotal)}` : `Place Order — ${formatCurrency(finalTotal)}`}
                   </Button>
                 </div>
               </motion.div>

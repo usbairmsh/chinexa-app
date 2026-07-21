@@ -9,6 +9,8 @@ import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { ensureAccountingTables } from "@/lib/migrate-accounting";
 import { enrichCartItems, getActiveOffers, bestOfferPerLine, validateCoupon, getCustomerTier, type PromoContext } from "@/lib/promotions";
 import { ensureOrderArchiveColumns } from "@/lib/migrate-order-archive";
+import { ensurePreorderColumns, preordersEnabled } from "@/lib/migrate-preorder";
+import { hasPreorderBadge } from "@/lib/preorder";
 
 interface OrderRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -145,6 +147,7 @@ export async function POST(req: NextRequest) {
     await ensureColumns();
     await ensurePromotionColumns();
     await ensureAccountingTables();
+    await ensurePreorderColumns();
     const body = await req.json();
     const err = validate([
       { field: "customer_name", value: body.customer_name, rules: ["required", "string", { maxLength: 100 }], label: "Customer name" },
@@ -306,12 +309,18 @@ export async function POST(req: NextRequest) {
     }
 
     // ─── ATOMIC STOCK VALIDATION + DEDUCTION in single transaction ───
+    const preordersOn = await preordersEnabled();
+    // Hoisted so the post-transaction timeline note can reflect pre-order state.
+    let isPreorderOrder = false;
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
 
       const outOfStock: string[] = [];
       const costByItemIndex = new Map<number, number>();
+      // Per-line pre-order flag: a line is a pre-order when its product is out
+      // of stock AND carries the `preorder` badge AND the store feature is on.
+      const preorderByItemIndex = new Map<number, boolean>();
 
       // Batch the row-locking stock reads into two queries (variants, plain
       // products) instead of one FOR UPDATE per cart line — cuts how long the
@@ -323,6 +332,48 @@ export async function POST(req: NextRequest) {
         if (item.variant_id) variantIndices.push(idx);
         else plainIndices.push(idx);
       });
+
+      // Pre-order eligibility keys off the PARENT product (stock_quantity 0 +
+      // `preorder` badge), so read badges + parent stock for every product in
+      // the cart, variant lines included. release_date snapshots onto the order.
+      let expectedDate: string | null = null;
+      const productIdsAll = Array.from(
+        new Set(body.items.map((it: { product_id?: string }) => it.product_id).filter(Boolean) as string[])
+      );
+      const preorderByProductId = new Map<string, boolean>();
+      if (preordersOn && productIdsAll.length > 0) {
+        const ph = productIdsAll.map(() => "?").join(",");
+        const [prows] = await conn.execute<StockRow[]>(
+          `SELECT id, stock_quantity, badges, preorder_release_date FROM products WHERE id IN (${ph})`,
+          productIdsAll
+        );
+        for (const r of prows) {
+          const oos = Number(r.stock_quantity) === 0;
+          const isPre = oos && hasPreorderBadge({ badges: r.badges as string });
+          preorderByProductId.set(r.id as string, isPre);
+          if (isPre && r.preorder_release_date) {
+            const d = String(r.preorder_release_date).slice(0, 10);
+            if (!expectedDate || d > expectedDate) expectedDate = d; // latest across lines
+          }
+        }
+      }
+      body.items.forEach((item: { product_id?: string }, idx: number) => {
+        preorderByItemIndex.set(idx, !!(item.product_id && preorderByProductId.get(item.product_id)));
+      });
+
+      const preorderCount = Array.from(preorderByItemIndex.values()).filter(Boolean).length;
+      isPreorderOrder = preorderCount > 0;
+
+      // Separate-checkout rule: a cart must be all pre-order or all in-stock,
+      // never mixed (they have different fulfilment timelines). The client
+      // prevents mixing; this enforces it server-side.
+      if (isPreorderOrder && preorderCount < body.items.length) {
+        await conn.rollback();
+        conn.release();
+        return NextResponse.json({
+          error: "Pre-order items must be checked out separately from in-stock items.",
+        }, { status: 400 });
+      }
 
       if (variantIndices.length > 0) {
         const variantIds = variantIndices.map((idx) => body.items[idx].variant_id);
@@ -338,8 +389,10 @@ export async function POST(req: NextRequest) {
           const item = body.items[idx];
           const row = byVariantId.get(item.variant_id);
           if (!row) continue;
+          // Pre-order lines bypass the stock check entirely (they're expected
+          // to be out of stock — that's the whole point).
           const available = Number(row.stock);
-          if (available < item.quantity) {
+          if (!preorderByItemIndex.get(idx) && available < item.quantity) {
             outOfStock.push(`${row.name} (only ${available} left, you requested ${item.quantity})`);
           }
           costByItemIndex.set(idx, (Number(row.cost_price) || 0) + (Number(row.cost_price_adjustment) || 0));
@@ -359,7 +412,7 @@ export async function POST(req: NextRequest) {
           const row = byProductId.get(item.product_id);
           if (!row) continue;
           const available = Number(row.stock_quantity);
-          if (available < item.quantity) {
+          if (!preorderByItemIndex.get(idx) && available < item.quantity) {
             outOfStock.push(`${row.name} (only ${available} left, you requested ${item.quantity})`);
           }
           costByItemIndex.set(idx, Number(row.cost_price) || 0);
@@ -375,28 +428,35 @@ export async function POST(req: NextRequest) {
         }, { status: 409 });
       }
 
-      // Stock is valid — deduct now inside the same transaction
-      for (const item of body.items) {
-        if (item.product_id) {
-          if (item.variant_id) {
+      // Stock is valid — deduct now inside the same transaction. Pre-orders
+      // deduct NOTHING: no stock exists yet; the admin deducts it later when
+      // fulfilling (converting preorder → confirmed).
+      if (!isPreorderOrder) {
+        for (const item of body.items) {
+          if (item.product_id) {
+            if (item.variant_id) {
+              await conn.execute(
+                "UPDATE product_variants SET stock = GREATEST(stock - ?, 0) WHERE id = ?",
+                [item.quantity, item.variant_id]
+              );
+            }
+            // Always deduct from parent product stock_quantity
             await conn.execute(
-              "UPDATE product_variants SET stock = GREATEST(stock - ?, 0) WHERE id = ?",
-              [item.quantity, item.variant_id]
+              "UPDATE products SET stock_quantity = GREATEST(stock_quantity - ?, 0) WHERE id = ?",
+              [item.quantity, item.product_id]
             );
           }
-          // Always deduct from parent product stock_quantity
-          await conn.execute(
-            "UPDATE products SET stock_quantity = GREATEST(stock_quantity - ?, 0) WHERE id = ?",
-            [item.quantity, item.product_id]
-          );
         }
       }
 
-      // Create the order inside the transaction
+      // Create the order inside the transaction. A pre-order starts in its own
+      // 'preorder' status (COD, unpaid, stock NOT deducted); everything else is
+      // the existing 'pending' + stock-deducted path, unchanged.
       const source = body.source === "manual" ? "manual" : "website";
+      const initialStatus = isPreorderOrder ? "preorder" : "pending";
       await conn.execute(
-        `INSERT INTO orders (id, order_number, customer_id, customer_name, customer_phone, subtotal, shipping_cost, discount, tax, total, status, payment_method, payment_status, transaction_id, coupon_code, stock_deducted, notes, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?)`,
-        [id, orderNumber, customerId, body.customer_name, body.customer_phone, body.subtotal || 0, body.shipping_cost || 0, body.discount || 0, body.tax || 0, body.total || 0, "pending", (body.payment_method || "COD").toUpperCase(), "pending", body.transaction_id || null, body.coupon_code || null, body.notes || null, source]
+        `INSERT INTO orders (id, order_number, customer_id, customer_name, customer_phone, subtotal, shipping_cost, discount, tax, total, status, payment_method, payment_status, transaction_id, coupon_code, stock_deducted, is_preorder, preorder_expected_date, notes, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, orderNumber, customerId, body.customer_name, body.customer_phone, body.subtotal || 0, body.shipping_cost || 0, body.discount || 0, body.tax || 0, body.total || 0, initialStatus, (body.payment_method || "COD").toUpperCase(), "pending", body.transaction_id || null, body.coupon_code || null, isPreorderOrder ? 0 : 1, isPreorderOrder ? 1 : 0, isPreorderOrder ? expectedDate : null, body.notes || null, source]
       );
 
       // Order items
@@ -404,8 +464,8 @@ export async function POST(req: NextRequest) {
         for (let i = 0; i < body.items.length; i++) {
           const item = body.items[i];
           await conn.execute(
-            "INSERT INTO order_items (id, order_id, product_id, variant_id, product_name, product_image, product_slug, variant, quantity, unit_price, total_price, cost_price_snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [`oi-${id}-${i}`, id, item.product_id || null, item.variant_id || null, item.product_name, item.product_image || null, item.product_slug || null, item.variant || null, item.quantity, item.unit_price, item.total_price || item.unit_price * item.quantity, costByItemIndex.get(i) || 0]
+            "INSERT INTO order_items (id, order_id, product_id, variant_id, product_name, product_image, product_slug, variant, quantity, unit_price, total_price, cost_price_snapshot, is_preorder) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [`oi-${id}-${i}`, id, item.product_id || null, item.variant_id || null, item.product_name, item.product_image || null, item.product_slug || null, item.variant || null, item.quantity, item.unit_price, item.total_price || item.unit_price * item.quantity, costByItemIndex.get(i) || 0, preorderByItemIndex.get(i) ? 1 : 0]
           );
         }
       }
@@ -436,7 +496,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Timeline
-    await execute("INSERT INTO order_timeline (order_id, status, note) VALUES (?, 'pending', 'Order placed — stock reserved')", [id]);
+    if (isPreorderOrder) {
+      await execute("INSERT INTO order_timeline (order_id, status, note) VALUES (?, 'preorder', 'Pre-order placed — reserved, pay on delivery when stock arrives')", [id]);
+    } else {
+      await execute("INSERT INTO order_timeline (order_id, status, note) VALUES (?, 'pending', 'Order placed — stock reserved')", [id]);
+    }
 
     // Increment coupon usage count + mark this customer's assignment as used
     if (body.coupon_code) {

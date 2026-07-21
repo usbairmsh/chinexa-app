@@ -82,6 +82,7 @@ export const FOOTER_LINKS = {
     title: "Shop",
     links: [
       { label: "All Products", href: "/products" },
+      { label: "Pre-Order", href: "/categories/pre-orders" },
       { label: "Brands", href: "/brands" },
       { label: "Wishlist", href: "/wishlist" },
     ],

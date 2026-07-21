@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, X, Loader2, Tag } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, X, Loader2, Tag, Clock } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,10 +12,11 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useCartStore } from "@/stores/cart.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { PriceCalculator } from "@/components/storefront/cart/price-calculator";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDateShort } from "@/lib/utils";
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, getSubtotal, getShipping, getItemCount, couponCode, applyCoupon, removeCoupon, refreshOffers } = useCartStore();
+  const { items, removeItem, updateQuantity, getSubtotal, getShipping, getItemCount, couponCode, applyCoupon, removeCoupon, refreshOffers, isPreorderCart } = useCartStore();
+  const preorderCart = isPreorderCart();
   const storeUser = useAuthStore((s) => s.user);
   const storeAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const shouldReduceMotion = useReducedMotion();
@@ -137,6 +138,11 @@ export default function CartPage() {
                     {item.variant_name && (
                       <p className="text-xs sm:text-sm text-charcoal-lighter mt-1">{item.variant_name}</p>
                     )}
+                    {item.isPreorder && (
+                      <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-secondary/10 px-2 py-0.5 text-[10px] font-semibold text-secondary">
+                        <Clock className="h-2.5 w-2.5" /> Pre-order{item.preorderExpectedDate ? ` · expected ${formatDateShort(item.preorderExpectedDate)}` : ""}
+                      </span>
+                    )}
                     <p className="text-base sm:text-lg font-semibold text-charcoal mt-2">
                       {formatCurrency(item.price)}
                     </p>
@@ -221,9 +227,16 @@ export default function CartPage() {
               </div>
               )}
 
+              {preorderCart && (
+                <p className="flex items-start gap-1.5 text-xs text-secondary bg-secondary/[0.06] rounded-lg px-3 py-2 mt-4">
+                  <Clock className="h-3.5 w-3.5 shrink-0 mt-px" />
+                  This is a pre-order — nothing is charged now. You&apos;ll pay on delivery when your item arrives.
+                </p>
+              )}
+
               <Link href="/checkout" className="block mt-5">
                 <Button variant="secondary" size="lg" className="w-full !text-white">
-                  Checkout <ArrowRight className="h-4 w-4 ml-1" />
+                  {preorderCart ? "Place Pre-Order" : "Checkout"} <ArrowRight className="h-4 w-4 ml-1" />
                 </Button>
               </Link>
 

@@ -8,6 +8,7 @@ import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { ensureAccountingTables } from "@/lib/migrate-accounting";
 import { pingIndexNowUrl } from "@/lib/indexnow";
 import { getProductBySlugOrId } from "@/lib/products";
+import { ensurePreorderColumns } from "@/lib/migrate-preorder";
 import { validate, validationError, dependencyError, publicServerError } from "@/lib/validate";
 
 interface ProductRow extends RowDataPacket { [key: string]: unknown; }
@@ -30,6 +31,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (denied) return denied;
     await ensurePromotionColumns();
     await ensureAccountingTables();
+    await ensurePreorderColumns();
     const { id } = await params;
     const body = await req.json();
 
@@ -87,6 +89,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       brand_id: "brand_id", brand_name: "brand_name",
       is_active: "is_active", is_featured: "is_featured", country_of_origin: "country_of_origin",
       weight: "weight", ingredients: "ingredients", how_to_use: "how_to_use",
+      preorder_release_date: "preorder_release_date",
       seo_title: "seo_title", seo_description: "seo_description",
     };
     for (const [key, col] of Object.entries(map)) {
@@ -94,8 +97,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         fields.push(`${col} = ?`);
         let val = body[key];
         if (["is_active", "is_featured"].includes(key)) val = val ? 1 : 0;
-        // Convert empty strings to null for FK columns
-        if (["category_id", "category_name", "subcategory", "brand_id", "brand_name"].includes(key) && val === "") val = null;
+        // Convert empty strings to null for FK columns + the optional pre-order date
+        if (["category_id", "category_name", "subcategory", "brand_id", "brand_name", "preorder_release_date"].includes(key) && val === "") val = null;
         values.push(val);
       }
     }

@@ -253,6 +253,18 @@ export function Header() {
                   </AnimatePresence>
                 </div>
               ))}
+
+              {/* Pre-Order — fixed trailing item to the right of the fetched
+                  categories. Kept OUT of the navItems array so it always shows
+                  regardless of the categories fetch, and always stays last. */}
+              <Link
+                href="/categories/pre-orders"
+                onMouseEnter={() => setActiveMenu(null)}
+                className="relative inline-flex items-center gap-1.5 px-4 py-2 font-heading text-[15px] font-semibold tracking-[0.01em] text-secondary hover:text-secondary-dark transition-colors"
+              >
+                Pre-Order
+                <span className="text-[8px] font-bold bg-secondary text-white px-1.5 py-[1px] rounded-full leading-tight uppercase">New</span>
+              </Link>
             </nav>
 
             {/* ── RIGHT: Action Icons (visible on all screens) ── */}
@@ -583,6 +595,16 @@ export function Header() {
                       )}
                     </div>
                   ))}
+
+                  {/* Pre-Order — fixed trailing item, always shown last. */}
+                  <Link
+                    href="/categories/pre-orders"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-between py-2.5 px-2 rounded-xl font-heading text-[16px] font-semibold text-secondary hover:bg-primary-light transition-colors"
+                  >
+                    <span>Pre-Order</span>
+                    <span className="text-[8px] font-bold bg-secondary text-white px-1.5 py-[1px] rounded-full uppercase">New</span>
+                  </Link>
                 </nav>
 
                 {/* Mobile Footer Actions */}

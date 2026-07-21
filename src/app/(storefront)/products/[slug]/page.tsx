@@ -22,7 +22,8 @@ import { useWishlistStore } from "@/stores/wishlist.store";
 import { useUIStore } from "@/stores/ui.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { Textarea } from "@/components/ui/textarea";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
+import { isPreorderable as computeIsPreorderable } from "@/lib/preorder";
 import { getCountryFlag } from "@/lib/countries";
 import { useStoreSettings } from "@/hooks/use-store-settings";
 import { getIconById, type TrustBadge } from "@/lib/trust-badges";
@@ -81,8 +82,11 @@ export default function ProductDetailPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
-  const { free_delivery_threshold, loaded: storeSettingsLoaded } = useStoreSettings();
+  const { free_delivery_threshold, preorders_enabled, loaded: storeSettingsLoaded } = useStoreSettings();
   const [shared, setShared] = useState(false);
+  // Set when a pre-order add is blocked because the cart already holds in-stock
+  // items (or vice-versa) — pre-orders check out separately.
+  const [preorderMixWarning, setPreorderMixWarning] = useState(false);
 
   const handleShare = () => {
     const url = `${window.location.origin}/products/${product?.slug || ""}`;
@@ -211,9 +215,18 @@ export default function ProductDetailPage() {
     ? activeVariant.stock === 0
     : product.stock_quantity === 0;
 
-  const handleAddToCart = () => {
-    if (variantRequired || selectionOutOfStock) return;
-    addToCart({
+  // Pre-order applies to the CURRENT selection: out of stock + `preorder` badge
+  // + store feature on. When true, "Add to Bag" becomes "Pre-Order Now" and the
+  // item is reserved for COD-on-arrival instead of being sold from stock.
+  const isPreorderable = computeIsPreorderable(
+    product,
+    activeVariant ? activeVariant.stock : product.stock_quantity,
+    preorders_enabled
+  );
+  const preorderDate = product.preorder_release_date;
+
+  const addSelectionToCart = (asPreorder: boolean) => {
+    const result = addToCart({
       id: "",
       product_id: product.id,
       product_name: product.name,
@@ -226,12 +239,29 @@ export default function ProductDetailPage() {
       quantity,
       // "??" not "||": a variant with 0 stock must NOT fall back to product-level stock
       stock: activeVariant ? activeVariant.stock : product.stock_quantity,
+      isPreorder: asPreorder,
+      preorderExpectedDate: asPreorder ? preorderDate : undefined,
     });
+    if (result === "mixed") {
+      setPreorderMixWarning(true);
+      setTimeout(() => setPreorderMixWarning(false), 6000);
+      return;
+    }
     setAddedToCart(true);
     setTimeout(() => {
       setAddedToCart(false);
       setCartDrawerOpen(true);
     }, 800);
+  };
+
+  const handleAddToCart = () => {
+    if (variantRequired || selectionOutOfStock) return;
+    addSelectionToCart(false);
+  };
+
+  const handlePreorder = () => {
+    if (variantRequired || !isPreorderable) return;
+    addSelectionToCart(true);
   };
 
   return (
@@ -527,6 +557,108 @@ export default function ProductDetailPage() {
                       </AnimatePresence>
                     </button>
                   </div>
+
+                  {/* Wishlist + Share */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => toggleItem(product.id)}
+                      className={cn(
+                        "flex items-center gap-2 h-11 px-3 sm:px-5 rounded-full border text-xs sm:text-sm font-medium transition-all duration-200 flex-1 sm:flex-initial justify-center active:scale-[0.96]",
+                        wishlisted
+                          ? "border-secondary bg-secondary/5 text-secondary"
+                          : "border-border text-charcoal-light hover:border-charcoal hover:text-charcoal"
+                      )}
+                    >
+                      <Heart className={cn("h-4 w-4 shrink-0", wishlisted && "fill-current")} />
+                      <span className="truncate">{wishlisted ? "In Wishlist" : "Add to Wishlist"}</span>
+                    </button>
+                    <button
+                      onClick={handleShare}
+                      className={cn(
+                        "flex items-center gap-2 h-11 px-3 sm:px-5 rounded-full border text-xs sm:text-sm font-medium transition-all duration-300 shrink-0 active:scale-[0.96]",
+                        shared
+                          ? "border-success bg-success !text-white"
+                          : "border-border text-charcoal-light hover:border-charcoal hover:text-charcoal"
+                      )}
+                    >
+                      {shared ? <><Check className="h-4 w-4" /> <span className="hidden sm:inline">Link Copied!</span><span className="sm:hidden">Copied</span></> : <><Share2 className="h-4 w-4" /> Share</>}
+                    </button>
+                  </div>
+                </>
+              ) : isPreorderable ? (
+                <>
+                  {/* ── Pre-Order: out of stock + `preorder` badge + feature on.
+                      Reserve now, pay COD when it arrives (no money upfront). ── */}
+                  <div className="p-4 rounded-xl bg-secondary/[0.06] border border-secondary/20">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-secondary/10 px-2 py-0.5 text-[11px] font-semibold text-secondary">
+                        <Clock className="h-3 w-3" /> Pre-Order
+                      </span>
+                      {preorderDate && (
+                        <span className="text-[11px] text-charcoal-lighter">
+                          Expected around <span className="font-medium text-charcoal">{formatDateShort(preorderDate)}</span>
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-charcoal-lighter leading-relaxed">
+                      {activeVariant && activeVariant.stock === 0 && product.stock_quantity > 0
+                        ? <>The <span className="font-medium text-charcoal">{activeVariant.name}</span> option is out of stock — reserve it now and <span className="font-medium text-charcoal">pay on delivery</span> when it&apos;s back.</>
+                        : <>This item is out of stock — reserve it now and <span className="font-medium text-charcoal">pay on delivery</span> when it arrives.</>}
+                    </p>
+                  </div>
+
+                  {/* Quantity + Pre-Order Now */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center h-12 border border-border rounded-full overflow-hidden shrink-0">
+                      <button
+                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                        className="flex items-center justify-center w-11 h-full text-charcoal-lighter hover:text-charcoal hover:bg-pearl active:scale-[0.9] transition-all"
+                        aria-label="Decrease quantity"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+                      <span className="w-10 text-center text-sm font-semibold text-charcoal select-none">{quantity}</span>
+                      <button
+                        onClick={() => setQuantity(Math.min(10, quantity + 1))}
+                        className="flex items-center justify-center w-11 h-full text-charcoal-lighter hover:text-charcoal hover:bg-pearl active:scale-[0.9] transition-all"
+                        aria-label="Increase quantity"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <button
+                      onClick={handlePreorder}
+                      disabled={addedToCart || variantRequired}
+                      className={cn(
+                        "flex-1 h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
+                        addedToCart
+                          ? "bg-charcoal !text-white"
+                          : "bg-secondary !text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px] active:scale-[0.97]"
+                      )}
+                    >
+                      <AnimatePresence mode="wait">
+                        {addedToCart ? (
+                          <motion.span key="added" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex items-center justify-center gap-2 text-white">
+                            <Check className="h-5 w-5" /> Reserved
+                          </motion.span>
+                        ) : variantRequired ? (
+                          <motion.span key="select" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex items-center justify-center gap-2 text-white">
+                            <Clock className="h-5 w-5" /> Select an option
+                          </motion.span>
+                        ) : (
+                          <motion.span key="pre" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex items-center justify-center gap-2 text-white">
+                            <Clock className="h-5 w-5" /> Pre-Order Now
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                    </button>
+                  </div>
+
+                  {preorderMixWarning && (
+                    <p className="text-xs font-medium text-destructive">
+                      Pre-orders check out separately. Finish or clear your current bag first, then pre-order this item.
+                    </p>
+                  )}
 
                   {/* Wishlist + Share */}
                   <div className="flex gap-2">

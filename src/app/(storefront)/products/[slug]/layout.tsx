@@ -6,13 +6,15 @@ import { type RowDataPacket } from "mysql2/promise";
 import { ProductJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { getProductBySlugOrId } from "@/lib/products";
 import { pageMetadata, getSchemaConfig } from "@/lib/seo";
+import { isPreorderable } from "@/lib/preorder";
+import { preordersEnabled } from "@/lib/migrate-preorder";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
 
 interface LayoutProductRow extends RowDataPacket {
   id: string; name: string; short_description: string | null; description: string | null;
   price: number; compare_at_price: number | null; category_name: string | null; average_rating: number; review_count: number;
-  sku: string; stock_quantity: number;
+  sku: string; stock_quantity: number; badges: unknown; preorder_release_date: string | null;
 }
 
 // React's cache() dedupes this across generateMetadata + the layout body
@@ -24,7 +26,7 @@ interface LayoutProductRow extends RowDataPacket {
 // the shared query() helper the rest of the app uses.
 const getProductForLayout = cache(async (slug: string) => {
   const products = await query<LayoutProductRow[]>(
-    "SELECT id, name, short_description, description, price, compare_at_price, category_name, average_rating, review_count, sku, stock_quantity FROM products WHERE slug = ? AND is_active = 1 LIMIT 1",
+    "SELECT id, name, short_description, description, price, compare_at_price, category_name, average_rating, review_count, sku, stock_quantity, badges, preorder_release_date FROM products WHERE slug = ? AND is_active = 1 LIMIT 1",
     [slug]
   );
   if (products.length === 0) return null;
@@ -102,6 +104,13 @@ async function ProductStructuredData({ slug }: { slug: string }) {
     if (data) {
       const { product, imageUrl, variants, reviews } = data;
       const basePrice = Number(product.price);
+      // Pre-order signal for Google: out of stock + `preorder` badge + feature
+      // on → availability PreOrder (with availabilityStarts if a date is set).
+      const preorderable = isPreorderable(
+        { stock_quantity: Number(product.stock_quantity), badges: product.badges as string },
+        Number(product.stock_quantity),
+        await preordersEnabled()
+      );
       // The storefront shows no variant pre-selected on first paint (product
       // page starts with selectedVariant = null), so the price a shopper —
       // and Google's crawler — actually sees first is the first-listed
@@ -126,7 +135,8 @@ async function ProductStructuredData({ slug }: { slug: string }) {
         price: initialPrice,
         compareAtPrice: highPrice ? undefined : compareAtPrice,
         highPrice,
-        availability: (Number(product.stock_quantity) > 0 ? "InStock" : "OutOfStock") as "InStock" | "OutOfStock",
+        availability: (Number(product.stock_quantity) > 0 ? "InStock" : preorderable ? "PreOrder" : "OutOfStock") as "InStock" | "OutOfStock" | "PreOrder",
+        availabilityStarts: preorderable && product.preorder_release_date ? String(product.preorder_release_date).slice(0, 10) : undefined,
         rating: Number(product.average_rating) || undefined,
         reviewCount: Number(product.review_count) || undefined,
         reviews: reviews.map((r) => ({

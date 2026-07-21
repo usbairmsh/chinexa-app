@@ -141,6 +141,7 @@ export default function EditProductPage() {
   };
   const [isFeatured, setIsFeatured] = useState(false);
   const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
+  const [preorderDate, setPreorderDate] = useState("");
   const [variants, setVariants] = useState<VariantRow[]>([]);
   const [images, setImages] = useState<ImageRow[]>([]);
 
@@ -194,6 +195,7 @@ export default function EditProductPage() {
       setIsActive(!!p.is_active);
       setIsFeatured(!!p.is_featured);
       setSelectedBadges(Array.isArray(p.badges) ? p.badges : []);
+      setPreorderDate(p.preorder_release_date ? String(p.preorder_release_date).slice(0, 10) : "");
       // Build images — try to match with variants by image URL
       const loadedImages: ImageRow[] = (p.images || []).map((img: Record<string, unknown>, i: number) => {
         const matchedVariant = (p.variants || []).find((v: Record<string, unknown>) => v.image && v.image === img.url);
@@ -259,6 +261,7 @@ export default function EditProductPage() {
         trust_badges: selectedTrustBadges,
         seo_title: seoTitle.trim() || null, seo_description: seoDesc.trim() || null,
         is_active: isActive, is_featured: isFeatured, badges: selectedBadges,
+        preorder_release_date: selectedBadges.includes("preorder") ? (preorderDate || null) : null,
         images: images.filter((img) => img.url).map((img) => ({ url: img.url, alt: img.alt, variant_id: img.variant_id || null, focal_point: img.focal_point || null })),
         variants: variants.filter((v) => v.name).map((v) => {
           const linkedImg = images.find((img) => img.variant_id === v.id && img.url);
@@ -713,6 +716,25 @@ export default function EditProductPage() {
                   </button>
                 ))}
               </div>
+
+              {/* Pre-order settings — shown only when the Pre-order badge is on.
+                  Optional "expected availability" date; pre-orders are COD. */}
+              {selectedBadges.includes("preorder") && (
+                <div className="mt-4 pt-4 border-t border-border/40">
+                  <label className="block text-xs font-medium text-charcoal-light mb-1.5">
+                    Expected availability date <span className="text-charcoal-lighter font-normal">(optional)</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={preorderDate}
+                    onChange={(e) => setPreorderDate(e.target.value)}
+                    className="w-full h-10 px-3 rounded-luxury bg-beige-dark/70 shadow-[inset_0_0_0_1px_rgba(58,36,56,0.06)] text-sm text-charcoal focus:bg-white focus:shadow-[inset_0_0_0_1.5px_var(--color-secondary)] focus:outline-none transition-all"
+                  />
+                  <p className="text-[11px] text-charcoal-lighter mt-1.5 leading-relaxed">
+                    Customers can pre-order this item (COD, pay on delivery) whenever it&apos;s out of stock. Restock it, then use &ldquo;Fulfil Pre-Order&rdquo; on each reservation to ship.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

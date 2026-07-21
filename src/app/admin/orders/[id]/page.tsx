@@ -28,7 +28,7 @@ interface EditableItem {
 }
 
 const statusIcons: Record<string, typeof Clock> = {
-  pending: Clock, confirmed: CheckCircle2, processing: Package,
+  preorder: Clock, pending: Clock, confirmed: CheckCircle2, processing: Package,
   shipped: Truck, on_delivery: MapPin, received: CheckCircle2, not_received: XCircle, returned: RotateCcw, cancelled: XCircle,
 };
 
@@ -200,10 +200,15 @@ export default function OrderDetailPage() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="font-heading text-xl font-semibold text-charcoal">{(order.order_number as string) || id}</h1>
-              <Badge variant="secondary" className="text-[10px] capitalize">{String(order.status)}</Badge>
+              <Badge variant="secondary" className="text-[10px] capitalize">{order.status === "preorder" ? "Pre-order" : String(order.status)}</Badge>
               <Badge variant={(order.payment_status as string) === "paid" ? "success" : "warning"} className="text-[10px]">{String(order.payment_status)}</Badge>
             </div>
-            <p className="text-xs text-charcoal-lighter">{formatDateShort(order.created_at as string)}</p>
+            <p className="text-xs text-charcoal-lighter">
+              {formatDateShort(order.created_at as string)}
+              {order.status === "preorder" && (
+                <span className="text-secondary"> · Pre-order (COD){order.preorder_expected_date ? ` · expected ${formatDateShort(order.preorder_expected_date as string)}` : ""}</span>
+              )}
+            </p>
           </div>
         </div>
         {canEditOrder && (
@@ -387,8 +392,8 @@ export default function OrderDetailPage() {
                 <Select value={editStatus} onValueChange={setEditStatus} disabled={!canHandleOrders}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {["pending", "confirmed", "processing", "shipped", "on_delivery", "received", "not_received"].map((s) => (
-                      <SelectItem key={s} value={s} className="capitalize">{s.replace("_", " ")}</SelectItem>
+                    {["preorder", "pending", "confirmed", "processing", "shipped", "on_delivery", "received", "not_received"].map((s) => (
+                      <SelectItem key={s} value={s} className="capitalize">{s === "preorder" ? "Pre-order" : s.replace("_", " ")}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

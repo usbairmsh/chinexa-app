@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Minus, Plus, Trash2, ShoppingBag, X } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingBag, X, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -13,7 +13,8 @@ import { useEffect } from "react";
 
 export function CartDrawer() {
   const { cartDrawerOpen, setCartDrawerOpen } = useUIStore();
-  const { items, removeItem, updateQuantity, getSubtotal, getItemCount } = useCartStore();
+  const { items, removeItem, updateQuantity, getSubtotal, getItemCount, isPreorderCart } = useCartStore();
+  const preorderCart = isPreorderCart();
 
   // Lock body scroll when open
   useEffect(() => {
@@ -134,6 +135,11 @@ export function CartDrawer() {
                           {item.variant_name && (
                             <p className="text-xs text-charcoal-lighter mt-0.5">{item.variant_name}</p>
                           )}
+                          {item.isPreorder && (
+                            <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-secondary/10 px-2 py-0.5 text-[10px] font-semibold text-secondary">
+                              <Clock className="h-2.5 w-2.5" /> Pre-order
+                            </span>
+                          )}
                           <div className="flex items-center justify-between mt-2">
                             <div className="flex items-center gap-2">
                               <motion.button
@@ -183,6 +189,12 @@ export function CartDrawer() {
                   <p className="text-xs text-charcoal-lighter">
                     Shipping calculated at checkout
                   </p>
+                  {preorderCart && (
+                    <p className="flex items-start gap-1.5 text-xs text-secondary bg-secondary/[0.06] rounded-lg px-3 py-2">
+                      <Clock className="h-3.5 w-3.5 shrink-0 mt-px" />
+                      This is a pre-order — you&apos;ll pay on delivery when it arrives.
+                    </p>
+                  )}
                   <Separator />
                   <div className="grid gap-2">
                     <Link href="/checkout" onClick={() => setCartDrawerOpen(false)}>

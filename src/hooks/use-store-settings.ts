@@ -11,6 +11,8 @@ export interface StoreSettings {
   free_delivery_threshold: number;
   free_delivery_enabled: boolean;
   payment_methods: { id: string; name: string; enabled: boolean; account_number: string; instructions: string; qr_image: string; icon?: string; input_type?: "transaction_id" | "phone_number" }[];
+  /** Store `preorders` feature toggle — when off, out-of-stock badged products behave as plain out-of-stock (wishlist-only). Defaults to true. */
+  preorders_enabled: boolean;
 }
 
 const defaults: StoreSettings = {
@@ -22,6 +24,7 @@ const defaults: StoreSettings = {
   free_delivery_threshold: 3000,
   free_delivery_enabled: true,
   payment_methods: [],
+  preorders_enabled: true,
 };
 
 let cachedSettings: StoreSettings | null = null;
@@ -31,9 +34,10 @@ async function loadSettings(): Promise<StoreSettings> {
   if (cachedSettings) return cachedSettings;
   if (fetchPromise) return fetchPromise;
 
-  fetchPromise = fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,social_links,free_delivery_threshold,free_delivery_enabled,payment_methods")
+  fetchPromise = fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,social_links,free_delivery_threshold,free_delivery_enabled,payment_methods,features")
     .then((r) => r.json())
     .then((data) => {
+      const features = (data.features && typeof data.features === "object") ? data.features as Record<string, unknown> : {};
       const s: StoreSettings = {
         store_name: data.store_name || defaults.store_name,
         store_email: data.store_email || defaults.store_email,
@@ -49,6 +53,7 @@ async function loadSettings(): Promise<StoreSettings> {
         free_delivery_threshold: Number(data.free_delivery_threshold) || defaults.free_delivery_threshold,
         free_delivery_enabled: data.free_delivery_enabled !== undefined ? !!data.free_delivery_enabled : defaults.free_delivery_enabled,
         payment_methods: Array.isArray(data.payment_methods) ? data.payment_methods : defaults.payment_methods,
+        preorders_enabled: typeof features.preorders === "boolean" ? features.preorders : defaults.preorders_enabled,
       };
       cachedSettings = s;
       return s;

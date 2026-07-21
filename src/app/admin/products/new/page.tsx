@@ -191,6 +191,9 @@ export default function AddProductPage() {
   };
   const [isFeatured, setIsFeatured] = useState(false);
   const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
+  // Optional expected-availability date shown for pre-order products (only
+  // meaningful when the `preorder` badge is selected and the product is OOS).
+  const [preorderDate, setPreorderDate] = useState("");
   const [variants, setVariants] = useState<VariantRow[]>([
     { id: `v-${Date.now()}`, type: "size", name: "", value: "", hex: "", price: "", compare_price: "", cost_price: "", stock: "0", min_stock: "10", max_stock: "100", sku: "" },
   ]);
@@ -270,6 +273,8 @@ export default function AddProductPage() {
         is_active: isActive,
         is_featured: isFeatured,
         badges: selectedBadges,
+        // Only send a pre-order date when the badge is actually on.
+        preorder_release_date: selectedBadges.includes("preorder") ? (preorderDate || null) : null,
         images: images.filter((img) => img.url).map((img) => ({ url: img.url, alt: img.alt, variant_id: img.variant_id || null, focal_point: img.focal_point || null })),
         variants: variants.filter((v) => v.name).map((v) => {
           // Find the first image linked to this variant
@@ -748,6 +753,27 @@ export default function AddProductPage() {
                   </button>
                 ))}
               </div>
+
+              {/* Pre-order settings — shown only when the Pre-order badge is on.
+                  A pre-order goes live automatically when the product is out of
+                  stock; this date is the optional "expected availability" shown
+                  to customers. Pre-orders are Cash on Delivery (no deposit). */}
+              {selectedBadges.includes("preorder") && (
+                <div className="mt-4 pt-4 border-t border-border/40">
+                  <label className="block text-xs font-medium text-charcoal-light mb-1.5">
+                    Expected availability date <span className="text-charcoal-lighter font-normal">(optional)</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={preorderDate}
+                    onChange={(e) => setPreorderDate(e.target.value)}
+                    className="w-full h-10 px-3 rounded-luxury bg-beige-dark/70 shadow-[inset_0_0_0_1px_rgba(58,36,56,0.06)] text-sm text-charcoal focus:bg-white focus:shadow-[inset_0_0_0_1.5px_var(--color-secondary)] focus:outline-none transition-all"
+                  />
+                  <p className="text-[11px] text-charcoal-lighter mt-1.5 leading-relaxed">
+                    Customers can pre-order this item (COD, pay on delivery) whenever it&apos;s out of stock. Restock it, then use &ldquo;Fulfil Pre-Order&rdquo; on each reservation to ship.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 

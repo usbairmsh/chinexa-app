@@ -59,6 +59,8 @@ interface ProductJsonLdProps {
   compareAtPrice?: number;
   currency?: string;
   availability?: "InStock" | "OutOfStock" | "PreOrder";
+  /** For PreOrder items — the date the product becomes available (YYYY-MM-DD). */
+  availabilityStarts?: string;
   rating?: number;
   reviewCount?: number;
   /** A few real, approved reviews — emitted as schema.org Review objects so
@@ -72,7 +74,7 @@ interface ProductJsonLdProps {
 
 export function ProductJsonLd({
   name, description, image, sku, price, highPrice, compareAtPrice, currency = "BDT",
-  availability = "InStock", rating, reviewCount, reviews, brand, category, url,
+  availability = "InStock", availabilityStarts, rating, reviewCount, reviews, brand, category, url,
 }: ProductJsonLdProps) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
   const priceValidUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -86,6 +88,7 @@ export function ProductJsonLd({
         highPrice: highPrice.toFixed(2),
         offerCount: 2,
         availability: `https://schema.org/${availability}`,
+        ...(availability === "PreOrder" && availabilityStarts ? { availabilityStarts } : {}),
         seller: { "@type": "Organization", name: "ChineXa" },
       }
     : {
@@ -99,6 +102,7 @@ export function ProductJsonLd({
         // "now" is accurate for the price being shown.
         validFrom: new Date().toISOString(),
         availability: `https://schema.org/${availability}`,
+        ...(availability === "PreOrder" && availabilityStarts ? { availabilityStarts } : {}),
         itemCondition: "https://schema.org/NewCondition",
         seller: { "@type": "Organization", name: "ChineXa" },
         // "Was X, now Y" per Google's Merchant Listing structured data spec:

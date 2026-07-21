@@ -23,6 +23,7 @@ interface Order {
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock; badge: "warning" | "secondary" | "success" | "destructive" | "default" }> = {
+  preorder: { label: "Pre-order — Reserved", color: "text-secondary bg-secondary/10", icon: Clock, badge: "secondary" },
   pending: { label: "Order Placed", color: "text-warning bg-warning/10", icon: Clock, badge: "warning" },
   confirmed: { label: "Confirmed", color: "text-blue-500 bg-blue-50", icon: CheckCircle2, badge: "default" },
   processing: { label: "Processing", color: "text-secondary bg-secondary/10", icon: Package, badge: "secondary" },
@@ -133,7 +134,7 @@ export default function OrdersPage() {
       .finally(() => setLoading(false));
   }, [user?.id, mounted]);
 
-  const activeOrders = orders.filter(o => ["pending", "confirmed", "processing", "shipped", "on_delivery"].includes(o.status));
+  const activeOrders = orders.filter(o => ["preorder", "pending", "confirmed", "processing", "shipped", "on_delivery"].includes(o.status));
   const completedOrders = orders.filter(o => o.status === "received");
   const failedOrders = orders.filter(o => o.status === "not_received");
 
