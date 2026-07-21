@@ -130,15 +130,21 @@ export async function POST(req: NextRequest) {
       if (!name || !String(name).trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 });
       if (!username || !String(username).trim()) return NextResponse.json({ error: "Username is required" }, { status: 400 });
 
-      // A superadmin editing their own row can't demote themselves — avoids
-      // accidentally locking every superadmin out of admin management.
-      if (admin_id === requesterId && role !== "superadmin") {
-        return NextResponse.json({ error: "You cannot change your own role" }, { status: 400 });
+      // A super admin's role is permanent — it can never be demoted to a
+      // regular admin (by anyone, including themselves), which would be a
+      // backdoor around "a super admin can never be removed": demote, then
+      // delete/deactivate. So a superadmin target always stays superadmin
+      // regardless of what role the form submits.
+      const targetRows = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [admin_id]);
+      const targetIsSuper = targetRows.length > 0 && targetRows[0].role === "superadmin";
+      if (targetIsSuper && role !== "superadmin") {
+        return NextResponse.json({ error: "A super admin's role cannot be changed" }, { status: 400 });
       }
+      const finalRole = targetIsSuper ? "superadmin" : (role === "superadmin" ? "superadmin" : "admin");
 
       await execute(
         "UPDATE admin_users SET name = ?, email = ?, phone = ?, username = ?, role = ? WHERE id = ?",
-        [String(name).trim(), email || null, phone || null, String(username).trim(), role === "superadmin" ? "superadmin" : "admin", admin_id]
+        [String(name).trim(), email || null, phone || null, String(username).trim(), finalRole, admin_id]
       );
       await logActivity("Updated admin details", "admin", admin_id, undefined, requesterId);
       return NextResponse.json({ success: true });
@@ -243,6 +249,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Only super admin can remove admins" }, { status: 403 });
       }
       if (requesterId === admin_id) return NextResponse.json({ error: "Cannot delete yourself" }, { status: 400 });
+      // A superadmin is the store's ultimate owner and can never be removed —
+      // not even by another superadmin — so no chain of deletions can ever
+      // leave the store with no one who can manage admins.
+      const target = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [admin_id]);
+      if (target.length > 0 && target[0].role === "superadmin") {
+        return NextResponse.json({ error: "A super admin cannot be removed" }, { status: 400 });
+      }
       await execute("DELETE FROM admin_users WHERE id = ?", [admin_id]);
       await logActivity("Deleted admin", "admin", admin_id, undefined, requesterId);
       return NextResponse.json({ success: true });
@@ -255,6 +268,14 @@ export async function POST(req: NextRequest) {
       const requester = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [requesterId]);
       if (requester.length === 0 || requester[0].role !== "superadmin") {
         return NextResponse.json({ error: "Only super admin can manage admins" }, { status: 403 });
+      }
+      // A superadmin can never be deactivated (same reasoning as delete) —
+      // deactivating one is just a soft-lockout, so it's blocked too.
+      if (!is_active) {
+        const target = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [admin_id]);
+        if (target.length > 0 && target[0].role === "superadmin") {
+          return NextResponse.json({ error: "A super admin cannot be deactivated" }, { status: 400 });
+        }
       }
       await execute("UPDATE admin_users SET is_active = ? WHERE id = ?", [is_active ? 1 : 0, admin_id]);
       await logActivity(is_active ? "Activated admin" : "Deactivated admin", "admin", admin_id, undefined, requesterId);

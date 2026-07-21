@@ -335,7 +335,10 @@ export default function AdminUsersPage() {
                       {admin.last_login ? formatDateShort(admin.last_login) : "Never"}
                     </td>
                     <td className="px-4 py-3 align-middle">
-                      {isSuperAdmin && admin.id !== currentAdminId ? (
+                      {/* A super admin can never be deactivated (nor the current
+                          user themselves) — those rows show a static badge, not
+                          a toggle. Server enforces this too (admin-auth route). */}
+                      {isSuperAdmin && admin.id !== currentAdminId && admin.role !== "superadmin" ? (
                         <Switch checked={admin.is_active} onCheckedChange={() => handleToggleActive(admin)} />
                       ) : (
                         <Badge variant={admin.is_active ? "success" : "warning"} className="text-[10px]">{admin.is_active ? "Active" : "Inactive"}</Badge>
@@ -440,7 +443,9 @@ export default function AdminUsersPage() {
               <Input label="Username" required value={editUsername} onChange={(e) => setEditUsername(e.target.value.toLowerCase().replace(/\s/g, ""))} />
               <div>
                 <label className="block text-sm font-medium text-charcoal-light mb-1.5">Role</label>
-                <Select value={editRole} onValueChange={(v) => setEditRole(v as "admin" | "superadmin")} disabled={editDialog?.id === currentAdminId}>
+                {/* A super admin's role is permanent — locked for the current
+                    user and for any super admin target (server enforces too). */}
+                <Select value={editRole} onValueChange={(v) => setEditRole(v as "admin" | "superadmin")} disabled={editDialog?.id === currentAdminId || editDialog?.role === "superadmin"}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin">Admin (restricted access)</SelectItem>
