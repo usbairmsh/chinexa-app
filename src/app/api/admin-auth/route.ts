@@ -76,9 +76,11 @@ export async function POST(req: NextRequest) {
       const valid = await bcrypt.compare(password, admin.password as string);
       if (!valid) return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
 
-      // Update last_login
+      // Update last_login. Login itself is intentionally NOT written to the
+      // activity log — it's routine self-activity, not an admin action worth
+      // auditing, and would drown out the meaningful entries. last_login on
+      // the user row already records when each admin last signed in.
       await execute("UPDATE admin_users SET last_login = NOW() WHERE id = ?", [admin.id]);
-      await logActivity("Admin logged in", "admin", admin.id as string, admin.username as string, admin.id as string);
 
       const res = NextResponse.json({
         success: true,
@@ -268,7 +270,9 @@ export async function POST(req: NextRequest) {
       if (fields.length === 0) return NextResponse.json({ error: "No fields to update" }, { status: 400 });
       values.push(admin_id);
       await execute(`UPDATE admin_users SET ${fields.join(", ")} WHERE id = ?`, values);
-      await logActivity("Updated admin profile", "admin", admin_id, undefined, admin_id);
+      // An admin editing their OWN profile (name/username/email/phone) is not
+      // an audit-worthy admin action — deliberately not logged. (Editing
+      // SOMEONE ELSE goes through update_admin, which is still logged.)
       return NextResponse.json({ success: true });
     }
 
