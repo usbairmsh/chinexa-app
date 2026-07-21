@@ -373,7 +373,7 @@ export default function EditProductPage() {
               </div>
             </CardContent></Card>
 
-            {shortDesc && <Card><CardContent className="p-5"><h3 className="text-sm font-semibold text-charcoal mb-2">Short Description</h3><p className="text-sm text-charcoal-lighter">{shortDesc}</p></CardContent></Card>}
+            {shortDesc && <Card><CardContent className="p-5"><h3 className="text-sm font-semibold text-charcoal mb-2">Short Description</h3><p className="text-sm text-charcoal-lighter whitespace-pre-wrap">{shortDesc}</p></CardContent></Card>}
             {fullDesc && <Card><CardContent className="p-5"><h3 className="text-sm font-semibold text-charcoal mb-2">Description</h3><p className="text-sm text-charcoal-lighter whitespace-pre-wrap">{fullDesc}</p></CardContent></Card>}
 
             {variants.length > 0 && variants[0].name && (
@@ -416,8 +416,8 @@ export default function EditProductPage() {
 
             {(ingredients || howToUse) && (
               <Card><CardContent className="p-5 space-y-3">
-                {ingredients && <div><h3 className="text-sm font-semibold text-charcoal mb-1">Ingredients</h3><p className="text-xs text-charcoal-lighter">{ingredients}</p></div>}
-                {howToUse && <div><h3 className="text-sm font-semibold text-charcoal mb-1">How to Use</h3><p className="text-xs text-charcoal-lighter">{howToUse}</p></div>}
+                {ingredients && <div><h3 className="text-sm font-semibold text-charcoal mb-1">Ingredients</h3><p className="text-xs text-charcoal-lighter whitespace-pre-wrap">{ingredients}</p></div>}
+                {howToUse && <div><h3 className="text-sm font-semibold text-charcoal mb-1">How to Use</h3><p className="text-xs text-charcoal-lighter whitespace-pre-wrap">{howToUse}</p></div>}
               </CardContent></Card>
             )}
           </div>

@@ -462,7 +462,7 @@ export default function ProductDetailPage() {
               </div>
 
               {/* Short Description */}
-              <p className="text-[15px] text-charcoal-light leading-relaxed">
+              <p className="text-[15px] text-charcoal-light leading-relaxed whitespace-pre-line">
                 {product.short_description}
               </p>
 
@@ -772,13 +772,13 @@ export default function ProductDetailPage() {
             <AccordionItem value="description" className="border rounded-2xl px-4 sm:px-6 overflow-hidden border-border/30 shadow-card">
               <AccordionTrigger className="text-base font-semibold py-5">Description</AccordionTrigger>
               <AccordionContent className="text-charcoal-light text-[15px] leading-relaxed pb-5">
-                {product.description}
+                <span className="block whitespace-pre-line">{product.description}</span>
                 {product.how_to_use && (
                   <div className="mt-5 p-4 rounded-xl bg-pearl/60">
                     <h4 className="font-semibold text-charcoal text-sm mb-2 flex items-center gap-1.5">
                       <Sparkles className="h-4 w-4 text-secondary" /> How to Use
                     </h4>
-                    <p className="text-sm">{product.how_to_use}</p>
+                    <p className="text-sm whitespace-pre-line">{product.how_to_use}</p>
                   </div>
                 )}
               </AccordionContent>
@@ -805,7 +805,7 @@ export default function ProductDetailPage() {
                 {product.ingredients && (
                   <div className="mt-5 p-4 rounded-xl bg-pearl/60">
                     <h4 className="font-semibold text-charcoal text-sm mb-2">Ingredients</h4>
-                    <p className="text-sm text-charcoal-light">{product.ingredients}</p>
+                    <p className="text-sm text-charcoal-light whitespace-pre-line">{product.ingredients}</p>
                   </div>
                 )}
               </AccordionContent>
