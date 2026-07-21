@@ -18,6 +18,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency, cn } from "@/lib/utils";
+import { backdropClose } from "@/lib/modal-backdrop";
 import { useAdmin } from "@/contexts/admin-context";
 
 interface StockProduct {
@@ -302,7 +303,7 @@ export default function StockManagementPage() {
         {editProduct && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-charcoal/50 backdrop-blur-sm" onClick={() => setEditProduct(null)} />
+              className="fixed inset-0 z-50 bg-charcoal/50 backdrop-blur-sm" onClick={backdropClose(() => setEditProduct(null))} />
             <motion.div
               initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 300 }}

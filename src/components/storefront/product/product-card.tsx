@@ -11,6 +11,7 @@ import { useCartStore } from "@/stores/cart.store";
 import { useWishlistStore } from "@/stores/wishlist.store";
 import { useUIStore } from "@/stores/ui.store";
 import { formatCurrency, cn } from "@/lib/utils";
+import { backdropClose } from "@/lib/modal-backdrop";
 import type { Product } from "@/types/product";
 
 interface ProductCardProps {
@@ -247,7 +248,7 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 z-50 bg-charcoal/50 backdrop-blur-sm"
-              onClick={() => setModalOpen(false)}
+              onClick={backdropClose(() => setModalOpen(false))}
             />
 
             {/* Modal */}

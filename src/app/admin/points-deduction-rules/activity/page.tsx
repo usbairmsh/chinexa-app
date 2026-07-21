@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn, formatDate } from "@/lib/utils";
+import { backdropClose } from "@/lib/modal-backdrop";
 import { useAdmin } from "@/contexts/admin-context";
 
 interface ActivityEntry {
@@ -249,7 +250,7 @@ export default function EngineActivityLogPage() {
         {selected && (
           <motion.div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-            onClick={closeEntry}
+            onClick={backdropClose(closeEntry)}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
