@@ -130,6 +130,8 @@ export default function AdminLayout({
   const [profileName, setProfileName] = useState("");
   const [profileEmail, setProfileEmail] = useState("");
   const [profilePhone, setProfilePhone] = useState("");
+  const [profileUsername, setProfileUsername] = useState("");
+  const [profileError, setProfileError] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
 
@@ -197,15 +199,23 @@ export default function AdminLayout({
   }, [authCheckedFor, adminName, pathname, router]);
 
   const handleSaveProfile = async () => {
-    setProfileSaving(true);
+    setProfileSaving(true); setProfileError("");
+    const uname = profileUsername.trim().toLowerCase();
+    if (!uname) { setProfileError("Username cannot be empty"); setProfileSaving(false); return; }
     try {
-      await fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update_profile", name: profileName.trim(), email: profileEmail.trim(), phone: profilePhone.trim() }) });
+      const res = await fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update_profile", name: profileName.trim(), email: profileEmail.trim(), phone: profilePhone.trim(), username: uname }) });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setProfileError(data.error || "Could not save profile");
+        return;
+      }
       setAdminName(profileName.trim());
       setAdminEmail(profileEmail.trim());
       setAdminPhone(profilePhone.trim());
+      setAdminUsername(uname);
       setProfileSuccess(true);
       setTimeout(() => { setProfileSuccess(false); setProfileOpen(false); }, 1500);
-    } catch {} finally { setProfileSaving(false); }
+    } catch { setProfileError("Network error — profile not saved"); } finally { setProfileSaving(false); }
   };
 
   const handleChangePassword = async () => {
@@ -238,6 +248,8 @@ export default function AdminLayout({
     setProfileName(adminName);
     setProfileEmail(adminEmail);
     setProfilePhone(adminPhone);
+    setProfileUsername(adminUsername);
+    setProfileError("");
     setProfileOpen(true);
   };
 
@@ -490,10 +502,13 @@ export default function AdminLayout({
               </div>
             </div>
 
-            {/* Profile Fields */}
-            <Input label="Display Name" value={profileName} onChange={(e) => setProfileName(e.target.value)} />
+            {/* Profile Fields — same identity fields as Add Admin, editable by
+                the account owner only (server: update_profile is self-only). */}
+            <Input label="Full Name" value={profileName} onChange={(e) => setProfileName(e.target.value)} />
+            <Input label="Username" value={profileUsername} onChange={(e) => { setProfileUsername(e.target.value.toLowerCase().replace(/\s/g, "")); setProfileError(""); }} />
             <Input label="Email" type="email" value={profileEmail} onChange={(e) => setProfileEmail(e.target.value)} />
             <Input label="Phone" value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} />
+            {profileError && <p className="text-xs text-destructive">{profileError}</p>}
 
             <div className="flex justify-end">
               <AdminButton size="sm" onClick={handleSaveProfile} disabled={profileSaving} className={profileSuccess ? "!bg-success" : ""}>

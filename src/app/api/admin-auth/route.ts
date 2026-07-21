@@ -241,9 +241,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // ─── UPDATE PROFILE (self only) ───
+    // ─── UPDATE PROFILE (self only) — an admin editing their OWN identity
+    // fields. admin_id is always the caller (requesterId), never a value from
+    // the body, so this can only ever touch the caller's own row. Distinct
+    // from update_admin (a superadmin editing SOMEONE ELSE, includes role). ───
     if (action === "update_profile") {
-      const { name, email, phone } = body;
+      const { name, email, phone, username } = body;
       if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       const admin_id = requesterId;
 
@@ -252,6 +255,17 @@ export async function POST(req: NextRequest) {
       if (name) { fields.push("name = ?"); values.push(name); }
       if (email !== undefined) { fields.push("email = ?"); values.push(email || null); }
       if (phone !== undefined) { fields.push("phone = ?"); values.push(phone || null); }
+      if (username !== undefined) {
+        const uname = String(username).trim().toLowerCase();
+        if (!uname) return NextResponse.json({ error: "Username cannot be empty" }, { status: 400 });
+        // Username is the login identifier — must stay unique across admins.
+        const clash = await query<RowDataPacket[]>(
+          "SELECT id FROM admin_users WHERE username = ? AND id <> ? LIMIT 1",
+          [uname, admin_id]
+        );
+        if (clash.length > 0) return NextResponse.json({ error: "That username is already taken" }, { status: 409 });
+        fields.push("username = ?"); values.push(uname);
+      }
       if (fields.length === 0) return NextResponse.json({ error: "No fields to update" }, { status: 400 });
       values.push(admin_id);
       await execute(`UPDATE admin_users SET ${fields.join(", ")} WHERE id = ?`, values);
