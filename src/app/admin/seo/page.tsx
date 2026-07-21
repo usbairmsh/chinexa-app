@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Globe, Search, FileText, Link2, Code, Settings, Loader2, Check,
-  Plus, Trash2, Pencil, ExternalLink, AlertTriangle,
+  Plus, Trash2, Pencil, ExternalLink, AlertTriangle, RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
@@ -35,6 +35,13 @@ const STATIC_PAGES = [
   { path: "/contact", label: "Contact" },
   { path: "/track-order", label: "Track Order" },
 ];
+
+interface DiscoveredPage {
+  path: string;
+  label: string;
+  default_title: string;
+  default_description: string;
+}
 
 interface SeoRow {
   page_path: string;
@@ -124,6 +131,11 @@ export default function AdminSeoPage() {
   const [metaForm, setMetaForm] = useState<MetaForm>(EMPTY_FORM);
   const [savingMeta, setSavingMeta] = useState(false);
   const [deleteMetaPath, setDeleteMetaPath] = useState<string | null>(null);
+  // Auto-fetched real pages (products/categories/brands/blog + core/collections)
+  const [discovered, setDiscovered] = useState<DiscoveredPage[]>([]);
+  const [fetching, setFetching] = useState(false);
+  const [fetchSummary, setFetchSummary] = useState<string>("");
+  const [pageTypeFilter, setPageTypeFilter] = useState<string>("all");
 
   // ─── Schema tab state ───
   const [schemaConfig, setSchemaConfig] = useState<Record<string, boolean>>({
@@ -238,14 +250,45 @@ export default function AdminSeoPage() {
     }
   };
 
-  // ─── Page meta: rows shown = static pages merged with any custom DB rows ───
+  // Pull every real storefront URL + its default meta, so the table lists
+  // actual products/categories/brands/blog posts rather than a hardcoded 8.
+  const autoFetchPages = async () => {
+    setFetching(true); setError("");
+    try {
+      const res = await fetch("/api/seo/discover");
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Failed to fetch pages"); return; }
+      setDiscovered(Array.isArray(data.pages) ? data.pages : []);
+      const c = data.counts || {};
+      setFetchSummary(`Found ${c.total} pages — ${c.products} products, ${c.categories} categories, ${c.brands} brands, ${c.blog} blog posts.`);
+    } catch {
+      setError("Network error — could not fetch pages");
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  // ─── Page meta: rows shown = discovered pages (once fetched) or the static
+  // fallback set, each merged with any saved override row from the DB, plus
+  // any custom paths added by hand that aren't in either list. ───
   const rowFor = (path: string) => seoRows.find((r) => r.page_path === path);
+  const defaultFor = (path: string) => discovered.find((d) => d.path === path);
+  const basePages: { path: string; label: string }[] =
+    discovered.length > 0
+      ? discovered.map((d) => ({ path: d.path, label: d.label }))
+      : STATIC_PAGES.map((p) => ({ path: p.path, label: p.label ?? "Core" }));
+  const basePaths = new Set(basePages.map((p) => p.path));
   const customRows = seoRows.filter(
-    (r) => r.page_path !== GLOBAL_PATH && !STATIC_PAGES.some((p) => p.path === r.page_path)
+    (r) => r.page_path !== GLOBAL_PATH && !basePaths.has(r.page_path)
   );
+  const allTypes = Array.from(new Set(basePages.map((p) => p.label)));
   const pageList: { path: string; label: string; row?: SeoRow }[] = [
-    ...STATIC_PAGES.map((p) => ({ ...p, row: rowFor(p.path) })),
-    ...customRows.map((r) => ({ path: r.page_path, label: "Custom page", row: r })),
+    ...basePages
+      .filter((p) => pageTypeFilter === "all" || p.label === pageTypeFilter)
+      .map((p) => ({ ...p, row: rowFor(p.path) })),
+    ...(pageTypeFilter === "all" || pageTypeFilter === "Custom"
+      ? customRows.map((r) => ({ path: r.page_path, label: "Custom", row: r }))
+      : []),
   ];
 
   const openMetaDialog = (path?: string) => {
@@ -255,11 +298,15 @@ export default function AdminSeoPage() {
       setMetaForm(EMPTY_FORM);
     } else {
       const row = rowFor(path);
+      const def = defaultFor(path);
       setMetaIsNew(false);
+      // Pre-fill title/description from a saved override if one exists,
+      // otherwise from the auto-fetched default — so editing a fetched page
+      // starts with its live values already in the fields, ready to tweak.
       setMetaForm({
         page_path: path,
-        meta_title: (row?.meta_title as string) || (row?.title as string) || "",
-        meta_description: (row?.meta_description as string) || "",
+        meta_title: (row?.meta_title as string) || (row?.title as string) || def?.default_title || "",
+        meta_description: (row?.meta_description as string) || def?.default_description || "",
         keywords: parseKeywords(row?.keywords).join(", "),
         canonical_url: (row?.canonical_url as string) || "",
         og_title: (row?.og_title as string) || "",
@@ -609,24 +656,48 @@ export default function AdminSeoPage() {
                   <strong>meta description</strong> (the summary under it) and <strong>social share tags</strong> (the preview
                   when shared on Facebook/WhatsApp). Each page ships with sensible defaults; this tab lets you override them
                   per page. Fields you leave blank keep the page&rsquo;s default, so you only override what you want to change.
-                  Product, category and brand pages can also be overridden here by entering their exact URL path.
+                  Click <strong>Auto-Fetch Pages</strong> to pull in every real product, category, brand and blog URL with its
+                  current default meta — then edit and save only the ones you want to change.
                 </p>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardHeader className="flex-col sm:flex-row sm:items-center sm:justify-between gap-3 space-y-0">
                 <div>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <FileText className="h-4 w-4" /> Page-Level Meta Tags
                   </CardTitle>
                   <CardDescription>Override any page&rsquo;s title, description, share preview and indexing</CardDescription>
                 </div>
-                <AdminButton size="sm" onClick={() => openMetaDialog()}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Page
-                </AdminButton>
+                <div className="flex items-center gap-2 shrink-0">
+                  <AdminButton variant="outline" size="sm" onClick={autoFetchPages} disabled={fetching}>
+                    {fetching ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
+                    Auto-Fetch Pages
+                  </AdminButton>
+                  <AdminButton size="sm" onClick={() => openMetaDialog()}>
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Page
+                  </AdminButton>
+                </div>
               </CardHeader>
               <CardContent>
+                {(fetchSummary || allTypes.length > 1) && (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                    {fetchSummary && <p className="text-xs text-success flex items-center gap-1.5"><Check className="h-3.5 w-3.5" /> {fetchSummary}</p>}
+                    {discovered.length > 0 && (
+                      <div className="sm:ml-auto w-full sm:w-44">
+                        <Select value={pageTypeFilter} onValueChange={setPageTypeFilter}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All page types</SelectItem>
+                            {allTypes.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                            {customRows.length > 0 && <SelectItem value="Custom">Custom</SelectItem>}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -646,15 +717,21 @@ export default function AdminSeoPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {pageList.map(({ path, label, row }) => (
+                      {pageList.map(({ path, label, row }) => {
+                        const def = defaultFor(path);
+                        return (
                         <tr key={path} className="border-b border-border/20 hover:bg-pearl/50 transition-colors">
                           <td className="px-4 py-3">
-                            <p className="font-medium text-charcoal">{path}</p>
-                            <p className="text-[10px] text-charcoal-lighter">{label}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-charcoal break-all">{path}</p>
+                              <Badge variant="outline" className="text-[8px] shrink-0">{label}</Badge>
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-charcoal-light max-w-[280px]">
                             {row?.meta_title || row?.title ? (
                               <span className="line-clamp-1">{row.meta_title || row.title}</span>
+                            ) : def ? (
+                              <span className="line-clamp-1 text-charcoal-lighter">{def.default_title} <span className="text-[9px] italic">(default)</span></span>
                             ) : (
                               <span className="text-charcoal-lighter/60 italic">Using page default</span>
                             )}
@@ -686,7 +763,8 @@ export default function AdminSeoPage() {
                             </div>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
