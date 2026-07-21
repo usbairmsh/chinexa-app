@@ -19,9 +19,20 @@ import { useProductsByCategory, useProducts } from "@/hooks/queries/use-products
 import { useCategory } from "@/hooks/queries/use-categories";
 import type { ProductListParams } from "@/types/product";
 
+// Fallback display for a slug when the category row has no name (e.g. a
+// synthetic listing like "pre-orders"): "pre-orders" → "Pre Orders".
+function slugToTitle(slug: string): string {
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 export default function CategoryPage() {
   const { slug } = useParams<{ slug: string }>();
   const { data: category } = useCategory(slug);
+  const displayTitle = category?.name || slugToTitle(slug);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [params, setParams] = useState<ProductListParams>({
     page: 1,
@@ -137,13 +148,13 @@ export default function CategoryPage() {
       {/* Category Header */}
       <div className="relative bg-hero-gradient overflow-hidden">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14 relative z-10">
-          <Breadcrumb items={[{ label: category?.name || slug }]} />
+          <Breadcrumb items={[{ label: displayTitle }]} />
           <motion.h1
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             className="font-heading text-3xl sm:text-4xl lg:text-5xl font-semibold text-charcoal mt-4"
           >
-            {category?.name || slug}
+            {displayTitle}
           </motion.h1>
           {category?.description && (
             <motion.p
@@ -159,12 +170,19 @@ export default function CategoryPage() {
             {data?.total || 0} products
           </p>
         </div>
-        {/* Background image */}
-        {category?.image && (
-          <div className="absolute inset-0 opacity-10">
-            <Image src={category.image} alt="" fill className="object-cover" sizes="100vw" />
-          </div>
-        )}
+        {/* Background image — the category's own image, or a themed fallback
+            for synthetic listings (e.g. pre-orders) that have no image row so
+            their hero still reads like every other category. */}
+        {(() => {
+          const bgImage = category?.image
+            || (slug === "pre-orders" ? "https://picsum.photos/seed/chinexa-preorders-hero/1600/500" : undefined);
+          if (!bgImage) return null;
+          return (
+            <div className="absolute inset-0 opacity-10">
+              <Image src={bgImage} alt="" fill className="object-cover" sizes="100vw" />
+            </div>
+          );
+        })()}
       </div>
 
       {/* Brands Pills */}

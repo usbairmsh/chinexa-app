@@ -146,6 +146,16 @@ export function useLowStockProducts() {
   });
 }
 
+// ─── Most Demanded Products (by ordered quantity, archived excluded) ───
+export interface DemandedProduct { id: string; name: string; slug: string | null; total_qty: number; order_count: number; image: string; }
+export function useMostDemandedProducts(limit = 5) {
+  return useQuery({
+    queryKey: ["admin-most-demanded", limit],
+    queryFn: () => fetchApi<DemandedProduct[]>(`/api/analytics/most-demanded?limit=${limit}`),
+    refetchInterval: FOUR_HOURS,
+  });
+}
+
 // ─── Activity Log ───
 export function useActivityLog(limit = 30) {
   return useQuery({

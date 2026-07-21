@@ -18,7 +18,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAdminDashboardStats, useAdminOrders, useAdminReviews, useAdminCoupons, useRevenueChartData, useOrdersChartData, useTrafficData, useLowStockProducts, useActivityLog } from "@/hooks/queries/use-admin-data";
+import { useAdminDashboardStats, useAdminOrders, useAdminReviews, useAdminCoupons, useRevenueChartData, useOrdersChartData, useTrafficData, useLowStockProducts, useActivityLog, useMostDemandedProducts } from "@/hooks/queries/use-admin-data";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatCurrency, formatDateShort, getInitials, cn } from "@/lib/utils";
 
@@ -78,6 +78,7 @@ export default function AdminDashboard() {
   const { data: ordersChartData } = useOrdersChartData("1y");
   const { data: trafficChartData } = useTrafficData();
   const { data: lowStockData } = useLowStockProducts();
+  const { data: demandedData } = useMostDemandedProducts(5);
   const { data: dbCoupons } = useAdminCoupons();
   const { data: dbActivityLog } = useActivityLog(5);
 
@@ -157,6 +158,10 @@ export default function AdminDashboard() {
 
   // Low stock from DB
   const lowStockProducts = lowStockData || [];
+
+  // Most demanded products (by ordered quantity, archived orders excluded)
+  const demandedProducts = demandedData || [];
+  const maxDemandQty = demandedProducts.length > 0 ? Math.max(...demandedProducts.map((p) => p.total_qty), 1) : 1;
 
   // Coupons from DB
   const activeCoupons = (dbCoupons || []).filter((c) => c.is_active).slice(0, 3).map((c) => ({
@@ -438,6 +443,46 @@ export default function AdminDashboard() {
               </tbody>
             </table>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* ═══════ Most Demanded Products (by ordered quantity, archived excluded) ═══════ */}
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-semibold flex items-center gap-1.5"><TrendingUp className="h-3.5 w-3.5 text-secondary" /> Most Demanded Products</CardTitle>
+          <span className="text-[10px] text-charcoal-lighter">by units ordered</span>
+        </CardHeader>
+        <CardContent className="space-y-3 pt-2">
+          {demandedProducts.length === 0 ? (
+            <p className="text-xs text-charcoal-lighter text-center py-6">No order data yet — demand will appear here as products get ordered.</p>
+          ) : (
+            demandedProducts.map((p, i) => {
+              const row = (
+                <div className="flex items-center gap-3">
+                  <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold [font-variant-numeric:tabular-nums]",
+                    i === 0 ? "bg-gold/15 text-gold" : i === 1 ? "bg-secondary/10 text-secondary" : "bg-pearl text-charcoal-lighter")}>{i + 1}</span>
+                  <div className="relative h-9 w-9 rounded-lg overflow-hidden bg-pearl shrink-0">
+                    <Image src={p.image} alt={p.name} fill className="object-cover" sizes="36px" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-charcoal truncate">{p.name}</p>
+                    <div className="mt-1 h-1.5 w-full rounded-full bg-pearl overflow-hidden">
+                      <div className="h-full rounded-full bg-secondary/70" style={{ width: `${Math.max(6, (p.total_qty / maxDemandQty) * 100)}%` }} />
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold text-charcoal [font-variant-numeric:tabular-nums]">{p.total_qty.toLocaleString()}</p>
+                    <p className="text-[9px] text-charcoal-lighter [font-variant-numeric:tabular-nums]">{p.order_count} order{p.order_count === 1 ? "" : "s"}</p>
+                  </div>
+                </div>
+              );
+              return p.slug ? (
+                <Link key={p.id} href={`/admin/products/${p.id}`} className="block hover:bg-pearl/40 -mx-2 px-2 py-1 rounded-lg transition-colors">{row}</Link>
+              ) : (
+                <div key={p.id} className="-mx-2 px-2 py-1">{row}</div>
+              );
+            })
+          )}
         </CardContent>
       </Card>
 

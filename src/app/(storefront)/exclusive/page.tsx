@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Sparkles, PackageSearch } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -28,7 +29,12 @@ export default function ExclusivePage() {
     <div className="bg-white min-h-screen">
       {/* Hero */}
       <div className="relative overflow-hidden bg-gradient-to-br from-secondary/[0.07] via-white to-primary-light/40 border-b border-border/30">
-        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-10 py-10 sm:py-14">
+        {/* Themed background image — same low-opacity full-bleed treatment as
+            the category heroes. */}
+        <div className="absolute inset-0 opacity-10">
+          <Image src="https://picsum.photos/seed/chinexa-exclusive-hero/1600/500" alt="" fill className="object-cover" sizes="100vw" priority />
+        </div>
+        <div className="relative z-10 mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-10 py-10 sm:py-14">
           <Breadcrumb items={[{ label: "Exclusive" }]} />
           <motion.div
             initial={{ opacity: 0, y: 12 }}
