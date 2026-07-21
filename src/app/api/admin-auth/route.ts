@@ -8,11 +8,33 @@ import { normalizePermissions, hasFullAccess, SYSTEM_ADMIN_ROLE } from "@/lib/ad
 import { createAdminSessionToken, getVerifiedAdminId } from "@/lib/admin-session";
 import { ensureSystemAdminRole } from "@/lib/migrate-system-admin";
 
-// Fetch a target admin's role — used by the management actions to protect the
-// system administrator and super admins.
+// Fetch a target admin's role — used by the management actions to enforce the
+// chain of command below.
 async function roleOf(id: string): Promise<string | null> {
   const rows = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [id]);
   return rows.length > 0 ? (rows[0].role as string) : null;
+}
+
+// Chain of command for admin management (delete / deactivate / edit / demote):
+//   • system_admin  — top of the chain; can act on every OTHER role, and can
+//     only be touched by itself.
+//   • superadmin    — can manage regular admins, but NOT other super admins
+//     and NOT the system admin.
+// Returns an error string if the requester may not manage the target, or null
+// if allowed. Self-actions are handled separately by each caller.
+function chainViolation(requesterId: string, requesterRole: string, targetId: string, targetRole: string | null): string | null {
+  if (targetId === requesterId) return null; // self-actions gated per-caller
+  if (targetRole === SYSTEM_ADMIN_ROLE) {
+    // Only the system admin may act on the system admin — and since it's not a
+    // self-action here (checked above), the requester is someone else.
+    return "The system administrator can only be managed by themselves";
+  }
+  if (targetRole === "superadmin" && requesterRole !== SYSTEM_ADMIN_ROLE) {
+    // A super admin outranks other super admins' management — only the system
+    // admin sits above them.
+    return "Only the system administrator can manage a super admin";
+  }
+  return null;
 }
 
 // Admin credentials guard the whole store — cap login attempts per
@@ -145,21 +167,29 @@ export async function POST(req: NextRequest) {
       if (!username || !String(username).trim()) return NextResponse.json({ error: "Username is required" }, { status: 400 });
 
       const targetRole = await roleOf(admin_id);
-      // The system administrator can only be edited by the system administrator
-      // themselves — no other account, not even a super admin, may touch it.
-      if (targetRole === SYSTEM_ADMIN_ROLE && admin_id !== requesterId) {
-        return NextResponse.json({ error: "The system administrator can only be edited by themselves" }, { status: 403 });
+      // Chain of command for editing: only the system admin may edit a super
+      // admin, and the system admin can only be edited by itself.
+      const violation = chainViolation(requesterId, requesterRole, admin_id, targetRole);
+      if (violation) return NextResponse.json({ error: violation }, { status: 403 });
+
+      // Role-change rules:
+      //  • The system admin's own role is permanent — it can never be changed
+      //    (even by itself), so the store always keeps its top-most owner.
+      //  • No one can be promoted INTO system_admin — it's a single, pinned
+      //    account created only by a direct DB change.
+      //  • A super admin can be demoted, but ONLY by the system admin (already
+      //    enforced by chainViolation above); a super admin editing another is
+      //    blocked before reaching here.
+      if (targetRole === SYSTEM_ADMIN_ROLE) {
+        if (role !== SYSTEM_ADMIN_ROLE) {
+          return NextResponse.json({ error: "The system administrator's role cannot be changed" }, { status: 400 });
+        }
+      } else if (role === SYSTEM_ADMIN_ROLE) {
+        return NextResponse.json({ error: "The system administrator role cannot be assigned" }, { status: 400 });
       }
-      // Neither the system admin nor a super admin can have their role changed
-      // (a demote-then-delete would be a backdoor around their protection), and
-      // no one can be promoted INTO system_admin — it's a single pinned account.
-      const targetIsProtected = targetRole === SYSTEM_ADMIN_ROLE || targetRole === "superadmin";
-      if (targetIsProtected && role !== targetRole) {
-        return NextResponse.json({ error: `A ${targetRole === SYSTEM_ADMIN_ROLE ? "system" : "super"} admin's role cannot be changed` }, { status: 400 });
-      }
-      const finalRole = targetIsProtected
-        ? (targetRole as string)                       // keep the protected role as-is
-        : (role === "superadmin" ? "superadmin" : "admin"); // never system_admin for others
+      const finalRole = targetRole === SYSTEM_ADMIN_ROLE
+        ? SYSTEM_ADMIN_ROLE                                  // pinned, unchangeable
+        : (role === "superadmin" ? "superadmin" : "admin"); // system admin may set either
 
       await execute(
         "UPDATE admin_users SET name = ?, email = ?, phone = ?, username = ?, role = ? WHERE id = ?",
@@ -278,17 +308,17 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Only a super admin can remove admins" }, { status: 403 });
       }
       if (requesterId === admin_id) return NextResponse.json({ error: "Cannot delete yourself" }, { status: 400 });
-      // The system administrator and every super admin are permanent owners —
-      // neither can be removed by anyone (the system admin, not even by itself
-      // via this route), so no chain of deletions can leave the store without
-      // an owner who can manage admins.
       const targetRole = await roleOf(admin_id);
+      // The system admin can never be removed at all — not even by itself via
+      // this route (self is already blocked above, but a would-be requester
+      // who somehow shares the system_admin role must still be refused).
       if (targetRole === SYSTEM_ADMIN_ROLE) {
         return NextResponse.json({ error: "The system administrator cannot be removed" }, { status: 400 });
       }
-      if (targetRole === "superadmin") {
-        return NextResponse.json({ error: "A super admin cannot be removed" }, { status: 400 });
-      }
+      // Chain of command: only the system admin may remove a super admin;
+      // super admins can only remove regular admins.
+      const violation = chainViolation(requesterId, requesterRole, admin_id, targetRole);
+      if (violation) return NextResponse.json({ error: violation }, { status: 403 });
       await execute("DELETE FROM admin_users WHERE id = ?", [admin_id]);
       await logActivity("Deleted admin", "admin", admin_id, undefined, requesterId);
       return NextResponse.json({ success: true });
@@ -302,16 +332,16 @@ export async function POST(req: NextRequest) {
       if (!requesterRole || !hasFullAccess(requesterRole)) {
         return NextResponse.json({ error: "Only a super admin can manage admins" }, { status: 403 });
       }
-      // Neither the system administrator nor a super admin can be deactivated
-      // (a deactivate is just a soft-lockout — same reasoning as delete).
+      // Deactivating is a soft-lockout — same chain of command as delete. The
+      // system admin can never be deactivated; a super admin can be
+      // deactivated only by the system admin.
       if (!is_active) {
         const targetRole = await roleOf(admin_id);
         if (targetRole === SYSTEM_ADMIN_ROLE) {
           return NextResponse.json({ error: "The system administrator cannot be deactivated" }, { status: 400 });
         }
-        if (targetRole === "superadmin") {
-          return NextResponse.json({ error: "A super admin cannot be deactivated" }, { status: 400 });
-        }
+        const violation = chainViolation(requesterId, requesterRole, admin_id, targetRole);
+        if (violation) return NextResponse.json({ error: violation }, { status: 403 });
       }
       await execute("UPDATE admin_users SET is_active = ? WHERE id = ?", [is_active ? 1 : 0, admin_id]);
       await logActivity(is_active ? "Activated admin" : "Deactivated admin", "admin", admin_id, undefined, requesterId);

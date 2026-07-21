@@ -71,6 +71,20 @@ export default function AdminUsersPage() {
 
   // The system admin has full access too, so it sees every management control.
   const isSuperAdmin = hasFullAccess(currentRole || "");
+  const isSystemAdmin = currentRole === SYSTEM_ADMIN_ROLE;
+
+  // Mirrors the server chain of command (chainViolation): can the CURRENT user
+  // manage this target admin (edit / deactivate / remove)?
+  //   • The system admin can manage every other role.
+  //   • A super admin can manage regular admins only.
+  //   • No one manages the system admin except itself, and no self-management
+  //     via these controls.
+  const canManage = (target: AdminUser): boolean => {
+    if (target.id === currentAdminId) return false;
+    if (target.role === SYSTEM_ADMIN_ROLE) return false;
+    if (target.role === "superadmin") return isSystemAdmin;
+    return isSuperAdmin; // regular admin target
+  };
 
   // Add form
   const [formUsername, setFormUsername] = useState("");
@@ -337,11 +351,11 @@ export default function AdminUsersPage() {
                       {admin.last_login ? formatDateShort(admin.last_login) : "Never"}
                     </td>
                     <td className="px-4 py-3 align-middle">
-                      {/* Super admins and the system admin can never be
-                          deactivated (nor can you deactivate yourself) — those
-                          rows show a static badge, not a toggle. Server enforces
-                          this too (admin-auth route). */}
-                      {isSuperAdmin && admin.id !== currentAdminId && !hasFullAccess(admin.role) ? (
+                      {/* Deactivate toggle shows only when the current user may
+                          manage this target per the chain of command. The
+                          system admin is never deactivatable — canManage()
+                          already returns false for it. Server enforces too. */}
+                      {canManage(admin) ? (
                         <Switch checked={admin.is_active} onCheckedChange={() => handleToggleActive(admin)} />
                       ) : (
                         <Badge variant={admin.is_active ? "success" : "warning"} className="text-[10px]">{admin.is_active ? "Active" : "Inactive"}</Badge>
@@ -349,24 +363,20 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-4 py-3 align-middle">
                       {(() => {
-                        // The system administrator can only be managed by
-                        // itself — no actions offered to anyone else. Everyone
-                        // else keeps the normal super-admin management menu.
-                        const systemAdminLocked = admin.role === SYSTEM_ADMIN_ROLE && admin.id !== currentAdminId;
-                        return isSuperAdmin && !systemAdminLocked && (
+                        // Show the management menu only when the current user
+                        // can act on this target. "Manage Access" is offered
+                        // only for restricted (non-full-access) admins, since a
+                        // super admin's permission map is meaningless.
+                        return isSuperAdmin && canManage(admin) && (
                         <DropdownMenu>
                           <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md transition-colors active:scale-[0.96]"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => openEditDialog(admin)}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit Admin</DropdownMenuItem>
-                            {!hasFullAccess(admin.role) && admin.id !== currentAdminId && (
+                            {!hasFullAccess(admin.role) && (
                               <DropdownMenuItem onClick={() => openAccessDialog(admin)}><ShieldCheck className="h-3.5 w-3.5 mr-2" /> Manage Access</DropdownMenuItem>
                             )}
-                            {admin.id !== currentAdminId && !hasFullAccess(admin.role) && (
-                              <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-destructive" onClick={() => { setDeleteDialog(admin); setDeleteError(""); }}><Trash2 className="h-3.5 w-3.5 mr-2" /> Remove</DropdownMenuItem>
-                              </>
-                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive" onClick={() => { setDeleteDialog(admin); setDeleteError(""); }}><Trash2 className="h-3.5 w-3.5 mr-2" /> Remove</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                         );
@@ -452,10 +462,12 @@ export default function AdminUsersPage() {
               <Input label="Username" required value={editUsername} onChange={(e) => setEditUsername(e.target.value.toLowerCase().replace(/\s/g, ""))} />
               <div>
                 <label className="block text-sm font-medium text-charcoal-light mb-1.5">Role</label>
-                {/* A super admin's or system admin's role is permanent — locked
-                    for the current user and any full-access target (server
-                    enforces too). System admin isn't an assignable option. */}
-                <Select value={editRole} onValueChange={(v) => setEditRole(v as AdminRoleValue)} disabled={editDialog?.id === currentAdminId || (!!editDialog && hasFullAccess(editDialog.role))}>
+                {/* The system admin's role is permanent (locked). The current
+                    user can't change their own role. Otherwise the role is
+                    editable — a system admin may even demote a super admin.
+                    System admin is never an assignable option. Server enforces
+                    all of this in /api/admin-auth. */}
+                <Select value={editRole} onValueChange={(v) => setEditRole(v as AdminRoleValue)} disabled={editDialog?.id === currentAdminId || editDialog?.role === SYSTEM_ADMIN_ROLE}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {editDialog?.role === SYSTEM_ADMIN_ROLE && <SelectItem value={SYSTEM_ADMIN_ROLE}>System Admin (top-most)</SelectItem>}
