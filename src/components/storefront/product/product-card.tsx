@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { useCartStore } from "@/stores/cart.store";
 import { useWishlistStore } from "@/stores/wishlist.store";
 import { useUIStore } from "@/stores/ui.store";
+import { useAuthStore } from "@/stores/auth.store";
 import { formatCurrency, cn } from "@/lib/utils";
 import { backdropClose } from "@/lib/modal-backdrop";
 import { isPreorderable as computeIsPreorderable } from "@/lib/preorder";
@@ -26,11 +27,14 @@ interface ProductCardProps {
 export function ProductCard({ product, index = 0, priority = false }: ProductCardProps) {
   const addToCart = useCartStore((s) => s.addItem);
   const toggleItem = useWishlistStore((s) => s.toggleItem);
+  const syncServerWishlist = useWishlistStore((s) => s.syncServer);
   // Selector on the one boolean this card actually needs — a whole-store
   // destructure here would re-render every product card on the page whenever
   // ANY card's wishlist state changes, not just this one.
   const isWishlisted = useWishlistStore((s) => s.items.includes(product.id));
   const setCartDrawerOpen = useUIStore((s) => s.setCartDrawerOpen);
+  const showBackInStockToast = useUIStore((s) => s.showBackInStockToast);
+  const authUser = useAuthStore((s) => s.user);
   const { preorders_enabled } = useStoreSettings();
   const [mounted, setMounted] = useState(false);
   const wishlisted = mounted && isWishlisted;
@@ -51,7 +55,18 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
   const handleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    const wasIn = isWishlisted;
     toggleItem(product.id);
+    // Adding an out-of-stock item → record server-side + show the "we'll notify
+    // you on restock" popup. In-stock adds / removals stay local.
+    if (!wasIn) {
+      const productOutOfStock = product.stock_quantity === 0;
+      syncServerWishlist(product.id, true, authUser?.id).then(({ outOfStock }) => {
+        if (outOfStock || productOutOfStock) showBackInStockToast(product.name);
+      });
+    } else {
+      syncServerWishlist(product.id, false, authUser?.id);
+    }
   };
 
   const openModal = (e: React.MouseEvent) => {

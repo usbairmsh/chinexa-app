@@ -3,10 +3,11 @@ import { type RowDataPacket } from "mysql2/promise";
 import pool, { query, execute, escapeLike } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { requirePermission } from "@/lib/admin-permissions-server";
+import { ensureInventoryTables, recordStockHistory, handleRestockTransition } from "@/lib/migrate-inventory";
 
 interface StockRow extends RowDataPacket {
   id: string; name: string; sku: string; stock_quantity: number; min_stock: number; max_stock: number; price: number;
-  category_name: string; is_active: number; image_url: string | null;
+  category_name: string; is_active: number; image_url: string | null; last_restocked_at: string | null;
 }
 
 interface StatsRow extends RowDataPacket { count: number; }
@@ -16,6 +17,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
+    await ensureInventoryTables();
     const { searchParams } = new URL(req.url);
     const filter = searchParams.get("filter") || "all"; // all, low, out, overstock
     const search = searchParams.get("search");
@@ -60,6 +62,7 @@ export async function GET(req: NextRequest) {
       // per product row.
       query<StockRow[]>(`
         SELECT p.id, p.name, p.sku, p.stock_quantity, p.min_stock, p.max_stock, p.price, p.category_name, p.is_active,
+               p.last_restocked_at,
                first_img.url as image_url
         FROM products p
         LEFT JOIN (
@@ -86,6 +89,7 @@ export async function GET(req: NextRequest) {
         min_stock: p.min_stock || 10, max_stock: p.max_stock || 100,
         price: Number(p.price), category: p.category_name, is_active: !!p.is_active,
         image: p.image_url || `https://picsum.photos/seed/${p.id}/80/80`,
+        last_restocked_at: p.last_restocked_at || null,
         stock_value: Number(p.price) * p.stock_quantity,
         status: p.stock_quantity === 0 ? "out" : p.stock_quantity <= (p.min_stock || 10) ? "low" : p.stock_quantity > (p.max_stock || 100) ? "over" : "ok",
       })),
@@ -110,12 +114,21 @@ export async function PUT(req: NextRequest) {
   try {
     const denied = await requirePermission(req, "stock", "edit");
     if (denied) return denied;
+    await ensureInventoryTables();
     const body = await req.json();
+
+    // Small helper: current product-level stock, for before/after diffing.
+    const currentStock = async (id: string): Promise<number> => {
+      const rows = await query<RowDataPacket[]>("SELECT stock_quantity FROM products WHERE id = ? LIMIT 1", [id]);
+      return Number(rows[0]?.stock_quantity ?? 0);
+    };
 
     if (body.updates && Array.isArray(body.updates)) {
       // Bulk update: [{ id, stock }] — wrapped in one transaction so a
       // failure partway through rolls back instead of leaving stock
       // partially updated.
+      const befores = new Map<string, number>();
+      for (const item of body.updates) befores.set(item.id, await currentStock(item.id));
       const conn = await pool.getConnection();
       try {
         await conn.beginTransaction();
@@ -129,20 +142,48 @@ export async function PUT(req: NextRequest) {
         conn.release();
         throw txError;
       }
+      // History + back-in-stock notifications (outside the transaction, best-effort).
+      for (const item of body.updates) {
+        const before = befores.get(item.id) ?? 0;
+        const after = Number(item.stock);
+        const delta = after - before;
+        if (delta > 0) {
+          await recordStockHistory({ productId: item.id, eventType: "restock", quantityChange: delta, resultingStock: after, note: "Bulk stock update", bumpRestockedAt: true });
+        }
+        await handleRestockTransition(item.id, before, after);
+      }
       await logActivity(`Bulk stock update (${body.updates.length} products)`, "stock", undefined, `Updated ${body.updates.length} products`);
       return NextResponse.json({ success: true, updated: body.updates.length });
     }
 
     if (body.id && body.stock !== undefined) {
       // Single update
-      await execute("UPDATE products SET stock_quantity = ?, updated_at = NOW() WHERE id = ?", [body.stock, body.id]);
+      const before = await currentStock(body.id);
+      const after = Number(body.stock);
+      await execute("UPDATE products SET stock_quantity = ?, updated_at = NOW() WHERE id = ?", [after, body.id]);
+      const delta = after - before;
+      if (delta > 0) {
+        await recordStockHistory({ productId: body.id, eventType: "restock", quantityChange: delta, resultingStock: after, note: "Stock updated", bumpRestockedAt: true });
+      } else if (delta < 0) {
+        await recordStockHistory({ productId: body.id, eventType: "adjust", quantityChange: delta, resultingStock: after, note: "Stock reduced" });
+      }
+      await handleRestockTransition(body.id, before, after);
       await logActivity(`Updated stock to ${body.stock}`, "stock", body.id, body.name || body.id);
       return NextResponse.json({ success: true });
     }
 
     if (body.id && body.adjustment !== undefined) {
       // Relative adjustment (+/-)
+      const before = await currentStock(body.id);
       await execute("UPDATE products SET stock_quantity = GREATEST(0, stock_quantity + ?), updated_at = NOW() WHERE id = ?", [body.adjustment, body.id]);
+      const after = await currentStock(body.id);
+      const delta = after - before;
+      if (delta > 0) {
+        await recordStockHistory({ productId: body.id, eventType: "restock", quantityChange: delta, resultingStock: after, note: "Stock adjustment", bumpRestockedAt: true });
+      } else if (delta < 0) {
+        await recordStockHistory({ productId: body.id, eventType: "adjust", quantityChange: delta, resultingStock: after, note: "Stock adjustment" });
+      }
+      await handleRestockTransition(body.id, before, after);
       await logActivity(`Adjusted stock by ${body.adjustment > 0 ? "+" : ""}${body.adjustment}`, "stock", body.id, body.name || body.id);
       return NextResponse.json({ success: true });
     }

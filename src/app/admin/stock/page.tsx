@@ -5,8 +5,8 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Package, AlertTriangle, CheckCircle2, XCircle, Warehouse,
-  TrendingDown, DollarSign, Minus, Plus, Check,
-  X, Download, RefreshCw, Edit
+  TrendingDown, TrendingUp, DollarSign, Minus, Plus, Check,
+  X, Download, RefreshCw, Edit, History
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -17,13 +17,24 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Pagination } from "@/components/ui/pagination";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
 import { backdropClose } from "@/lib/modal-backdrop";
 import { useAdmin } from "@/contexts/admin-context";
 
 interface StockProduct {
   id: string; name: string; sku: string; stock: number; min_stock: number; max_stock: number; price: number;
   category: string; is_active: boolean; image: string; stock_value: number; status: "out" | "low" | "over" | "ok";
+  last_restocked_at?: string | null;
+}
+
+interface StockVariant {
+  id: string; name: string; sku: string; stock: number; price_adjustment: number; hex?: string;
+}
+
+interface HistoryEntry {
+  id: number; variant_sku: string | null; variant_name: string | null;
+  event_type: "added" | "restock" | "adjust"; quantity_change: number;
+  resulting_stock: number | null; note: string | null; created_at: string;
 }
 
 interface StockSummary {
@@ -54,6 +65,16 @@ export default function StockManagementPage() {
   const [editMaxStock, setEditMaxStock] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  // Variant-aware editing: the product's variants + which one is selected
+  // ("" = edit product-level stock/price). Restock history for the current
+  // selection (product-level or the chosen variant).
+  const [variants, setVariants] = useState<StockVariant[]>([]);
+  const [selectedVariantId, setSelectedVariantId] = useState<string>("");
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const selectedVariant = variants.find((v) => v.id === selectedVariantId) || null;
 
   const fetchStock = async () => {
     setLoading(true);
@@ -75,62 +96,120 @@ export default function StockManagementPage() {
 
   const handleRefresh = async () => { setRefreshing(true); await fetchStock(); setTimeout(() => setRefreshing(false), 500); };
 
-  const openEdit = (product: StockProduct) => {
+  // Load restock/addition history for the current selection (product-level, or
+  // a specific variant SKU).
+  const loadHistory = async (productId: string, variantSku?: string | null) => {
+    setHistoryLoading(true);
+    try {
+      const sp = new URLSearchParams({ product_id: productId });
+      if (variantSku) sp.set("variant_sku", variantSku);
+      const res = await fetch(`/api/stock/history?${sp.toString()}`);
+      const data = await res.json();
+      setHistory(Array.isArray(data) ? data : []);
+    } catch { setHistory([]); } finally { setHistoryLoading(false); }
+  };
+
+  const openEdit = async (product: StockProduct) => {
     setEditProduct(product);
+    setSelectedVariantId("");
+    setVariants([]);
     setEditStock(String(product.stock));
     setEditPrice(String(product.price));
     setEditMinStock(String(product.min_stock));
     setEditMaxStock(String(product.max_stock));
     setSaved(false);
+    setHistory([]);
+    // Product-level history immediately; variants + variant history are loaded
+    // in the background so the panel opens instantly.
+    loadHistory(product.id, null);
+    setDetailLoading(true);
+    try {
+      const res = await fetch(`/api/products/${product.id}`);
+      const data = await res.json();
+      if (Array.isArray(data?.variants) && data.variants.length > 0) {
+        setVariants(data.variants.map((v: Record<string, unknown>) => ({
+          id: v.id as string,
+          name: v.name as string,
+          sku: v.sku as string,
+          stock: Number(v.stock) || 0,
+          price_adjustment: Number(v.price_adjustment) || 0,
+          hex: (v.hex as string) || undefined,
+        })));
+      }
+    } catch { /* no variants — product-level editing only */ } finally { setDetailLoading(false); }
+  };
+
+  // When the variant selection changes, swap the stock/price fields to that
+  // selection and reload its history. "" = product level.
+  const selectVariant = (variantId: string) => {
+    if (!editProduct) return;
+    setSelectedVariantId(variantId);
+    setSaved(false);
+    if (variantId === "") {
+      setEditStock(String(editProduct.stock));
+      setEditPrice(String(editProduct.price));
+      loadHistory(editProduct.id, null);
+    } else {
+      const v = variants.find((x) => x.id === variantId);
+      if (v) {
+        setEditStock(String(v.stock));
+        setEditPrice(String(editProduct.price + v.price_adjustment));
+        loadHistory(editProduct.id, v.sku);
+      }
+    }
   };
 
   const handleSaveAll = async () => {
     if (!editProduct) return;
-
-    // Guard against NaN from empty inputs — fall back to current values
-    const newStock = Number.isFinite(Number(editStock)) && editStock !== "" ? Number(editStock) : editProduct.stock;
-    const newPrice = Number.isFinite(Number(editPrice)) && editPrice !== "" ? Number(editPrice) : editProduct.price;
-    const newMin = Number.isFinite(Number(editMinStock)) && editMinStock !== "" ? Number(editMinStock) : editProduct.min_stock;
-    const newMax = Number.isFinite(Number(editMaxStock)) && editMaxStock !== "" ? Number(editMaxStock) : editProduct.max_stock;
-
     setSaving(true);
+
     try {
-      const promises = [];
-
-      // Stock update
-      if (newStock !== editProduct.stock) {
-        promises.push(fetch("/api/stock", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editProduct.id, stock: newStock }) }));
+      if (selectedVariant) {
+        // ─── Variant-level save ───
+        const newStock = Number.isFinite(Number(editStock)) && editStock !== "" ? Number(editStock) : selectedVariant.stock;
+        // The variant's price is stored as an adjustment off the product's base
+        // price; convert the entered absolute price back to an adjustment.
+        const newAbsPrice = Number.isFinite(Number(editPrice)) && editPrice !== "" ? Number(editPrice) : (editProduct.price + selectedVariant.price_adjustment);
+        const newAdjustment = newAbsPrice - editProduct.price;
+        const body: Record<string, number> = {};
+        if (newStock !== selectedVariant.stock) body.stock = newStock;
+        if (newAdjustment !== selectedVariant.price_adjustment) body.price_adjustment = newAdjustment;
+        if (Object.keys(body).length > 0) {
+          const res = await fetch(`/api/products/${editProduct.id}/variants/${selectedVariant.id}`, {
+            method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+          });
+          if (!res.ok) { setSaving(false); return; }
+        }
+        // Reflect locally + refresh this variant's history.
+        setVariants((prev) => prev.map((v) => v.id === selectedVariant.id ? { ...v, stock: newStock, price_adjustment: newAdjustment } : v));
+        await loadHistory(editProduct.id, selectedVariant.sku);
+      } else {
+        // ─── Product-level save (stock / price / thresholds) ───
+        const newStock = Number.isFinite(Number(editStock)) && editStock !== "" ? Number(editStock) : editProduct.stock;
+        const newPrice = Number.isFinite(Number(editPrice)) && editPrice !== "" ? Number(editPrice) : editProduct.price;
+        const newMin = Number.isFinite(Number(editMinStock)) && editMinStock !== "" ? Number(editMinStock) : editProduct.min_stock;
+        const newMax = Number.isFinite(Number(editMaxStock)) && editMaxStock !== "" ? Number(editMaxStock) : editProduct.max_stock;
+        const promises: Promise<Response>[] = [];
+        if (newStock !== editProduct.stock) promises.push(fetch("/api/stock", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editProduct.id, stock: newStock, name: editProduct.name }) }));
+        if (newPrice !== editProduct.price) promises.push(fetch("/api/stock", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editProduct.id, price: newPrice, name: editProduct.name }) }));
+        if (newMin !== editProduct.min_stock || newMax !== editProduct.max_stock) promises.push(fetch("/api/stock", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editProduct.id, min_stock: newMin, max_stock: newMax, name: editProduct.name }) }));
+        await Promise.all(promises);
+        const newStatus: StockProduct["status"] = newStock === 0 ? "out" : newStock <= newMin ? "low" : newStock > newMax ? "over" : "ok";
+        setProducts((prev) => prev.map((p) => p.id === editProduct.id ? { ...p, stock: newStock, price: newPrice, min_stock: newMin, max_stock: newMax, stock_value: newPrice * newStock, status: newStatus } : p));
+        setEditProduct((prev) => prev ? { ...prev, stock: newStock, price: newPrice, min_stock: newMin, max_stock: newMax } : prev);
+        await loadHistory(editProduct.id, null);
       }
-      // Price update
-      if (newPrice !== editProduct.price) {
-        promises.push(fetch("/api/stock", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editProduct.id, price: newPrice }) }));
-      }
-      // Min/Max stock update
-      if (newMin !== editProduct.min_stock || newMax !== editProduct.max_stock) {
-        promises.push(fetch("/api/stock", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editProduct.id, min_stock: newMin, max_stock: newMax }) }));
-      }
-
-      await Promise.all(promises);
     } catch {
       setSaving(false);
-      return; // network failure — keep panel open, don't update local state optimistically
+      return; // network failure — keep panel open, don't optimistically update
     }
-    const newStatus: StockProduct["status"] = newStock === 0 ? "out" : newStock <= newMin ? "low" : newStock > newMax ? "over" : "ok";
-
-    setProducts((prev) => prev.map((p) => p.id === editProduct.id ? {
-      ...p, stock: newStock, price: newPrice, min_stock: newMin, max_stock: newMax,
-      stock_value: newPrice * newStock, status: newStatus,
-    } : p));
 
     setSaving(false);
     setSaved(true);
 
-    // Refresh summary
-    try {
-      const res = await fetch("/api/stock?page_size=1");
-      const data = await res.json();
-      if (data.summary) setSummary(data.summary);
-    } catch {}
+    // Refresh the whole list + summary (a variant restock can flip the product's
+    // status / last-restocked date).
+    fetchStock();
   };
 
   const adjustStock = (amount: number) => {
@@ -232,6 +311,7 @@ export default function StockManagementPage() {
                 <th className="px-4 py-2.5 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider">Stock</th>
                 <th className="px-4 py-2.5 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden sm:table-cell">Price</th>
                 <th className="px-4 py-2.5 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden md:table-cell">Value</th>
+                <th className="px-4 py-2.5 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden lg:table-cell">Last Restocked</th>
                 <th className="px-4 py-2.5 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider">Status</th>
                 <th className="px-4 py-2.5 w-16"></th>
               </tr>
@@ -239,10 +319,10 @@ export default function StockManagementPage() {
             <tbody>
               {loading ? (
                 Array.from({ length: 8 }).map((_, i) => (
-                  <tr key={i} className="border-b border-border/10"><td className="px-4 py-3" colSpan={6}><Skeleton className="h-10 w-full" /></td></tr>
+                  <tr key={i} className="border-b border-border/10"><td className="px-4 py-3" colSpan={7}><Skeleton className="h-10 w-full" /></td></tr>
                 ))
               ) : products.length === 0 ? (
-                <tr><td colSpan={6} className="p-0">
+                <tr><td colSpan={7} className="p-0">
                   <EmptyState icon={Package} title="No products found" description="Try adjusting your search or filters to find what you're looking for." />
                 </td></tr>
               ) : (
@@ -274,6 +354,10 @@ export default function StockManagementPage() {
                     <td className="px-4 py-3 hidden sm:table-cell text-xs text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(product.price)}</td>
                     {/* Value */}
                     <td className="px-4 py-3 hidden md:table-cell text-xs font-medium text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(product.stock_value)}</td>
+                    {/* Last Restocked */}
+                    <td className="px-4 py-3 hidden lg:table-cell text-xs text-charcoal-light">
+                      {product.last_restocked_at ? formatDateShort(product.last_restocked_at) : <span className="text-charcoal-lighter">—</span>}
+                    </td>
                     {/* Status */}
                     <td className="px-4 py-3">
                       <Badge variant={product.status === "out" ? "destructive" : product.status === "low" ? "warning" : product.status === "over" ? "secondary" : "success"} className="text-[9px]">
@@ -309,27 +393,66 @@ export default function StockManagementPage() {
               transition={{ type: "spring", damping: 28, stiffness: 300 }}
               className="fixed inset-y-0 right-0 z-50 w-full sm:w-[420px] bg-white shadow-[0_0_60px_rgba(0,0,0,0.15)] flex flex-col"
             >
-              {/* Panel Header */}
-              <div className="flex items-center justify-between p-5 border-b border-border/20">
-                <div className="flex items-center gap-3">
+              {/* Panel Header — full product name + SKU (no truncation) */}
+              <div className="flex items-start justify-between gap-3 p-5 border-b border-border/20">
+                <div className="flex items-start gap-3 min-w-0">
                   <div className="relative h-12 w-12 rounded-lg overflow-hidden bg-pearl shrink-0">
                     <Image src={editProduct.image} alt={editProduct.name} fill className="object-cover" sizes="48px" />
                   </div>
-                  <div>
-                    <h2 className="text-sm font-semibold text-charcoal line-clamp-1">{editProduct.name}</h2>
-                    <p className="text-[10px] text-charcoal-lighter">{editProduct.sku} · {editProduct.category}</p>
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-semibold text-charcoal leading-snug break-words">{editProduct.name}</h2>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <span className="text-[11px] font-mono text-charcoal-light break-all">{editProduct.sku}</span>
+                      <span className="text-[10px] text-charcoal-lighter">· {editProduct.category}</span>
+                    </div>
                   </div>
                 </div>
-                <button onClick={() => setEditProduct(null)} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96]">
+                <button onClick={() => setEditProduct(null)} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96] shrink-0">
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
               {/* Panel Body */}
               <div className="flex-1 overflow-y-auto p-5 space-y-6">
+                {/* Variant selector — choose WHICH variant (or the whole product)
+                    to update before editing its stock/price. Shown only when the
+                    product actually has variants. */}
+                {(variants.length > 0 || detailLoading) && (
+                  <div>
+                    <label className="text-xs font-semibold text-charcoal uppercase tracking-wider mb-2.5 block">
+                      {detailLoading ? "Loading variants…" : "Select what to update"}
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => selectVariant("")}
+                        className={cn("px-3 py-2 rounded-luxury text-xs font-medium border transition-all active:scale-[0.96]",
+                          selectedVariantId === "" ? "bg-secondary !text-white border-secondary" : "bg-white text-charcoal border-border hover:border-charcoal")}>
+                        Whole product
+                      </button>
+                      {variants.map((v) => (
+                        <button
+                          key={v.id}
+                          onClick={() => selectVariant(v.id)}
+                          className={cn("flex items-center gap-1.5 px-3 py-2 rounded-luxury text-xs font-medium border transition-all active:scale-[0.96]",
+                            selectedVariantId === v.id ? "bg-secondary !text-white border-secondary" : "bg-white text-charcoal border-border hover:border-charcoal")}>
+                          {v.hex && <span className="h-3 w-3 rounded-full border border-border/40 shrink-0" style={{ backgroundColor: v.hex }} />}
+                          {v.name}
+                          <span className={cn("text-[9px] [font-variant-numeric:tabular-nums]", selectedVariantId === v.id ? "text-white/80" : "text-charcoal-lighter")}>({v.stock})</span>
+                        </button>
+                      ))}
+                    </div>
+                    {selectedVariant && (
+                      <p className="mt-2 text-[10px] text-charcoal-lighter font-mono break-all">Editing variant SKU: {selectedVariant.sku}</p>
+                    )}
+                    <Separator className="mt-4" />
+                  </div>
+                )}
+
                 {/* Stock Quantity */}
                 <div>
-                  <label className="text-xs font-semibold text-charcoal uppercase tracking-wider mb-3 block">Stock Quantity</label>
+                  <label className="text-xs font-semibold text-charcoal uppercase tracking-wider mb-3 block">
+                    {selectedVariant ? `${selectedVariant.name} — Stock` : "Stock Quantity"}
+                  </label>
                   <div className="flex items-center justify-center gap-1.5 sm:gap-3 mb-3">
                     <button onClick={() => adjustStock(-10)} className="h-8 w-8 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center rounded-lg border border-border hover:bg-pearl text-xs sm:text-sm font-medium text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96]">-10</button>
                     <button onClick={() => adjustStock(-1)} className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 flex items-center justify-center rounded-lg border border-border hover:bg-pearl transition-colors active:scale-[0.96]">
@@ -367,7 +490,9 @@ export default function StockManagementPage() {
 
                 {/* Price */}
                 <div>
-                  <label className="text-xs font-semibold text-charcoal uppercase tracking-wider mb-3 block">Unit Price</label>
+                  <label className="text-xs font-semibold text-charcoal uppercase tracking-wider mb-3 block">
+                    {selectedVariant ? `${selectedVariant.name} — Unit Price` : "Unit Price"}
+                  </label>
                   <div className="flex items-center gap-2">
                     <span className="text-lg text-charcoal-lighter font-medium">৳</span>
                     <input
@@ -382,9 +507,10 @@ export default function StockManagementPage() {
                   </p>
                 </div>
 
-                <Separator />
+                {!selectedVariant && <Separator />}
 
-                {/* Stock Thresholds */}
+                {/* Stock Thresholds — product-level only */}
+                {!selectedVariant && (
                 <div>
                   <label className="text-xs font-semibold text-charcoal uppercase tracking-wider mb-3 block">Stock Alert Thresholds</label>
                   <div className="grid grid-cols-2 gap-3">
@@ -416,6 +542,57 @@ export default function StockManagementPage() {
                     </div>
                     <span className="text-blue-500 font-medium">Over</span>
                   </div>
+                </div>
+                )}
+
+                <Separator />
+
+                {/* ─── Restock / Addition History ─── */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <History className="h-3.5 w-3.5 text-charcoal-lighter" />
+                    <label className="text-xs font-semibold text-charcoal uppercase tracking-wider">
+                      {selectedVariant ? `${selectedVariant.name} History` : "Stock History"}
+                    </label>
+                  </div>
+                  {historyLoading ? (
+                    <div className="space-y-2">
+                      {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
+                    </div>
+                  ) : history.length === 0 ? (
+                    <p className="text-[11px] text-charcoal-lighter py-3 text-center bg-pearl/40 rounded-lg">
+                      No stock history yet{selectedVariant ? " for this variant" : ""}. Additions and restocks will appear here.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {history.map((h) => {
+                        const isAdd = h.event_type === "added";
+                        const isUp = h.quantity_change > 0;
+                        return (
+                          <div key={h.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-pearl/50 border border-border/20">
+                            <div className={cn("flex h-7 w-7 items-center justify-center rounded-full shrink-0",
+                              isAdd ? "bg-secondary/10 text-secondary" : isUp ? "bg-success/10 text-success" : "bg-charcoal/5 text-charcoal-lighter")}>
+                              {isAdd ? <Plus className="h-3.5 w-3.5" /> : isUp ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-medium text-charcoal">
+                                {isAdd ? "Added" : isUp ? "Restocked" : "Reduced"}
+                                <span className={cn("ml-1.5 [font-variant-numeric:tabular-nums]", isUp ? "text-success" : "text-charcoal-lighter")}>
+                                  {isUp ? "+" : ""}{h.quantity_change}
+                                </span>
+                                {h.resulting_stock != null && (
+                                  <span className="text-charcoal-lighter"> → {h.resulting_stock} in stock</span>
+                                )}
+                              </p>
+                              <p className="text-[10px] text-charcoal-lighter">
+                                {formatDateShort(h.created_at)}{h.note ? ` · ${h.note}` : ""}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 

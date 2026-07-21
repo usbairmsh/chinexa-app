@@ -99,6 +99,7 @@ export async function getProductsList(searchParams: URLSearchParams): Promise<Pa
   const minPrice = searchParams.get("min_price");
   const maxPrice = searchParams.get("max_price");
   const featured = searchParams.get("featured");
+  const exclusive = searchParams.get("exclusive");
   const limit = searchParams.get("limit");
 
   const all = searchParams.get("all");
@@ -167,6 +168,12 @@ export async function getProductsList(searchParams: URLSearchParams): Promise<Pa
   if (minPrice) { where += " AND p.price >= ?"; params.push(Number(minPrice)); }
   if (maxPrice) { where += " AND p.price <= ?"; params.push(Number(maxPrice)); }
   if (featured === "true") { where += " AND p.is_featured = 1"; }
+  // "Exclusive" = recently added OR recently restocked (within 30 days). A
+  // restock re-surfaces an older product. Ordered by most-recent activity by
+  // default (see sort_by = restocked below).
+  if (exclusive === "true") {
+    where += " AND (p.created_at >= (NOW() - INTERVAL 30 DAY) OR (p.last_restocked_at IS NOT NULL AND p.last_restocked_at >= (NOW() - INTERVAL 30 DAY)))";
+  }
 
   let orderBy = "ORDER BY p.is_featured DESC, p.created_at DESC";
   if (sortBy === "newest") orderBy = "ORDER BY p.created_at DESC";
@@ -174,6 +181,13 @@ export async function getProductsList(searchParams: URLSearchParams): Promise<Pa
   else if (sortBy === "price_desc") orderBy = "ORDER BY p.price DESC";
   else if (sortBy === "rating") orderBy = "ORDER BY p.average_rating DESC";
   else if (sortBy === "name_asc") orderBy = "ORDER BY p.name ASC";
+  // "restocked" = freshness: most-recent add or restock first. Used by the
+  // Exclusive listing. GREATEST over created_at and last_restocked_at so a
+  // restock bumps an old product to the top.
+  else if (sortBy === "restocked") orderBy = "ORDER BY GREATEST(p.created_at, COALESCE(p.last_restocked_at, p.created_at)) DESC";
+  // Admin: sort by out-of-stock wishlist demand (highest first).
+  else if (sortBy === "wishlist_desc") orderBy = "ORDER BY p.oos_wishlist_count DESC, p.created_at DESC";
+  else if (sortBy === "date_added") orderBy = "ORDER BY p.created_at DESC";
   else if (relevanceSelect && sortBy === "featured") orderBy = "ORDER BY relevance DESC, p.is_featured DESC";
 
   const actualLimit = limit ? Number(limit) : pageSize;
@@ -224,6 +238,8 @@ export async function getProductsList(searchParams: URLSearchParams): Promise<Pa
     })),
     stock_quantity: row.stock_quantity, is_active: !!row.is_active, is_featured: !!row.is_featured,
     preorder_release_date: row.preorder_release_date ? String(row.preorder_release_date).slice(0, 10) : undefined,
+    last_restocked_at: row.last_restocked_at || undefined,
+    oos_wishlist_count: Number(row.oos_wishlist_count) || 0,
     average_rating: Number(row.average_rating), review_count: row.review_count,
     country_of_origin: row.country_of_origin || undefined, weight: row.weight || undefined,
     ingredients: row.ingredients || undefined, how_to_use: row.how_to_use || undefined,

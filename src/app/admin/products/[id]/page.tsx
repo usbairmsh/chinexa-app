@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
@@ -42,12 +42,20 @@ type ImageRow = { id: string; url: string; alt: string; variant_id: string; foca
 export default function EditProductPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { can } = useAdmin();
   const canEditProduct = can("products", "edit");
-  const [activeTab, setActiveTab] = useState<"basic" | "media" | "variants" | "seo">("basic");
+  // Deep-link support: /admin/products/[id]?tab=variants&edit=1 (used by the
+  // product list's "Add Variant" action) opens straight into the Variants tab
+  // in edit mode. Tabs only render in edit mode, so both must be set.
+  const initialTab = searchParams.get("tab");
+  const wantsEdit = searchParams.get("edit") === "1";
+  const [activeTab, setActiveTab] = useState<"basic" | "media" | "variants" | "seo">(
+    initialTab === "variants" || initialTab === "media" || initialTab === "seo" ? initialTab : "basic"
+  );
   const [loading, setLoading] = useState(true);
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState(wantsEdit && canEditProduct);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");

@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import {
   Plus, Search, MoreHorizontal, Edit, Trash2, Eye, Package, Check, X,
   ExternalLink, AlertTriangle, EyeOff, RotateCcw, DollarSign, ChevronDown,
-  ChevronRight, Loader2, Save, Award, Copy
+  ChevronRight, Loader2, Save, Award, Copy, Heart, Layers
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { useProducts } from "@/hooks/queries/use-products";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
 import type { ProductListParams, Product, ProductVariant } from "@/types/product";
 import { useAdmin } from "@/contexts/admin-context";
 
@@ -193,6 +193,22 @@ export default function AdminProductsPage() {
             </span>
           </td>
 
+          {/* Date Added */}
+          <td className="px-4 py-3 hidden lg:table-cell">
+            <span className="text-xs text-charcoal-light">{product.created_at ? formatDateShort(product.created_at) : "—"}</span>
+          </td>
+
+          {/* Wishlist demand (customers waiting for a restock) */}
+          <td className="px-4 py-3 hidden xl:table-cell">
+            {product.oos_wishlist_count && product.oos_wishlist_count > 0 ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-secondary/10 px-2 py-0.5 text-[11px] font-semibold text-secondary [font-variant-numeric:tabular-nums]" title="Customers wishlisted this while it was out of stock — they'll be notified on restock">
+                <Heart className="h-3 w-3" /> {product.oos_wishlist_count}
+              </span>
+            ) : (
+              <span className="text-xs text-charcoal-lighter">—</span>
+            )}
+          </td>
+
           {/* Status */}
           <td className="px-4 py-3 hidden md:table-cell">
             <Badge variant={product.is_active ? "success" : "destructive"} className="text-[10px]">
@@ -213,6 +229,11 @@ export default function AdminProductsPage() {
                 {canEditProduct && (
                   <DropdownMenuItem onClick={() => router.push(`/admin/products/${product.id}`)}>
                     <Edit className="h-3.5 w-3.5 mr-2" /> Edit Product
+                  </DropdownMenuItem>
+                )}
+                {canEditProduct && (
+                  <DropdownMenuItem onClick={() => router.push(`/admin/products/${product.id}?tab=variants&edit=1`)}>
+                    <Layers className="h-3.5 w-3.5 mr-2" /> Add Variant
                   </DropdownMenuItem>
                 )}
                 {canEditProduct && (
@@ -266,6 +287,8 @@ export default function AdminProductsPage() {
                 {v.stock}
               </span>
             </td>
+            <td className="px-4 py-2.5 hidden lg:table-cell" />
+            <td className="px-4 py-2.5 hidden xl:table-cell" />
             <td className="px-4 py-2.5 hidden md:table-cell" />
             <td className="px-4 py-2.5">
               <div className="flex items-center gap-1">
@@ -300,6 +323,8 @@ export default function AdminProductsPage() {
       <th className="px-4 py-3 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden xl:table-cell">Country</th>
       <th className="px-4 py-3 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider">Price</th>
       <th className="px-4 py-3 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden md:table-cell">Stock</th>
+      <th className="px-4 py-3 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden lg:table-cell">Date Added</th>
+      <th className="px-4 py-3 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden xl:table-cell" title="Customers waiting for a restock (wishlisted while out of stock)">Wishlist</th>
       <th className="px-4 py-3 text-[10px] font-semibold text-charcoal-lighter uppercase tracking-wider hidden md:table-cell">Status</th>
       <th className="px-4 py-3 w-12"></th>
     </tr>
@@ -339,6 +364,18 @@ export default function AdminProductsPage() {
             <div className="flex-1">
               <Input placeholder="Search products..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} icon={<Search className="h-4 w-4" />} />
             </div>
+            <Select value={params.sort_by} onValueChange={(v) => setParams((p) => ({ ...p, sort_by: v as ProductListParams["sort_by"], page: 1 }))}>
+              <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Sort by" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest first</SelectItem>
+                <SelectItem value="date_added">Date added</SelectItem>
+                <SelectItem value="wishlist_desc">Wishlist demand</SelectItem>
+                <SelectItem value="restocked">Recently restocked</SelectItem>
+                <SelectItem value="price_desc">Price: High to Low</SelectItem>
+                <SelectItem value="price_asc">Price: Low to High</SelectItem>
+                <SelectItem value="name_asc">Name (A–Z)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -351,6 +388,8 @@ export default function AdminProductsPage() {
                     <td className="px-4 py-3 hidden sm:table-cell"><Skeleton className="h-4 w-20" /></td>
                     <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
                     <td className="px-4 py-3 hidden md:table-cell"><Skeleton className="h-4 w-12" /></td>
+                    <td className="px-4 py-3 hidden lg:table-cell"><Skeleton className="h-4 w-16" /></td>
+                    <td className="px-4 py-3 hidden xl:table-cell"><Skeleton className="h-5 w-10 rounded-full" /></td>
                     <td className="px-4 py-3 hidden md:table-cell"><Skeleton className="h-5 w-16 rounded-full" /></td>
                     <td className="px-4 py-3"><Skeleton className="h-6 w-6" /></td>
                   </tr>

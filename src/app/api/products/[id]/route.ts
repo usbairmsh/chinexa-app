@@ -9,6 +9,7 @@ import { ensureAccountingTables } from "@/lib/migrate-accounting";
 import { pingIndexNowUrl } from "@/lib/indexnow";
 import { getProductBySlugOrId } from "@/lib/products";
 import { ensurePreorderColumns } from "@/lib/migrate-preorder";
+import { ensureInventoryTables, recordStockHistory, handleRestockTransition } from "@/lib/migrate-inventory";
 import { validate, validationError, dependencyError, publicServerError } from "@/lib/validate";
 
 interface ProductRow extends RowDataPacket { [key: string]: unknown; }
@@ -32,6 +33,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     await ensurePromotionColumns();
     await ensureAccountingTables();
     await ensurePreorderColumns();
+    await ensureInventoryTables();
     const { id } = await params;
     const body = await req.json();
 
@@ -41,9 +43,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     // right now. Previously this route had no validation at all: price could
     // be set to 0/negative, the name blanked out, or a "discount" compare_at_price
     // set below the real price, all via a direct PUT call.
-    const currentRows = await query<RowDataPacket[]>("SELECT price, compare_at_price FROM products WHERE id = ? LIMIT 1", [id]);
+    const currentRows = await query<RowDataPacket[]>("SELECT price, compare_at_price, stock_quantity FROM products WHERE id = ? LIMIT 1", [id]);
     if (currentRows.length === 0) return NextResponse.json({ error: "Product not found" }, { status: 404 });
     const current = currentRows[0];
+    const beforeProductStock = Number(current.stock_quantity ?? 0);
+
+    // Snapshot each existing variant's stock keyed by SKU (SKU survives the
+    // delete+re-insert below, variant id does not), so we can log per-variant
+    // restocks after the edit.
+    const beforeVariantStockBySku = new Map<string, number>();
+    try {
+      const oldVariants = await query<RowDataPacket[]>("SELECT sku, stock FROM product_variants WHERE product_id = ?", [id]);
+      for (const v of oldVariants) if (v.sku) beforeVariantStockBySku.set(String(v.sku), Number(v.stock) || 0);
+    } catch { /* history is best-effort */ }
 
     if (body.name !== undefined) {
       const err = validate([
@@ -130,12 +142,41 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       for (let i = 0; i < body.variants.length; i++) {
         const v = body.variants[i];
         if (v.name) {
+          const variantSku = v.sku || `${id}-v${i}`;
+          const newStock = Number(v.stock) || 0;
           await execute(
             "INSERT INTO product_variants (id, product_id, name, type, value, hex, price_adjustment, cost_price_adjustment, stock, sku, image, focal_point) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [`pv-${id}-${i}`, id, v.name, v.type || "size", v.value || v.name, v.hex || null, Number(v.price_adjustment) || 0, Number(v.cost_price_adjustment) || 0, Number(v.stock) || 0, v.sku || `${id}-v${i}`, v.image || null, v.focal_point || null]
+            [`pv-${id}-${i}`, id, v.name, v.type || "size", v.value || v.name, v.hex || null, Number(v.price_adjustment) || 0, Number(v.cost_price_adjustment) || 0, newStock, variantSku, v.image || null, v.focal_point || null]
           );
+          // Per-variant restock history: a NEW variant (no prior SKU) is an
+          // "added" event; an existing SKU whose stock rose is a "restock".
+          const hadBefore = beforeVariantStockBySku.has(variantSku);
+          const prev = beforeVariantStockBySku.get(variantSku) ?? 0;
+          const delta = newStock - prev;
+          if (!hadBefore) {
+            await recordStockHistory({ productId: id, variantSku, variantName: v.name, eventType: "added", quantityChange: newStock, resultingStock: newStock, note: "Variant added" });
+          } else if (delta > 0) {
+            await recordStockHistory({ productId: id, variantSku, variantName: v.name, eventType: "restock", quantityChange: delta, resultingStock: newStock, note: "Restocked via product edit", bumpRestockedAt: true });
+          } else if (delta < 0) {
+            await recordStockHistory({ productId: id, variantSku, variantName: v.name, eventType: "adjust", quantityChange: delta, resultingStock: newStock, note: "Stock reduced via product edit" });
+          }
         }
       }
+    }
+
+    // Product-level restock history (no-variant products) + back-in-stock check.
+    if (body.stock_quantity !== undefined) {
+      const afterProductStock = Number(body.stock_quantity);
+      const delta = afterProductStock - beforeProductStock;
+      const hasVariants = Array.isArray(body.variants) && body.variants.some((v: { name?: string }) => v?.name);
+      if (!hasVariants) {
+        if (delta > 0) {
+          await recordStockHistory({ productId: id, eventType: "restock", quantityChange: delta, resultingStock: afterProductStock, note: "Restocked via product edit", bumpRestockedAt: true });
+        } else if (delta < 0) {
+          await recordStockHistory({ productId: id, eventType: "adjust", quantityChange: delta, resultingStock: afterProductStock, note: "Stock reduced via product edit" });
+        }
+      }
+      await handleRestockTransition(id, beforeProductStock, afterProductStock);
     }
 
     await logActivity("Updated product", "product", id);

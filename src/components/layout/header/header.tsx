@@ -254,9 +254,18 @@ export function Header() {
                 </div>
               ))}
 
-              {/* Pre-Order — fixed trailing item to the right of the fetched
-                  categories. Kept OUT of the navItems array so it always shows
-                  regardless of the categories fetch, and always stays last. */}
+              {/* Exclusive + Pre-Order — fixed trailing items to the right of
+                  the fetched categories. Kept OUT of the navItems array so they
+                  always show regardless of the categories fetch, and stay last
+                  (Exclusive, then Pre-Order). */}
+              <Link
+                href="/exclusive"
+                onMouseEnter={() => setActiveMenu(null)}
+                className="relative inline-flex items-center gap-1.5 px-4 py-2 font-heading text-[15px] font-semibold tracking-[0.01em] text-gold hover:text-gold/80 transition-colors"
+              >
+                Exclusive
+                <span className="text-[8px] font-bold bg-gold text-white px-1.5 py-[1px] rounded-full leading-tight uppercase">Hot</span>
+              </Link>
               <Link
                 href="/categories/pre-orders"
                 onMouseEnter={() => setActiveMenu(null)}
@@ -596,7 +605,15 @@ export function Header() {
                     </div>
                   ))}
 
-                  {/* Pre-Order — fixed trailing item, always shown last. */}
+                  {/* Exclusive + Pre-Order — fixed trailing items, always last. */}
+                  <Link
+                    href="/exclusive"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-between py-2.5 px-2 rounded-xl font-heading text-[16px] font-semibold text-gold hover:bg-primary-light transition-colors"
+                  >
+                    <span>Exclusive</span>
+                    <span className="text-[8px] font-bold bg-gold text-white px-1.5 py-[1px] rounded-full uppercase">Hot</span>
+                  </Link>
                   <Link
                     href="/categories/pre-orders"
                     onClick={() => setMobileMenuOpen(false)}

@@ -74,8 +74,9 @@ export default function ProductDetailPage() {
   const { data: product, isLoading } = useProduct(slug);
   const { data: relatedProducts } = useRelatedProducts(product?.id || "", product?.category_id);
   const addToCart = useCartStore((s) => s.addItem);
-  const { toggleItem, isInWishlist } = useWishlistStore();
+  const { toggleItem, isInWishlist, syncServer } = useWishlistStore();
   const setCartDrawerOpen = useUIStore((s) => s.setCartDrawerOpen);
+  const showBackInStockToast = useUIStore((s) => s.showBackInStockToast);
   const authUser = useAuthStore((s) => s.user);
 
   const [selectedImage, setSelectedImage] = useState(0);
@@ -257,6 +258,24 @@ export default function ProductDetailPage() {
   const handleAddToCart = () => {
     if (variantRequired || selectionOutOfStock) return;
     addSelectionToCart(false);
+  };
+
+  // Wishlist toggle that, for an OUT-OF-STOCK product being ADDED, records the
+  // wish server-side (so the customer is notified on restock) and shows the
+  // "we'll notify you" popup. In-stock adds and removals stay purely local.
+  const handleWishlistToggle = () => {
+    const wasIn = isInWishlist(product.id);
+    toggleItem(product.id);
+    const nowAdding = !wasIn;
+    // product.stock_quantity === 0 means the whole product is out of stock.
+    const productOutOfStock = product.stock_quantity === 0;
+    if (nowAdding) {
+      syncServer(product.id, true, authUser?.id).then(({ outOfStock }) => {
+        if (outOfStock || productOutOfStock) showBackInStockToast(product.name);
+      });
+    } else {
+      syncServer(product.id, false, authUser?.id);
+    }
   };
 
   const handlePreorder = () => {
@@ -561,7 +580,7 @@ export default function ProductDetailPage() {
                   {/* Wishlist + Share */}
                   <div className="flex gap-2">
                     <button
-                      onClick={() => toggleItem(product.id)}
+                      onClick={handleWishlistToggle}
                       className={cn(
                         "flex items-center gap-2 h-11 px-3 sm:px-5 rounded-full border text-xs sm:text-sm font-medium transition-all duration-200 flex-1 sm:flex-initial justify-center active:scale-[0.96]",
                         wishlisted
@@ -663,7 +682,7 @@ export default function ProductDetailPage() {
                   {/* Wishlist + Share */}
                   <div className="flex gap-2">
                     <button
-                      onClick={() => toggleItem(product.id)}
+                      onClick={handleWishlistToggle}
                       className={cn(
                         "flex items-center gap-2 h-11 px-3 sm:px-5 rounded-full border text-xs sm:text-sm font-medium transition-all duration-200 flex-1 sm:flex-initial justify-center active:scale-[0.96]",
                         wishlisted
@@ -700,7 +719,7 @@ export default function ProductDetailPage() {
                     </p>
                   </div>
                   <button
-                    onClick={() => toggleItem(product.id)}
+                    onClick={handleWishlistToggle}
                     className={cn(
                       "w-full h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 active:scale-[0.97]",
                       wishlisted

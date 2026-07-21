@@ -44,6 +44,10 @@ export interface Product {
   max_stock: number;
   /** Optional "expected availability" date (YYYY-MM-DD) shown for pre-order products. */
   preorder_release_date?: string;
+  /** Timestamp of the most recent restock; drives the "Exclusive" listing + stock list. */
+  last_restocked_at?: string;
+  /** How many customers wishlisted this product while it was out of stock (demand signal). */
+  oos_wishlist_count?: number;
   is_active: boolean;
   is_featured: boolean;
   average_rating: number;
@@ -69,11 +73,13 @@ export interface ProductListParams {
   brand?: string;
   min_price?: number;
   max_price?: number;
-  sort_by?: "featured" | "newest" | "price_asc" | "price_desc" | "rating" | "name_asc" | "name_desc";
+  sort_by?: "featured" | "newest" | "price_asc" | "price_desc" | "rating" | "name_asc" | "name_desc" | "restocked" | "wishlist_desc" | "date_added";
   search?: string;
   tags?: string[];
   badges?: ProductBadge[];
   in_stock?: boolean;
+  /** Recently added OR restocked (last 30 days) — the "Exclusive" listing. */
+  exclusive?: boolean;
   all?: boolean;
 }
 

@@ -10,6 +10,7 @@ import { ensureAccountingTables } from "@/lib/migrate-accounting";
 import { pingIndexNowUrl } from "@/lib/indexnow";
 import { getProductsList } from "@/lib/products";
 import { ensurePreorderColumns } from "@/lib/migrate-preorder";
+import { ensureInventoryTables, recordStockHistory } from "@/lib/migrate-inventory";
 
 interface ProductRow extends RowDataPacket {
   id: string; name: string; slug: string; description: string; short_description: string;
@@ -51,6 +52,8 @@ function buildProduct(row: ProductRow, images: ImageRow[], variants: VariantRow[
       image: v.image || undefined,
     })),
     stock_quantity: row.stock_quantity, is_active: !!row.is_active, is_featured: !!row.is_featured,
+    last_restocked_at: row.last_restocked_at || undefined,
+    oos_wishlist_count: Number(row.oos_wishlist_count) || 0,
     average_rating: Number(row.average_rating), review_count: row.review_count,
     country_of_origin: row.country_of_origin || undefined, weight: row.weight || undefined,
     ingredients: row.ingredients || undefined, how_to_use: row.how_to_use || undefined,
@@ -64,6 +67,7 @@ export async function GET(req: NextRequest) {
   try {
     await ensureSearchIndexes();
     await ensureAccountingTables();
+    await ensureInventoryTables();
     const { searchParams } = new URL(req.url);
 
     // Batched lookup by id list (e.g. wishlist page) — bypasses pagination/
@@ -98,6 +102,7 @@ export async function POST(req: NextRequest) {
     await ensurePromotionColumns();
     await ensureAccountingTables();
     await ensurePreorderColumns();
+    await ensureInventoryTables();
     const body = await req.json();
 
     // Validate required fields
@@ -173,12 +178,19 @@ export async function POST(req: NextRequest) {
       for (let i = 0; i < body.variants.length; i++) {
         const v = body.variants[i];
         if (v.name) {
+          const variantSku = v.sku || `${sku}-${i}`;
+          const variantStock = Number(v.stock) || 0;
           await query(
             "INSERT INTO product_variants (id, product_id, name, type, value, hex, price_adjustment, cost_price_adjustment, stock, sku, image, focal_point) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [`v-${id}-${i}`, id, v.name, v.type || "size", v.value || v.name, v.hex || null, Number(v.price_adjustment) || 0, Number(v.cost_price_adjustment) || 0, Number(v.stock) || 0, v.sku || `${sku}-${i}`, v.image || null, v.focal_point || null]
+            [`v-${id}-${i}`, id, v.name, v.type || "size", v.value || v.name, v.hex || null, Number(v.price_adjustment) || 0, Number(v.cost_price_adjustment) || 0, variantStock, variantSku, v.image || null, v.focal_point || null]
           );
+          // "Product addition" history — the initial stock of each variant.
+          await recordStockHistory({ productId: id, variantSku, variantName: v.name, eventType: "added", quantityChange: variantStock, resultingStock: variantStock, note: "Product created" });
         }
       }
+    } else {
+      // No variants — log the product-level initial stock as the addition event.
+      await recordStockHistory({ productId: id, eventType: "added", quantityChange: Number(body.stock_quantity) || 0, resultingStock: Number(body.stock_quantity) || 0, note: "Product created" });
     }
 
     // Update category product count

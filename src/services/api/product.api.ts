@@ -18,7 +18,12 @@ export class ApiProductService implements IProductService {
   }
 
   async getAll(params?: ProductListParams): Promise<PaginatedResponse<Product>> {
-    return fetchJson(this.buildUrl({ page: params?.page, page_size: params?.page_size, category: params?.category, subcategory: params?.subcategory, brand: params?.brand, sort_by: params?.sort_by, search: params?.search, min_price: params?.min_price, max_price: params?.max_price, badges: params?.badges?.join(","), all: params?.all ? "1" : undefined }));
+    return fetchJson(this.buildUrl({ page: params?.page, page_size: params?.page_size, category: params?.category, subcategory: params?.subcategory, brand: params?.brand, sort_by: params?.sort_by, search: params?.search, min_price: params?.min_price, max_price: params?.max_price, badges: params?.badges?.join(","), exclusive: params?.exclusive ? "true" : undefined, all: params?.all ? "1" : undefined }));
+  }
+
+  async getExclusive(params?: ProductListParams): Promise<PaginatedResponse<Product>> {
+    // Recently added OR restocked, freshest first.
+    return this.getAll({ ...params, exclusive: true, sort_by: params?.sort_by || "restocked" });
   }
 
   async getById(id: string): Promise<Product | null> {

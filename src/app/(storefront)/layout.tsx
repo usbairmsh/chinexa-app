@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { Header } from "@/components/layout/header/header";
 import { Footer } from "@/components/layout/footer/footer";
 import { CartDrawer } from "@/components/storefront/cart/cart-drawer-lazy";
+import { BackInStockToast } from "@/components/storefront/wishlist/back-in-stock-toast";
 import { ScrollToTop } from "@/components/shared/scroll-to-top";
 import { PageLoader } from "@/components/shared/page-loader";
 import { OrganizationJsonLd, WebsiteJsonLd } from "@/components/seo/json-ld";
@@ -65,6 +66,7 @@ export default async function StorefrontLayout({
       <main className="flex-1 overflow-x-hidden">{children}</main>
       <Footer />
       <CartDrawer />
+      <BackInStockToast />
       <ScrollToTop />
     </>
   );
