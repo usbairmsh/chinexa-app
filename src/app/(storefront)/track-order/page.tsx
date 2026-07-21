@@ -77,20 +77,21 @@ export default function TrackOrderPage() {
 function TrackOrderContent() {
   const searchParams = useSearchParams();
   const shouldReduceMotion = useReducedMotion();
-  const [orderId, setOrderId] = useState("");
-  const [phone, setPhone] = useState("");
+  const [queryInput, setQueryInput] = useState("");
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
-  const trackOrder = useCallback(async (q: string, phoneQ: string) => {
-    if (!q.trim() || !phoneQ.trim()) return;
+  const trackOrder = useCallback(async (q: string) => {
+    if (!q.trim()) return;
     setLoading(true);
     setNotFound(false);
     setOrder(null);
 
     try {
-      const res = await fetch(`/api/orders/${encodeURIComponent(q.trim())}?phone=${encodeURIComponent(phoneQ.trim())}`);
+      // One field: the backend figures out whether it's a phone number (any
+      // format) or an order id / number (full or partial).
+      const res = await fetch(`/api/track-order?q=${encodeURIComponent(q.trim())}`);
       if (!res.ok) { setNotFound(true); return; }
       const data = await res.json();
       if (!data || !data.order_number) { setNotFound(true); return; }
@@ -102,18 +103,17 @@ function TrackOrderContent() {
     }
   }, []);
 
-  // Deep-link support: /track-order?order=ORD-123456 auto-fills the order
-  // number, but the phone number still has to be typed in — it's never safe
-  // to put in a shareable URL, since that's the whole point of requiring it.
+  // Deep-link support: /track-order?order=ORD-123456 (or ?q=...) auto-fills and
+  // tracks immediately.
   useEffect(() => {
-    const q = searchParams.get("order");
-    if (q) setOrderId(q);
+    const q = searchParams.get("order") || searchParams.get("q");
+    if (q) { setQueryInput(q); trackOrder(q); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleTrack = async (e: React.FormEvent) => {
     e.preventDefault();
-    trackOrder(orderId, phone);
+    trackOrder(queryInput);
   };
 
   // Build timeline from real data — map each step to completed/pending
@@ -150,31 +150,24 @@ function TrackOrderContent() {
             Track Your Order
           </h1>
           <p className="text-charcoal-lighter mt-2">
-            Enter your order number to check the delivery status.
+            Enter your order number or phone number to check the delivery status.
           </p>
         </div>
       </div>
 
       <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 py-10">
-        {/* Search — both the order number AND the phone it was placed under
-            are required, so an order can't be looked up by anyone who only
-            knows/guesses the order number. */}
+        {/* Single field: order number (full "ORD-0527" or just "527") OR the
+            phone number the order was placed under (with or without country
+            code). The backend resolves whichever was entered. */}
         <form onSubmit={handleTrack} className="flex flex-col sm:flex-row gap-3 mb-10">
           <Input
-            placeholder="Order number (e.g., ORD-0527)"
-            value={orderId}
-            onChange={(e) => { setOrderId(e.target.value); setNotFound(false); }}
+            placeholder="Order number or phone number"
+            value={queryInput}
+            onChange={(e) => { setQueryInput(e.target.value); setNotFound(false); }}
             icon={<Search className="h-4 w-4" />}
             className="flex-1"
           />
-          <Input
-            placeholder="Phone number used for the order"
-            value={phone}
-            onChange={(e) => { setPhone(e.target.value); setNotFound(false); }}
-            type="tel"
-            className="flex-1"
-          />
-          <Button variant="secondary" type="submit" disabled={loading}>
+          <Button variant="secondary" type="submit" disabled={loading || !queryInput.trim()}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Track"}
           </Button>
         </form>
@@ -186,7 +179,7 @@ function TrackOrderContent() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
           >
-            <EmptyState icon={ShoppingBag} title="Order not found" description="Please check the order number and try again." />
+            <EmptyState icon={ShoppingBag} title="Order not found" description="No order matched that order number or phone number. Please check it and try again." />
           </motion.div>
         )}
 
