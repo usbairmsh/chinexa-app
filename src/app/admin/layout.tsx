@@ -444,7 +444,7 @@ export default function AdminLayout({
                 </Avatar>
                 <div className="hidden sm:block text-left">
                   <p className="text-sm font-medium text-charcoal leading-tight">{adminName || adminUsername || "Admin"}</p>
-                  <Badge variant={adminRole === "superadmin" ? "destructive" : "secondary"} className="text-[8px] mt-0.5">{adminRole === "superadmin" ? "Super Admin" : "Admin"}</Badge>
+                  <Badge variant={adminRole === "system_admin" ? "gold" : adminRole === "superadmin" ? "destructive" : "secondary"} className="text-[8px] mt-0.5">{adminRole === "system_admin" ? "System Admin" : adminRole === "superadmin" ? "Super Admin" : "Admin"}</Badge>
                 </div>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
@@ -485,7 +485,7 @@ export default function AdminLayout({
                 <p className="font-medium text-charcoal">{adminName || adminUsername}</p>
                 <div className="flex items-center gap-2">
                   <code className="text-[10px] text-charcoal-lighter">@{adminUsername}</code>
-                  <Badge variant={adminRole === "superadmin" ? "destructive" : "secondary"} className="text-[8px]">{adminRole === "superadmin" ? "Super Admin" : "Admin"}</Badge>
+                  <Badge variant={adminRole === "system_admin" ? "gold" : adminRole === "superadmin" ? "destructive" : "secondary"} className="text-[8px]">{adminRole === "system_admin" ? "System Admin" : adminRole === "superadmin" ? "Super Admin" : "Admin"}</Badge>
                 </div>
               </div>
             </div>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, parseDbJson } from "@/lib/db";
-import { normalizePermissions, canDo, type PermissionAction, type PermissionsMap } from "@/lib/admin-permissions";
+import { normalizePermissions, canDo, hasFullAccess, type PermissionAction, type PermissionsMap } from "@/lib/admin-permissions";
 import { getVerifiedAdminId } from "@/lib/admin-session";
 
 interface RequesterInfo {
@@ -53,7 +53,7 @@ export async function requirePermission(
 export async function requireSuperadmin(req: NextRequest): Promise<NextResponse | null> {
   const requester = await getRequester(req);
   if (!requester) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (requester.role !== "superadmin") {
+  if (!hasFullAccess(requester.role)) {
     return NextResponse.json({ error: "Only a super admin can do this" }, { status: 403 });
   }
   return null;

@@ -1,5 +1,16 @@
 export type PermissionAction = "view" | "add" | "edit" | "delete" | "handle_orders" | "approve";
 
+// The single, top-most owner role. Sits above superadmin: has full access to
+// everything, cannot be created/edited/deleted/deactivated/demoted by anyone
+// (not even a superadmin), and can only be managed by itself. Enforced
+// server-side in /api/admin-auth. There is exactly one, pinned in the DB.
+export const SYSTEM_ADMIN_ROLE = "system_admin";
+
+/** True for the top-most owner OR a superadmin — both get unrestricted access. */
+export function hasFullAccess(role: string): boolean {
+  return role === SYSTEM_ADMIN_ROLE || role === "superadmin";
+}
+
 export interface PermissionSectionDef {
   key: string;
   label: string;
@@ -71,7 +82,7 @@ export function normalizePermissions(raw: unknown): PermissionsMap {
 
 /** Pure predicate — role + normalized permissions map -> can admin do this? */
 export function canDo(role: string, permissions: PermissionsMap, section: string, action: PermissionAction): boolean {
-  if (role === "superadmin") return true;
+  if (hasFullAccess(role)) return true;
   if (section === "dashboard") return true;
   const granted = permissions[section];
   return Array.isArray(granted) && granted.includes(action);

@@ -19,12 +19,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { getInitials, formatDateShort, cn, collectMissingFields } from "@/lib/utils";
 import { ALL_PERMISSIONS } from "../layout";
-import { normalizePermissions, type PermissionAction, type PermissionsMap } from "@/lib/admin-permissions";
+import { normalizePermissions, hasFullAccess, SYSTEM_ADMIN_ROLE, type PermissionAction, type PermissionsMap } from "@/lib/admin-permissions";
 import { useAdmin } from "@/contexts/admin-context";
 
+type AdminRoleValue = "system_admin" | "superadmin" | "admin";
 interface AdminUser {
   id: string; username: string; name: string; email: string; phone: string;
-  role: "superadmin" | "admin"; permissions: PermissionsMap | null; is_active: boolean;
+  role: AdminRoleValue; permissions: PermissionsMap | null; is_active: boolean;
   last_login: string | null; created_at: string;
 }
 
@@ -68,7 +69,8 @@ export default function AdminUsersPage() {
   const [editError, setEditError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const isSuperAdmin = currentRole === "superadmin";
+  // The system admin has full access too, so it sees every management control.
+  const isSuperAdmin = hasFullAccess(currentRole || "");
 
   // Add form
   const [formUsername, setFormUsername] = useState("");
@@ -84,7 +86,7 @@ export default function AdminUsersPage() {
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editUsername, setEditUsername] = useState("");
-  const [editRole, setEditRole] = useState<"admin" | "superadmin">("admin");
+  const [editRole, setEditRole] = useState<AdminRoleValue>("admin");
 
   // Access edit
   const [editPerms, setEditPerms] = useState<PermissionsMap>({});
@@ -309,12 +311,12 @@ export default function AdminUsersPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 align-middle hidden sm:table-cell">
-                      <Badge variant={admin.role === "superadmin" ? "destructive" : "secondary"} className="text-[10px]">
-                        {admin.role === "superadmin" ? "Super Admin" : "Admin"}
+                      <Badge variant={admin.role === SYSTEM_ADMIN_ROLE ? "gold" : admin.role === "superadmin" ? "destructive" : "secondary"} className="text-[10px]">
+                        {admin.role === SYSTEM_ADMIN_ROLE ? "System Admin" : admin.role === "superadmin" ? "Super Admin" : "Admin"}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 align-middle hidden md:table-cell">
-                      {admin.role === "superadmin" ? (
+                      {hasFullAccess(admin.role) ? (
                         <span className="text-[10px] text-charcoal-lighter">Full Access</span>
                       ) : (
                         <div className="flex flex-wrap gap-1 max-w-[220px]">
@@ -335,25 +337,31 @@ export default function AdminUsersPage() {
                       {admin.last_login ? formatDateShort(admin.last_login) : "Never"}
                     </td>
                     <td className="px-4 py-3 align-middle">
-                      {/* A super admin can never be deactivated (nor the current
-                          user themselves) — those rows show a static badge, not
-                          a toggle. Server enforces this too (admin-auth route). */}
-                      {isSuperAdmin && admin.id !== currentAdminId && admin.role !== "superadmin" ? (
+                      {/* Super admins and the system admin can never be
+                          deactivated (nor can you deactivate yourself) — those
+                          rows show a static badge, not a toggle. Server enforces
+                          this too (admin-auth route). */}
+                      {isSuperAdmin && admin.id !== currentAdminId && !hasFullAccess(admin.role) ? (
                         <Switch checked={admin.is_active} onCheckedChange={() => handleToggleActive(admin)} />
                       ) : (
                         <Badge variant={admin.is_active ? "success" : "warning"} className="text-[10px]">{admin.is_active ? "Active" : "Inactive"}</Badge>
                       )}
                     </td>
                     <td className="px-4 py-3 align-middle">
-                      {isSuperAdmin && (
+                      {(() => {
+                        // The system administrator can only be managed by
+                        // itself — no actions offered to anyone else. Everyone
+                        // else keeps the normal super-admin management menu.
+                        const systemAdminLocked = admin.role === SYSTEM_ADMIN_ROLE && admin.id !== currentAdminId;
+                        return isSuperAdmin && !systemAdminLocked && (
                         <DropdownMenu>
                           <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md transition-colors active:scale-[0.96]"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => openEditDialog(admin)}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit Admin</DropdownMenuItem>
-                            {admin.role !== "superadmin" && admin.id !== currentAdminId && (
+                            {!hasFullAccess(admin.role) && admin.id !== currentAdminId && (
                               <DropdownMenuItem onClick={() => openAccessDialog(admin)}><ShieldCheck className="h-3.5 w-3.5 mr-2" /> Manage Access</DropdownMenuItem>
                             )}
-                            {admin.id !== currentAdminId && (
+                            {admin.id !== currentAdminId && !hasFullAccess(admin.role) && (
                               <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem className="text-destructive" onClick={() => { setDeleteDialog(admin); setDeleteError(""); }}><Trash2 className="h-3.5 w-3.5 mr-2" /> Remove</DropdownMenuItem>
@@ -361,7 +369,8 @@ export default function AdminUsersPage() {
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
-                      )}
+                        );
+                      })()}
                     </td>
                   </tr>
                   );
@@ -443,11 +452,13 @@ export default function AdminUsersPage() {
               <Input label="Username" required value={editUsername} onChange={(e) => setEditUsername(e.target.value.toLowerCase().replace(/\s/g, ""))} />
               <div>
                 <label className="block text-sm font-medium text-charcoal-light mb-1.5">Role</label>
-                {/* A super admin's role is permanent — locked for the current
-                    user and for any super admin target (server enforces too). */}
-                <Select value={editRole} onValueChange={(v) => setEditRole(v as "admin" | "superadmin")} disabled={editDialog?.id === currentAdminId || editDialog?.role === "superadmin"}>
+                {/* A super admin's or system admin's role is permanent — locked
+                    for the current user and any full-access target (server
+                    enforces too). System admin isn't an assignable option. */}
+                <Select value={editRole} onValueChange={(v) => setEditRole(v as AdminRoleValue)} disabled={editDialog?.id === currentAdminId || (!!editDialog && hasFullAccess(editDialog.role))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    {editDialog?.role === SYSTEM_ADMIN_ROLE && <SelectItem value={SYSTEM_ADMIN_ROLE}>System Admin (top-most)</SelectItem>}
                     <SelectItem value="admin">Admin (restricted access)</SelectItem>
                     <SelectItem value="superadmin">Super Admin (full access)</SelectItem>
                   </SelectContent>

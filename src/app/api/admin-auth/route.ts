@@ -4,8 +4,16 @@ import { query, execute, parseDbJson } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
-import { normalizePermissions } from "@/lib/admin-permissions";
+import { normalizePermissions, hasFullAccess, SYSTEM_ADMIN_ROLE } from "@/lib/admin-permissions";
 import { createAdminSessionToken, getVerifiedAdminId } from "@/lib/admin-session";
+import { ensureSystemAdminRole } from "@/lib/migrate-system-admin";
+
+// Fetch a target admin's role — used by the management actions to protect the
+// system administrator and super admins.
+async function roleOf(id: string): Promise<string | null> {
+  const rows = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [id]);
+  return rows.length > 0 ? (rows[0].role as string) : null;
+}
 
 // Admin credentials guard the whole store — cap login attempts per
 // username+IP so a password can't just be ground through with unlimited
@@ -15,6 +23,7 @@ const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 
 export async function POST(req: NextRequest) {
   try {
+    await ensureSystemAdminRole();
     const body = await req.json();
     const { action } = body;
     // The acting admin's identity must come from the signed session cookie
@@ -94,22 +103,27 @@ export async function POST(req: NextRequest) {
       const { username, password, name, email, phone, role } = body;
       if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-      // Check requester is superadmin
+      // Requester must have full access (system admin or super admin).
       const requester = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [requesterId]);
-      if (requester.length === 0 || requester[0].role !== "superadmin") {
-        return NextResponse.json({ error: "Only super admin can add new admins" }, { status: 403 });
+      if (requester.length === 0 || !hasFullAccess(requester[0].role as string)) {
+        return NextResponse.json({ error: "Only a super admin can add new admins" }, { status: 403 });
       }
 
       if (!username || !password || !name) return NextResponse.json({ error: "Username, password, and name are required" }, { status: 400 });
       if (password.length < 6) return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
       if (password.length > 128) return NextResponse.json({ error: "Password must be at most 128 characters" }, { status: 400 });
 
+      // The system administrator is a single, permanent, pre-pinned account —
+      // no new one can ever be created through this route. Anything that isn't
+      // a plain superadmin becomes a regular admin.
+      const newRole = role === "superadmin" ? "superadmin" : "admin";
+
       const hashed = await bcrypt.hash(password, 10);
       const id = `adm-${Date.now()}`;
       const perms = body.permissions ? JSON.stringify(body.permissions) : null;
       await execute(
         "INSERT INTO admin_users (id, username, password, name, email, phone, role, permissions) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        [id, username, hashed, name, email || null, phone || null, role === "superadmin" ? "superadmin" : "admin", perms]
+        [id, username, hashed, name, email || null, phone || null, newRole, perms]
       );
       await logActivity("Added new admin", "admin", id, `${name} (${username})`, requesterId);
 
@@ -122,25 +136,30 @@ export async function POST(req: NextRequest) {
     if (action === "update_admin") {
       const { admin_id, name, email, phone, username, role } = body;
       if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      const requester = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [requesterId]);
-      if (requester.length === 0 || requester[0].role !== "superadmin") {
-        return NextResponse.json({ error: "Only super admin can edit admins" }, { status: 403 });
+      const requesterRole = await roleOf(requesterId);
+      if (!requesterRole || !hasFullAccess(requesterRole)) {
+        return NextResponse.json({ error: "Only a super admin can edit admins" }, { status: 403 });
       }
       if (!admin_id) return NextResponse.json({ error: "admin_id is required" }, { status: 400 });
       if (!name || !String(name).trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 });
       if (!username || !String(username).trim()) return NextResponse.json({ error: "Username is required" }, { status: 400 });
 
-      // A super admin's role is permanent — it can never be demoted to a
-      // regular admin (by anyone, including themselves), which would be a
-      // backdoor around "a super admin can never be removed": demote, then
-      // delete/deactivate. So a superadmin target always stays superadmin
-      // regardless of what role the form submits.
-      const targetRows = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [admin_id]);
-      const targetIsSuper = targetRows.length > 0 && targetRows[0].role === "superadmin";
-      if (targetIsSuper && role !== "superadmin") {
-        return NextResponse.json({ error: "A super admin's role cannot be changed" }, { status: 400 });
+      const targetRole = await roleOf(admin_id);
+      // The system administrator can only be edited by the system administrator
+      // themselves — no other account, not even a super admin, may touch it.
+      if (targetRole === SYSTEM_ADMIN_ROLE && admin_id !== requesterId) {
+        return NextResponse.json({ error: "The system administrator can only be edited by themselves" }, { status: 403 });
       }
-      const finalRole = targetIsSuper ? "superadmin" : (role === "superadmin" ? "superadmin" : "admin");
+      // Neither the system admin nor a super admin can have their role changed
+      // (a demote-then-delete would be a backdoor around their protection), and
+      // no one can be promoted INTO system_admin — it's a single pinned account.
+      const targetIsProtected = targetRole === SYSTEM_ADMIN_ROLE || targetRole === "superadmin";
+      if (targetIsProtected && role !== targetRole) {
+        return NextResponse.json({ error: `A ${targetRole === SYSTEM_ADMIN_ROLE ? "system" : "super"} admin's role cannot be changed` }, { status: 400 });
+      }
+      const finalRole = targetIsProtected
+        ? (targetRole as string)                       // keep the protected role as-is
+        : (role === "superadmin" ? "superadmin" : "admin"); // never system_admin for others
 
       await execute(
         "UPDATE admin_users SET name = ?, email = ?, phone = ?, username = ?, role = ? WHERE id = ?",
@@ -150,13 +169,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // ─── UPDATE PERMISSIONS (superadmin only) ───
+    // ─── UPDATE PERMISSIONS (full-access only) ───
     if (action === "update_permissions") {
       const { admin_id, permissions } = body;
       if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      const requester = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [requesterId]);
-      if (requester.length === 0 || requester[0].role !== "superadmin") {
-        return NextResponse.json({ error: "Only super admin can update permissions" }, { status: 403 });
+      const requesterRole = await roleOf(requesterId);
+      if (!requesterRole || !hasFullAccess(requesterRole)) {
+        return NextResponse.json({ error: "Only a super admin can update permissions" }, { status: 403 });
+      }
+      // System admin and super admins have full access by role — their
+      // permission map is meaningless and must not be writable by others
+      // (and the system admin's is off-limits to everyone but themselves).
+      const targetRole = await roleOf(admin_id);
+      if (targetRole === SYSTEM_ADMIN_ROLE && admin_id !== requesterId) {
+        return NextResponse.json({ error: "The system administrator can only be managed by themselves" }, { status: 403 });
+      }
+      if (targetRole && hasFullAccess(targetRole)) {
+        return NextResponse.json({ error: "This account already has full access — permissions don't apply" }, { status: 400 });
       }
       await execute("UPDATE admin_users SET permissions = ? WHERE id = ?", [JSON.stringify(permissions), admin_id]);
       await logActivity("Updated admin permissions", "admin", admin_id, undefined, requesterId);
@@ -214,7 +243,7 @@ export async function POST(req: NextRequest) {
       if (rows.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
       const r = rows[0];
       const raw = parseDbJson(r.permissions);
-      return NextResponse.json({ ...r, permissions: r.role === "superadmin" ? null : normalizePermissions(raw) });
+      return NextResponse.json({ ...r, permissions: hasFullAccess(r.role as string) ? null : normalizePermissions(raw) });
     }
 
     // ─── LIST ADMINS (any authenticated admin — was previously reachable
@@ -225,7 +254,7 @@ export async function POST(req: NextRequest) {
       const rows = await query<RowDataPacket[]>("SELECT id, username, name, email, phone, role, permissions, is_active, last_login, created_at FROM admin_users ORDER BY created_at");
       return NextResponse.json(rows.map((r) => {
         const raw = parseDbJson(r.permissions);
-        return { ...r, is_active: !!r.is_active, permissions: r.role === "superadmin" ? null : normalizePermissions(raw) };
+        return { ...r, is_active: !!r.is_active, permissions: hasFullAccess(r.role as string) ? null : normalizePermissions(raw) };
       }));
     }
 
@@ -240,20 +269,24 @@ export async function POST(req: NextRequest) {
       return res;
     }
 
-    // ─── DELETE ADMIN (superadmin only) ───
+    // ─── DELETE ADMIN (full-access only) ───
     if (action === "delete_admin") {
       const { admin_id } = body;
       if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      const requester = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [requesterId]);
-      if (requester.length === 0 || requester[0].role !== "superadmin") {
-        return NextResponse.json({ error: "Only super admin can remove admins" }, { status: 403 });
+      const requesterRole = await roleOf(requesterId);
+      if (!requesterRole || !hasFullAccess(requesterRole)) {
+        return NextResponse.json({ error: "Only a super admin can remove admins" }, { status: 403 });
       }
       if (requesterId === admin_id) return NextResponse.json({ error: "Cannot delete yourself" }, { status: 400 });
-      // A superadmin is the store's ultimate owner and can never be removed —
-      // not even by another superadmin — so no chain of deletions can ever
-      // leave the store with no one who can manage admins.
-      const target = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [admin_id]);
-      if (target.length > 0 && target[0].role === "superadmin") {
+      // The system administrator and every super admin are permanent owners —
+      // neither can be removed by anyone (the system admin, not even by itself
+      // via this route), so no chain of deletions can leave the store without
+      // an owner who can manage admins.
+      const targetRole = await roleOf(admin_id);
+      if (targetRole === SYSTEM_ADMIN_ROLE) {
+        return NextResponse.json({ error: "The system administrator cannot be removed" }, { status: 400 });
+      }
+      if (targetRole === "superadmin") {
         return NextResponse.json({ error: "A super admin cannot be removed" }, { status: 400 });
       }
       await execute("DELETE FROM admin_users WHERE id = ?", [admin_id]);
@@ -261,19 +294,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // ─── TOGGLE ACTIVE (superadmin only) ───
+    // ─── TOGGLE ACTIVE (full-access only) ───
     if (action === "toggle_active") {
       const { admin_id, is_active } = body;
       if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      const requester = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [requesterId]);
-      if (requester.length === 0 || requester[0].role !== "superadmin") {
-        return NextResponse.json({ error: "Only super admin can manage admins" }, { status: 403 });
+      const requesterRole = await roleOf(requesterId);
+      if (!requesterRole || !hasFullAccess(requesterRole)) {
+        return NextResponse.json({ error: "Only a super admin can manage admins" }, { status: 403 });
       }
-      // A superadmin can never be deactivated (same reasoning as delete) —
-      // deactivating one is just a soft-lockout, so it's blocked too.
+      // Neither the system administrator nor a super admin can be deactivated
+      // (a deactivate is just a soft-lockout — same reasoning as delete).
       if (!is_active) {
-        const target = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [admin_id]);
-        if (target.length > 0 && target[0].role === "superadmin") {
+        const targetRole = await roleOf(admin_id);
+        if (targetRole === SYSTEM_ADMIN_ROLE) {
+          return NextResponse.json({ error: "The system administrator cannot be deactivated" }, { status: 400 });
+        }
+        if (targetRole === "superadmin") {
           return NextResponse.json({ error: "A super admin cannot be deactivated" }, { status: 400 });
         }
       }
