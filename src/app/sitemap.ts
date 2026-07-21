@@ -12,6 +12,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: siteUrl, lastModified: new Date(), changeFrequency: "daily", priority: 1.0 },
     { url: `${siteUrl}/products`, lastModified: new Date(), changeFrequency: "daily", priority: 0.9 },
     { url: `${siteUrl}/brands`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.6 },
+    // "Exclusive" (recently added / restocked) and the Pre-Order listing are
+    // first-class storefront destinations (linked from the header + footer).
+    // Pre-orders is listed explicitly here rather than relying on the dynamic
+    // category loop below, so it's always advertised even on databases where no
+    // "pre-orders" category row exists.
+    { url: `${siteUrl}/exclusive`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
+    { url: `${siteUrl}/categories/pre-orders`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
     { url: `${siteUrl}/collections/new-arrivals`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
     { url: `${siteUrl}/collections/bestsellers`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
     { url: `${siteUrl}/collections/trending`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
@@ -121,6 +128,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   //     too — Google's guidance is that sitemaps should list only canonical
   //     URLs, so advertising a page that declares "the real version of me
   //     lives elsewhere" is the same class of contradiction.
+  // Dedupe by URL — a statically-listed page (e.g. /categories/pre-orders) can
+  // also be produced by the dynamic category loop when that category row exists,
+  // and Search Console flags duplicate <loc> entries in a sitemap.
+  const dedupe = (list: MetadataRoute.Sitemap): MetadataRoute.Sitemap => {
+    const seen = new Set<string>();
+    return list.filter((e) => {
+      const key = e.url.replace(/\/$/, "");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
   try {
     const seoRes = await fetch(`${internalUrl}/api/seo`, { cache: "no-store" }).catch(() => null);
     if (seoRes?.ok) {
@@ -142,13 +162,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           }
         }
         if (excludedPaths.size > 0) {
-          return entries.filter((e) => {
+          return dedupe(entries.filter((e) => {
             try { return !excludedPaths.has(new URL(e.url).pathname); } catch { return true; }
-          });
+          }));
         }
       }
     }
   } catch {}
 
-  return entries;
+  return dedupe(entries);
 }
