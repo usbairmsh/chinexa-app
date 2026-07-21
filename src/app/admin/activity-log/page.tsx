@@ -112,34 +112,42 @@ export default function AdminActivityLogPage() {
       <Card>
         <CardContent className="p-3 sm:p-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="relative sm:col-span-2 lg:col-span-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-charcoal-lighter pointer-events-none" />
-              <input
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search admin name or username…"
-                className="w-full h-11 pl-9 pr-3 rounded-luxury bg-beige-dark/70 shadow-[inset_0_0_0_1px_rgba(58,36,56,0.06)] text-sm text-charcoal placeholder:text-charcoal-lighter/50 focus:bg-white focus:shadow-[inset_0_0_0_1.5px_var(--color-secondary)] focus:outline-none transition-all"
-              />
+            {/* Search — spans full width on small screens, one column on desktop.
+                Every field carries a label so all four inputs share one baseline. */}
+            <div className="sm:col-span-2 lg:col-span-1">
+              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Search</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-charcoal-lighter pointer-events-none" />
+                <input
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="Admin name or username…"
+                  className="w-full h-11 pl-9 pr-3 rounded-luxury bg-beige-dark/70 shadow-[inset_0_0_0_1px_rgba(58,36,56,0.06)] text-sm text-charcoal placeholder:text-charcoal-lighter/50 focus:bg-white focus:shadow-[inset_0_0_0_1.5px_var(--color-secondary)] focus:outline-none transition-all"
+                />
+              </div>
             </div>
-            <Select value={filter} onValueChange={setFilter}>
-              <SelectTrigger><SelectValue placeholder="Access type" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Access Types</SelectItem>
-                <SelectItem value="admin">Admin / Users</SelectItem>
-                <SelectItem value="product">Products</SelectItem>
-                <SelectItem value="order">Orders</SelectItem>
-                <SelectItem value="customer">Customers</SelectItem>
-                <SelectItem value="stock">Stock</SelectItem>
-                <SelectItem value="coupon">Coupons</SelectItem>
-                <SelectItem value="banner">Banners</SelectItem>
-                <SelectItem value="category">Categories</SelectItem>
-                <SelectItem value="blog">Blog</SelectItem>
-                <SelectItem value="review">Reviews</SelectItem>
-                <SelectItem value="fraud">Fraud</SelectItem>
-                <SelectItem value="settings">Settings</SelectItem>
-                <SelectItem value="role">Roles</SelectItem>
-              </SelectContent>
-            </Select>
+            <div>
+              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Access Type</label>
+              <Select value={filter} onValueChange={setFilter}>
+                <SelectTrigger className="h-11"><SelectValue placeholder="Access type" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Access Types</SelectItem>
+                  <SelectItem value="admin">Admin / Users</SelectItem>
+                  <SelectItem value="product">Products</SelectItem>
+                  <SelectItem value="order">Orders</SelectItem>
+                  <SelectItem value="customer">Customers</SelectItem>
+                  <SelectItem value="stock">Stock</SelectItem>
+                  <SelectItem value="coupon">Coupons</SelectItem>
+                  <SelectItem value="banner">Banners</SelectItem>
+                  <SelectItem value="category">Categories</SelectItem>
+                  <SelectItem value="blog">Blog</SelectItem>
+                  <SelectItem value="review">Reviews</SelectItem>
+                  <SelectItem value="fraud">Fraud</SelectItem>
+                  <SelectItem value="settings">Settings</SelectItem>
+                  <SelectItem value="role">Roles</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Input type="date" label="From" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
             <Input type="date" label="To" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
           </div>
