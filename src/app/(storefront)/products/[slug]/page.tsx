@@ -202,8 +202,17 @@ export default function ProductDetailPage() {
   // A variant must be chosen before adding to cart when the product has variants.
   const variantRequired = product.variants.length > 0 && !selectedVariant;
 
+  // Effective availability of the CURRENT selection: a selected variant's own
+  // stock takes precedence; with no variant selected, the product-level stock
+  // applies. Out-of-stock variants are still selectable (so a shopper can
+  // wishlist that exact variant) — this just drives the Add-to-Bag vs
+  // Add-to-Wishlist swap and the "Out of Stock" note below the variants.
+  const selectionOutOfStock = activeVariant
+    ? activeVariant.stock === 0
+    : product.stock_quantity === 0;
+
   const handleAddToCart = () => {
-    if (variantRequired) return;
+    if (variantRequired || selectionOutOfStock) return;
     addToCart({
       id: "",
       product_id: product.id,
@@ -434,13 +443,14 @@ export default function ProductDetailPage() {
                             if (imgIdx >= 0) setSelectedImage(imgIdx);
                           }
                         }}
-                        disabled={variant.stock === 0}
                         className={cn(
+                          // Out-of-stock variants stay SELECTABLE (so they can be
+                          // wishlisted) — just visually muted, never disabled.
                           "relative flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all duration-200 active:scale-[0.96]",
                           selectedVariant === variant.id
                             ? "border-secondary bg-secondary !text-white shadow-[0_6px_25px_rgba(122,79,160,0.3)]"
                             : "border-border text-charcoal hover:border-secondary hover:text-secondary",
-                          variant.stock === 0 && "opacity-30 cursor-not-allowed line-through"
+                          variant.stock === 0 && selectedVariant !== variant.id && "opacity-50 line-through"
                         )}
                       >
                         {variant.hex && (
@@ -453,11 +463,22 @@ export default function ProductDetailPage() {
                       </button>
                     ))}
                   </div>
+
+                  {/* Out-of-stock note for the selected variant, right below the
+                      options — so it reads as "this variant is unavailable". */}
+                  {activeVariant && activeVariant.stock === 0 && (
+                    <p className="mt-2.5 text-xs font-medium text-destructive flex items-center gap-1.5">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-destructive" />
+                      {activeVariant.name} is out of stock — add it to your wishlist to be notified.
+                    </p>
+                  )}
                 </div>
               )}
 
-              {/* Quantity + Add to Cart */}
-              {product.stock_quantity > 0 ? (
+              {/* Quantity + Add to Cart — shown when the current selection is in
+                  stock. When the product OR the selected variant is out of
+                  stock, the wishlist path below takes over instead. */}
+              {!selectionOutOfStock ? (
                 <>
                   {/* Quantity + Add to Bag */}
                   <div className="flex items-center gap-3">
@@ -536,10 +557,15 @@ export default function ProductDetailPage() {
                 </>
               ) : (
                 <>
-                  {/* Out of Stock — only wishlist */}
+                  {/* Out of Stock — wishlist only. Copy adapts to whether it's
+                      the whole product or just the selected variant. */}
                   <div className="p-4 rounded-xl bg-pearl/80 border border-border/30 text-center">
                     <p className="text-sm font-semibold text-charcoal mb-1">Out of Stock</p>
-                    <p className="text-xs text-charcoal-lighter">This product is currently unavailable. Add it to your wishlist to get notified when it&apos;s back.</p>
+                    <p className="text-xs text-charcoal-lighter">
+                      {activeVariant && activeVariant.stock === 0 && product.stock_quantity > 0
+                        ? <>The <span className="font-medium text-charcoal">{activeVariant.name}</span> option is currently unavailable. Add it to your wishlist to get notified when it&apos;s back.</>
+                        : "This product is currently unavailable. Add it to your wishlist to get notified when it's back."}
+                    </p>
                   </div>
                   <button
                     onClick={() => toggleItem(product.id)}
@@ -567,15 +593,21 @@ export default function ProductDetailPage() {
                 </>
               )}
 
-              {/* Stock indicator */}
-              {product.stock_quantity > 0 && product.stock_quantity <= 10 && (
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-warning/5 border border-warning/15">
-                  <Sparkles className="h-4 w-4 text-warning shrink-0" />
-                  <span className="text-xs text-warning font-medium">
-                    Only {product.stock_quantity} left — order soon!
-                  </span>
-                </div>
-              )}
+              {/* Low-stock indicator — reflects the current selection (the
+                  variant's own stock when one is chosen), and never shows when
+                  the selection is out of stock. */}
+              {(() => {
+                const selStock = activeVariant ? activeVariant.stock : product.stock_quantity;
+                if (selStock <= 0 || selStock > 10) return null;
+                return (
+                  <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-warning/5 border border-warning/15">
+                    <Sparkles className="h-4 w-4 text-warning shrink-0" />
+                    <span className="text-xs text-warning font-medium">
+                      Only {selStock} left{activeVariant ? ` of ${activeVariant.name}` : ""} — order soon!
+                    </span>
+                  </div>
+                );
+              })()}
 
               {/* Trust Promises — loaded from settings */}
               <StorefrontTrustBadges badgeIds={product.trust_badges || []} />
