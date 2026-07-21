@@ -61,6 +61,10 @@ interface ProductJsonLdProps {
   availability?: "InStock" | "OutOfStock" | "PreOrder";
   rating?: number;
   reviewCount?: number;
+  /** A few real, approved reviews — emitted as schema.org Review objects so
+   *  Google's product snippet has the individual reviews it wants alongside
+   *  the aggregate rating. Only include genuine reviews; never fabricate. */
+  reviews?: { author: string; rating: number; title?: string; body?: string; date?: string }[];
   brand?: string;
   category?: string;
   url: string;
@@ -68,7 +72,7 @@ interface ProductJsonLdProps {
 
 export function ProductJsonLd({
   name, description, image, sku, price, highPrice, compareAtPrice, currency = "BDT",
-  availability = "InStock", rating, reviewCount, brand, category, url,
+  availability = "InStock", rating, reviewCount, reviews, brand, category, url,
 }: ProductJsonLdProps) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
   const priceValidUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -157,6 +161,26 @@ export function ProductJsonLd({
       bestRating: "5",
       worstRating: "1",
     };
+  }
+
+  // Individual reviews — only real, approved ones. Google wants at least one
+  // Review alongside the aggregateRating for a complete product snippet.
+  // Never emit an empty or fabricated review: no reviews → no review field,
+  // which is correct (and avoids a structured-data policy violation).
+  if (reviews && reviews.length > 0) {
+    schema.review = reviews.map((r) => ({
+      "@type": "Review",
+      reviewRating: {
+        "@type": "Rating",
+        ratingValue: String(r.rating),
+        bestRating: "5",
+        worstRating: "1",
+      },
+      author: { "@type": "Person", name: r.author },
+      ...(r.title ? { name: r.title } : {}),
+      ...(r.body ? { reviewBody: r.body.slice(0, 500) } : {}),
+      ...(r.date ? { datePublished: r.date } : {}),
+    }));
   }
 
   return (

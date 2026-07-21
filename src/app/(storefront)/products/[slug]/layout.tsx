@@ -30,15 +30,21 @@ const getProductForLayout = cache(async (slug: string) => {
   if (products.length === 0) return null;
   const product = products[0];
 
-  const [images, variants] = await Promise.all([
+  const [images, variants, reviews] = await Promise.all([
     query<RowDataPacket[]>("SELECT url FROM product_images WHERE product_id = ? ORDER BY `order` LIMIT 1", [product.id]),
     // Same unordered row order the client's product.variants[0] uses for its
     // default/first swatch — kept consistent so the JSON-LD's price matches
     // what a shopper actually sees on first paint, before picking a variant.
     query<RowDataPacket[]>("SELECT price_adjustment FROM product_variants WHERE product_id = ?", [product.id]),
+    // A few real, APPROVED reviews for the Product JSON-LD's review array —
+    // approved-only so nothing unmoderated is surfaced to Google.
+    query<RowDataPacket[]>(
+      "SELECT customer_name, rating, title, comment, created_at FROM reviews WHERE product_id = ? AND is_approved = 1 ORDER BY created_at DESC LIMIT 5",
+      [product.id]
+    ).catch(() => [] as RowDataPacket[]),
   ]);
 
-  return { product, imageUrl: images[0]?.url as string | undefined, variants };
+  return { product, imageUrl: images[0]?.url as string | undefined, variants, reviews };
 });
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -94,7 +100,7 @@ async function ProductStructuredData({ slug }: { slug: string }) {
   try {
     const data = await getProductForLayout(slug);
     if (data) {
-      const { product, imageUrl, variants } = data;
+      const { product, imageUrl, variants, reviews } = data;
       const basePrice = Number(product.price);
       // The storefront shows no variant pre-selected on first paint (product
       // page starts with selectedVariant = null), so the price a shopper —
@@ -123,6 +129,13 @@ async function ProductStructuredData({ slug }: { slug: string }) {
         availability: (Number(product.stock_quantity) > 0 ? "InStock" : "OutOfStock") as "InStock" | "OutOfStock",
         rating: Number(product.average_rating) || undefined,
         reviewCount: Number(product.review_count) || undefined,
+        reviews: reviews.map((r) => ({
+          author: (r.customer_name as string) || "Customer",
+          rating: Number(r.rating),
+          title: (r.title as string) || undefined,
+          body: (r.comment as string) || undefined,
+          date: r.created_at ? new Date(r.created_at as string).toISOString() : undefined,
+        })),
         category: product.category_name || undefined,
         url: `/products/${slug}`,
       };
@@ -135,7 +148,7 @@ async function ProductStructuredData({ slug }: { slug: string }) {
   // product rich results, star ratings, and breadcrumbs can each be disabled.
   const schema = await getSchemaConfig();
   if (!schema.review) {
-    productData = { ...productData, rating: undefined, reviewCount: undefined };
+    productData = { ...productData, rating: undefined, reviewCount: undefined, reviews: [] };
   }
 
   return (
