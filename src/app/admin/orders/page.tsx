@@ -8,7 +8,7 @@ import {
   Search, MoreHorizontal, Eye, Truck, Package, Clock, CheckCircle2,
   XCircle, DollarSign, ArrowUpRight, Check,
   Download, Printer, ShoppingCart, PackageCheck, MapPin, ThumbsDown, Copy,
-  Archive, ArchiveRestore
+  Archive, ArchiveRestore, RotateCcw
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +25,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { formatCurrency, formatDateShort, getInitials, cn } from "@/lib/utils";
 import { useAdmin } from "@/contexts/admin-context";
 
-type OrderStatus = "pending" | "confirmed" | "processing" | "shipped" | "on_delivery" | "received" | "not_received";
+type OrderStatus = "pending" | "confirmed" | "processing" | "shipped" | "on_delivery" | "received" | "not_received" | "cancelled" | "returned";
 type PaymentStatus = "pending" | "paid" | "refunded";
 
 interface Order {
@@ -41,7 +41,19 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; bg: stri
   on_delivery: { label: "On Delivery", color: "text-indigo-500", bg: "bg-indigo-50", icon: MapPin },
   received: { label: "Received", color: "text-success", bg: "bg-success/10", icon: PackageCheck },
   not_received: { label: "Not Received", color: "text-destructive", bg: "bg-destructive/10", icon: ThumbsDown },
+  // Archiving an order sets its status to 'cancelled', and a return sets it to
+  // 'returned' — both appear on the Archived tab. Missing entries here made
+  // statusConfig[order.status] undefined and crashed the whole page into the
+  // error boundary ("This page couldn't load") the moment the tab rendered.
+  cancelled: { label: "Cancelled", color: "text-destructive", bg: "bg-destructive/10", icon: XCircle },
+  returned: { label: "Returned", color: "text-orange-500", bg: "bg-orange-50", icon: RotateCcw },
 };
+
+// Any status not in the config (e.g. a value added server-side later) falls
+// back to a neutral chip instead of throwing — belt-and-braces so this class
+// of crash can't recur.
+const FALLBACK_STATUS = { label: "Unknown", color: "text-charcoal-lighter", bg: "bg-pearl", icon: Clock };
+const statusOf = (s: OrderStatus) => statusConfig[s] || FALLBACK_STATUS;
 
 const nextStatus: Partial<Record<OrderStatus, OrderStatus>> = {
   pending: "confirmed", confirmed: "processing", processing: "shipped", shipped: "on_delivery", on_delivery: "received",
@@ -311,7 +323,7 @@ export default function OrderManagementPage() {
               <tbody>
                 <AnimatePresence>
                   {filtered.map((order) => {
-                    const config = statusConfig[order.status];
+                    const config = statusOf(order.status);
                     const Icon = config.icon;
                     const next = nextStatus[order.status];
                     return (
@@ -414,7 +426,7 @@ export default function OrderManagementPage() {
           </DialogHeader>
           {statusDialog && (
             <div className="space-y-3">
-              <p className="text-xs text-charcoal-lighter">Current: <span className={statusConfig[statusDialog.status].color + " font-semibold"}>{statusConfig[statusDialog.status].label}</span></p>
+              <p className="text-xs text-charcoal-lighter">Current: <span className={statusOf(statusDialog.status).color + " font-semibold"}>{statusOf(statusDialog.status).label}</span></p>
               <div className="grid grid-cols-2 gap-2">
                 {(["pending", "confirmed", "processing", "shipped", "on_delivery", "received", "not_received"] as OrderStatus[]).map((s) => {
                   const sc = statusConfig[s];
@@ -462,8 +474,8 @@ export default function OrderManagementPage() {
           {advanceDialog && (() => {
             const next = nextStatus[advanceDialog.status];
             if (!next) return null;
-            const currentConfig = statusConfig[advanceDialog.status];
-            const nextConfig = statusConfig[next];
+            const currentConfig = statusOf(advanceDialog.status);
+            const nextConfig = statusOf(next);
             const CurrentIcon = currentConfig.icon;
             const NextIcon = nextConfig.icon;
             return (
