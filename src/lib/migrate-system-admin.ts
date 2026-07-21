@@ -20,6 +20,23 @@ export async function ensureSystemAdminRole() {
         "ALTER TABLE admin_users MODIFY COLUMN role ENUM('system_admin','superadmin','admin') DEFAULT 'admin'"
       );
     }
+
+    // Delegation: the real system admin can grant system-admin-level access to
+    // another admin, permanently (system_admin_until NULL) or until a date.
+    // system_admin_delegated marks it as a DELEGATED grant (never the real
+    // owner), so a delegate can be blocked from touching the real system admin.
+    const delegCols = await query<RowDataPacket[]>(
+      `SELECT column_name AS c FROM information_schema.columns
+       WHERE table_schema = DATABASE() AND table_name = 'admin_users'
+       AND column_name IN ('system_admin_delegated','system_admin_until')`
+    );
+    const hasDeleg = new Set(delegCols.map((r) => r.c as string));
+    if (!hasDeleg.has("system_admin_delegated")) {
+      await execute("ALTER TABLE admin_users ADD COLUMN system_admin_delegated TINYINT(1) NOT NULL DEFAULT 0");
+    }
+    if (!hasDeleg.has("system_admin_until")) {
+      await execute("ALTER TABLE admin_users ADD COLUMN system_admin_until DATETIME NULL DEFAULT NULL");
+    }
     done = true;
   } catch (err) {
     // Leave done=false so a transient failure retries on the next request.

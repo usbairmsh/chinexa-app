@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, MoreHorizontal, Shield, Key, Loader2, AlertTriangle, Lock, UserCog, ShieldCheck, Pencil } from "lucide-react";
+import { Plus, Trash2, MoreHorizontal, Shield, Key, Loader2, AlertTriangle, Lock, UserCog, ShieldCheck, Pencil, ShieldMinus } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +27,10 @@ interface AdminUser {
   id: string; username: string; name: string; email: string; phone: string;
   role: AdminRoleValue; permissions: PermissionsMap | null; is_active: boolean;
   last_login: string | null; created_at: string;
+  /** Currently holds delegated system-admin access (not expired). */
+  is_delegate?: boolean;
+  /** ISO datetime the delegation expires, or null for permanent. */
+  delegate_until?: string | null;
 }
 
 const ACTION_LABELS: Record<PermissionAction, string> = {
@@ -55,7 +59,7 @@ interface AdminRole {
 
 export default function AdminUsersPage() {
   const router = useRouter();
-  const { adminId: currentAdminId, role: currentRole } = useAdmin();
+  const { adminId: currentAdminId, role: currentRole, isDelegate: currentIsDelegate } = useAdmin();
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [roles, setRoles] = useState<AdminRole[]>([]);
   const [selectedRoleId, setSelectedRoleId] = useState<string>("");
@@ -71,7 +75,18 @@ export default function AdminUsersPage() {
 
   // The system admin has full access too, so it sees every management control.
   const isSuperAdmin = hasFullAccess(currentRole || "");
+  // Effective system admin — real owner OR active delegate (both act as one).
   const isSystemAdmin = currentRole === SYSTEM_ADMIN_ROLE;
+  // Only the REAL system admin (effective system admin who isn't a delegate)
+  // may grant/revoke delegations — a delegate can never re-delegate.
+  const isRealSystemAdmin = isSystemAdmin && !currentIsDelegate;
+
+  // Delegation dialog
+  const [delegateDialog, setDelegateDialog] = useState<AdminUser | null>(null);
+  const [delegateMode, setDelegateMode] = useState<"permanent" | "until">("permanent");
+  const [delegateUntil, setDelegateUntil] = useState("");
+  const [delegateSaving, setDelegateSaving] = useState(false);
+  const [delegateError, setDelegateError] = useState("");
 
   // Mirrors the server chain of command (chainViolation): can the CURRENT user
   // manage this target admin (edit / deactivate / remove)?
@@ -81,9 +96,10 @@ export default function AdminUsersPage() {
   //     via these controls.
   const canManage = (target: AdminUser): boolean => {
     if (target.id === currentAdminId) return false;
-    if (target.role === SYSTEM_ADMIN_ROLE) return false;
-    if (target.role === "superadmin") return isSystemAdmin;
-    return isSuperAdmin; // regular admin target
+    if (target.role === SYSTEM_ADMIN_ROLE) return false;       // real owner: no one
+    if (target.is_delegate) return isSystemAdmin;              // a delegate: only an effective system admin
+    if (target.role === "superadmin") return isSystemAdmin;    // super admin: only an effective system admin
+    return isSuperAdmin;                                        // regular admin
   };
 
   // Add form
@@ -206,6 +222,33 @@ export default function AdminUsersPage() {
     setAdmins((prev) => prev.map((a) => a.id === admin.id ? { ...a, is_active: !a.is_active } : a));
   };
 
+  const openDelegateDialog = (admin: AdminUser) => {
+    setDelegateDialog(admin);
+    setDelegateMode("permanent");
+    setDelegateUntil("");
+    setDelegateError("");
+  };
+
+  const handleDelegate = async () => {
+    if (!delegateDialog) return;
+    if (delegateMode === "until" && !delegateUntil) { setDelegateError("Pick an expiry date and time"); return; }
+    setDelegateSaving(true); setDelegateError("");
+    try {
+      const res = await fetch("/api/admin-auth", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delegate_system_admin", admin_id: delegateDialog.id, until: delegateMode === "until" ? new Date(delegateUntil).toISOString() : null }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); setDelegateError(d.error || "Could not delegate"); return; }
+      setDelegateDialog(null);
+      await fetchAdmins();
+    } catch { setDelegateError("Network error — not delegated"); } finally { setDelegateSaving(false); }
+  };
+
+  const handleRevokeDelegation = async (admin: AdminUser) => {
+    const res = await fetch("/api/admin-auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "revoke_delegation", admin_id: admin.id }) });
+    if (res.ok) await fetchAdmins();
+  };
+
   const [accessError, setAccessError] = useState("");
   const openAccessDialog = (admin: AdminUser) => {
     setAccessDialog(admin);
@@ -325,13 +368,20 @@ export default function AdminUsersPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 align-middle hidden sm:table-cell">
-                      <Badge variant={admin.role === SYSTEM_ADMIN_ROLE ? "gold" : admin.role === "superadmin" ? "destructive" : "secondary"} className="text-[10px]">
-                        {admin.role === SYSTEM_ADMIN_ROLE ? "System Admin" : admin.role === "superadmin" ? "Super Admin" : "Admin"}
-                      </Badge>
+                      <div className="flex flex-col gap-1 items-start">
+                        <Badge variant={admin.role === SYSTEM_ADMIN_ROLE ? "gold" : admin.role === "superadmin" ? "destructive" : "secondary"} className="text-[10px]">
+                          {admin.role === SYSTEM_ADMIN_ROLE ? "System Admin" : admin.role === "superadmin" ? "Super Admin" : "Admin"}
+                        </Badge>
+                        {admin.is_delegate && (
+                          <Badge variant="gold" className="text-[8px]" title={admin.delegate_until ? `Until ${new Date(admin.delegate_until).toLocaleString()}` : "Permanent"}>
+                            Delegated{admin.delegate_until ? " (temp)" : ""}
+                          </Badge>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 align-middle hidden md:table-cell">
-                      {hasFullAccess(admin.role) ? (
-                        <span className="text-[10px] text-charcoal-lighter">Full Access</span>
+                      {(hasFullAccess(admin.role) || admin.is_delegate) ? (
+                        <span className="text-[10px] text-charcoal-lighter">Full Access{admin.is_delegate ? " (delegated)" : ""}</span>
                       ) : (
                         <div className="flex flex-wrap gap-1 max-w-[220px]">
                           {grantedSections.length > 0 ? (
@@ -372,8 +422,17 @@ export default function AdminUsersPage() {
                           <DropdownMenuTrigger className="p-1 hover:bg-pearl rounded-md transition-colors active:scale-[0.96]"><MoreHorizontal className="h-4 w-4 text-charcoal-lighter" /></DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => openEditDialog(admin)}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit Admin</DropdownMenuItem>
-                            {!hasFullAccess(admin.role) && (
+                            {!hasFullAccess(admin.role) && !admin.is_delegate && (
                               <DropdownMenuItem onClick={() => openAccessDialog(admin)}><ShieldCheck className="h-3.5 w-3.5 mr-2" /> Manage Access</DropdownMenuItem>
+                            )}
+                            {/* Delegation is granted/revoked only by the REAL
+                                system admin, only for non-owner accounts. */}
+                            {isRealSystemAdmin && admin.role !== SYSTEM_ADMIN_ROLE && (
+                              admin.is_delegate ? (
+                                <DropdownMenuItem onClick={() => handleRevokeDelegation(admin)}><ShieldMinus className="h-3.5 w-3.5 mr-2" /> Revoke System Admin</DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={() => openDelegateDialog(admin)}><ShieldCheck className="h-3.5 w-3.5 mr-2" /> Delegate System Admin</DropdownMenuItem>
+                              )
                             )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem className="text-destructive" onClick={() => { setDeleteDialog(admin); setDeleteError(""); }}><Trash2 className="h-3.5 w-3.5 mr-2" /> Remove</DropdownMenuItem>
@@ -514,6 +573,54 @@ export default function AdminUsersPage() {
       </Dialog>
 
       {/* Delete */}
+      {/* ═══════ DELEGATE SYSTEM ADMIN DIALOG ═══════ */}
+      <Dialog open={!!delegateDialog} onOpenChange={(open) => !open && setDelegateDialog(null)}>
+        <DialogContent className="w-[95vw] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-gold" /> Delegate System Admin</DialogTitle>
+            <DialogDescription>
+              Grant {delegateDialog?.name ? <strong>{delegateDialog.name}</strong> : "this admin"} full system-admin access.
+              They can manage every other admin and all settings, but can never remove, deactivate, or edit you — and
+              cannot delegate to anyone else. Only you can revoke it.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setDelegateMode("permanent")}
+                className={cn("p-3 rounded-lg border text-sm font-medium transition-all active:scale-[0.98]", delegateMode === "permanent" ? "border-secondary bg-secondary/5 text-secondary" : "border-border text-charcoal-light hover:border-charcoal")}
+              >
+                Permanent
+              </button>
+              <button
+                type="button"
+                onClick={() => setDelegateMode("until")}
+                className={cn("p-3 rounded-lg border text-sm font-medium transition-all active:scale-[0.98]", delegateMode === "until" ? "border-secondary bg-secondary/5 text-secondary" : "border-border text-charcoal-light hover:border-charcoal")}
+              >
+                Until a date
+              </button>
+            </div>
+            {delegateMode === "until" && (
+              <Input
+                type="datetime-local"
+                label="Expires on"
+                value={delegateUntil}
+                onChange={(e) => { setDelegateUntil(e.target.value); setDelegateError(""); }}
+              />
+            )}
+            {delegateError && <p className="text-xs text-destructive">{delegateError}</p>}
+          </div>
+          <DialogFooter>
+            <AdminButton variant="outline" onClick={() => setDelegateDialog(null)}>Cancel</AdminButton>
+            <AdminButton onClick={handleDelegate} disabled={delegateSaving}>
+              {delegateSaving && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+              Delegate
+            </AdminButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!deleteDialog} onOpenChange={(open) => !open && setDeleteDialog(null)}>
         <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-destructive" /> Remove Admin</DialogTitle><DialogDescription>This will permanently remove this admin account.</DialogDescription></DialogHeader>

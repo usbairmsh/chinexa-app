@@ -111,6 +111,7 @@ export default function AdminLayout({
   const [adminId, setAdminId] = useState("");
   const [adminName, setAdminName] = useState("");
   const [adminRole, setAdminRole] = useState("");
+  const [adminIsDelegate, setAdminIsDelegate] = useState(false);
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPhone, setAdminPhone] = useState("");
   const [adminUsername, setAdminUsername] = useState("");
@@ -171,7 +172,10 @@ export default function AdminLayout({
         const me = await r.json();
         setAdminId(me.id as string);
         setAdminName(me.name as string);
-        setAdminRole(me.role as string);
+        // effective_role reflects an active delegation (a delegate acts with
+        // system-admin access); falls back to the raw role otherwise.
+        setAdminRole((me.effective_role as string) || (me.role as string));
+        setAdminIsDelegate(!!me.is_delegate);
         setAdminEmail((me.email as string) || "");
         setAdminPhone((me.phone as string) || "");
         setAdminUsername((me.username as string) || "");
@@ -256,6 +260,7 @@ export default function AdminLayout({
   const adminContextValue = {
     adminId,
     role: adminRole,
+    isDelegate: adminIsDelegate,
     permissions: adminPermissionsMap,
     name: adminName,
     email: adminEmail,

@@ -6,6 +6,8 @@ import type { PermissionsMap, PermissionAction } from "@/lib/admin-permissions";
 export interface AdminContextValue {
   adminId: string;
   role: string;
+  /** True when `role` is system-admin-effective via a delegation (not the real owner). */
+  isDelegate: boolean;
   permissions: PermissionsMap;
   name: string;
   email: string;

@@ -7,31 +7,29 @@ import bcrypt from "bcryptjs";
 import { normalizePermissions, hasFullAccess, SYSTEM_ADMIN_ROLE } from "@/lib/admin-permissions";
 import { createAdminSessionToken, getVerifiedAdminId } from "@/lib/admin-session";
 import { ensureSystemAdminRole } from "@/lib/migrate-system-admin";
+import { getAdminAccess, type AdminAccess } from "@/lib/system-admin";
 
-// Fetch a target admin's role — used by the management actions to enforce the
-// chain of command below.
-async function roleOf(id: string): Promise<string | null> {
-  const rows = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [id]);
-  return rows.length > 0 ? (rows[0].role as string) : null;
-}
+// Chain of command for admin management (delete / deactivate / edit / demote),
+// delegation-aware:
+//   • real system admin   — top of the chain; can act on every OTHER admin.
+//   • delegated system admin — same broad powers, EXCEPT can never act on the
+//     real system admin (that's the "delegate can't remove the owner" rule).
+//   • superadmin          — regular admins only.
+// Returns an error string if the requester may not manage the target, else null.
+// Self-actions are gated separately by each caller.
+function chainViolation(requester: AdminAccess, targetId: string, target: AdminAccess | null): string | null {
+  if (targetId === requester.id) return null; // self-actions handled per-caller
 
-// Chain of command for admin management (delete / deactivate / edit / demote):
-//   • system_admin  — top of the chain; can act on every OTHER role, and can
-//     only be touched by itself.
-//   • superadmin    — can manage regular admins, but NOT other super admins
-//     and NOT the system admin.
-// Returns an error string if the requester may not manage the target, or null
-// if allowed. Self-actions are handled separately by each caller.
-function chainViolation(requesterId: string, requesterRole: string, targetId: string, targetRole: string | null): string | null {
-  if (targetId === requesterId) return null; // self-actions gated per-caller
-  if (targetRole === SYSTEM_ADMIN_ROLE) {
-    // Only the system admin may act on the system admin — and since it's not a
-    // self-action here (checked above), the requester is someone else.
+  // The real system admin is untouchable by anyone but themselves — including
+  // a delegate. This is the core guarantee: a delegated system admin can never
+  // remove/deactivate/demote/edit the real owner.
+  if (target?.isRealSystemAdmin) {
     return "The system administrator can only be managed by themselves";
   }
-  if (targetRole === "superadmin" && requesterRole !== SYSTEM_ADMIN_ROLE) {
-    // A super admin outranks other super admins' management — only the system
-    // admin sits above them.
+  // Only an effective system admin (real or delegate) may manage a super admin
+  // or another delegate; a plain super admin cannot.
+  const targetIsHigh = target?.role === "superadmin" || target?.isDelegate;
+  if (targetIsHigh && !requester.isSystemAdminEffective) {
     return "Only the system administrator can manage a super admin";
   }
   return null;
@@ -125,9 +123,10 @@ export async function POST(req: NextRequest) {
       const { username, password, name, email, phone, role } = body;
       if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-      // Requester must have full access (system admin or super admin).
-      const requester = await query<RowDataPacket[]>("SELECT role FROM admin_users WHERE id = ?", [requesterId]);
-      if (requester.length === 0 || !hasFullAccess(requester[0].role as string)) {
+      // Requester must have full access (system admin — real or delegate — or
+      // super admin).
+      const addRequester = await getAdminAccess(requesterId);
+      if (!addRequester || !addRequester.fullAccess) {
         return NextResponse.json({ error: "Only a super admin can add new admins" }, { status: 403 });
       }
 
@@ -158,18 +157,19 @@ export async function POST(req: NextRequest) {
     if (action === "update_admin") {
       const { admin_id, name, email, phone, username, role } = body;
       if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      const requesterRole = await roleOf(requesterId);
-      if (!requesterRole || !hasFullAccess(requesterRole)) {
+      const editRequester = await getAdminAccess(requesterId);
+      if (!editRequester || !editRequester.fullAccess) {
         return NextResponse.json({ error: "Only a super admin can edit admins" }, { status: 403 });
       }
       if (!admin_id) return NextResponse.json({ error: "admin_id is required" }, { status: 400 });
       if (!name || !String(name).trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 });
       if (!username || !String(username).trim()) return NextResponse.json({ error: "Username is required" }, { status: 400 });
 
-      const targetRole = await roleOf(admin_id);
-      // Chain of command for editing: only the system admin may edit a super
-      // admin, and the system admin can only be edited by itself.
-      const violation = chainViolation(requesterId, requesterRole, admin_id, targetRole);
+      const editTarget = await getAdminAccess(admin_id);
+      const targetRole = editTarget?.role ?? null;
+      // Chain of command: only an effective system admin edits a super admin,
+      // and the real system admin can only be edited by itself.
+      const violation = chainViolation(editRequester, admin_id, editTarget);
       if (violation) return NextResponse.json({ error: violation }, { status: 403 });
 
       // Role-change rules:
@@ -203,18 +203,17 @@ export async function POST(req: NextRequest) {
     if (action === "update_permissions") {
       const { admin_id, permissions } = body;
       if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      const requesterRole = await roleOf(requesterId);
-      if (!requesterRole || !hasFullAccess(requesterRole)) {
+      const permRequester = await getAdminAccess(requesterId);
+      if (!permRequester || !permRequester.fullAccess) {
         return NextResponse.json({ error: "Only a super admin can update permissions" }, { status: 403 });
       }
-      // System admin and super admins have full access by role — their
-      // permission map is meaningless and must not be writable by others
-      // (and the system admin's is off-limits to everyone but themselves).
-      const targetRole = await roleOf(admin_id);
-      if (targetRole === SYSTEM_ADMIN_ROLE && admin_id !== requesterId) {
+      // A full-access account's permission map is meaningless (role grants
+      // everything), so permissions only apply to restricted admins.
+      const permTarget = await getAdminAccess(admin_id);
+      if (permTarget?.isRealSystemAdmin && admin_id !== requesterId) {
         return NextResponse.json({ error: "The system administrator can only be managed by themselves" }, { status: 403 });
       }
-      if (targetRole && hasFullAccess(targetRole)) {
+      if (permTarget?.fullAccess) {
         return NextResponse.json({ error: "This account already has full access — permissions don't apply" }, { status: 400 });
       }
       await execute("UPDATE admin_users SET permissions = ? WHERE id = ?", [JSON.stringify(permissions), admin_id]);
@@ -286,8 +285,18 @@ export async function POST(req: NextRequest) {
       );
       if (rows.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
       const r = rows[0];
+      const access = await getAdminAccess(requesterId);
       const raw = parseDbJson(r.permissions);
-      return NextResponse.json({ ...r, permissions: hasFullAccess(r.role as string) ? null : normalizePermissions(raw) });
+      // effective_role drives the admin shell's access: a delegate acts as a
+      // system admin (canDo short-circuits full access), while keeping their
+      // underlying role visible. A full-access account gets a null permission
+      // map since the role grants everything.
+      return NextResponse.json({
+        ...r,
+        effective_role: access?.isSystemAdminEffective ? SYSTEM_ADMIN_ROLE : (r.role as string),
+        is_delegate: !!access?.isDelegate,
+        permissions: access?.fullAccess ? null : normalizePermissions(raw),
+      });
     }
 
     // ─── LIST ADMINS (any authenticated admin — was previously reachable
@@ -295,10 +304,22 @@ export async function POST(req: NextRequest) {
     // phone/permissions to anyone) ───
     if (action === "list") {
       if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      const rows = await query<RowDataPacket[]>("SELECT id, username, name, email, phone, role, permissions, is_active, last_login, created_at FROM admin_users ORDER BY created_at");
+      const rows = await query<RowDataPacket[]>("SELECT id, username, name, email, phone, role, permissions, is_active, last_login, created_at, system_admin_delegated, system_admin_until FROM admin_users ORDER BY created_at");
+      const now = Date.now();
       return NextResponse.json(rows.map((r) => {
         const raw = parseDbJson(r.permissions);
-        return { ...r, is_active: !!r.is_active, permissions: hasFullAccess(r.role as string) ? null : normalizePermissions(raw) };
+        const until = r.system_admin_until ? new Date(r.system_admin_until as string) : null;
+        // A delegation whose expiry passed is reported as inactive (the lazy
+        // cleanup in getAdminAccess clears the row on that admin's next request).
+        const delegated = !!r.system_admin_delegated && (!until || until.getTime() > now) && r.role !== SYSTEM_ADMIN_ROLE;
+        const fullAccess = r.role === SYSTEM_ADMIN_ROLE || delegated || hasFullAccess(r.role as string);
+        return {
+          ...r,
+          is_active: !!r.is_active,
+          is_delegate: delegated,
+          delegate_until: delegated ? (r.system_admin_until as string | null) : null,
+          permissions: fullAccess ? null : normalizePermissions(raw),
+        };
       }));
     }
 
@@ -317,21 +338,20 @@ export async function POST(req: NextRequest) {
     if (action === "delete_admin") {
       const { admin_id } = body;
       if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      const requesterRole = await roleOf(requesterId);
-      if (!requesterRole || !hasFullAccess(requesterRole)) {
+      const delRequester = await getAdminAccess(requesterId);
+      if (!delRequester || !delRequester.fullAccess) {
         return NextResponse.json({ error: "Only a super admin can remove admins" }, { status: 403 });
       }
       if (requesterId === admin_id) return NextResponse.json({ error: "Cannot delete yourself" }, { status: 400 });
-      const targetRole = await roleOf(admin_id);
-      // The system admin can never be removed at all — not even by itself via
-      // this route (self is already blocked above, but a would-be requester
-      // who somehow shares the system_admin role must still be refused).
-      if (targetRole === SYSTEM_ADMIN_ROLE) {
+      const delTarget = await getAdminAccess(admin_id);
+      // The real system admin can never be removed by anyone (including a
+      // delegate) — the core "delegate can't remove the owner" guarantee.
+      if (delTarget?.isRealSystemAdmin) {
         return NextResponse.json({ error: "The system administrator cannot be removed" }, { status: 400 });
       }
-      // Chain of command: only the system admin may remove a super admin;
-      // super admins can only remove regular admins.
-      const violation = chainViolation(requesterId, requesterRole, admin_id, targetRole);
+      // Chain of command: only an effective system admin may remove a super
+      // admin or a delegate; super admins remove regular admins only.
+      const violation = chainViolation(delRequester, admin_id, delTarget);
       if (violation) return NextResponse.json({ error: violation }, { status: 403 });
       await execute("DELETE FROM admin_users WHERE id = ?", [admin_id]);
       await logActivity("Deleted admin", "admin", admin_id, undefined, requesterId);
@@ -342,23 +362,76 @@ export async function POST(req: NextRequest) {
     if (action === "toggle_active") {
       const { admin_id, is_active } = body;
       if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      const requesterRole = await roleOf(requesterId);
-      if (!requesterRole || !hasFullAccess(requesterRole)) {
+      const toggleRequester = await getAdminAccess(requesterId);
+      if (!toggleRequester || !toggleRequester.fullAccess) {
         return NextResponse.json({ error: "Only a super admin can manage admins" }, { status: 403 });
       }
       // Deactivating is a soft-lockout — same chain of command as delete. The
-      // system admin can never be deactivated; a super admin can be
-      // deactivated only by the system admin.
+      // real system admin can never be deactivated by anyone.
       if (!is_active) {
-        const targetRole = await roleOf(admin_id);
-        if (targetRole === SYSTEM_ADMIN_ROLE) {
+        const toggleTarget = await getAdminAccess(admin_id);
+        if (toggleTarget?.isRealSystemAdmin) {
           return NextResponse.json({ error: "The system administrator cannot be deactivated" }, { status: 400 });
         }
-        const violation = chainViolation(requesterId, requesterRole, admin_id, targetRole);
+        const violation = chainViolation(toggleRequester, admin_id, toggleTarget);
         if (violation) return NextResponse.json({ error: violation }, { status: 403 });
       }
       await execute("UPDATE admin_users SET is_active = ? WHERE id = ?", [is_active ? 1 : 0, admin_id]);
       await logActivity(is_active ? "Activated admin" : "Deactivated admin", "admin", admin_id, undefined, requesterId);
+      return NextResponse.json({ success: true });
+    }
+
+    // ─── DELEGATE SYSTEM ADMIN (real system admin only) ─── grants
+    // system-admin-level access to a super admin / admin, permanently or until
+    // a date. The delegate can then do everything the system admin can EXCEPT
+    // touch the real system admin or manage delegations (enforced by the
+    // isRealSystemAdmin / isSystemAdminEffective guards above).
+    if (action === "delegate_system_admin") {
+      const { admin_id, until } = body; // until: ISO datetime string or null/undefined = permanent
+      if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      const delegator = await getAdminAccess(requesterId);
+      // Only the REAL system admin may delegate — a delegate cannot re-delegate.
+      if (!delegator?.isRealSystemAdmin) {
+        return NextResponse.json({ error: "Only the system administrator can delegate their role" }, { status: 403 });
+      }
+      if (!admin_id || admin_id === requesterId) {
+        return NextResponse.json({ error: "Choose another admin to delegate to" }, { status: 400 });
+      }
+      const target = await getAdminAccess(admin_id);
+      if (!target) return NextResponse.json({ error: "Admin not found" }, { status: 404 });
+      if (target.isRealSystemAdmin) return NextResponse.json({ error: "That account is already the system administrator" }, { status: 400 });
+
+      let untilValue: string | null = null;
+      if (until) {
+        const d = new Date(until);
+        if (isNaN(d.getTime())) return NextResponse.json({ error: "Invalid expiry date" }, { status: 400 });
+        if (d.getTime() <= Date.now()) return NextResponse.json({ error: "Expiry must be in the future" }, { status: 400 });
+        untilValue = d.toISOString().slice(0, 19).replace("T", " "); // MySQL DATETIME
+      }
+      await execute(
+        "UPDATE admin_users SET system_admin_delegated = 1, system_admin_until = ? WHERE id = ?",
+        [untilValue, admin_id]
+      );
+      await logActivity(
+        untilValue ? `Delegated system admin until ${untilValue}` : "Delegated system admin (permanent)",
+        "admin", admin_id, undefined, requesterId
+      );
+      return NextResponse.json({ success: true });
+    }
+
+    // ─── REVOKE DELEGATION (real system admin only) ───
+    if (action === "revoke_delegation") {
+      const { admin_id } = body;
+      if (!requesterId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      const revoker = await getAdminAccess(requesterId);
+      if (!revoker?.isRealSystemAdmin) {
+        return NextResponse.json({ error: "Only the system administrator can revoke a delegation" }, { status: 403 });
+      }
+      await execute(
+        "UPDATE admin_users SET system_admin_delegated = 0, system_admin_until = NULL WHERE id = ?",
+        [admin_id]
+      );
+      await logActivity("Revoked system admin delegation", "admin", admin_id, undefined, requesterId);
       return NextResponse.json({ success: true });
     }
 
