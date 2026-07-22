@@ -14,13 +14,16 @@ const badgeVariants = cva(
         warning: "bg-warning/10 text-warning",
         destructive: "bg-destructive/10 text-destructive",
         gold: "bg-gold/10 text-gold",
-        new: "bg-emerald-50 text-emerald-700 border border-emerald-200",
-        sale: "bg-red-50 text-red-700 border border-red-200",
-        bestseller: "bg-amber-50 text-amber-700 border border-amber-200",
-        preorder: "bg-violet-50 text-violet-700 border border-violet-200",
-        limited: "bg-rose-50 text-rose-700 border border-rose-200",
-        trending: "bg-blue-50 text-blue-700 border border-blue-200",
-        exclusive: "bg-gold/10 text-gold border border-gold/30",
+        // Product badges — solid, saturated fills with white text and a soft
+        // colored shadow so they pop off the product photo instead of reading
+        // as faint pastel chips.
+        new: "bg-emerald-500 text-white shadow-[0_2px_8px_rgba(16,185,129,0.35)]",
+        sale: "bg-red-500 text-white shadow-[0_2px_8px_rgba(239,68,68,0.35)]",
+        bestseller: "bg-amber-500 text-white shadow-[0_2px_8px_rgba(245,158,11,0.35)]",
+        preorder: "bg-violet-500 text-white shadow-[0_2px_8px_rgba(139,92,246,0.35)]",
+        limited: "bg-rose-500 text-white shadow-[0_2px_8px_rgba(244,63,94,0.35)]",
+        trending: "bg-blue-500 text-white shadow-[0_2px_8px_rgba(59,130,246,0.35)]",
+        exclusive: "bg-gold text-white shadow-[0_2px_8px_rgba(197,160,89,0.4)]",
       },
     },
     defaultVariants: {
