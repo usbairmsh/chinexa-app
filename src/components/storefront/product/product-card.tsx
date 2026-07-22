@@ -192,16 +192,10 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
               </div>
             )}
 
-            {/* Badges — top-left row. A bold solid −N% discount chip leads;
-                other tags are calm frosted-glass chips. Admin-hidden tags are
-                filtered out. (Sale now lives on the right, so these stay put.) */}
-            {(discountPct > 0 || visibleBadges.length > 0) && (
+            {/* Tag chips — top-left row (frosted glass). Admin-hidden tags are
+                filtered out. The discount % is shown separately, bottom-left. */}
+            {visibleBadges.length > 0 && (
               <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 z-10 flex flex-wrap items-center gap-1.5 max-w-[calc(100%-1.25rem)]">
-                {discountPct > 0 && (
-                  <span className="inline-flex items-center rounded-full bg-secondary px-2 py-1 text-[10px] font-bold tracking-wide text-white shadow-[0_2px_10px_rgba(122,79,160,0.4)] [font-variant-numeric:tabular-nums]">
-                    −{discountPct}%
-                  </span>
-                )}
                 {visibleBadges.map((badge) => (
                   <span
                     key={badge}
@@ -211,6 +205,17 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
                     <span className={cn(BADGE_ACCENT[badge] || "text-charcoal")}>{BADGE_LABEL[badge] || badge}</span>
                   </span>
                 ))}
+              </div>
+            )}
+
+            {/* Discount % — bottom-left of the image, a bold solid chip. Fades
+                out on desktop hover so the slide-up Add-to-Bag actions (which
+                occupy the bottom edge) stay clean. */}
+            {discountPct > 0 && (
+              <div className="absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3 z-10 transition-opacity duration-300 lg:group-hover:opacity-0">
+                <span className="inline-flex items-center rounded-full bg-secondary px-2 py-1 text-[10px] font-bold tracking-wide text-white shadow-[0_2px_10px_rgba(122,79,160,0.4)] [font-variant-numeric:tabular-nums]">
+                  −{discountPct}%
+                </span>
               </div>
             )}
 
