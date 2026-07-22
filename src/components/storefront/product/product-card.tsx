@@ -179,27 +179,24 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
             )}
 
             {/* Sale — bold red quarter-circle corner ribbon anchored to the
-                top-left, matching the reference peel design. Only the word
+                top-RIGHT, matching the reference peel design. Only the word
                 "Sale" shows. Built as a square pinned to the corner whose
-                opposite corner is fully rounded, giving the curved diagonal
-                edge; the label sits toward the corner. */}
+                opposite (bottom-left) corner is fully rounded, giving the
+                curved diagonal edge; the label sits toward the corner. */}
             {showSaleRibbon && (
-              <div className="absolute top-0 left-0 z-20 h-[64px] w-[64px] sm:h-[74px] sm:w-[74px] pointer-events-none">
-                <div className="absolute inset-0 rounded-br-[100%] bg-gradient-to-br from-red-500 to-red-700 shadow-[2px_2px_8px_rgba(0,0,0,0.22)]" />
-                <span className="absolute top-[9px] left-[8px] sm:top-[11px] sm:left-[9px] text-[11px] sm:text-[13px] font-extrabold uppercase italic tracking-tight text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.3)]">
+              <div className="absolute top-0 right-0 z-20 h-[64px] w-[64px] sm:h-[74px] sm:w-[74px] pointer-events-none">
+                <div className="absolute inset-0 rounded-bl-[100%] bg-gradient-to-bl from-red-500 to-red-700 shadow-[-2px_2px_8px_rgba(0,0,0,0.22)]" />
+                <span className="absolute top-[9px] right-[8px] sm:top-[11px] sm:right-[9px] text-[11px] sm:text-[13px] font-extrabold uppercase italic tracking-tight text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.3)]">
                   Sale
                 </span>
               </div>
             )}
 
-            {/* Badges — top-left row (below the sale ribbon when it's present).
-                A bold solid −N% discount chip leads; other tags are calm
-                frosted-glass chips. Admin-hidden tags are filtered out. */}
+            {/* Badges — top-left row. A bold solid −N% discount chip leads;
+                other tags are calm frosted-glass chips. Admin-hidden tags are
+                filtered out. (Sale now lives on the right, so these stay put.) */}
             {(discountPct > 0 || visibleBadges.length > 0) && (
-              <div className={cn(
-                "absolute left-2.5 sm:left-3 z-10 flex flex-wrap items-center gap-1.5 max-w-[calc(100%-1.25rem)]",
-                showSaleRibbon ? "top-[58px] sm:top-[68px]" : "top-2.5 sm:top-3"
-              )}>
+              <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 z-10 flex flex-wrap items-center gap-1.5 max-w-[calc(100%-1.25rem)]">
                 {discountPct > 0 && (
                   <span className="inline-flex items-center rounded-full bg-secondary px-2 py-1 text-[10px] font-bold tracking-wide text-white shadow-[0_2px_10px_rgba(122,79,160,0.4)] [font-variant-numeric:tabular-nums]">
                     −{discountPct}%
@@ -217,9 +214,12 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
               </div>
             )}
 
-            {/* Low stock — top right, same frosted family as the left chips. */}
+            {/* Low stock — top right; drops below the Sale ribbon when present. */}
             {product.stock_quantity > 0 && product.stock_quantity <= 5 && (
-              <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-10">
+              <div className={cn(
+                "absolute right-2.5 sm:right-3 z-10",
+                showSaleRibbon ? "top-[58px] sm:top-[68px]" : "top-2.5 sm:top-3"
+              )}>
                 <span className="inline-flex items-center gap-1 rounded-full bg-white/80 px-2 py-1 text-[9px] font-semibold text-amber-600 backdrop-blur-md ring-1 ring-black/[0.04] shadow-[0_1px_4px_rgba(0,0,0,0.08)] whitespace-nowrap">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" /> Only {product.stock_quantity} left
                 </span>
