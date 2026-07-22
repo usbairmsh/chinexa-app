@@ -63,7 +63,7 @@ export interface Product {
   seo_description?: string;
 }
 
-export type ProductBadge = "new" | "sale" | "bestseller" | "preorder" | "limited" | "trending";
+export type ProductBadge = "new" | "sale" | "bestseller" | "preorder" | "limited" | "trending" | "exclusive";
 
 export interface ProductListParams {
   page?: number;

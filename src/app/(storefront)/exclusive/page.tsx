@@ -18,7 +18,7 @@ export default function ExclusivePage() {
     page: 1,
     page_size: 12,
     exclusive: true,
-    sort_by: "restocked",
+    sort_by: "newest",
   });
 
   const { data, isLoading, isFetching } = useProducts(params);
@@ -42,12 +42,12 @@ export default function ExclusivePage() {
             transition={{ duration: 0.4, ease: "easeOut" }}
             className="mt-4"
           >
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary/10 px-3 py-1 text-xs font-semibold text-secondary">
-              <Sparkles className="h-3.5 w-3.5" /> Fresh & Restocked
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-gold/10 px-3 py-1 text-xs font-semibold text-gold">
+              <Sparkles className="h-3.5 w-3.5" /> Handpicked
             </span>
             <h1 className="mt-3 font-heading text-3xl sm:text-4xl font-bold text-charcoal">Exclusive</h1>
             <p className="mt-2 max-w-xl text-sm sm:text-base text-charcoal-lighter">
-              Just added and freshly restocked — the newest arrivals and back-in-stock favourites, sorted by what landed most recently.
+              A curated selection of our most special pieces — handpicked and marked exclusive just for you.
             </p>
           </motion.div>
         </div>
@@ -62,7 +62,6 @@ export default function ExclusivePage() {
           <Select value={params.sort_by} onValueChange={(v) => setParams((p) => ({ ...p, sort_by: v as ProductListParams["sort_by"], page: 1 }))}>
             <SelectTrigger className="w-[190px] h-10"><SelectValue placeholder="Sort" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="restocked">Recently added / restocked</SelectItem>
               <SelectItem value="newest">Newest first</SelectItem>
               <SelectItem value="price_asc">Price: Low to High</SelectItem>
               <SelectItem value="price_desc">Price: High to Low</SelectItem>

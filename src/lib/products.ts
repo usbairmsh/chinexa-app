@@ -168,11 +168,12 @@ export async function getProductsList(searchParams: URLSearchParams): Promise<Pa
   if (minPrice) { where += " AND p.price >= ?"; params.push(Number(minPrice)); }
   if (maxPrice) { where += " AND p.price <= ?"; params.push(Number(maxPrice)); }
   if (featured === "true") { where += " AND p.is_featured = 1"; }
-  // "Exclusive" = recently added OR recently restocked (within 30 days). A
-  // restock re-surfaces an older product. Ordered by most-recent activity by
-  // default (see sort_by = restocked below).
+  // "Exclusive" is now an explicit product badge (like preorder), set by the
+  // admin in the product form — NOT a computed recently-added/restocked window.
+  // A product is exclusive iff it carries the `exclusive` badge.
   if (exclusive === "true") {
-    where += " AND (p.created_at >= (NOW() - INTERVAL 30 DAY) OR (p.last_restocked_at IS NOT NULL AND p.last_restocked_at >= (NOW() - INTERVAL 30 DAY)))";
+    where += " AND p.badges LIKE ?";
+    params.push(`%\"exclusive\"%`);
   }
 
   let orderBy = "ORDER BY p.is_featured DESC, p.created_at DESC";

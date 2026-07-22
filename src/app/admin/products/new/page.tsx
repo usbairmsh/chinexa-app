@@ -738,7 +738,7 @@ export default function AddProductPage() {
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
-                {["new", "sale", "bestseller", "preorder", "limited", "trending"].map((badge) => (
+                {["new", "sale", "bestseller", "preorder", "limited", "trending", "exclusive"].map((badge) => (
                   <button
                     key={badge}
                     onClick={() => toggleBadge(badge)}

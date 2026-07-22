@@ -504,11 +504,14 @@ export function Header() {
       <AnimatePresence>
         {mobileMenuOpen && (
           <>
+            {/* z-[60]: above the bottom-left chat widget (z-50) so the sidebar
+                (and its lower buttons) open ON TOP of the chat launcher instead
+                of being overlapped by it. */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-charcoal/50 backdrop-blur-sm lg:hidden"
+              className="fixed inset-0 z-[60] bg-charcoal/50 backdrop-blur-sm lg:hidden"
               onClick={() => setMobileMenuOpen(false)}
             />
             <motion.div
@@ -516,7 +519,7 @@ export function Header() {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 300 }}
-              className="fixed inset-y-0 left-0 z-50 w-[85vw] max-w-[300px] bg-white shadow-[20px_0_60px_rgba(0,0,0,0.1)] lg:hidden flex flex-col"
+              className="fixed inset-y-0 left-0 z-[60] w-[85vw] max-w-[300px] bg-white shadow-[20px_0_60px_rgba(0,0,0,0.1)] lg:hidden flex flex-col"
             >
               <div className="flex-1 overflow-y-auto overscroll-contain p-5">
                 {/* Mobile Header */}

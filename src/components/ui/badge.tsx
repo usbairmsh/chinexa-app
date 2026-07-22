@@ -20,6 +20,7 @@ const badgeVariants = cva(
         preorder: "bg-violet-50 text-violet-700 border border-violet-200",
         limited: "bg-rose-50 text-rose-700 border border-rose-200",
         trending: "bg-blue-50 text-blue-700 border border-blue-200",
+        exclusive: "bg-gold/10 text-gold border border-gold/30",
       },
     },
     defaultVariants: {

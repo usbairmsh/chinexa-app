@@ -716,7 +716,7 @@ export default function EditProductPage() {
             <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5 text-secondary" /> Badges</CardTitle></CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
-                {["new", "sale", "bestseller", "preorder", "limited", "trending"].map((badge) => (
+                {["new", "sale", "bestseller", "preorder", "limited", "trending", "exclusive"].map((badge) => (
                   <button key={badge} onClick={() => toggleBadge(badge)}
                     className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-all capitalize active:scale-[0.96]",
                       selectedBadges.includes(badge) ? "bg-secondary !text-white border-secondary" : "bg-white text-charcoal-lighter border-border hover:border-charcoal hover:text-charcoal")}>

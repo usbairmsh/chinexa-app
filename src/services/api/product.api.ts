@@ -22,8 +22,8 @@ export class ApiProductService implements IProductService {
   }
 
   async getExclusive(params?: ProductListParams): Promise<PaginatedResponse<Product>> {
-    // Recently added OR restocked, freshest first.
-    return this.getAll({ ...params, exclusive: true, sort_by: params?.sort_by || "restocked" });
+    // Products carrying the admin-set `exclusive` badge, newest first.
+    return this.getAll({ ...params, exclusive: true, sort_by: params?.sort_by || "newest" });
   }
 
   async getById(id: string): Promise<Product | null> {
