@@ -186,7 +186,7 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
             {showSaleRibbon && (
               <div className="absolute top-0 right-0 z-20 h-[48px] w-[48px] sm:h-[56px] sm:w-[56px] pointer-events-none">
                 <div className="absolute inset-0 rounded-bl-[100%] bg-gradient-to-bl from-red-500 to-red-700 shadow-[-2px_2px_8px_rgba(0,0,0,0.22)]" />
-                <span className="absolute top-[6px] right-[6px] sm:top-[8px] sm:right-[7px] text-[11px] sm:text-[13px] font-black uppercase italic tracking-tight text-yellow-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+                <span className="absolute top-[6px] right-[6px] sm:top-[8px] sm:right-[7px] text-[11px] sm:text-[13px] font-black uppercase italic tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" style={{ color: "#FFD21A" }}>
                   SALE
                 </span>
               </div>
