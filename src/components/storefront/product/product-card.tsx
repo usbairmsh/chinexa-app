@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Heart, ShoppingBag, Minus, Plus, Check, X, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useCartStore } from "@/stores/cart.store";
 import { useWishlistStore } from "@/stores/wishlist.store";
@@ -22,29 +23,6 @@ interface ProductCardProps {
   /** Set true only for the first (largest/likely-LCP) card in an above-the-fold grid — hints the browser to fetch this image immediately instead of lazily. */
   priority?: boolean;
 }
-
-// Per-badge accent (dot + text) for the frosted-glass card chips. Kept subtle:
-// the pill is a translucent light pane; only the dot + label carry the hue, so
-// even several tags read as one calm system instead of a stack of loud fills.
-const BADGE_ACCENT: Record<string, string> = {
-  new: "text-emerald-600",
-  sale: "text-red-600",
-  bestseller: "text-amber-600",
-  preorder: "text-violet-600",
-  limited: "text-rose-600",
-  trending: "text-blue-600",
-  exclusive: "text-gold",
-};
-const BADGE_DOT: Record<string, string> = {
-  new: "bg-emerald-500",
-  sale: "bg-red-500",
-  bestseller: "bg-amber-500",
-  preorder: "bg-violet-500",
-  limited: "bg-rose-500",
-  trending: "bg-blue-500",
-  exclusive: "bg-gold",
-};
-const BADGE_LABEL: Record<string, string> = { preorder: "Pre-order" };
 
 export function ProductCard({ product, index = 0, priority = false }: ProductCardProps) {
   const addToCart = useCartStore((s) => s.addItem);
@@ -69,22 +47,11 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
   // are handled on the detail page.
   const preorderable = computeIsPreorderable(product, product.stock_quantity, preorders_enabled);
 
-  // Card badges: hide any tag the admin marked "hide on card" (it still shows on
-  // the detail page + still lists the product in its section). No priority — all
-  // remaining tags render, but as calm frosted chips so they don't crowd.
+  // Respect the admin's per-tag "hide on card" setting: a hidden badge still
+  // lists the product in its section and shows on the detail page, but no chip
+  // renders on the card.
   const hiddenOnCard = new Set(product.hidden_card_badges || []);
-  // Auto discount chip — the one badge allowed to shout. Leads when on sale.
-  const discountPct = product.compare_at_price && product.compare_at_price > product.price
-    ? Math.round((1 - product.price / product.compare_at_price) * 100)
-    : 0;
-  // The `sale` badge gets its own bold corner ribbon (top-left), so it's pulled
-  // out of the frosted-chip row.
-  const showSaleRibbon = (product.badges || []).includes("sale") && !hiddenOnCard.has("sale");
-  const visibleBadges = (product.badges || []).filter((b) => {
-    if (hiddenOnCard.has(b)) return false;
-    if (b === "sale") return false; // rendered as the corner ribbon instead
-    return true;
-  });
+  const visibleBadges = (product.badges || []).filter((b) => !hiddenOnCard.has(b));
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
@@ -152,11 +119,11 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
       >
         <Link
           href={`/products/${product.slug}`}
-          className="group block rounded-2xl border border-border/50 bg-white p-2 sm:p-2.5 shadow-[0_1px_3px_rgba(58,36,56,0.06)] transition-all duration-300 hover:border-border hover:shadow-[0_8px_28px_rgba(58,36,56,0.10)] active:scale-[0.99]"
+          className="group block"
           prefetch={false}
         >
           {/* Image — kept clean on phone/tablet; hover actions only on desktop */}
-          <div className="relative aspect-[3/4] overflow-hidden rounded-lg sm:rounded-xl bg-pearl mb-2 sm:mb-3">
+          <div className="relative aspect-[3/4] overflow-hidden rounded-xl sm:rounded-2xl bg-pearl mb-2 sm:mb-3">
             <Image
               src={product.images[0]?.url || `https://picsum.photos/seed/${product.slug}/600/750`}
               alt={product.name}
@@ -178,56 +145,22 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
               />
             )}
 
-            {/* Sale — bold red quarter-circle corner ribbon anchored to the
-                top-RIGHT, matching the reference peel design. Only the word
-                "Sale" shows. Built as a square pinned to the corner whose
-                opposite (bottom-left) corner is fully rounded, giving the
-                curved diagonal edge; the label sits toward the corner. */}
-            {showSaleRibbon && (
-              <div className="absolute top-0 right-0 z-20 h-[48px] w-[48px] sm:h-[56px] sm:w-[56px] pointer-events-none">
-                <div className="absolute inset-0 rounded-bl-[100%] bg-gradient-to-bl from-red-500 to-red-700 shadow-[-2px_2px_8px_rgba(0,0,0,0.22)]" />
-                <span className="absolute top-[6px] right-[6px] sm:top-[8px] sm:right-[7px] text-[11px] sm:text-[13px] font-black uppercase italic tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" style={{ color: "#FFD21A" }}>
-                  SALE
-                </span>
-              </div>
-            )}
-
-            {/* Tag chips — top-left row (frosted glass). Admin-hidden tags are
-                filtered out. The discount % is shown separately, bottom-left. */}
+            {/* Badges — admin-hidden tags are filtered out (they still show on
+                the detail page + still drive their section). */}
             {visibleBadges.length > 0 && (
-              <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 z-10 flex flex-wrap items-center gap-1.5 max-w-[calc(100%-1.25rem)]">
+              <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex flex-col gap-1 sm:gap-1.5">
                 {visibleBadges.map((badge) => (
-                  <span
-                    key={badge}
-                    className="inline-flex items-center gap-1 rounded-full bg-white/80 px-2 py-1 text-[9px] sm:text-[10px] font-semibold uppercase tracking-wide backdrop-blur-md ring-1 ring-black/[0.04] shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
-                  >
-                    <span className={cn("h-1.5 w-1.5 rounded-full", BADGE_DOT[badge] || "bg-charcoal")} />
-                    <span className={cn(BADGE_ACCENT[badge] || "text-charcoal")}>{BADGE_LABEL[badge] || badge}</span>
-                  </span>
+                  <Badge key={badge} variant={badge} className="text-[8px] sm:text-[10px] px-1.5 sm:px-2.5 uppercase tracking-wider">
+                    {badge === "preorder" ? "Pre-order" : badge}
+                  </Badge>
                 ))}
               </div>
             )}
 
-            {/* Discount % — bottom-left of the image, a bold solid chip. Fades
-                out on desktop hover so the slide-up Add-to-Bag actions (which
-                occupy the bottom edge) stay clean. */}
-            {discountPct > 0 && (
-              <div className="absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3 z-10 transition-opacity duration-300 lg:group-hover:opacity-0">
-                <span className="inline-flex items-center rounded-full bg-secondary px-2 py-1 text-[10px] font-bold tracking-wide text-white shadow-[0_2px_10px_rgba(122,79,160,0.4)] [font-variant-numeric:tabular-nums]">
-                  −{discountPct}%
-                </span>
-              </div>
-            )}
-
-            {/* Low stock — top right; drops below the Sale ribbon when present. */}
+            {/* Low stock badge — top right */}
             {product.stock_quantity > 0 && product.stock_quantity <= 5 && (
-              <div className={cn(
-                "absolute right-2.5 sm:right-3 z-10",
-                showSaleRibbon ? "top-[50px] sm:top-[58px]" : "top-2.5 sm:top-3"
-              )}>
-                <span className="inline-flex items-center gap-1 rounded-full bg-white/80 px-2 py-1 text-[9px] font-semibold text-amber-600 backdrop-blur-md ring-1 ring-black/[0.04] shadow-[0_1px_4px_rgba(0,0,0,0.08)] whitespace-nowrap">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" /> Only {product.stock_quantity} left
-                </span>
+              <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-10">
+                <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-amber-500 text-white text-[8px] sm:text-[9px] font-semibold shadow-card whitespace-nowrap">Only {product.stock_quantity} left!</span>
               </div>
             )}
 
@@ -273,9 +206,11 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
           </div>
 
           {/* Info */}
-          <div className="space-y-0.5 sm:space-y-1 px-0.5 sm:px-1">
+          <div className="space-y-0.5 sm:space-y-1 px-0.5">
+            {/* Show the subcategory (more specific); fall back to the category
+                when a product has no subcategory. */}
             <p className="text-[10px] sm:text-xs text-charcoal-lighter uppercase tracking-wider truncate">
-              {product.category_name}
+              {product.subcategory || product.category_name}
             </p>
             <h3 className="text-[13px] sm:text-sm font-medium text-charcoal group-hover:text-secondary transition-colors line-clamp-1">
               {product.name}
