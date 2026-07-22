@@ -113,11 +113,11 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
       >
         <Link
           href={`/products/${product.slug}`}
-          className="group block"
+          className="group block rounded-2xl border border-border/50 bg-white p-2 sm:p-2.5 shadow-[0_1px_3px_rgba(58,36,56,0.06)] transition-all duration-300 hover:border-border hover:shadow-[0_8px_28px_rgba(58,36,56,0.10)] active:scale-[0.99]"
           prefetch={false}
         >
           {/* Image — kept clean on phone/tablet; hover actions only on desktop */}
-          <div className="relative aspect-[3/4] overflow-hidden rounded-xl sm:rounded-2xl bg-pearl mb-2 sm:mb-3">
+          <div className="relative aspect-[3/4] overflow-hidden rounded-lg sm:rounded-xl bg-pearl mb-2 sm:mb-3">
             <Image
               src={product.images[0]?.url || `https://picsum.photos/seed/${product.slug}/600/750`}
               alt={product.name}
@@ -199,7 +199,7 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
           </div>
 
           {/* Info */}
-          <div className="space-y-0.5 sm:space-y-1 px-0.5">
+          <div className="space-y-0.5 sm:space-y-1 px-0.5 sm:px-1">
             <p className="text-[10px] sm:text-xs text-charcoal-lighter uppercase tracking-wider truncate">
               {product.category_name}
             </p>
