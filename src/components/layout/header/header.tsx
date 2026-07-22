@@ -27,6 +27,9 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  // Which category is expanded in the mobile/tablet sidebar (accordion — one
+  // open at a time). Categories with subcategories collapse by default.
+  const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const cartCount = useCartStore((s) => s.getItemCount());
@@ -100,6 +103,12 @@ export function Header() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [accountMenuOpen]);
+
+  // Collapse any expanded category when the mobile menu closes, so it reopens
+  // in a clean, fully-collapsed state.
+  useEffect(() => {
+    if (!mobileMenuOpen) setMobileExpanded(null);
+  }, [mobileMenuOpen]);
 
   const handleLogout = () => {
     setAccountMenuOpen(false);
@@ -577,36 +586,70 @@ export function Header() {
 
                 {/* Mobile Nav */}
                 <nav className="space-y-0.5">
-                  {navItems.map((item) => (
+                  {navItems.map((item) => {
+                    const subs = item.children ? item.children.filter((c) => !c.featured) : [];
+                    const hasSubs = subs.length > 0;
+                    const isOpen = mobileExpanded === item.label;
+                    return (
                     <div key={item.label}>
-                      <Link
-                        href={item.href}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center justify-between py-2.5 px-2 rounded-xl font-heading text-[16px] font-semibold text-charcoal hover:bg-primary-light hover:text-secondary transition-colors"
-                      >
-                        <span>{item.label}</span>
-                        {item.badge && (
-                          <span className="text-[8px] font-bold bg-secondary text-white px-1.5 py-[1px] rounded-full uppercase">
-                            {item.badge}
-                          </span>
+                      {/* Category row: a Link to the category page + (when it has
+                          subcategories) a separate chevron button that expands
+                          the subcategory dropdown, so tapping the name still
+                          navigates while the chevron toggles the list. */}
+                      <div className="flex items-center rounded-xl hover:bg-primary-light transition-colors">
+                        <Link
+                          href={item.href}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex flex-1 items-center gap-2 py-2.5 px-2 font-heading text-[16px] font-semibold text-charcoal hover:text-secondary transition-colors"
+                        >
+                          <span>{item.label}</span>
+                          {item.badge && (
+                            <span className="text-[8px] font-bold bg-secondary text-white px-1.5 py-[1px] rounded-full uppercase">
+                              {item.badge}
+                            </span>
+                          )}
+                        </Link>
+                        {hasSubs && (
+                          <button
+                            type="button"
+                            onClick={() => setMobileExpanded(isOpen ? null : item.label)}
+                            aria-expanded={isOpen}
+                            aria-label={`${isOpen ? "Collapse" : "Expand"} ${item.label} subcategories`}
+                            className="flex h-10 w-10 items-center justify-center rounded-xl text-charcoal-lighter hover:text-secondary active:scale-90 transition-all"
+                          >
+                            <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isOpen && "rotate-180")} />
+                          </button>
                         )}
-                      </Link>
-                      {item.children && (
-                        <div className="ml-3 pl-3 border-l-2 border-primary-light space-y-0.5 mb-1">
-                          {item.children.filter(c => !c.featured).map((child) => (
-                            <Link
-                              key={child.label}
-                              href={child.href}
-                              onClick={() => setMobileMenuOpen(false)}
-                              className="block py-2 px-2 rounded-lg text-sm text-charcoal-lighter hover:text-secondary hover:bg-pearl/50 transition-colors"
+                      </div>
+                      {hasSubs && (
+                        <AnimatePresence initial={false}>
+                          {isOpen && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.22, ease: "easeOut" }}
+                              className="overflow-hidden"
                             >
-                              {child.label}
-                            </Link>
-                          ))}
-                        </div>
+                              <div className="ml-3 pl-3 border-l-2 border-primary-light space-y-0.5 my-1">
+                                {subs.map((child) => (
+                                  <Link
+                                    key={child.label}
+                                    href={child.href}
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className="block py-2 px-2 rounded-lg text-sm text-charcoal-lighter hover:text-secondary hover:bg-pearl/50 transition-colors"
+                                  >
+                                    {child.label}
+                                  </Link>
+                                ))}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
 
                   {/* Exclusive + Pre-Order — fixed trailing items, always last. */}
                   <Link
