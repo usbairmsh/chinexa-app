@@ -184,9 +184,9 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
                 opposite (bottom-left) corner is fully rounded, giving the
                 curved diagonal edge; the label sits toward the corner. */}
             {showSaleRibbon && (
-              <div className="absolute top-0 right-0 z-20 h-[64px] w-[64px] sm:h-[74px] sm:w-[74px] pointer-events-none">
+              <div className="absolute top-0 right-0 z-20 h-[34px] w-[34px] sm:h-[38px] sm:w-[38px] pointer-events-none">
                 <div className="absolute inset-0 rounded-bl-[100%] bg-gradient-to-bl from-red-500 to-red-700 shadow-[-2px_2px_8px_rgba(0,0,0,0.22)]" />
-                <span className="absolute top-[9px] right-[8px] sm:top-[11px] sm:right-[9px] text-[11px] sm:text-[13px] font-black uppercase italic tracking-tight text-yellow-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+                <span className="absolute top-[4px] right-[3px] sm:top-[5px] sm:right-[4px] text-[7px] sm:text-[8px] font-black uppercase italic tracking-tight text-yellow-400 drop-shadow-[0_1px_1px_rgba(0,0,0,0.55)]">
                   SALE
                 </span>
               </div>
@@ -218,7 +218,7 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
             {product.stock_quantity > 0 && product.stock_quantity <= 5 && (
               <div className={cn(
                 "absolute right-2.5 sm:right-3 z-10",
-                showSaleRibbon ? "top-[58px] sm:top-[68px]" : "top-2.5 sm:top-3"
+                showSaleRibbon ? "top-[38px] sm:top-[42px]" : "top-2.5 sm:top-3"
               )}>
                 <span className="inline-flex items-center gap-1 rounded-full bg-white/80 px-2 py-1 text-[9px] font-semibold text-amber-600 backdrop-blur-md ring-1 ring-black/[0.04] shadow-[0_1px_4px_rgba(0,0,0,0.08)] whitespace-nowrap">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" /> Only {product.stock_quantity} left
