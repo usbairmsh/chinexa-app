@@ -7,7 +7,7 @@ import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft, Save, Eye, X, Plus, Trash2,
+  ArrowLeft, Save, Eye, EyeOff, X, Plus, Trash2,
   ImagePlus, Tag, Globe, Sparkles, Package, BarChart3, Loader2, Copy, Check, Edit
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -149,6 +149,8 @@ export default function EditProductPage() {
   };
   const [isFeatured, setIsFeatured] = useState(false);
   const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
+  // Tagged-but-hidden-from-card badges (subset of selectedBadges).
+  const [hiddenCardBadges, setHiddenCardBadges] = useState<string[]>([]);
   const [preorderDate, setPreorderDate] = useState("");
   const [variants, setVariants] = useState<VariantRow[]>([]);
   const [images, setImages] = useState<ImageRow[]>([]);
@@ -203,6 +205,7 @@ export default function EditProductPage() {
       setIsActive(!!p.is_active);
       setIsFeatured(!!p.is_featured);
       setSelectedBadges(Array.isArray(p.badges) ? p.badges : []);
+      setHiddenCardBadges(Array.isArray(p.hidden_card_badges) ? p.hidden_card_badges : []);
       setPreorderDate(p.preorder_release_date ? String(p.preorder_release_date).slice(0, 10) : "");
       // Build images — try to match with variants by image URL
       const loadedImages: ImageRow[] = (p.images || []).map((img: Record<string, unknown>, i: number) => {
@@ -232,7 +235,13 @@ export default function EditProductPage() {
     }).catch(() => setLoading(false));
   }, [id]);
 
-  const toggleBadge = (badge: string) => setSelectedBadges((prev) => prev.includes(badge) ? prev.filter((b) => b !== badge) : [...prev, badge]);
+  const toggleBadge = (badge: string) => {
+    setSelectedBadges((prev) => prev.includes(badge) ? prev.filter((b) => b !== badge) : [...prev, badge]);
+    setHiddenCardBadges((prev) => prev.filter((b) => b !== badge));
+  };
+  // Toggle whether a (selected) badge shows on the product card. Hidden badges
+  // still tag the product for their section/filter — only the card chip hides.
+  const toggleCardVisibility = (badge: string) => setHiddenCardBadges((prev) => prev.includes(badge) ? prev.filter((b) => b !== badge) : [...prev, badge]);
   const addVariant = () => setVariants([...variants, { id: `v-${Date.now()}`, type: "size", name: "", value: "", hex: "", price: "", compare_price: "", cost_price: "", stock: "0", min_stock: "10", max_stock: "100", sku: "" }]);
   const addImage = () => setImages([...images, { id: `img-${Date.now()}`, url: "", alt: "", variant_id: "", focal_point: "" }]);
   const removeImage = (iid: string) => setImages(images.filter((i) => i.id !== iid));
@@ -269,6 +278,7 @@ export default function EditProductPage() {
         trust_badges: selectedTrustBadges,
         seo_title: seoTitle.trim() || null, seo_description: seoDesc.trim() || null,
         is_active: isActive, is_featured: isFeatured, badges: selectedBadges,
+        hidden_card_badges: hiddenCardBadges.filter((b) => selectedBadges.includes(b)),
         preorder_release_date: selectedBadges.includes("preorder") ? (preorderDate || null) : null,
         images: images.filter((img) => img.url).map((img) => ({ url: img.url, alt: img.alt, variant_id: img.variant_id || null, focal_point: img.focal_point || null })),
         variants: variants.filter((v) => v.name).map((v) => {
@@ -716,14 +726,32 @@ export default function EditProductPage() {
             <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5 text-secondary" /> Badges</CardTitle></CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
-                {["new", "sale", "bestseller", "preorder", "limited", "trending", "exclusive"].map((badge) => (
-                  <button key={badge} onClick={() => toggleBadge(badge)}
-                    className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-all capitalize active:scale-[0.96]",
-                      selectedBadges.includes(badge) ? "bg-secondary !text-white border-secondary" : "bg-white text-charcoal-lighter border-border hover:border-charcoal hover:text-charcoal")}>
-                    {badge === "preorder" ? "Pre-order" : badge}
-                  </button>
-                ))}
+                {["new", "sale", "bestseller", "preorder", "limited", "trending", "exclusive"].map((badge) => {
+                  const selected = selectedBadges.includes(badge);
+                  const hidden = hiddenCardBadges.includes(badge);
+                  return (
+                    <div key={badge}
+                      className={cn("inline-flex items-center rounded-full border text-xs font-medium transition-all",
+                        selected ? "bg-secondary text-white border-secondary" : "bg-white text-charcoal-lighter border-border hover:border-charcoal hover:text-charcoal")}>
+                      <button type="button" onClick={() => toggleBadge(badge)}
+                        className={cn("pl-3 py-1.5 capitalize active:scale-[0.96]", selected ? "pr-1.5" : "pr-3")}>
+                        {badge === "preorder" ? "Pre-order" : badge}
+                      </button>
+                      {selected && (
+                        <button type="button" onClick={() => toggleCardVisibility(badge)}
+                          title={hidden ? "Hidden on card — click to show on card" : "Shown on card — click to hide on card"}
+                          aria-label={hidden ? `Show ${badge} on card` : `Hide ${badge} on card`}
+                          className="flex items-center justify-center h-6 w-6 mr-1 rounded-full hover:bg-white/20 active:scale-90 transition-all">
+                          {hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
+              <p className="mt-2.5 text-[11px] text-charcoal-lighter leading-relaxed">
+                Tap the <Eye className="inline h-3 w-3 -mt-0.5" /> on a selected tag to hide it from the product card. Hidden tags still list the product in their section (e.g. Trending, Exclusive) and show on the product page — they just won&apos;t appear as a label on the card.
+              </p>
 
               {/* Pre-order settings — shown only when the Pre-order badge is on.
                   Optional "expected availability" date; pre-orders are COD. */}

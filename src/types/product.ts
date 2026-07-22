@@ -38,6 +38,9 @@ export interface Product {
   brand_name?: string;
   tags: string[];
   badges: ProductBadge[];
+  /** Subset of `badges` hidden from the compact product card (still shown on the
+   *  detail page + still drives that tag's section/filter). Card-render only. */
+  hidden_card_badges?: ProductBadge[];
   variants: ProductVariant[];
   stock_quantity: number;
   min_stock: number;
@@ -96,6 +99,7 @@ export interface CreateProductDTO {
   subcategory?: string;
   tags: string[];
   badges: ProductBadge[];
+  hidden_card_badges?: ProductBadge[];
   variants: Omit<ProductVariant, "id">[];
   stock_quantity: number;
   min_stock?: number;

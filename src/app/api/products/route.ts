@@ -11,6 +11,7 @@ import { pingIndexNowUrl } from "@/lib/indexnow";
 import { getProductsList } from "@/lib/products";
 import { ensurePreorderColumns } from "@/lib/migrate-preorder";
 import { ensureInventoryTables, recordStockHistory } from "@/lib/migrate-inventory";
+import { ensureCardBadgeColumn } from "@/lib/migrate-card-badges";
 
 interface ProductRow extends RowDataPacket {
   id: string; name: string; slug: string; description: string; short_description: string;
@@ -45,6 +46,7 @@ function buildProduct(row: ProductRow, images: ImageRow[], variants: VariantRow[
     subcategory: row.subcategory || undefined,
     tags: typeof row.tags === "string" ? JSON.parse(row.tags || "[]") : row.tags || [],
     badges: typeof row.badges === "string" ? JSON.parse(row.badges || "[]") : row.badges || [],
+    hidden_card_badges: typeof row.hidden_card_badges === "string" ? JSON.parse(row.hidden_card_badges || "[]") : (row.hidden_card_badges || []),
     variants: variants.filter((v) => v.product_id === row.id).map((v) => ({
       id: v.id, name: v.name, type: v.type as "size" | "color" | "shade" | "weight",
       value: v.value, hex: v.hex || undefined,
@@ -68,6 +70,7 @@ export async function GET(req: NextRequest) {
     await ensureSearchIndexes();
     await ensureAccountingTables();
     await ensureInventoryTables();
+    await ensureCardBadgeColumn();
     const { searchParams } = new URL(req.url);
 
     // Batched lookup by id list (e.g. wishlist page) — bypasses pagination/
@@ -103,6 +106,7 @@ export async function POST(req: NextRequest) {
     await ensureAccountingTables();
     await ensurePreorderColumns();
     await ensureInventoryTables();
+    await ensureCardBadgeColumn();
     const body = await req.json();
 
     // Validate required fields
@@ -139,8 +143,8 @@ export async function POST(req: NextRequest) {
     const sku = body.sku || `PRD-${Date.now().toString(36).toUpperCase()}`;
 
     await query(
-      `INSERT INTO products (id, name, slug, description, short_description, sku, price, compare_at_price, cost_price, currency, category_id, category_name, subcategory, brand_id, brand_name, tags, badges, trust_badges, stock_quantity, min_stock, max_stock, preorder_release_date, is_active, is_featured, country_of_origin, weight, ingredients, how_to_use, seo_title, seo_description)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'BDT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO products (id, name, slug, description, short_description, sku, price, compare_at_price, cost_price, currency, category_id, category_name, subcategory, brand_id, brand_name, tags, badges, hidden_card_badges, trust_badges, stock_quantity, min_stock, max_stock, preorder_release_date, is_active, is_featured, country_of_origin, weight, ingredients, how_to_use, seo_title, seo_description)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'BDT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id, body.name, slug,
         body.description || "", body.short_description || "",
@@ -150,6 +154,7 @@ export async function POST(req: NextRequest) {
         body.subcategory || null,
         body.brand_id || null, body.brand_name || null,
         JSON.stringify(body.tags || []), JSON.stringify(body.badges || []),
+        JSON.stringify(body.hidden_card_badges || []),
         JSON.stringify(body.trust_badges || []),
         Number(body.stock_quantity) || 0, Number(body.min_stock) || 10, Number(body.max_stock) || 100,
         body.preorder_release_date || null,

@@ -44,6 +44,7 @@ export async function getProductBySlugOrId(slugOrId: string): Promise<Product | 
     average_rating: Number(product.average_rating),
     tags: typeof product.tags === "string" ? JSON.parse(product.tags || "[]") : product.tags || [],
     badges: typeof product.badges === "string" ? JSON.parse(product.badges || "[]") : product.badges || [],
+    hidden_card_badges: typeof product.hidden_card_badges === "string" ? JSON.parse(product.hidden_card_badges || "[]") : (product.hidden_card_badges || []),
     trust_badges: typeof product.trust_badges === "string" ? JSON.parse(product.trust_badges || "[]") : product.trust_badges || [],
     images: images.map((i) => ({ id: i.id, url: i.url, alt: i.alt || "", order: i.order })),
     variants: variants.map((v) => ({
@@ -231,6 +232,7 @@ export async function getProductsList(searchParams: URLSearchParams): Promise<Pa
     subcategory: row.subcategory || undefined,
     tags: typeof row.tags === "string" ? JSON.parse(row.tags || "[]") : row.tags || [],
     badges: typeof row.badges === "string" ? JSON.parse(row.badges || "[]") : row.badges || [],
+    hidden_card_badges: typeof row.hidden_card_badges === "string" ? JSON.parse(row.hidden_card_badges || "[]") : (row.hidden_card_badges || []),
     variants: variants.filter((v) => v.product_id === row.id).map((v) => ({
       id: v.id, name: v.name, type: v.type as "size" | "color" | "shade" | "weight",
       value: v.value, hex: v.hex || undefined,

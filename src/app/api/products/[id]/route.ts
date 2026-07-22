@@ -10,6 +10,7 @@ import { pingIndexNowUrl } from "@/lib/indexnow";
 import { getProductBySlugOrId } from "@/lib/products";
 import { ensurePreorderColumns } from "@/lib/migrate-preorder";
 import { ensureInventoryTables, recordStockHistory, handleRestockTransition } from "@/lib/migrate-inventory";
+import { ensureCardBadgeColumn } from "@/lib/migrate-card-badges";
 import { validate, validationError, dependencyError, publicServerError } from "@/lib/validate";
 
 interface ProductRow extends RowDataPacket { [key: string]: unknown; }
@@ -34,6 +35,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     await ensureAccountingTables();
     await ensurePreorderColumns();
     await ensureInventoryTables();
+    await ensureCardBadgeColumn();
     const { id } = await params;
     const body = await req.json();
 
@@ -116,6 +118,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
     if (body.tags) { fields.push("tags = ?"); values.push(JSON.stringify(body.tags)); }
     if (body.badges) { fields.push("badges = ?"); values.push(JSON.stringify(body.badges)); }
+    if (body.hidden_card_badges !== undefined) { fields.push("hidden_card_badges = ?"); values.push(JSON.stringify(body.hidden_card_badges || [])); }
     if (body.trust_badges !== undefined) { fields.push("trust_badges = ?"); values.push(JSON.stringify(body.trust_badges)); }
     if (fields.length > 0) {
       values.push(id);

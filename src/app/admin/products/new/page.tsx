@@ -7,7 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowLeft, Save, Upload, X, Plus, Trash2, GripVertical,
-  ImagePlus, Tag, Globe, Sparkles, Package, BarChart3, Copy, Check, Shield
+  ImagePlus, Tag, Globe, Sparkles, Package, BarChart3, Copy, Check, Shield, Eye, EyeOff
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -191,6 +191,10 @@ export default function AddProductPage() {
   };
   const [isFeatured, setIsFeatured] = useState(false);
   const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
+  // Badges that are TAGGED but hidden from the product card (they still show on
+  // the detail page + still list the product in their section/filter). Subset
+  // of selectedBadges.
+  const [hiddenCardBadges, setHiddenCardBadges] = useState<string[]>([]);
   // Optional expected-availability date shown for pre-order products (only
   // meaningful when the `preorder` badge is selected and the product is OOS).
   const [preorderDate, setPreorderDate] = useState("");
@@ -201,6 +205,16 @@ export default function AddProductPage() {
 
   const toggleBadge = (badge: string) => {
     setSelectedBadges((prev) =>
+      prev.includes(badge) ? prev.filter((b) => b !== badge) : [...prev, badge]
+    );
+    // Deselecting a badge also clears any "hidden on card" state for it.
+    setHiddenCardBadges((prev) => prev.filter((b) => b !== badge));
+  };
+
+  // Toggle whether a (selected) badge shows on the product card. Hidden badges
+  // still tag the product for their section/filter — only the card chip hides.
+  const toggleCardVisibility = (badge: string) => {
+    setHiddenCardBadges((prev) =>
       prev.includes(badge) ? prev.filter((b) => b !== badge) : [...prev, badge]
     );
   };
@@ -273,6 +287,9 @@ export default function AddProductPage() {
         is_active: isActive,
         is_featured: isFeatured,
         badges: selectedBadges,
+        // Which of those tags are hidden from the product card (kept in sync so
+        // a deselected badge is never left in the hidden set).
+        hidden_card_badges: hiddenCardBadges.filter((b) => selectedBadges.includes(b)),
         // Only send a pre-order date when the badge is actually on.
         preorder_release_date: selectedBadges.includes("preorder") ? (preorderDate || null) : null,
         images: images.filter((img) => img.url).map((img) => ({ url: img.url, alt: img.alt, variant_id: img.variant_id || null, focal_point: img.focal_point || null })),
@@ -738,21 +755,45 @@ export default function AddProductPage() {
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
-                {["new", "sale", "bestseller", "preorder", "limited", "trending", "exclusive"].map((badge) => (
-                  <button
-                    key={badge}
-                    onClick={() => toggleBadge(badge)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 capitalize active:scale-[0.96]",
-                      selectedBadges.includes(badge)
-                        ? "bg-secondary !text-white border-secondary"
-                        : "bg-white text-charcoal-lighter border-border hover:border-charcoal hover:text-charcoal"
-                    )}
-                  >
-                    {badge === "preorder" ? "Pre-order" : badge}
-                  </button>
-                ))}
+                {["new", "sale", "bestseller", "preorder", "limited", "trending", "exclusive"].map((badge) => {
+                  const selected = selectedBadges.includes(badge);
+                  const hidden = hiddenCardBadges.includes(badge);
+                  return (
+                    <div
+                      key={badge}
+                      className={cn(
+                        "inline-flex items-center rounded-full border text-xs font-medium transition-all duration-200",
+                        selected
+                          ? "bg-secondary text-white border-secondary"
+                          : "bg-white text-charcoal-lighter border-border hover:border-charcoal hover:text-charcoal"
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleBadge(badge)}
+                        className={cn("pl-3 py-1.5 capitalize active:scale-[0.96]", selected ? "pr-1.5" : "pr-3")}
+                      >
+                        {badge === "preorder" ? "Pre-order" : badge}
+                      </button>
+                      {/* Show/hide on card — only meaningful once tagged. */}
+                      {selected && (
+                        <button
+                          type="button"
+                          onClick={() => toggleCardVisibility(badge)}
+                          title={hidden ? "Hidden on card — click to show on card" : "Shown on card — click to hide on card"}
+                          aria-label={hidden ? `Show ${badge} on card` : `Hide ${badge} on card`}
+                          className="flex items-center justify-center h-6 w-6 mr-1 rounded-full hover:bg-white/20 active:scale-90 transition-all"
+                        >
+                          {hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
+              <p className="mt-2.5 text-[11px] text-charcoal-lighter leading-relaxed">
+                Tap the <Eye className="inline h-3 w-3 -mt-0.5" /> on a selected tag to hide it from the product card. Hidden tags still list the product in their section (e.g. Trending, Exclusive) and show on the product page — they just won&apos;t appear as a label on the card.
+              </p>
 
               {/* Pre-order settings — shown only when the Pre-order badge is on.
                   A pre-order goes live automatically when the product is out of
