@@ -373,12 +373,13 @@ export default function CheckoutPage() {
     setFieldErrors((p) => ({ ...p, transactionId: "" }));
   };
 
-  // "Place Order" for non-COD methods asks the customer to confirm they've
-  // actually paid before submitting — COD needs no such confirmation.
+  // "Place Order" always opens a full order-review modal first (products,
+  // quantities, prices, offers/coupon, and payment details) so the customer
+  // confirms exactly what they're ordering before it's placed. For non-COD it
+  // doubles as the "have you paid?" confirmation.
   const handlePlaceOrderClick = () => {
     if (!validateStep3()) return;
-    if (paymentMethod !== "COD") { setPlaceOrderConfirmOpen(true); return; }
-    handlePlaceOrder();
+    setPlaceOrderConfirmOpen(true);
   };
 
   const goToStep = (target: number) => {
@@ -1009,42 +1010,105 @@ export default function CheckoutPage() {
                   </DialogContent>
                 </Dialog>
 
-                {/* Place order confirmation — non-COD only. Repeats the actual
-                    payment instructions/QR (not just a bare yes/no) so the
-                    customer can double-check they paid to the right place
-                    before confirming, without reopening the earlier dialog. */}
+                {/* ═══ Order review + confirmation modal (all payment methods) ═══
+                    Shows the full order — line items with qty/unit/line totals,
+                    offer + coupon savings, the price breakdown, and payment
+                    details (COD, or the paid method + reference) — so the
+                    customer confirms exactly what they're ordering. For non-COD
+                    it also serves as the "have you paid?" check. */}
                 <Dialog open={placeOrderConfirmOpen} onOpenChange={setPlaceOrderConfirmOpen}>
-                  <DialogContent className="max-h-[85vh] overflow-y-auto">
+                  <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-lg">
                     <DialogHeader>
-                      <DialogTitle>Confirm your payment</DialogTitle>
-                      <DialogDescription className="whitespace-pre-wrap text-left">{instructionsText}</DialogDescription>
+                      <DialogTitle>{preorderCart ? "Review your pre-order" : "Review your order"}</DialogTitle>
+                      <DialogDescription>Please confirm the details below before placing your {preorderCart ? "pre-order" : "order"}.</DialogDescription>
                     </DialogHeader>
 
-                    {qrImage && (
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="relative h-[180px] w-[180px] rounded-xl overflow-hidden bg-white border border-border/30">
-                          <Image src={qrImage} alt={`${selectedMethod?.name} QR code`} fill className="object-contain" sizes="180px" unoptimized={qrImage.startsWith("data:") || qrImage.includes("/uploads/")} />
+                    {/* Line items */}
+                    <div className="rounded-xl border border-border/30 divide-y divide-border/20">
+                      {items.map((item) => (
+                        <div key={item.id} className="flex items-center gap-3 p-3">
+                          <div className="relative h-12 w-12 shrink-0 rounded-lg overflow-hidden bg-pearl">
+                            <Image src={item.product_image || `https://picsum.photos/seed/${item.product_slug}/80/80`} alt={item.product_name} fill className="object-cover" sizes="48px" unoptimized={item.product_image?.includes("/uploads/")} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-charcoal truncate">{item.product_name}</p>
+                            <div className="flex flex-wrap items-center gap-x-2 text-[11px] text-charcoal-lighter">
+                              {item.variant_name && <span>{item.variant_name}</span>}
+                              {item.isPreorder && <span className="text-secondary font-medium">Pre-order</span>}
+                              <span>{formatCurrency(item.price)} × {item.quantity}</span>
+                            </div>
+                          </div>
+                          <p className="text-sm font-semibold text-charcoal shrink-0 [font-variant-numeric:tabular-nums]">{formatCurrency(item.price * item.quantity)}</p>
                         </div>
+                      ))}
+                    </div>
+
+                    {/* Applied offers + coupon */}
+                    {(appliedOffers.length > 0 || (couponCode && discount > 0)) && (
+                      <div className="rounded-xl bg-success/5 border border-success/20 p-3 space-y-1.5">
+                        {appliedOffers.map((o) => (
+                          <div key={o.id} className="flex justify-between text-xs">
+                            <span className="text-success flex items-center gap-1"><Tag className="h-3 w-3" /> {o.title}</span>
+                            <span className="font-medium text-success [font-variant-numeric:tabular-nums]">− {formatCurrency(o.discount)}</span>
+                          </div>
+                        ))}
+                        {couponCode && discount > 0 && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-success flex items-center gap-1"><Tag className="h-3 w-3" /> Coupon <code className="font-bold">{couponCode}</code></span>
+                            <span className="font-medium text-success [font-variant-numeric:tabular-nums]">− {formatCurrency(discount)}</span>
+                          </div>
+                        )}
                       </div>
                     )}
 
-                    <div className="p-3 rounded-xl bg-pearl/40 border border-border/30 grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-wide text-charcoal-lighter">Method</p>
-                        <p className="font-medium text-charcoal">{selectedMethod?.name || paymentMethod}</p>
+                    {/* Price breakdown */}
+                    <div className="rounded-xl bg-pearl/40 border border-border/30 p-3 space-y-1.5 text-sm">
+                      <div className="flex justify-between"><span className="text-charcoal-lighter">Subtotal</span><span className="text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(subtotal)}</span></div>
+                      {offerSavings > 0 && <div className="flex justify-between"><span className="text-charcoal-lighter">Offer savings</span><span className="text-success [font-variant-numeric:tabular-nums]">− {formatCurrency(offerSavings)}</span></div>}
+                      {discount > 0 && <div className="flex justify-between"><span className="text-charcoal-lighter">Coupon discount</span><span className="text-success [font-variant-numeric:tabular-nums]">− {formatCurrency(discount)}</span></div>}
+                      <div className="flex justify-between">
+                        <span className="text-charcoal-lighter">Shipping</span>
+                        <span className="text-charcoal [font-variant-numeric:tabular-nums]">{effectiveShipping === 0 ? "Free" : formatCurrency(effectiveShipping)}</span>
                       </div>
-                      <div>
-                        <p className="text-[10px] uppercase tracking-wide text-charcoal-lighter">{confirmFieldLabel}</p>
-                        <p className="font-medium text-charcoal">{transactionId}</p>
+                      <div className="flex justify-between pt-1.5 border-t border-border/30 text-base font-bold">
+                        <span className="text-charcoal">Total</span>
+                        <span className="text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(finalTotal)}</span>
                       </div>
                     </div>
 
-                    <p className="text-sm text-charcoal-light">
-                      Have you completed this payment? Confirming without an actual completed payment may delay or cancel your order.
-                    </p>
+                    {/* Payment details */}
+                    <div className="rounded-xl border border-border/30 p-3">
+                      <p className="text-[10px] uppercase tracking-wide text-charcoal-lighter mb-2 flex items-center gap-1"><CreditCard className="h-3 w-3" /> Payment</p>
+                      {preorderCart || paymentMethod === "COD" ? (
+                        <div>
+                          <p className="text-sm font-medium text-charcoal">Cash on Delivery</p>
+                          <p className="text-xs text-charcoal-lighter mt-0.5">
+                            {preorderCart
+                              ? "Pre-order — pay the full amount on delivery when your item arrives."
+                              : `Pay ${formatCurrency(finalTotal)} in cash when your order is delivered.`}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wide text-charcoal-lighter">Method</p>
+                              <p className="font-medium text-charcoal">{selectedMethod?.name || paymentMethod}</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wide text-charcoal-lighter">{confirmFieldLabel}</p>
+                              <p className="font-medium text-charcoal break-all">{transactionId || "—"}</p>
+                            </div>
+                          </div>
+                          <p className="text-xs text-charcoal-lighter">
+                            Confirming without an actual completed payment may delay or cancel your order.
+                          </p>
+                        </div>
+                      )}
+                    </div>
 
                     <DialogFooter>
-                      <Button variant="outline" onClick={() => setPlaceOrderConfirmOpen(false)}>Cancel</Button>
+                      <Button variant="outline" onClick={() => setPlaceOrderConfirmOpen(false)}>Go back</Button>
                       <Button
                         variant="secondary"
                         className="!text-white"
@@ -1052,7 +1116,7 @@ export default function CheckoutPage() {
                         disabled={placing}
                         onClick={() => { setPlaceOrderConfirmOpen(false); handlePlaceOrder(); }}
                       >
-                        Yes, payment is done
+                        {preorderCart ? "Confirm Pre-Order" : paymentMethod === "COD" ? "Confirm Order" : "Confirm — Payment Done"}
                       </Button>
                     </DialogFooter>
                   </DialogContent>
