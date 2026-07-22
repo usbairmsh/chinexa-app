@@ -645,7 +645,14 @@ export function Header() {
                       <ShoppingBag className="h-4 w-4" /> Track Order
                     </motion.span>
                   </Link>
-                  {!isAuthenticated && (
+                  {isAuthenticated ? (
+                    <button
+                      onClick={() => { setMobileMenuOpen(false); handleLogout(); }}
+                      className="flex w-full items-center gap-3 py-2.5 px-2 mt-2 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/5 transition-colors active:scale-[0.98]"
+                    >
+                      <LogOut className="h-4 w-4" /> Log Out
+                    </button>
+                  ) : (
                     <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="block mt-2">
                       <Button variant="secondary" className="w-full rounded-xl">Sign In</Button>
                     </Link>
