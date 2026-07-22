@@ -77,10 +77,12 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
   const discountPct = product.compare_at_price && product.compare_at_price > product.price
     ? Math.round((1 - product.price / product.compare_at_price) * 100)
     : 0;
+  // The `sale` badge gets its own bold corner ribbon (top-left), so it's pulled
+  // out of the frosted-chip row.
+  const showSaleRibbon = (product.badges || []).includes("sale") && !hiddenOnCard.has("sale");
   const visibleBadges = (product.badges || []).filter((b) => {
     if (hiddenOnCard.has(b)) return false;
-    // A "sale" chip is redundant next to the concrete −N% discount chip.
-    if (b === "sale" && discountPct > 0) return false;
+    if (b === "sale") return false; // rendered as the corner ribbon instead
     return true;
   });
 
@@ -176,11 +178,28 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
               />
             )}
 
-            {/* Badges — top-left. A bold solid discount chip leads (when on
-                sale); other tags are calm frosted-glass chips that sit ON the
-                photo without crowding it. Admin-hidden tags are filtered out. */}
+            {/* Sale — bold red quarter-circle corner ribbon anchored to the
+                top-left, matching the reference peel design. Only the word
+                "Sale" shows. Built as a square pinned to the corner whose
+                opposite corner is fully rounded, giving the curved diagonal
+                edge; the label sits toward the corner. */}
+            {showSaleRibbon && (
+              <div className="absolute top-0 left-0 z-20 h-[64px] w-[64px] sm:h-[74px] sm:w-[74px] pointer-events-none">
+                <div className="absolute inset-0 rounded-br-[100%] bg-gradient-to-br from-red-500 to-red-700 shadow-[2px_2px_8px_rgba(0,0,0,0.22)]" />
+                <span className="absolute top-[9px] left-[8px] sm:top-[11px] sm:left-[9px] text-[11px] sm:text-[13px] font-extrabold uppercase italic tracking-tight text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.3)]">
+                  Sale
+                </span>
+              </div>
+            )}
+
+            {/* Badges — top-left row (below the sale ribbon when it's present).
+                A bold solid −N% discount chip leads; other tags are calm
+                frosted-glass chips. Admin-hidden tags are filtered out. */}
             {(discountPct > 0 || visibleBadges.length > 0) && (
-              <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 z-10 flex flex-wrap items-center gap-1.5 max-w-[calc(100%-1.25rem)]">
+              <div className={cn(
+                "absolute left-2.5 sm:left-3 z-10 flex flex-wrap items-center gap-1.5 max-w-[calc(100%-1.25rem)]",
+                showSaleRibbon ? "top-[58px] sm:top-[68px]" : "top-2.5 sm:top-3"
+              )}>
                 {discountPct > 0 && (
                   <span className="inline-flex items-center rounded-full bg-secondary px-2 py-1 text-[10px] font-bold tracking-wide text-white shadow-[0_2px_10px_rgba(122,79,160,0.4)] [font-variant-numeric:tabular-nums]">
                     −{discountPct}%
