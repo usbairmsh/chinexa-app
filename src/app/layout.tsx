@@ -15,8 +15,10 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // No maximumScale/userScalable lock: disabling pinch-zoom is an accessibility
+  // failure Lighthouse penalizes ("[user-scalable=no] is used") and Google
+  // factors page experience into ranking. Modern browsers already prevent the
+  // old iOS input-zoom quirk this lock was typically added for.
   themeColor: "#C0392B",
 };
 

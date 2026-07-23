@@ -126,7 +126,9 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
           <div className="relative aspect-[3/4] overflow-hidden rounded-xl sm:rounded-2xl bg-pearl mb-2 sm:mb-3">
             <Image
               src={product.images[0]?.url || `https://picsum.photos/seed/${product.slug}/600/750`}
-              alt={product.name}
+              // Admin-entered alt text (per-image, from the product form) wins;
+              // product name is the fallback — same rule the detail gallery uses.
+              alt={product.images[0]?.alt || product.name}
               fill
               priority={priority}
               fetchPriority={priority ? "high" : undefined}
@@ -137,7 +139,7 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
             {product.images[1] && (
               <Image
                 src={product.images[1].url}
-                alt={`${product.name} alternate`}
+                alt={product.images[1].alt || `${product.name} alternate`}
                 fill
                 loading="lazy"
                 className="object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-500"

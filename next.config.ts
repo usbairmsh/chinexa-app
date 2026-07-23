@@ -8,6 +8,16 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["192.168.0.*"],
   images: {
     formats: ["image/avif", "image/webp"],
+    // Tuned for this storefront's actual layout: product-grid cells render at
+    // ~50vw (phones) / 33vw / 25vw and the detail gallery at ~800px, so the
+    // default 16-entry srcset wastes variants. Smaller, better-fitting sizes =
+    // smaller downloads on the cheap Android devices that dominate BD traffic.
+    deviceSizes: [360, 414, 640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [36, 48, 64, 96, 128, 256, 384],
+    // Uploaded product images get unique filenames (never overwritten in
+    // place), so optimized variants can be cached for 30 days instead of the
+    // 60-second default — cuts repeat re-optimization work on the VPS.
+    minimumCacheTTL: 2592000,
     remotePatterns: [
       {
         protocol: "https",
