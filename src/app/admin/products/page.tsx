@@ -255,6 +255,12 @@ export default function AdminProductsPage() {
         {/* Expanded Variants */}
         {hasVariants && isExpanded && product.variants.map((v) => (
           <motion.tr key={v.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-pearl/30 border-b border-border/10">
+            {/* Variant identity — spans the Product + Category columns.
+                The remaining cells below MUST mirror the parent column order +
+                responsive visibility exactly so a variant's price/stock line up
+                under the real Price/Stock headers:
+                Product+Category(colSpan 2) · Brand(lg) · Country(xl) · Price ·
+                Stock(md) · DateAdded(lg) · Wishlist(xl) · Status(md) · Actions */}
             <td className="px-4 py-2.5" colSpan={2}>
               <div className="flex items-center gap-3 ml-7">
                 <div className="relative h-9 w-9 rounded-lg overflow-hidden bg-pearl shrink-0 border border-border/20">
@@ -274,6 +280,10 @@ export default function AdminProductsPage() {
                 </div>
               </div>
             </td>
+            {/* Brand + Country placeholders (parent cols 3 & 4) */}
+            <td className="px-4 py-2.5 hidden lg:table-cell" />
+            <td className="px-4 py-2.5 hidden xl:table-cell" />
+            {/* Price */}
             <td className="px-4 py-2.5">
               <p className="text-xs font-medium text-charcoal [font-variant-numeric:tabular-nums]">
                 {formatCurrency(product.price + v.price_adjustment)}
@@ -282,14 +292,17 @@ export default function AdminProductsPage() {
                 <p className="text-[9px] text-charcoal-lighter [font-variant-numeric:tabular-nums]">{v.price_adjustment > 0 ? "+" : ""}{formatCurrency(v.price_adjustment)}</p>
               )}
             </td>
+            {/* Stock */}
             <td className="px-4 py-2.5 hidden md:table-cell">
               <span className={cn("text-xs font-semibold [font-variant-numeric:tabular-nums]", v.stock <= 5 ? "text-destructive" : v.stock <= 20 ? "text-warning" : "text-charcoal-light")}>
                 {v.stock}
               </span>
             </td>
+            {/* Date Added (lg) · Wishlist (xl) · Status (md) placeholders */}
             <td className="px-4 py-2.5 hidden lg:table-cell" />
             <td className="px-4 py-2.5 hidden xl:table-cell" />
             <td className="px-4 py-2.5 hidden md:table-cell" />
+            {/* Actions */}
             <td className="px-4 py-2.5">
               <div className="flex items-center gap-1">
                 <button onClick={() => setViewVariant({ variant: v, product })} className="p-1 hover:bg-white rounded text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96]" title="View">

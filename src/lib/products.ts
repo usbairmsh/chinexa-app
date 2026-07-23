@@ -230,6 +230,7 @@ export async function getProductsList(searchParams: URLSearchParams): Promise<Pa
     images: images.filter((i) => i.product_id === row.id).map((i) => ({ id: i.id, url: i.url, alt: i.alt || "", order: i.order })),
     category_id: row.category_id, category_name: row.category_name,
     subcategory: row.subcategory || undefined,
+    brand_id: row.brand_id || undefined, brand_name: row.brand_name || undefined,
     tags: typeof row.tags === "string" ? JSON.parse(row.tags || "[]") : row.tags || [],
     badges: typeof row.badges === "string" ? JSON.parse(row.badges || "[]") : row.badges || [],
     hidden_card_badges: typeof row.hidden_card_badges === "string" ? JSON.parse(row.hidden_card_badges || "[]") : (row.hidden_card_badges || []),

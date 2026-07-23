@@ -17,6 +17,7 @@ interface ProductRow extends RowDataPacket {
   id: string; name: string; slug: string; description: string; short_description: string;
   sku: string; price: number; compare_at_price: number | null; cost_price: number | null; currency: string;
   category_id: string; category_name: string; subcategory: string | null;
+  brand_id: string | null; brand_name: string | null;
   tags: string; badges: string; stock_quantity: number; is_active: number;
   is_featured: number; average_rating: number; review_count: number;
   country_of_origin: string | null; weight: string | null;
@@ -44,6 +45,7 @@ function buildProduct(row: ProductRow, images: ImageRow[], variants: VariantRow[
     images: images.filter((i) => i.product_id === row.id).map((i) => ({ id: i.id, url: i.url, alt: i.alt || "", order: i.order })),
     category_id: row.category_id, category_name: row.category_name,
     subcategory: row.subcategory || undefined,
+    brand_id: row.brand_id || undefined, brand_name: row.brand_name || undefined,
     tags: typeof row.tags === "string" ? JSON.parse(row.tags || "[]") : row.tags || [],
     badges: typeof row.badges === "string" ? JSON.parse(row.badges || "[]") : row.badges || [],
     hidden_card_badges: typeof row.hidden_card_badges === "string" ? JSON.parse(row.hidden_card_badges || "[]") : (row.hidden_card_badges || []),
