@@ -6,6 +6,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import { ProductJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { getProductBySlugOrId } from "@/lib/products";
 import { pageMetadata, getSchemaConfig } from "@/lib/seo";
+import { productSeoTitle, productSeoDescription, productSeoKeywords } from "@/lib/seo-templates";
 import { isPreorderable } from "@/lib/preorder";
 import { preordersEnabled } from "@/lib/migrate-preorder";
 
@@ -15,6 +16,7 @@ interface LayoutProductRow extends RowDataPacket {
   id: string; name: string; short_description: string | null; description: string | null;
   price: number; compare_at_price: number | null; category_name: string | null; average_rating: number; review_count: number;
   sku: string; stock_quantity: number; badges: unknown; preorder_release_date: string | null;
+  brand_name: string | null; seo_title: string | null; seo_description: string | null;
 }
 
 // React's cache() dedupes this across generateMetadata + the layout body
@@ -26,7 +28,7 @@ interface LayoutProductRow extends RowDataPacket {
 // the shared query() helper the rest of the app uses.
 const getProductForLayout = cache(async (slug: string) => {
   const products = await query<LayoutProductRow[]>(
-    "SELECT id, name, short_description, description, price, compare_at_price, category_name, average_rating, review_count, sku, stock_quantity, badges, preorder_release_date FROM products WHERE slug = ? AND is_active = 1 LIMIT 1",
+    "SELECT id, name, short_description, description, price, compare_at_price, category_name, average_rating, review_count, sku, stock_quantity, badges, preorder_release_date, brand_name, seo_title, seo_description FROM products WHERE slug = ? AND is_active = 1 LIMIT 1",
     [slug]
   );
   if (products.length === 0) return null;
@@ -57,9 +59,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     if (!data) return { title: "Product Not Found" };
 
     const { product, imageUrl } = data;
-    const title = `${product.name} — Buy Online in Bangladesh`;
-    const description = (product.short_description || product.description || "").slice(0, 160) ||
-      `Buy ${product.name} at the best price in Bangladesh. Genuine product with cash on delivery.`;
+    // Automated evergreen BD-intent templates ("price in Bangladesh",
+    // original/authentic, COD, live ৳price) — the product's own admin-entered
+    // seo_title/seo_description win when set (these columns were previously
+    // never read here), and Page-Meta overrides win on top of everything.
+    const title = product.seo_title || productSeoTitle(product.name, product.brand_name);
+    const description = product.seo_description || productSeoDescription(product.name, Number(product.price), {
+      brandName: product.brand_name,
+      categoryName: product.category_name,
+      shortDescription: product.short_description || product.description,
+    });
 
     const fullImageUrl = imageUrl
       ? (imageUrl.startsWith("http") ? imageUrl : `${siteUrl}${imageUrl}`)
@@ -70,6 +79,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     return pageMetadata(`/products/${slug}`, {
       title,
       description,
+      keywords: productSeoKeywords(product.name, product.brand_name, product.category_name),
       // en-BD hreflang pins product pages to the Bangladesh market (matches
       // the signal brand pages already send).
       alternates: { canonical: `${siteUrl}/products/${slug}`, languages: { "en-BD": `${siteUrl}/products/${slug}` } },
