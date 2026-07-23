@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
+import { RichTextEditor } from "@/components/admin/shared/rich-text-editor";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateShort, slugify, collectMissingFields } from "@/lib/utils";
@@ -215,7 +216,9 @@ export default function AdminBlogPage() {
               </div>
             </div>
             <Textarea label="Excerpt" placeholder="Brief summary for listing pages..." value={formExcerpt} onChange={(e) => setFormExcerpt(e.target.value)} className="min-h-[60px]" />
-            <Textarea label="Content" placeholder="Write your blog post content here..." value={formContent} onChange={(e) => setFormContent(e.target.value)} className="min-h-[200px]" />
+            {/* Rich editor writes the same HTML string the old textarea held —
+                existing posts load/save unchanged; only the editing UX changed. */}
+            <RichTextEditor label="Content" placeholder="Write your blog post content here..." value={formContent} onChange={setFormContent} />
             <ImageUpload label="Featured Image" value={formImage} onChange={setFormImage} aspectRatio="video" placeholder="Upload featured image (1200x675 recommended)" folder="blog" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="Category" placeholder="Skincare, Fashion, Beauty" value={formCategory} onChange={(e) => setFormCategory(e.target.value)} />
