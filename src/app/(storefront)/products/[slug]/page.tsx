@@ -366,18 +366,20 @@ export default function ProductDetailPage() {
                 </div>
               )}
 
-              {/* Nav Arrows */}
+              {/* Nav Arrows — stopPropagation so the click doesn't bubble to
+                  the image container's onClick (which opens the lightbox):
+                  arrows should only change the picture, never open the popup. */}
               {product.images.length > 1 && (
                 <>
                   <button
-                    onClick={() => setSelectedImage((p) => (p - 1 + product.images.length) % product.images.length)}
+                    onClick={(e) => { e.stopPropagation(); setSelectedImage((p) => (p - 1 + product.images.length) % product.images.length); }}
                     className="absolute left-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-white active:scale-[0.92] z-10"
                     aria-label="Previous image"
                   >
                     <ChevronLeft className="h-5 w-5 text-charcoal" />
                   </button>
                   <button
-                    onClick={() => setSelectedImage((p) => (p + 1) % product.images.length)}
+                    onClick={(e) => { e.stopPropagation(); setSelectedImage((p) => (p + 1) % product.images.length); }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-white active:scale-[0.92] z-10"
                     aria-label="Next image"
                   >
@@ -391,7 +393,9 @@ export default function ProductDetailPage() {
                 {product.images.map((_, i) => (
                   <button
                     key={i}
-                    onClick={() => setSelectedImage(i)}
+                    // stopPropagation: same bubbling issue as the arrows — a dot
+                    // tap must switch the image, not open the lightbox.
+                    onClick={(e) => { e.stopPropagation(); setSelectedImage(i); }}
                     className="flex items-center justify-center h-7 w-7 active:scale-90 transition-transform"
                     aria-label={`View image ${i + 1}`}
                   >
