@@ -236,6 +236,121 @@ interface BreadcrumbItem {
   url: string;
 }
 
+/** FAQPage rich-result markup — questions/answers must mirror the visible FAQ
+ *  content exactly (both render from the same shared data). */
+export function FaqJsonLd({ faqs }: { faqs: { q: string; a: string }[] }) {
+  if (!faqs || faqs.length === 0) return null;
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
+  return (
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+  );
+}
+
+interface LocalBusinessJsonLdProps {
+  name?: string;
+  phone?: string;
+  address?: string;
+}
+
+/** LocalBusiness (Store) markup — the Dhaka-based business behind the site.
+ *  Complements (does not replace) the Organization markup: Store carries the
+ *  local signals (address, phone, geo region) Google uses for local intent
+ *  queries like "cosmetics shop in Dhaka". */
+export function LocalBusinessJsonLd({ name, phone, address }: LocalBusinessJsonLdProps) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
+  const schema: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Store",
+    name: name || "ChineXa",
+    url: siteUrl,
+    image: `${siteUrl}/logo.png`,
+    ...(phone ? { telephone: phone } : {}),
+    address: {
+      "@type": "PostalAddress",
+      ...(address ? { streetAddress: address } : {}),
+      addressLocality: "Dhaka",
+      addressCountry: "BD",
+    },
+    priceRange: "৳৳",
+    currenciesAccepted: "BDT",
+    paymentAccepted: "Cash on Delivery, bKash, Nagad, Rocket, Credit Card",
+    areaServed: { "@type": "Country", name: "Bangladesh" },
+  };
+  return (
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+  );
+}
+
+interface ItemListEntry {
+  name: string;
+  url: string;
+}
+
+/** ItemList markup for category/collection listing pages — tells Google the
+ *  page is a product list and which product URLs it contains. */
+export function ItemListJsonLd({ items, listName }: { items: ItemListEntry[]; listName?: string }) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
+  if (!items || items.length === 0) return null;
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    ...(listName ? { name: listName } : {}),
+    numberOfItems: items.length,
+    itemListElement: items.map((item, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: item.name,
+      url: item.url.startsWith("http") ? item.url : `${siteUrl}${item.url}`,
+    })),
+  };
+  return (
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+  );
+}
+
+interface ArticleJsonLdProps {
+  title: string;
+  description?: string;
+  image?: string;
+  url: string;
+  datePublished?: string;
+  dateModified?: string;
+  authorName?: string;
+}
+
+/** BlogPosting markup for blog articles — the OG tags already exist; this adds
+ *  the structured-data layer Google uses for article rich results. */
+export function ArticleJsonLd({ title, description, image, url, datePublished, dateModified, authorName }: ArticleJsonLdProps) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
+  const schema: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: title,
+    ...(description ? { description: description.slice(0, 300) } : {}),
+    ...(image ? { image: image.startsWith("http") ? image : `${siteUrl}${image}` } : {}),
+    mainEntityOfPage: url.startsWith("http") ? url : `${siteUrl}${url}`,
+    ...(datePublished ? { datePublished } : {}),
+    ...(dateModified ? { dateModified } : {}),
+    author: { "@type": "Organization", name: authorName || "ChineXa" },
+    publisher: {
+      "@type": "Organization",
+      name: "ChineXa",
+      logo: { "@type": "ImageObject", url: `${siteUrl}/logo.png` },
+    },
+  };
+  return (
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+  );
+}
+
 export function BreadcrumbJsonLd({ items }: { items: BreadcrumbItem[] }) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
   const schema = {

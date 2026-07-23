@@ -3,7 +3,10 @@ import pool from "@/lib/db";
 import { type RowDataPacket } from "mysql2/promise";
 import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { getProductsList } from "@/lib/products";
-import { pageMetadata } from "@/lib/seo";
+import { pageMetadata, getSchemaConfig } from "@/lib/seo";
+import { ItemListJsonLd } from "@/components/seo/json-ld";
+import type { Product } from "@/types/product";
+import type { PaginatedResponse } from "@/types/api";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
 
@@ -31,8 +34,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     return pageMetadata(`/categories/${slug}`, {
       title,
       description: description.slice(0, 160),
-      // Canonical is the clean category URL — ?sub= filter variations all point here
-      alternates: { canonical: `${siteUrl}/categories/${slug}` },
+      // Canonical is the clean category URL — ?sub= filter variations all point here.
+      // en-BD hreflang pins this page to the Bangladesh market consistently
+      // (previously only brand pages sent that signal).
+      alternates: { canonical: `${siteUrl}/categories/${slug}`, languages: { "en-BD": `${siteUrl}/categories/${slug}` } },
       openGraph: {
         title,
         description: description.slice(0, 160),
@@ -71,8 +76,18 @@ export default async function CategoryLayout({
     })),
   });
 
+  // ItemList structured data — reuses the exact product list just prefetched
+  // above (no extra query), so Google gets a structured product-list signal
+  // for this category page. Admin-toggleable (SEO Management → Schema).
+  const schema = await getSchemaConfig();
+  const prefetched = queryClient.getQueryData<PaginatedResponse<Product> & { data: Product[] }>(["products", initialParams]);
+  const listItems = (prefetched?.data || [])
+    .filter((p) => p.slug)
+    .map((p) => ({ name: p.name, url: `/products/${p.slug}` }));
+
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
+      {schema.item_list && listItems.length > 0 && <ItemListJsonLd items={listItems} listName={slug} />}
       {children}
     </HydrationBoundary>
   );

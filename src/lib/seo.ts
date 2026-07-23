@@ -147,6 +147,10 @@ export interface SchemaConfig {
   breadcrumb: boolean;
   brand: boolean;
   review: boolean;
+  faq: boolean;
+  local_business: boolean;
+  item_list: boolean;
+  article: boolean;
 }
 
 export const DEFAULT_SCHEMA_CONFIG: SchemaConfig = {
@@ -156,6 +160,13 @@ export const DEFAULT_SCHEMA_CONFIG: SchemaConfig = {
   breadcrumb: true,
   brand: true,
   review: true,
+  // New schema types default ON — stored configs predating them inherit these
+  // via the spread in getSchemaConfig, so existing setups gain them without
+  // any admin action (and can toggle them off in SEO Management → Schema).
+  faq: true,
+  local_business: true,
+  item_list: true,
+  article: true,
 };
 
 export const getSchemaConfig = cache(async (): Promise<SchemaConfig> => {

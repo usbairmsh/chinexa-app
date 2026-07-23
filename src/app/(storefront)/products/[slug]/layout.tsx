@@ -70,7 +70,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     return pageMetadata(`/products/${slug}`, {
       title,
       description,
-      alternates: { canonical: `${siteUrl}/products/${slug}` },
+      // en-BD hreflang pins product pages to the Bangladesh market (matches
+      // the signal brand pages already send).
+      alternates: { canonical: `${siteUrl}/products/${slug}`, languages: { "en-BD": `${siteUrl}/products/${slug}` } },
       openGraph: {
         title,
         description,

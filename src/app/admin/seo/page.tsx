@@ -29,6 +29,8 @@ const GLOBAL_PATH = "_global";
 const STATIC_PAGES = [
   { path: "/", label: "Homepage" },
   { path: "/products", label: "All Products" },
+  { path: "/exclusive", label: "Exclusive" },
+  { path: "/membership", label: "Membership" },
   { path: "/about", label: "About / Our Story" },
   { path: "/blog", label: "Blog" },
   { path: "/brands", label: "Brands" },
@@ -68,7 +70,7 @@ interface RedirectRow {
 }
 
 interface SchemaToggle {
-  key: "organization" | "website" | "product" | "breadcrumb" | "brand" | "review";
+  key: "organization" | "website" | "product" | "breadcrumb" | "brand" | "review" | "faq" | "local_business" | "item_list" | "article";
   name: string;
   where: string;
   help: string;
@@ -81,6 +83,10 @@ const SCHEMA_TOGGLES: SchemaToggle[] = [
   { key: "breadcrumb", name: "BreadcrumbList", where: "Product & brand pages", help: "Shows the page's category trail (Home › Skincare › Product) in Google results instead of a raw URL — improves how your listing reads." },
   { key: "brand", name: "Brand", where: "Brand pages", help: "Marks each brand page as the Bangladesh storefront for that brand, reinforcing local-market relevance in search." },
   { key: "review", name: "AggregateRating (Reviews)", where: "Product detail pages", help: "Adds the star rating and review count to product search results. Requires the Product schema to be ON — stars render as part of the product data." },
+  { key: "faq", name: "FAQPage", where: "FAQ page", help: "Marks your FAQ questions and answers so they can appear as expandable Q&A directly in Google results — extra result real estate for queries like delivery time, COD and returns." },
+  { key: "local_business", name: "LocalBusiness (Store)", where: "Every storefront page", help: "Declares ChineXa as a Dhaka-based store (address, phone, payment methods, area served) — strengthens local queries like \"cosmetics shop in Dhaka\" and pairs with a Google Business Profile." },
+  { key: "item_list", name: "ItemList (Category pages)", where: "Category pages", help: "Tells Google each category page is a product list and which products it contains — helps Google understand and index your category pages as shopping destinations." },
+  { key: "article", name: "BlogPosting (Articles)", where: "Blog post pages", help: "Marks blog posts as articles (headline, image, dates, author) — required for article rich results and helps your guides rank for informational searches." },
 ];
 
 function parseKeywords(raw: unknown): string[] {
@@ -146,6 +152,8 @@ export default function AdminSeoPage() {
   // ─── Schema tab state ───
   const [schemaConfig, setSchemaConfig] = useState<Record<string, boolean>>({
     organization: true, website: true, product: true, breadcrumb: true, brand: true, review: true,
+    // New schema types (server defaults ON; stored configs predating them merge over this)
+    faq: true, local_business: true, item_list: true, article: true,
   });
   const [savingSchema, setSavingSchema] = useState(false);
   const [savedSchema, setSavedSchema] = useState(false);

@@ -7,7 +7,7 @@ import { CartDrawer } from "@/components/storefront/cart/cart-drawer-lazy";
 import { BackInStockToast } from "@/components/storefront/wishlist/back-in-stock-toast";
 import { ScrollToTop } from "@/components/shared/scroll-to-top";
 import { PageLoader } from "@/components/shared/page-loader";
-import { OrganizationJsonLd, WebsiteJsonLd } from "@/components/seo/json-ld";
+import { OrganizationJsonLd, WebsiteJsonLd, LocalBusinessJsonLd } from "@/components/seo/json-ld";
 import { getSchemaConfig } from "@/lib/seo";
 import pool from "@/lib/db";
 import { type RowDataPacket } from "mysql2/promise";
@@ -57,10 +57,30 @@ export default async function StorefrontLayout({
   // Admin-controlled structured-data toggles (SEO Management → Schema).
   const schema = await getSchemaConfig();
 
+  // Store contact details for LocalBusiness markup — best-effort read of the
+  // same settings the admin already maintains; missing keys just omit fields.
+  let storeInfo: { name?: string; phone?: string; address?: string } = {};
+  if (schema.local_business) {
+    try {
+      const [rows] = await pool.execute<RowDataPacket[]>(
+        "SELECT `key`, value FROM settings WHERE `key` IN ('store_name','store_phone','store_address')"
+      );
+      const parse = (v: unknown) => { try { return typeof v === "string" ? JSON.parse(v) : v; } catch { return v; } };
+      for (const r of rows) {
+        const val = parse(r.value);
+        if (typeof val !== "string" || !val) continue;
+        if (r.key === "store_name") storeInfo.name = val;
+        if (r.key === "store_phone") storeInfo.phone = val;
+        if (r.key === "store_address") storeInfo.address = val;
+      }
+    } catch { storeInfo = {}; }
+  }
+
   return (
     <>
       {schema.organization && <OrganizationJsonLd />}
       {schema.website && <WebsiteJsonLd />}
+      {schema.local_business && <LocalBusinessJsonLd name={storeInfo.name} phone={storeInfo.phone} address={storeInfo.address} />}
       <Suspense><PageLoader /></Suspense>
       <Header />
       <main className="flex-1 overflow-x-hidden">{children}</main>

@@ -171,14 +171,17 @@ export function HeroSection() {
   const showDescriptionAbove = settings.descriptionOrder === "above";
 
   const titleEl = settings.showTitle && (
-    <motion.h2
+    // h1 (not h2): this is the homepage's top-level heading — the page had no
+    // h1 at all, which starves Google of its primary relevance signal. Tag-only
+    // swap; classes/styles/animation are identical so rendering is unchanged.
+    <motion.h1
       key="title"
       {...textMotionProps(settings.titleAnimation, 0.4)}
       className="font-heading text-lg sm:text-3xl lg:text-5xl font-bold mb-1.5 sm:mb-4 lg:mb-6 leading-tight"
       style={{ color: "#FFFFFF", textShadow: "0 2px 16px rgba(0,0,0,0.5)" }}
     >
       {slide.title}
-    </motion.h2>
+    </motion.h1>
   );
 
   const descriptionEl = settings.showDescription && slide.subtitle && (

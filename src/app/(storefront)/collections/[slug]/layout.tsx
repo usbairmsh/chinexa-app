@@ -42,7 +42,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return pageMetadata(`/collections/${slug}`, {
     title: meta.title,
     description: meta.description,
-    alternates: { canonical: `${siteUrl}/collections/${slug}` },
+    alternates: { canonical: `${siteUrl}/collections/${slug}`, languages: { "en-BD": `${siteUrl}/collections/${slug}` } },
     openGraph: {
       title: meta.title,
       description: meta.description,
