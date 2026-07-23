@@ -6,6 +6,7 @@ import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query
 import { BrandJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { getBrandBySlug } from "@/lib/brands";
 import { pageMetadata, getSchemaConfig } from "@/lib/seo";
+import { getBrandSeoStats, brandSeoTitle, brandSeoDescription, brandSeoKeywords } from "@/lib/seo-templates";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
 
@@ -33,11 +34,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     if (!brand) {
       return { title: "Brand Not Found", robots: { index: false, follow: true } };
     }
-    const title = seo?.seo_title || `${brand.name} — Authentic Products in Bangladesh`;
-    const description =
+    // Automated evergreen BD-intent template ("price in Bangladesh", original,
+    // COD, live product count/min price) — FALLBACK only: the brand's own
+    // seo_title/seo_description win, and Page-Meta overrides win on top.
+    const stats = await getBrandSeoStats(brand.id, brand.name);
+    const title = seo?.seo_title || brandSeoTitle(brand.name);
+    const description: string =
       seo?.seo_description ||
+      brandSeoDescription(brand.name, stats, seo?.country) ||
       brand.description ||
-      `Shop authentic ${brand.name}${seo?.country ? ` (${seo.country})` : ""} products at ChineXa Bangladesh. Genuine products with cash on delivery.`;
+      "";
     const logo = brand.logo || `${siteUrl}/logo.png`;
     const fullLogo = logo.startsWith("http") ? logo : `${siteUrl}${logo}`;
     const url = `${siteUrl}/brands/${slug}`;
@@ -47,6 +53,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     return pageMetadata(`/brands/${slug}`, {
       title,
       description: description.slice(0, 160),
+      keywords: brandSeoKeywords(brand.name),
       // en-BD tells Google this page specifically targets Bangladesh — a
       // second country buying the same brand internationally should not see
       // this page ranked ahead of their own local sources.

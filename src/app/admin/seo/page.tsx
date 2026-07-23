@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Globe, Search, FileText, Link2, Code, Settings, Loader2, Check,
-  Plus, Trash2, Pencil, ExternalLink, AlertTriangle, RefreshCw,
+  Plus, Trash2, Pencil, ExternalLink, AlertTriangle, RefreshCw, Send,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
@@ -157,6 +157,31 @@ export default function AdminSeoPage() {
   });
   const [savingSchema, setSavingSchema] = useState(false);
   const [savedSchema, setSavedSchema] = useState(false);
+
+  // ─── Bulk IndexNow ping state ───
+  const [pinging, setPinging] = useState(false);
+  const [pingResult, setPingResult] = useState<string>("");
+  const [pingError, setPingError] = useState<string>("");
+
+  const handleBulkPing = async () => {
+    setPinging(true);
+    setPingResult("");
+    setPingError("");
+    try {
+      const res = await fetch("/api/seo/indexnow-bulk", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setPingError(data.error || "Failed to submit URLs.");
+      } else {
+        const b = data.breakdown || {};
+        setPingResult(`Submitted ${data.submitted} URLs (${b.products || 0} products, ${b.categories || 0} categories, ${b.brands || 0} brands, ${b.blog || 0} blog posts + static pages).`);
+      }
+    } catch {
+      setPingError("Network error — nothing was submitted.");
+    } finally {
+      setPinging(false);
+    }
+  };
 
   // ─── Redirects tab state ───
   const [redirects, setRedirects] = useState<RedirectRow[]>([]);
@@ -888,6 +913,36 @@ export default function AdminSeoPage() {
                 {savingSchema ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : savedSchema ? <Check className="h-3.5 w-3.5 mr-1" /> : null}
                 {savedSchema ? "Saved!" : "Save Schema Settings"}
               </AdminButton>
+            </CardContent>
+          </Card>
+
+          {/* ─── Instant indexing: bulk IndexNow submission ─── */}
+          <Card className="mt-5">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Send className="h-4 w-4" /> Instant Indexing (IndexNow)
+              </CardTitle>
+              <CardDescription>
+                Products are pinged to search engines automatically when created or edited — but existing, untouched
+                pages never get announced. This submits <strong>every</strong> public URL (all products, categories,
+                brands, blog posts and main pages) to IndexNow in one shot. Use it after a big SEO change or a bulk
+                import. Covers Bing, Yandex and other IndexNow engines; for Google, also resubmit your sitemap in
+                Search Console.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <AdminButton onClick={handleBulkPing} disabled={pinging}>
+                {pinging ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />}
+                {pinging ? "Submitting all URLs…" : "Submit All URLs to Search Engines"}
+              </AdminButton>
+              {pingResult && (
+                <p className="text-sm text-success bg-success/5 border border-success/20 rounded-lg px-3 py-2 flex items-center gap-2">
+                  <Check className="h-4 w-4 shrink-0" /> {pingResult}
+                </p>
+              )}
+              {pingError && (
+                <p className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">{pingError}</p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

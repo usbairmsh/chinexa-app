@@ -138,6 +138,56 @@ export function productSeoDescription(
   return combined.slice(0, 160);
 }
 
+/**
+ * Live stats for a brand page — same idea as getCategorySeoStats. Matches by
+ * brand_id with a brand_name fallback (older rows sometimes carry only the
+ * name). Cached per request; best-effort.
+ */
+export const getBrandSeoStats = cache(async (brandId: string, brandName: string): Promise<CategorySeoStats> => {
+  try {
+    const agg = await query<RowDataPacket[]>(
+      "SELECT COUNT(*) AS c, MIN(price) AS p FROM products WHERE (brand_id = ? OR brand_name = ?) AND is_active = 1",
+      [brandId, brandName]
+    );
+    return {
+      count: Number(agg[0]?.c) || 0,
+      minPrice: agg[0]?.p != null ? Number(agg[0].p) : null,
+      brands: [],
+    };
+  } catch {
+    return { count: 0, minPrice: null, brands: [] };
+  }
+});
+
+/** `{Brand} Price in Bangladesh — Buy 100% Original {Brand} Products` */
+export function brandSeoTitle(name: string): string {
+  return `${name} Price in Bangladesh — Buy 100% Original ${name} Products`;
+}
+
+/** Intent-rich, evergreen brand description with live price/count + origin country. */
+export function brandSeoDescription(name: string, stats: CategorySeoStats, country?: string | null): string {
+  const originPart = country ? ` direct from ${country}` : "";
+  const pricePart = stats.minPrice != null && stats.minPrice > 0 ? ` starting from ${taka(stats.minPrice)}` : " at the best price";
+  const countPart = stats.count > 0 ? `${stats.count}+ authentic products, ` : "";
+  return (
+    `Buy 100% original ${name} products online in Bangladesh${pricePart} — sourced${originPart || " from authorised suppliers"}. ` +
+    `${countPart}cash on delivery all over BD, fast Dhaka delivery & 7-day easy returns.`
+  ).slice(0, 160);
+}
+
+/** Keywords meta for a brand page. */
+export function brandSeoKeywords(name: string): string[] {
+  const n = name.toLowerCase();
+  return [
+    `${n} price in bangladesh`,
+    `${n} bd`,
+    `original ${n} bangladesh`,
+    `${n} products price in bd`,
+    `buy ${n} online bangladesh`,
+    `${n} bangladesh official`,
+  ];
+}
+
 /** Keywords meta for a product page. */
 export function productSeoKeywords(name: string, brandName?: string | null, categoryName?: string | null): string[] {
   const n = name.toLowerCase();
