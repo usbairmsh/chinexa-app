@@ -183,6 +183,36 @@ export default function AdminSeoPage() {
     }
   };
 
+  // ─── Reset stale category SEO titles (let auto-templates take over) ───
+  const [resettingCatMeta, setResettingCatMeta] = useState(false);
+  const [resetResult, setResetResult] = useState<string>("");
+  const [resetError, setResetError] = useState<string>("");
+
+  const handleResetCategoryMeta = async (mode: "stale" | "all") => {
+    setResettingCatMeta(true);
+    setResetResult("");
+    setResetError("");
+    try {
+      const res = await fetch("/api/seo/reset-category-meta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setResetError(data.error || "Failed to reset category SEO.");
+      } else if (data.cleared === 0) {
+        setResetResult("No categories needed resetting — they're already using the automatic SEO titles.");
+      } else {
+        setResetResult(`Reset ${data.cleared} categor${data.cleared === 1 ? "y" : "ies"} to automatic SEO titles${data.categories?.length ? `: ${data.categories.join(", ")}` : ""}.`);
+      }
+    } catch {
+      setResetError("Network error — nothing was changed.");
+    } finally {
+      setResettingCatMeta(false);
+    }
+  };
+
   // ─── Redirects tab state ───
   const [redirects, setRedirects] = useState<RedirectRow[]>([]);
   const [redirectDialogOpen, setRedirectDialogOpen] = useState(false);
@@ -942,6 +972,46 @@ export default function AdminSeoPage() {
               )}
               {pingError && (
                 <p className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">{pingError}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ─── Reset stale category SEO titles ─── */}
+          <Card className="mt-5">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <RefreshCw className="h-4 w-4" /> Reset Category SEO to Automatic
+              </CardTitle>
+              <CardDescription>
+                Categories now get automatic, search-optimised titles &amp; descriptions (e.g. &ldquo;Skincare Price
+                in Bangladesh — Buy 100% Original Skincare Online&rdquo;). But a category&rsquo;s own saved SEO title
+                always wins — so any older stored titles (the &ldquo;… Shop Online in Bangladesh&rdquo; style) are
+                currently hiding the stronger automatic ones. This clears those stored titles so the automatic
+                templates take over. You can still set a custom title on any category afterwards.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <AdminButton onClick={() => handleResetCategoryMeta("stale")} disabled={resettingCatMeta}>
+                  {resettingCatMeta ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
+                  Reset legacy titles only
+                </AdminButton>
+                <AdminButton variant="outline" onClick={() => handleResetCategoryMeta("all")} disabled={resettingCatMeta}>
+                  Reset ALL category titles
+                </AdminButton>
+              </div>
+              <p className="text-[11px] text-charcoal-lighter">
+                &ldquo;Legacy titles only&rdquo; (recommended) clears just the old &ldquo;Shop Online in Bangladesh&rdquo;
+                pattern and leaves any deliberately-custom titles alone. &ldquo;Reset ALL&rdquo; clears every category&rsquo;s
+                saved title and description.
+              </p>
+              {resetResult && (
+                <p className="text-sm text-success bg-success/5 border border-success/20 rounded-lg px-3 py-2 flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 mt-0.5" /> {resetResult}
+                </p>
+              )}
+              {resetError && (
+                <p className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">{resetError}</p>
               )}
             </CardContent>
           </Card>
