@@ -11,6 +11,7 @@ import { getProductBySlugOrId } from "@/lib/products";
 import { ensurePreorderColumns } from "@/lib/migrate-preorder";
 import { ensureInventoryTables, recordStockHistory, handleRestockTransition } from "@/lib/migrate-inventory";
 import { ensureCardBadgeColumn } from "@/lib/migrate-card-badges";
+import { resolveImageAlt } from "@/lib/image-alt";
 import { validate, validationError, dependencyError, publicServerError } from "@/lib/validate";
 
 interface ProductRow extends RowDataPacket { [key: string]: unknown; }
@@ -45,7 +46,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     // right now. Previously this route had no validation at all: price could
     // be set to 0/negative, the name blanked out, or a "discount" compare_at_price
     // set below the real price, all via a direct PUT call.
-    const currentRows = await query<RowDataPacket[]>("SELECT price, compare_at_price, stock_quantity FROM products WHERE id = ? LIMIT 1", [id]);
+    const currentRows = await query<RowDataPacket[]>("SELECT price, compare_at_price, stock_quantity, name, brand_name, category_name FROM products WHERE id = ? LIMIT 1", [id]);
     if (currentRows.length === 0) return NextResponse.json({ error: "Product not found" }, { status: 404 });
     const current = currentRows[0];
     const beforeProductStock = Number(current.stock_quantity ?? 0);
@@ -125,15 +126,32 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       await execute(`UPDATE products SET ${fields.join(", ")}, updated_at = NOW() WHERE id = ?`, values);
     }
 
-    // Update images — delete all and re-insert
+    // Update images — delete all and re-insert. Auto-generate descriptive alt
+    // text when blank (manual alt wins). Product name/brand/category fall back
+    // to the current row when the partial PUT body omits them.
     if (body.images && Array.isArray(body.images)) {
+      const altName = (body.name as string) || (current.name as string) || "";
+      const altBrand = body.brand_name !== undefined ? body.brand_name : (current.brand_name as string | null);
+      const altCategory = body.category_name || body.category_id || (current.category_name as string | null);
+      const withUrl = body.images.filter((im: { url?: string }) => im.url);
       await execute("DELETE FROM product_images WHERE product_id = ?", [id]);
       for (let i = 0; i < body.images.length; i++) {
         const img = body.images[i];
         if (img.url) {
+          const variantName = img.variant_id
+            ? (body.variants || []).find((v: { id?: string; name?: string }) => v?.id === img.variant_id)?.name || null
+            : null;
+          const alt = resolveImageAlt(img.alt, {
+            productName: altName,
+            brandName: altBrand,
+            categoryName: altCategory,
+            index: i,
+            totalImages: withUrl.length,
+            variantName,
+          });
           await execute(
             "INSERT INTO product_images (id, product_id, url, alt, `order`) VALUES (?, ?, ?, ?, ?)",
-            [`pimg-${id}-${i}`, id, img.url, img.alt || null, i]
+            [`pimg-${id}-${i}`, id, img.url, alt, i]
           );
         }
       }

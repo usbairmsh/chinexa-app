@@ -12,6 +12,7 @@ import { getProductsList } from "@/lib/products";
 import { ensurePreorderColumns } from "@/lib/migrate-preorder";
 import { ensureInventoryTables, recordStockHistory } from "@/lib/migrate-inventory";
 import { ensureCardBadgeColumn } from "@/lib/migrate-card-badges";
+import { resolveImageAlt } from "@/lib/image-alt";
 
 interface ProductRow extends RowDataPacket {
   id: string; name: string; slug: string; description: string; short_description: string;
@@ -167,14 +168,28 @@ export async function POST(req: NextRequest) {
       ]
     );
 
-    // Insert images
+    // Insert images — auto-generate descriptive alt text when the admin left
+    // the Alt Text field blank (manual alt always wins). Better image SEO +
+    // accessibility, no extra work required from the admin.
     if (body.images?.length) {
+      const withUrl = body.images.filter((im: { url?: string }) => im.url);
       for (let i = 0; i < body.images.length; i++) {
         const img = body.images[i];
         if (img.url) {
+          const variantName = img.variant_id
+            ? (body.variants || []).find((v: { id?: string; name?: string }) => v?.id === img.variant_id)?.name || null
+            : null;
+          const alt = resolveImageAlt(img.alt, {
+            productName: body.name,
+            brandName: body.brand_name,
+            categoryName: body.category_name || body.category_id,
+            index: i,
+            totalImages: withUrl.length,
+            variantName,
+          });
           await query(
             "INSERT INTO product_images (id, product_id, url, alt, `order`) VALUES (?, ?, ?, ?, ?)",
-            [`img-${id}-${i}`, id, img.url, img.alt || "", i]
+            [`img-${id}-${i}`, id, img.url, alt, i]
           );
         }
       }

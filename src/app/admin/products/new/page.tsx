@@ -563,7 +563,7 @@ export default function AddProductPage() {
                             imageIndex={String(i).padStart(4, "0")}
                           />
                           <div className="space-y-3">
-                            <Input label="Alt Text" placeholder="Describe the image" value={img.alt} onChange={(e) => { const u = [...images]; u[i].alt = e.target.value; setImages(u); }} />
+                            <Input label="Alt Text" placeholder="Auto-generated from product name if left blank" value={img.alt} onChange={(e) => { const u = [...images]; u[i].alt = e.target.value; setImages(u); }} />
                             <div>
                               <label className="block text-sm font-medium text-charcoal-light mb-1.5"><FieldLabel label="Link to Variant" hint="When a customer selects this variant, this image will be shown." /></label>
                               <Select value={img.variant_id} onValueChange={(v) => { const u = [...images]; u[i].variant_id = v; setImages(u); }}>
