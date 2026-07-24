@@ -3,9 +3,16 @@
 // Pure functions over the objects the admin lists already hold in memory (no
 // API calls). Each returns the list of MISSING field labels; empty = complete.
 //
-// These are advisory only — they never block saving or change any flow. The
-// admin lists render a small chip when the list is non-empty so an admin can
-// see at a glance which rows need attention for SEO.
+// IMPORTANT: products, brands and categories now get AUTOMATIC intent-rich SEO
+// titles + descriptions when those fields are blank (see seo-templates.ts +
+// their [slug]/layout.tsx). So a blank seo_title/seo_description is NOT a real
+// gap for those entities — the template covers it — and flagging it would be
+// misleading. These checks therefore only flag fields with NO automatic
+// fallback: images (no thumbnail otherwise), a human description, alt text,
+// and category/brand assignment. Blog has no meta template, so it still checks
+// its SEO title/description.
+//
+// Advisory only — never blocks saving or changes any flow.
 
 const isBlank = (v: unknown): boolean =>
   v == null || (typeof v === "string" && v.trim() === "") || (Array.isArray(v) && v.length === 0);
@@ -25,13 +32,11 @@ export interface ProductSeoInput {
 export function productSeoMissing(p: ProductSeoInput): string[] {
   const missing: string[] = [];
   if (isBlank(p.images)) missing.push("Product image");
-  // Alt text: only meaningful when there are images. Flag if ANY image lacks alt.
-  else if ((p.images || []).some((img) => isBlank(img.alt))) missing.push("Image alt text");
+  // Alt text now auto-generates on save when blank, so it's no longer flagged.
   if (isBlank(p.short_description) && isBlank(p.description)) missing.push("Description");
   if (isBlank(p.category_name) && isBlank(p.category_id)) missing.push("Category");
   if (isBlank(p.brand_name)) missing.push("Brand");
-  if (isBlank(p.seo_title)) missing.push("SEO title");
-  if (isBlank(p.seo_description)) missing.push("SEO description");
+  // seo_title / seo_description intentionally NOT flagged — auto-templated.
   return missing;
 }
 
@@ -47,8 +52,7 @@ export function brandSeoMissing(b: BrandSeoInput): string[] {
   const missing: string[] = [];
   if (isBlank(b.logo)) missing.push("Logo (used as search thumbnail)");
   if (isBlank(b.description)) missing.push("Description");
-  if (isBlank(b.seo_title)) missing.push("SEO title");
-  if (isBlank(b.seo_description)) missing.push("SEO description");
+  // seo_title / seo_description intentionally NOT flagged — auto-templated.
   return missing;
 }
 
@@ -64,8 +68,7 @@ export function categorySeoMissing(c: CategorySeoInput): string[] {
   const missing: string[] = [];
   if (isBlank(c.image)) missing.push("Image (used as search thumbnail)");
   if (isBlank(c.description)) missing.push("Description");
-  if (isBlank(c.seo_title)) missing.push("SEO title");
-  if (isBlank(c.seo_description)) missing.push("SEO description");
+  // seo_title / seo_description intentionally NOT flagged — auto-templated.
   return missing;
 }
 
