@@ -205,5 +205,16 @@ export function HomeClient() {
     }
   };
 
-  return <>{visibleSections.map(renderSection)}</>;
+  return (
+    <>
+      {/* Guaranteed homepage h1 for SEO. The hero carousel's title is an h1 too,
+          but it only renders when slides are configured — this ensures the
+          homepage always has exactly one top-level heading with the core BD
+          intent terms. sr-only so it doesn't alter the visual design. */}
+      <h1 className="sr-only">
+        ChineXa — Buy Original Skincare, Bags, Jewellery, Perfumes &amp; Shoes Online in Bangladesh
+      </h1>
+      {visibleSections.map(renderSection)}
+    </>
+  );
 }

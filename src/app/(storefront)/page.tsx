@@ -3,10 +3,23 @@ import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query
 import { HomeClient } from "@/components/storefront/home/home-client";
 import { pageMetadata } from "@/lib/seo";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
+
 // Admin-entered overrides for "/" (SEO Management → Page Meta) apply on top
 // of the site-wide defaults the root layout already provides.
 export async function generateMetadata(): Promise<Metadata> {
-  return pageMetadata("/");
+  const meta = await pageMetadata("/", {
+    // Homepage canonical — the root layout intentionally omits a site-wide
+    // canonical, so set the homepage's own here.
+    alternates: { canonical: siteUrl, languages: { "en-BD": siteUrl } },
+  });
+  // The homepage title already contains "ChineXa"; wrap it as `absolute` so the
+  // root layout's "%s | ChineXa" template doesn't append a second "| ChineXa"
+  // (a plain string title from an admin "/" override otherwise gets doubled).
+  if (typeof meta.title === "string") {
+    meta.title = { absolute: meta.title };
+  }
+  return meta;
 }
 
 // Loopback, not the public domain — fetching the public domain from inside
