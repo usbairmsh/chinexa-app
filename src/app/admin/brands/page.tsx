@@ -15,6 +15,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
 import { CountrySearch } from "@/components/admin/shared/country-search";
+import { SeoStatusChip } from "@/components/admin/shared/seo-status-chip";
+import { brandSeoMissing } from "@/lib/seo-completeness";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, slugify, normalizeWebsite } from "@/lib/utils";
@@ -164,9 +166,10 @@ export default function AdminBrandsPage() {
                   )}
                 </div>
 
-                <div className="flex flex-wrap gap-1 mb-3">
+                <div className="flex flex-wrap items-center gap-1 mb-3">
                   {brand.show_on_homepage && <Badge className="text-[9px] bg-primary/10 text-primary border-primary/20"><Home className="h-2.5 w-2.5 mr-0.5" /> Homepage</Badge>}
                   {brand.certifications.map((c, i) => <Badge key={i} variant="outline" className="text-[9px]">{c}</Badge>)}
+                  <SeoStatusChip missing={brandSeoMissing(brand)} />
                 </div>
 
                 <div className="flex items-center justify-between pt-3 border-t border-border/30">

@@ -13,6 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
 import { RichTextEditor } from "@/components/admin/shared/rich-text-editor";
+import { SeoStatusChip } from "@/components/admin/shared/seo-status-chip";
+import { blogSeoMissing } from "@/lib/seo-completeness";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateShort, slugify, collectMissingFields } from "@/lib/utils";
@@ -184,6 +186,7 @@ export default function AdminBlogPage() {
                       <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> <span className="[font-variant-numeric:tabular-nums]">{post.reading_time}</span> min</span>
                       <span className="[font-variant-numeric:tabular-nums]">{(post.views || 0).toLocaleString()} views</span>
                       {post.category && <Badge variant="outline" className="text-[10px]">{post.category}</Badge>}
+                      <SeoStatusChip missing={blogSeoMissing(post)} />
                       <Switch checked={post.is_published} onCheckedChange={() => handleTogglePublish(post)} disabled={!canEditBlog} />
                     </div>
                     {post.tags && post.tags.length > 0 && (

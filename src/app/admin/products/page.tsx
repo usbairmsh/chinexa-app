@@ -21,6 +21,8 @@ import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { useProducts } from "@/hooks/queries/use-products";
+import { SeoStatusChip } from "@/components/admin/shared/seo-status-chip";
+import { productSeoMissing } from "@/lib/seo-completeness";
 import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
 import type { ProductListParams, Product, ProductVariant } from "@/types/product";
 import { useAdmin } from "@/contexts/admin-context";
@@ -142,7 +144,10 @@ export default function AdminProductsPage() {
                   {!product.is_active && <div className="absolute inset-0 bg-white/60 flex items-center justify-center"><EyeOff className="h-4 w-4 text-charcoal-lighter" /></div>}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-medium text-charcoal truncate max-w-[200px] group-hover:text-secondary transition-colors">{product.name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-medium text-charcoal truncate max-w-[170px] group-hover:text-secondary transition-colors">{product.name}</p>
+                    <span onClick={(e) => e.stopPropagation()}><SeoStatusChip missing={productSeoMissing(product)} /></span>
+                  </div>
                   <div className="flex items-center gap-1">
                     <p className="text-[10px] text-charcoal-lighter">{product.sku}{hasVariants ? ` · ${product.variants.length} variants` : ""}</p>
                     <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(product.sku); setCopiedSku(product.sku); setTimeout(() => setCopiedSku(""), 1500); }} className="p-0.5 rounded hover:bg-pearl text-charcoal-lighter hover:text-secondary transition-colors active:scale-[0.96]" title="Copy SKU">

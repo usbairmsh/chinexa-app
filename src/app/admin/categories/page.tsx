@@ -21,6 +21,8 @@ import { useCategories } from "@/hooks/queries/use-categories";
 import { useCategoriesStore } from "@/stores/categories.store";
 import { slugify, cn } from "@/lib/utils";
 import type { Category } from "@/types/category";
+import { SeoStatusChip } from "@/components/admin/shared/seo-status-chip";
+import { categorySeoMissing } from "@/lib/seo-completeness";
 import { useAdmin } from "@/contexts/admin-context";
 
 export default function AdminCategoriesPage() {
@@ -279,6 +281,7 @@ export default function AdminCategoriesPage() {
                             <h3 className="font-medium text-charcoal text-sm">{cat.name}</h3>
                             {isCustom && <Badge variant="new" className="text-[8px]">Custom</Badge>}
                             {!visible && <Badge variant="destructive" className="text-[8px]">Hidden</Badge>}
+                            <SeoStatusChip missing={categorySeoMissing(cat)} />
                           </div>
                           <p className="text-[10px] text-charcoal-lighter truncate mt-0.5">/{cat.slug} · {cat.product_count} products</p>
                         </div>
