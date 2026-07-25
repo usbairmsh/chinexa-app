@@ -944,15 +944,15 @@ export default function ProductDetailPage() {
                     logged-in customers and temporary visitors can write here. */}
                 {(() => {
                   if (!public_reviews_enabled) {
-                    return (
+                    // Toggle off: no review form here. Logged-in customers get a
+                    // pointer to Profile → Reviews; guests see nothing.
+                    return authUser ? (
                       <div className="mt-4 text-center">
                         <p className="text-xs text-charcoal-lighter">
-                          {authUser
-                            ? <>You can review products you&apos;ve ordered from your <Link href="/dashboard/reviews" className="text-secondary hover:underline font-medium">Profile → Reviews</Link>.</>
-                            : <><Link href="/login" className="text-secondary hover:underline font-medium">Sign in</Link> to review products you&apos;ve ordered.</>}
+                          You can review products you&apos;ve ordered from your <Link href="/dashboard/reviews" className="text-secondary hover:underline font-medium">Profile → Reviews</Link>.
                         </p>
                       </div>
-                    );
+                    ) : null;
                   }
                   return (
                 <>
