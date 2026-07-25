@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import { Package, Truck, CheckCircle2, Clock, XCircle, MapPin, PackageCheck, ThumbsDown, LocateFixed } from "lucide-react";
+import { Package, Truck, CheckCircle2, Clock, XCircle, MapPin, PackageCheck, ThumbsDown, LocateFixed, RotateCcw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,11 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
   on_delivery: { label: "Out for Delivery", color: "text-indigo-500 bg-indigo-50", icon: MapPin, badge: "secondary" },
   received: { label: "Delivered", color: "text-success bg-success/10", icon: PackageCheck, badge: "success" },
   not_received: { label: "Delivery Failed", color: "text-destructive bg-destructive/10", icon: ThumbsDown, badge: "destructive" },
+  // Archiving an order sets its status to 'cancelled'; a processed return sets
+  // 'returned'. Without these entries the list fell back to "Order Placed",
+  // so a cancelled/archived order wrongly appeared as still pending here.
+  cancelled: { label: "Cancelled", color: "text-destructive bg-destructive/10", icon: XCircle, badge: "destructive" },
+  returned: { label: "Returned", color: "text-orange-500 bg-orange-50", icon: RotateCcw, badge: "warning" },
 };
 
 function OrderCard({ order }: { order: Order }) {
@@ -136,7 +141,8 @@ export default function OrdersPage() {
 
   const activeOrders = orders.filter(o => ["preorder", "pending", "confirmed", "processing", "shipped", "on_delivery"].includes(o.status));
   const completedOrders = orders.filter(o => o.status === "received");
-  const failedOrders = orders.filter(o => o.status === "not_received");
+  // Failed/closed: delivery failed, cancelled (incl. admin-archived), or returned.
+  const failedOrders = orders.filter(o => ["not_received", "cancelled", "returned"].includes(o.status));
 
   if (loading) {
     return (
