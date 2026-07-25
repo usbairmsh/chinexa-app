@@ -13,6 +13,8 @@ export interface StoreSettings {
   payment_methods: { id: string; name: string; enabled: boolean; account_number: string; instructions: string; qr_image: string; icon?: string; input_type?: "transaction_id" | "phone_number" }[];
   /** Store `preorders` feature toggle — when off, out-of-stock badged products behave as plain out-of-stock (wishlist-only). Defaults to true. */
   preorders_enabled: boolean;
+  /** `public_reviews` toggle — when on, unregistered visitors can submit reviews (shown as "Anonymous member", still moderated). Defaults to false. */
+  public_reviews_enabled: boolean;
 }
 
 const defaults: StoreSettings = {
@@ -25,6 +27,7 @@ const defaults: StoreSettings = {
   free_delivery_enabled: true,
   payment_methods: [],
   preorders_enabled: true,
+  public_reviews_enabled: false,
 };
 
 let cachedSettings: StoreSettings | null = null;
@@ -54,6 +57,7 @@ async function loadSettings(): Promise<StoreSettings> {
         free_delivery_enabled: data.free_delivery_enabled !== undefined ? !!data.free_delivery_enabled : defaults.free_delivery_enabled,
         payment_methods: Array.isArray(data.payment_methods) ? data.payment_methods : defaults.payment_methods,
         preorders_enabled: typeof features.preorders === "boolean" ? features.preorders : defaults.preorders_enabled,
+        public_reviews_enabled: typeof features.public_reviews === "boolean" ? features.public_reviews : defaults.public_reviews_enabled,
       };
       cachedSettings = s;
       return s;

@@ -4,7 +4,7 @@ import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { validate, validationError, dependencyError, publicServerError } from "@/lib/validate";
 import { notifyAdmin } from "@/lib/notify";
-import { ensureReviewColumns } from "@/lib/migrate-reviews";
+import { ensureReviewColumns, publicReviewsEnabled, resolveCustomerTierSnapshot } from "@/lib/migrate-reviews";
 
 function parseImages(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw.filter((x): x is string => typeof x === "string").slice(0, 5);
@@ -37,6 +37,9 @@ export async function GET(req: NextRequest) {
       is_verified_purchase: !!r.is_verified_purchase,
       is_approved: !!r.is_approved,
       images: parseImages(r.images),
+      // Tier snapshot (registered reviewers only; null for anonymous).
+      customer_tier: (r.customer_tier as string) || null,
+      customer_tier_color: (r.customer_tier_color as string) || null,
     })));
   } catch (error: unknown) {
     return publicServerError("GET /api/reviews", error);
@@ -61,6 +64,21 @@ export async function POST(req: NextRequest) {
 
     const productExists = await query<RowDataPacket[]>("SELECT id FROM products WHERE id = ?", [body.product_id]);
     if (productExists.length === 0) return dependencyError("Product", body.product_id);
+
+    // ─── Open-reviews policy (enforced server-side) ───
+    // Registered customers (customer_id present) may always review. Anonymous
+    // (no customer_id) may review ONLY when the admin's "public_reviews" toggle
+    // is on. is_approved is ALWAYS forced to 0 here (never trust the client) —
+    // every visitor review is moderated before it shows or counts.
+    const isRegistered = !!body.customer_id;
+    if (!isRegistered) {
+      const open = await publicReviewsEnabled();
+      if (!open) {
+        return NextResponse.json({ error: "Public reviews are currently closed. Please sign in to write a review." }, { status: 403 });
+      }
+    }
+    // Normalize the display name for anonymous reviewers.
+    const displayName = isRegistered ? body.customer_name : "Anonymous member";
 
     // One review per product per logged-in customer — checked here (fast,
     // friendly error) as well as enforced by the DB's unique index (the real
@@ -95,11 +113,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Snapshot the registered reviewer's membership tier (name + badge colour)
+    // so the review list can show the tier badge with no membership join.
+    let tierName: string | null = null;
+    let tierColor: string | null = null;
+    if (isRegistered) {
+      const t = await resolveCustomerTierSnapshot(body.customer_id);
+      tierName = t.name;
+      tierColor = t.color;
+    }
+
     const id = `rev-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     try {
       await execute(
-        "INSERT INTO reviews (id, product_id, product_name, order_id, customer_id, customer_name, rating, title, comment, images, is_verified_purchase, is_approved) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [id, body.product_id, body.product_name || null, orderId, body.customer_id || null, body.customer_name, body.rating, body.title || null, body.comment, JSON.stringify(images), isVerifiedPurchase ? 1 : 0, body.is_approved ? 1 : 0]
+        "INSERT INTO reviews (id, product_id, product_name, order_id, customer_id, customer_name, rating, title, comment, images, is_verified_purchase, is_approved, customer_tier, customer_tier_color) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [id, body.product_id, body.product_name || null, orderId, body.customer_id || null, displayName, body.rating, body.title || null, body.comment, JSON.stringify(images), isVerifiedPurchase ? 1 : 0, 0, tierName, tierColor]
       );
     } catch (dbError: unknown) {
       const msg = dbError instanceof Error ? dbError.message : "";
@@ -110,15 +138,13 @@ export async function POST(req: NextRequest) {
     }
     await logActivity("Created review", "review", id, body.product_name);
 
-    // Alert admin only for customer-submitted reviews awaiting approval
-    if (!body.is_approved) {
-      await notifyAdmin(
-        "review",
-        `New review pending approval`,
-        `${body.customer_name} rated ${body.product_name || "a product"} ${Number(body.rating)}★ — "${String(body.comment).slice(0, 80)}"`,
-        "/admin/reviews"
-      );
-    }
+    // Every submitted review is pending — alert the admin to moderate it.
+    await notifyAdmin(
+      "review",
+      `New review pending approval`,
+      `${displayName} rated ${body.product_name || "a product"} ${Number(body.rating)}★ — "${String(body.comment).slice(0, 80)}"`,
+      "/admin/reviews"
+    );
 
     return NextResponse.json({ success: true, id }, { status: 201 });
   } catch (error: unknown) {

@@ -19,6 +19,7 @@ interface ReviewData {
   id: string; customer_name: string; product_name: string; rating: number;
   title: string | null; comment: string; images?: string[]; is_verified_purchase: boolean;
   is_approved: boolean; admin_reply: string | null; created_at: string;
+  customer_tier?: string | null; customer_tier_color?: string | null;
 }
 
 export default function AdminReviewsPage() {
@@ -92,6 +93,9 @@ export default function AdminReviewsPage() {
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-medium text-charcoal truncate">{review.customer_name}</span>
+                {review.customer_tier && (
+                  <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide shrink-0" style={{ backgroundColor: `${review.customer_tier_color || "#7A4FA0"}18`, color: review.customer_tier_color || "#7A4FA0" }}>{review.customer_tier}</span>
+                )}
                 {review.is_verified_purchase && <Badge variant="success" className="text-[9px] shrink-0">Verified</Badge>}
               </div>
               <p className="text-[10px] text-charcoal-lighter">{formatDateShort(review.created_at)}</p>

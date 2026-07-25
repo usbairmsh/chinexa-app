@@ -66,6 +66,7 @@ function StorefrontTrustBadges({ badgeIds }: { badgeIds: string[] }) {
 interface ReviewData {
   id: string; customer_name: string; rating: number; title: string | null;
   comment: string; images?: string[]; is_verified_purchase: boolean; admin_reply: string | null; created_at: string;
+  customer_tier?: string | null; customer_tier_color?: string | null;
 }
 
 export default function ProductDetailPage() {
@@ -83,7 +84,7 @@ export default function ProductDetailPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
-  const { free_delivery_threshold, preorders_enabled, loaded: storeSettingsLoaded } = useStoreSettings();
+  const { free_delivery_threshold, preorders_enabled, public_reviews_enabled, loaded: storeSettingsLoaded } = useStoreSettings();
   const [shared, setShared] = useState(false);
   // Set when a pre-order add is blocked because the cart already holds in-stock
   // items (or vice-versa) — pre-orders check out separately.
@@ -889,8 +890,21 @@ export default function ProductDetailPage() {
                               {review.customer_name?.[0] || "?"}
                             </div>
                             <div>
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
                                 <p className="text-sm font-medium text-charcoal">{review.customer_name}</p>
+                                {/* Tier badge — registered reviewers only (snapshotted at submit).
+                                    Anonymous reviews have no tier → no badge. */}
+                                {review.customer_tier && (
+                                  <span
+                                    className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide"
+                                    style={{
+                                      backgroundColor: `${review.customer_tier_color || "#7A4FA0"}18`,
+                                      color: review.customer_tier_color || "#7A4FA0",
+                                    }}
+                                  >
+                                    {review.customer_tier}
+                                  </span>
+                                )}
                                 {review.is_verified_purchase && <Badge variant="success" className="text-[8px]">Verified</Badge>}
                               </div>
                               <div className="flex items-center gap-0.5">
@@ -923,7 +937,23 @@ export default function ProductDetailPage() {
                   </div>
                 )}
 
-                {/* Write Review Form */}
+                {/* Write Review — visible only when the shopper can actually
+                    submit: a logged-in customer, OR any visitor when the admin's
+                    "Open Reviews to All Visitors" toggle is on. When neither, the
+                    form is hidden entirely and only a sign-in prompt shows. */}
+                {(() => {
+                  const canReview = !!authUser || public_reviews_enabled;
+                  if (!canReview) {
+                    return (
+                      <div className="mt-4 text-center">
+                        <p className="text-xs text-charcoal-lighter">
+                          <Link href="/login" className="text-secondary hover:underline font-medium">Sign in</Link> to write a review.
+                        </p>
+                      </div>
+                    );
+                  }
+                  return (
+                <>
                 {!showReviewForm ? (
                   <div className="mt-4 text-center">
                     <Button variant="outline" size="sm" onClick={() => setShowReviewForm(true)}>Write a Review</Button>
@@ -980,11 +1010,15 @@ export default function ProductDetailPage() {
 
                     {!authUser && (
                       <p className="text-[10px] text-charcoal-lighter">
-                        <Link href="/login" className="text-secondary hover:underline">Sign in</Link> for your review to appear as a verified purchase.
+                        Your review will appear as <span className="font-medium">Anonymous member</span> after approval.{" "}
+                        <Link href="/login" className="text-secondary hover:underline">Sign in</Link> to review under your name with your member badge (and get a Verified Purchase mark).
                       </p>
                     )}
                   </div>
                 )}
+                </>
+                  );
+                })()}
               </AccordionContent>
             </AccordionItem>
           </Accordion>
