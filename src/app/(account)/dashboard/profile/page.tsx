@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { Check, Shield, Loader2, AlertTriangle, Crown, Lock, Cake } from "lucide-react";
+import { Check, Shield, Loader2, AlertTriangle, Crown, Lock, Pencil, Mail } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,10 @@ export default function ProfilePage() {
   const [birthdate, setBirthdate] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  // View-mode by default; these open the edit modals.
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [editPasswordOpen, setEditPasswordOpen] = useState(false);
+  const [profileError, setProfileError] = useState("");
 
   useEffect(() => {
     if (user) {
@@ -98,6 +102,7 @@ export default function ProfilePage() {
   const handleSave = async () => {
     if (!user?.id || !name.trim()) return;
     setSaving(true);
+    setProfileError("");
     try {
       const res = await fetch(`/api/customers/${user.id}`, {
         method: "PUT",
@@ -106,10 +111,22 @@ export default function ProfilePage() {
       });
       if (res.ok) {
         updateUser({ name: name.trim(), email: email.trim() || undefined });
+        setEditProfileOpen(false);   // close modal; the view now shows the saved values
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setProfileError(data.error || "Failed to save your details");
       }
-    } catch {} finally { setSaving(false); }
+    } catch { setProfileError("Network error — please try again"); } finally { setSaving(false); }
+  };
+
+  // Reset the profile form to the current values and open the modal.
+  const openEditProfile = () => {
+    setName(user?.name || "");
+    setEmail(user?.email || "");
+    setProfileError("");
+    setEditProfileOpen(true);
   };
 
   const [avatarError, setAvatarError] = useState("");
@@ -165,13 +182,22 @@ export default function ProfilePage() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmNewPassword("");
+      setEditPasswordOpen(false);   // close modal on success
       setPasswordSaved(true);
-      setTimeout(() => setPasswordSaved(false), 2000);
+      setTimeout(() => setPasswordSaved(false), 2500);
     } catch (err: unknown) {
       setPasswordError(err instanceof Error ? err.message : "Failed to change password");
     } finally {
       setPasswordSaving(false);
     }
+  };
+
+  const openEditPassword = () => {
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmNewPassword("");
+    setPasswordError("");
+    setEditPasswordOpen(true);
   };
 
   const openDeactivateFlow = () => {
@@ -301,80 +327,107 @@ export default function ProfilePage() {
         </Card>
       </motion.div>
 
-      {/* Personal Info */}
+      {/* Personal Info — VIEW MODE (edit via the modal below) */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Personal Information</CardTitle>
-            <CardDescription>Update your personal details</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Input label="Full Name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" />
-              <Input label="Phone Number" value={user?.phone || ""} placeholder="+880 1XXXXXXXXX" disabled />
+          <CardHeader className="flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle className="text-base">Personal Information</CardTitle>
+              <CardDescription>Your personal details</CardDescription>
             </div>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Input label="Email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com" type="email" />
-              <Input
-                label="Birthdate"
-                value={birthdate ? new Date(birthdate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
-                icon={<Cake className="h-4 w-4" />}
-                disabled
-              />
-            </div>
-            <Button variant="secondary" onClick={handleSave} disabled={saving || saved || !name.trim()}>
-              {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : saved ? <Check className="h-4 w-4 mr-1" /> : null}
-              {saved ? "Saved!" : saving ? "Saving..." : "Save Changes"}
+            <Button variant="outline" size="sm" onClick={openEditProfile}>
+              <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+              {saved && <Check className="h-3.5 w-3.5 ml-1.5 text-success" />}
             </Button>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+              <div>
+                <dt className="text-[11px] uppercase tracking-wide text-charcoal-lighter mb-0.5">Full Name</dt>
+                <dd className="text-sm font-medium text-charcoal">{user?.name || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-[11px] uppercase tracking-wide text-charcoal-lighter mb-0.5">Phone Number</dt>
+                <dd className="text-sm font-medium text-charcoal">{user?.phone || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-[11px] uppercase tracking-wide text-charcoal-lighter mb-0.5">Email</dt>
+                <dd className="text-sm font-medium text-charcoal break-all">{user?.email || <span className="text-charcoal-lighter font-normal">Not added</span>}</dd>
+              </div>
+              <div>
+                <dt className="text-[11px] uppercase tracking-wide text-charcoal-lighter mb-0.5">Birthdate</dt>
+                <dd className="text-sm font-medium text-charcoal">{birthdate ? new Date(birthdate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</dd>
+              </div>
+            </dl>
           </CardContent>
         </Card>
       </motion.div>
 
-      {/* Change Password */}
+      {/* Password — VIEW MODE (change via the modal below) */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Change Password</CardTitle>
-            <CardDescription>Update the password used to sign in</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Input
-              label="Current Password"
-              required
-              type="password"
-              value={currentPassword}
-              onChange={(e) => { setCurrentPassword(e.target.value); setPasswordError(""); }}
-              placeholder="Enter current password"
-              icon={<Lock className="h-4 w-4" />}
-            />
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Input
-                label="New Password"
-                required
-                type="password"
-                value={newPassword}
-                onChange={(e) => { setNewPassword(e.target.value); setPasswordError(""); }}
-                placeholder="At least 6 characters"
-                icon={<Lock className="h-4 w-4" />}
-              />
-              <Input
-                label="Confirm New Password"
-                required
-                type="password"
-                value={confirmNewPassword}
-                onChange={(e) => { setConfirmNewPassword(e.target.value); setPasswordError(""); }}
-                placeholder="Re-enter new password"
-                icon={<Lock className="h-4 w-4" />}
-              />
+          <CardHeader className="flex-row items-start justify-between space-y-0">
+            <div>
+              <CardTitle className="text-base">Password</CardTitle>
+              <CardDescription>The password used to sign in</CardDescription>
             </div>
-            {passwordError && <p className="text-sm text-destructive">{passwordError}</p>}
-            <Button variant="secondary" onClick={handleChangePassword} disabled={passwordSaving || passwordSaved}>
-              {passwordSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : passwordSaved ? <Check className="h-4 w-4 mr-1" /> : null}
-              {passwordSaved ? "Password Updated!" : passwordSaving ? "Updating..." : "Update Password"}
+            <Button variant="outline" size="sm" onClick={openEditPassword}>
+              <Lock className="h-3.5 w-3.5 mr-1" /> Change
+              {passwordSaved && <Check className="h-3.5 w-3.5 ml-1.5 text-success" />}
             </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2 text-sm text-charcoal">
+              <span className="tracking-[0.2em] text-charcoal-lighter">••••••••</span>
+              {passwordSaved && <span className="text-xs text-success">Updated just now</span>}
+            </div>
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* ═══ Edit Personal Information modal ═══ */}
+      <Dialog open={editProfileOpen} onOpenChange={setEditProfileOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Personal Information</DialogTitle>
+            <DialogDescription>Update your name and email. Phone &amp; birthdate can&apos;t be changed here.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <Input label="Full Name" required value={name} onChange={(e) => { setName(e.target.value); setProfileError(""); }} placeholder="Your full name" />
+            <Input label="Email" value={email} onChange={(e) => { setEmail(e.target.value); setProfileError(""); }} placeholder="email@example.com" type="email" icon={<Mail className="h-4 w-4" />} />
+            <Input label="Phone Number" value={user?.phone || ""} disabled icon={<Shield className="h-4 w-4" />} />
+            {profileError && <p className="text-sm text-destructive">{profileError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditProfileOpen(false)} disabled={saving}>Cancel</Button>
+            <Button variant="secondary" className="!text-white" onClick={handleSave} disabled={saving || !name.trim()}>
+              {saving ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Saving...</> : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ Change Password modal ═══ */}
+      <Dialog open={editPasswordOpen} onOpenChange={setEditPasswordOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Password</DialogTitle>
+            <DialogDescription>Enter your current password and choose a new one.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <Input label="Current Password" required type="password" value={currentPassword} onChange={(e) => { setCurrentPassword(e.target.value); setPasswordError(""); }} placeholder="Enter current password" icon={<Lock className="h-4 w-4" />} />
+            <Input label="New Password" required type="password" value={newPassword} onChange={(e) => { setNewPassword(e.target.value); setPasswordError(""); }} placeholder="At least 6 characters" icon={<Lock className="h-4 w-4" />} />
+            <Input label="Confirm New Password" required type="password" value={confirmNewPassword} onChange={(e) => { setConfirmNewPassword(e.target.value); setPasswordError(""); }} placeholder="Re-enter new password" icon={<Lock className="h-4 w-4" />} />
+            {passwordError && <p className="text-sm text-destructive">{passwordError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditPasswordOpen(false)} disabled={passwordSaving}>Cancel</Button>
+            <Button variant="secondary" className="!text-white" onClick={handleChangePassword} disabled={passwordSaving}>
+              {passwordSaving ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Updating...</> : "Update Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Security & Account */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
