@@ -169,8 +169,8 @@ function AdminSettingsPageInner() {
   const [storeAddress, setStoreAddress] = useState("");
   const [features, setFeatures] = useState<Record<string, boolean>>({
     wishlist: true, compare_products: true, preorders: true, guest_checkout: true,
-    // Defaults OFF — opening reviews to unregistered visitors is opt-in.
-    public_reviews: false,
+    // Defaults OFF — opt-in features.
+    public_reviews: false, order_sms: false,
   });
   const [generalSaving, setGeneralSaving] = useState(false);
   const [generalSaved, setGeneralSaved] = useState(false);
@@ -244,6 +244,12 @@ function AdminSettingsPageInner() {
   const [smsBalanceError, setSmsBalanceError] = useState("");
   const [smsBalanceLoading, setSmsBalanceLoading] = useState(false);
 
+  // Order-SMS admin recipients (which admin numbers receive the order SMS).
+  const [adminPhones, setAdminPhones] = useState<{ id: string; name: string; phone: string }[]>([]);
+  const [orderSmsAdminIds, setOrderSmsAdminIds] = useState<string[]>([]);
+  const [orderSmsSaving, setOrderSmsSaving] = useState(false);
+  const [orderSmsSaved, setOrderSmsSaved] = useState(false);
+
   const fetchSmsBalance = async () => {
     setSmsBalanceLoading(true);
     setSmsBalanceError("");
@@ -262,6 +268,13 @@ function AdminSettingsPageInner() {
   // ═══ LOAD ALL ═══
   useEffect(() => {
     setMounted(true);
+    // Order-SMS recipients: available admin phones + the currently-selected ids.
+    fetch("/api/admin/phones").then((r) => r.ok ? r.json() : []).then((d) => { if (Array.isArray(d)) setAdminPhones(d); }).catch(() => {});
+    fetch("/api/settings?key=order_sms").then((r) => r.json()).then((d) => {
+      const ids = d?.value?.admin_ids;
+      if (Array.isArray(ids)) setOrderSmsAdminIds(ids.filter((x: unknown): x is string => typeof x === "string"));
+    }).catch(() => {});
+
     fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,features,store_logo,our_story,instagram_feed,faq_items,social_links,maintenance_mode,delivery_config,payment_methods,notification_settings")
       .then((r) => r.json())
       .then((data) => {
@@ -465,6 +478,8 @@ function AdminSettingsPageInner() {
   };
   const savePayment = () => saveSettings({ payment_methods: paymentMethods }, setPaymentSaving, setPaymentSaved);
   const saveNotifications = () => saveSettings({ notification_settings: notifications }, setNotifSaving, setNotifSaved);
+  const saveOrderSmsRecipients = () => saveSettings({ order_sms: { admin_ids: orderSmsAdminIds } }, setOrderSmsSaving, setOrderSmsSaved);
+  const toggleOrderSmsAdmin = (id: string) => setOrderSmsAdminIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
 
   const SaveBtn = ({ saving, saved, onSave }: { saving: boolean; saved: boolean; onSave: () => void }) => (
     <AdminButton onClick={onSave} disabled={saving} className={cn(saved && "!bg-success hover:!bg-success")}>
@@ -505,7 +520,7 @@ function AdminSettingsPageInner() {
             </Card>
             <Card><CardHeader><CardTitle className="text-base">Features</CardTitle><CardDescription>Toggle store features</CardDescription></CardHeader>
               <CardContent className="space-y-4">
-                {[{ key: "public_reviews", label: "Open Reviews on Product Pages", desc: "When on, the “Write a Review” form on product pages is open to everyone — logged-in customers AND unregistered visitors (guests show a generated guest name). When off, the product-page form is hidden for everyone and customers review from their Profile → Reviews instead. All submissions still need your approval.", def: false }, { key: "wishlist", label: "Wishlist", desc: "Let customers save products for later", def: true }, { key: "compare_products", label: "Compare", desc: "Side-by-side product comparison", def: true }, { key: "preorders", label: "Pre-orders", desc: "Accept orders for out-of-stock products", def: true }, { key: "guest_checkout", label: "Guest Checkout", desc: "Allow checkout without creating an account", def: true }].map((f) => (
+                {[{ key: "public_reviews", label: "Open Reviews on Product Pages", desc: "When on, the “Write a Review” form on product pages is open to everyone — logged-in customers AND unregistered visitors (guests show a generated guest name). When off, the product-page form is hidden for everyone and customers review from their Profile → Reviews instead. All submissions still need your approval.", def: false }, { key: "order_sms", label: "Order SMS Notifications", desc: "When on, an SMS is sent on every new order: the customer gets an order confirmation with a track-order link, and the admin number(s) you choose (Notifications tab) get the order details plus the customer's name, tier and phone. Requires SMS gateway credit.", def: false }, { key: "wishlist", label: "Wishlist", desc: "Let customers save products for later", def: true }, { key: "compare_products", label: "Compare", desc: "Side-by-side product comparison", def: true }, { key: "preorders", label: "Pre-orders", desc: "Accept orders for out-of-stock products", def: true }, { key: "guest_checkout", label: "Guest Checkout", desc: "Allow checkout without creating an account", def: true }].map((f) => (
                   <div key={f.key} className="flex items-center justify-between"><p className="text-sm font-medium text-charcoal"><FieldLabel label={f.label} hint={f.desc} /></p><Switch checked={features[f.key] ?? f.def} onCheckedChange={() => setFeatures((p) => ({ ...p, [f.key]: !(p[f.key] ?? f.def) }))} /></div>
                 ))}
               </CardContent>
@@ -990,6 +1005,42 @@ function AdminSettingsPageInner() {
                   {smsBalanceLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} {smsBalanceLoading ? "Checking..." : "Check Balance"}
                 </AdminButton>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Order SMS recipients — which admin number(s) get the new-order SMS.
+              Only fires when the "Order SMS Notifications" feature is on. */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2"><Bell className="h-4 w-4 text-secondary" /> Order SMS Recipients</CardTitle>
+              <CardDescription>
+                {features.order_sms
+                  ? "Choose which admin number(s) receive an SMS on every new order (with the customer's name, tier & phone). Turn the feature on/off under General → Features."
+                  : "“Order SMS Notifications” is currently OFF (General → Features). Turn it on to send order SMS. You can still pick recipients here."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {adminPhones.length === 0 ? (
+                <p className="text-sm text-charcoal-lighter">
+                  No admin accounts have a phone number. Add a phone number to an admin under <strong>Users, Roles &amp; Access</strong> to select them here.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {adminPhones.map((a) => (
+                    <label key={a.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/50 px-3 py-2 cursor-pointer hover:bg-pearl/50 transition-colors">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-charcoal truncate">{a.name}</p>
+                        <p className="text-xs text-charcoal-lighter [font-variant-numeric:tabular-nums]">{a.phone}</p>
+                      </div>
+                      <Switch checked={orderSmsAdminIds.includes(a.id)} onCheckedChange={() => toggleOrderSmsAdmin(a.id)} />
+                    </label>
+                  ))}
+                  <div className="flex items-center justify-between pt-1">
+                    <p className="text-[11px] text-charcoal-lighter">{orderSmsAdminIds.length} recipient{orderSmsAdminIds.length === 1 ? "" : "s"} selected</p>
+                    <SaveBtn saving={orderSmsSaving} saved={orderSmsSaved} onSave={saveOrderSmsRecipients} />
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 

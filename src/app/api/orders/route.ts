@@ -11,6 +11,7 @@ import { enrichCartItems, getActiveOffers, bestOfferPerLine, validateCoupon, get
 import { ensureOrderArchiveColumns } from "@/lib/migrate-order-archive";
 import { ensurePreorderColumns, preordersEnabled } from "@/lib/migrate-preorder";
 import { hasPreorderBadge } from "@/lib/preorder";
+import { sendOrderCreationSms } from "@/lib/order-sms";
 
 interface OrderRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -550,6 +551,18 @@ export async function POST(req: NextRequest) {
         }
       }
     } catch {}
+
+    // ─── Order-creation SMS (admin-toggleable) — customer confirmation with a
+    // track-order link + selected admin number(s). Self-contained/best-effort. ───
+    await sendOrderCreationSms({
+      orderNumber,
+      total: Number(body.total) || 0,
+      paymentMethod: body.payment_method || "COD",
+      customerName: body.customer_name,
+      customerPhone: body.customer_phone,
+      customerId,
+      createdAt: new Date(),
+    });
 
     return NextResponse.json({ success: true, id, order_number: orderNumber }, { status: 201 });
   } catch (error: unknown) {
