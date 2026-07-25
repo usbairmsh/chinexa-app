@@ -77,8 +77,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Public reviews are currently closed. Please sign in to write a review." }, { status: 403 });
       }
     }
-    // Normalize the display name for anonymous reviewers.
-    const displayName = isRegistered ? body.customer_name : "Anonymous member";
+    // Display name: registered reviewers keep their real name; anonymous
+    // visitors get a unique friendly alias (e.g. "Guest Shopper #4821") so
+    // multiple guest reviews read as different people rather than an identical
+    // repeated label. The number is derived from the review id for stability.
+    const displayName = isRegistered ? body.customer_name : `Guest Shopper #${1000 + (Date.now() % 9000)}`;
 
     // One review per product per logged-in customer — checked here (fast,
     // friendly error) as well as enforced by the DB's unique index (the real

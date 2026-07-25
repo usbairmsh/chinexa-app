@@ -937,17 +937,19 @@ export default function ProductDetailPage() {
                   </div>
                 )}
 
-                {/* Write Review — visible only when the shopper can actually
-                    submit: a logged-in customer, OR any visitor when the admin's
-                    "Open Reviews to All Visitors" toggle is on. When neither, the
-                    form is hidden entirely and only a sign-in prompt shows. */}
+                {/* Write Review on the product page is controlled ENTIRELY by
+                    the admin "Open Reviews to All Visitors" toggle. When OFF,
+                    there is no review form here for anyone — logged-in customers
+                    review from their Profile → Reviews instead. When ON, both
+                    logged-in customers and temporary visitors can write here. */}
                 {(() => {
-                  const canReview = !!authUser || public_reviews_enabled;
-                  if (!canReview) {
+                  if (!public_reviews_enabled) {
                     return (
                       <div className="mt-4 text-center">
                         <p className="text-xs text-charcoal-lighter">
-                          <Link href="/login" className="text-secondary hover:underline font-medium">Sign in</Link> to write a review.
+                          {authUser
+                            ? <>You can review products you&apos;ve ordered from your <Link href="/dashboard/reviews" className="text-secondary hover:underline font-medium">Profile → Reviews</Link>.</>
+                            : <><Link href="/login" className="text-secondary hover:underline font-medium">Sign in</Link> to review products you&apos;ve ordered.</>}
                         </p>
                       </div>
                     );
@@ -1010,7 +1012,7 @@ export default function ProductDetailPage() {
 
                     {!authUser && (
                       <p className="text-[10px] text-charcoal-lighter">
-                        Your review will appear as <span className="font-medium">Anonymous member</span> after approval.{" "}
+                        Your review will appear under a guest name after approval.{" "}
                         <Link href="/login" className="text-secondary hover:underline">Sign in</Link> to review under your name with your member badge (and get a Verified Purchase mark).
                       </p>
                     )}
