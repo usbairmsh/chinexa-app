@@ -1017,97 +1017,106 @@ export default function CheckoutPage() {
                     customer confirms exactly what they're ordering. For non-COD
                     it also serves as the "have you paid?" check. */}
                 <Dialog open={placeOrderConfirmOpen} onOpenChange={setPlaceOrderConfirmOpen}>
-                  <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-lg">
-                    <DialogHeader>
-                      <DialogTitle>{preorderCart ? "Review your pre-order" : "Review your order"}</DialogTitle>
-                      <DialogDescription>Please confirm the details below before placing your {preorderCart ? "pre-order" : "order"}.</DialogDescription>
+                  {/* Bounded flex column: the modal box itself never exceeds the
+                      viewport (max-h-[90dvh]) and does NOT scroll as a whole —
+                      header, totals, payment and buttons are always visible.
+                      Only the line-items list flex-scrolls, and only when a big
+                      cart can't otherwise fit; a normal order shows with no
+                      scroll at all. Compact spacing so everything fits. */}
+                  {/* grid-rows-[auto_1fr_auto] works WITH DialogContent's base
+                      `grid` display: header + footer are auto rows, the middle
+                      content row takes the rest and is the only scroll area. */}
+                  <DialogContent className="sm:max-w-lg max-h-[90dvh] grid-rows-[auto_1fr_auto] gap-0 p-0 overflow-hidden">
+                    <DialogHeader className="p-4 pb-2">
+                      <DialogTitle className="text-base">{preorderCart ? "Review your pre-order" : "Review your order"}</DialogTitle>
+                      <DialogDescription className="text-xs">Confirm the details before placing your {preorderCart ? "pre-order" : "order"}.</DialogDescription>
                     </DialogHeader>
 
-                    {/* Line items */}
-                    <div className="rounded-xl border border-border/30 divide-y divide-border/20">
-                      {items.map((item) => (
-                        <div key={item.id} className="flex items-center gap-3 p-3">
-                          <div className="relative h-12 w-12 shrink-0 rounded-lg overflow-hidden bg-pearl">
-                            <Image src={item.product_image || `https://picsum.photos/seed/${item.product_slug}/80/80`} alt={item.product_name} fill className="object-cover" sizes="48px" unoptimized={item.product_image?.includes("/uploads/")} />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-charcoal truncate">{item.product_name}</p>
-                            <div className="flex flex-wrap items-center gap-x-2 text-[11px] text-charcoal-lighter">
-                              {item.variant_name && <span>{item.variant_name}</span>}
-                              {item.isPreorder && <span className="text-secondary font-medium">Pre-order</span>}
-                              <span>{formatCurrency(item.price)} × {item.quantity}</span>
+                    <div className="min-h-0 flex flex-col gap-2.5 px-4 overflow-hidden">
+                      {/* Line items — the ONLY region allowed to scroll (min-h-0 +
+                          overflow-y-auto), so many items never push the summary
+                          off-screen. */}
+                      <div className="min-h-0 overflow-y-auto rounded-xl border border-border/30 divide-y divide-border/20 shrink">
+                        {items.map((item) => (
+                          <div key={item.id} className="flex items-center gap-2.5 p-2">
+                            <div className="relative h-9 w-9 shrink-0 rounded-md overflow-hidden bg-pearl">
+                              <Image src={item.product_image || `https://picsum.photos/seed/${item.product_slug}/80/80`} alt={item.product_name} fill className="object-cover" sizes="36px" unoptimized={item.product_image?.includes("/uploads/")} />
                             </div>
-                          </div>
-                          <p className="text-sm font-semibold text-charcoal shrink-0 [font-variant-numeric:tabular-nums]">{formatCurrency(item.price * item.quantity)}</p>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Applied offers + coupon */}
-                    {(appliedOffers.length > 0 || (couponCode && discount > 0)) && (
-                      <div className="rounded-xl bg-success/5 border border-success/20 p-3 space-y-1.5">
-                        {appliedOffers.map((o) => (
-                          <div key={o.id} className="flex justify-between text-xs">
-                            <span className="text-success flex items-center gap-1"><Tag className="h-3 w-3" /> {o.title}</span>
-                            <span className="font-medium text-success [font-variant-numeric:tabular-nums]">− {formatCurrency(o.discount)}</span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-medium text-charcoal truncate">{item.product_name}</p>
+                              <div className="flex flex-wrap items-center gap-x-1.5 text-[10px] text-charcoal-lighter">
+                                {item.variant_name && <span>{item.variant_name}</span>}
+                                {item.isPreorder && <span className="text-secondary font-medium">Pre-order</span>}
+                                <span>{formatCurrency(item.price)} × {item.quantity}</span>
+                              </div>
+                            </div>
+                            <p className="text-xs font-semibold text-charcoal shrink-0 [font-variant-numeric:tabular-nums]">{formatCurrency(item.price * item.quantity)}</p>
                           </div>
                         ))}
-                        {couponCode && discount > 0 && (
-                          <div className="flex justify-between text-xs">
-                            <span className="text-success flex items-center gap-1"><Tag className="h-3 w-3" /> Coupon <code className="font-bold">{couponCode}</code></span>
-                            <span className="font-medium text-success [font-variant-numeric:tabular-nums]">− {formatCurrency(discount)}</span>
+                      </div>
+
+                      {/* Applied offers + coupon (compact) */}
+                      {(appliedOffers.length > 0 || (couponCode && discount > 0)) && (
+                        <div className="rounded-xl bg-success/5 border border-success/20 px-3 py-2 space-y-1 shrink-0">
+                          {appliedOffers.map((o) => (
+                            <div key={o.id} className="flex justify-between text-[11px]">
+                              <span className="text-success flex items-center gap-1 truncate"><Tag className="h-3 w-3 shrink-0" /> <span className="truncate">{o.title}</span></span>
+                              <span className="font-medium text-success shrink-0 [font-variant-numeric:tabular-nums]">− {formatCurrency(o.discount)}</span>
+                            </div>
+                          ))}
+                          {couponCode && discount > 0 && (
+                            <div className="flex justify-between text-[11px]">
+                              <span className="text-success flex items-center gap-1"><Tag className="h-3 w-3" /> Coupon <code className="font-bold">{couponCode}</code></span>
+                              <span className="font-medium text-success [font-variant-numeric:tabular-nums]">− {formatCurrency(discount)}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Price breakdown (compact) */}
+                      <div className="rounded-xl bg-pearl/40 border border-border/30 px-3 py-2 space-y-1 text-[13px] shrink-0">
+                        <div className="flex justify-between"><span className="text-charcoal-lighter">Subtotal</span><span className="text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(subtotal)}</span></div>
+                        {offerSavings > 0 && <div className="flex justify-between"><span className="text-charcoal-lighter">Offer savings</span><span className="text-success [font-variant-numeric:tabular-nums]">− {formatCurrency(offerSavings)}</span></div>}
+                        {discount > 0 && <div className="flex justify-between"><span className="text-charcoal-lighter">Coupon discount</span><span className="text-success [font-variant-numeric:tabular-nums]">− {formatCurrency(discount)}</span></div>}
+                        <div className="flex justify-between">
+                          <span className="text-charcoal-lighter">Shipping</span>
+                          <span className="text-charcoal [font-variant-numeric:tabular-nums]">{effectiveShipping === 0 ? "Free" : formatCurrency(effectiveShipping)}</span>
+                        </div>
+                        <div className="flex justify-between pt-1 border-t border-border/30 text-[15px] font-bold">
+                          <span className="text-charcoal">Total</span>
+                          <span className="text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(finalTotal)}</span>
+                        </div>
+                      </div>
+
+                      {/* Payment details (compact) */}
+                      <div className="rounded-xl border border-border/30 px-3 py-2 shrink-0">
+                        {preorderCart || paymentMethod === "COD" ? (
+                          <div className="flex items-start gap-1.5">
+                            <CreditCard className="h-3.5 w-3.5 text-charcoal-lighter shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-[13px] font-medium text-charcoal">Cash on Delivery</p>
+                              <p className="text-[11px] text-charcoal-lighter">
+                                {preorderCart
+                                  ? "Pre-order — pay the full amount on delivery."
+                                  : `Pay ${formatCurrency(finalTotal)} in cash on delivery.`}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between gap-2 text-[13px]">
+                              <span className="text-charcoal-lighter flex items-center gap-1"><CreditCard className="h-3.5 w-3.5" /> {selectedMethod?.name || paymentMethod}</span>
+                              <span className="font-medium text-charcoal break-all">{confirmFieldLabel}: {transactionId || "—"}</span>
+                            </div>
+                            <p className="text-[10px] text-charcoal-lighter">
+                              Confirming without a completed payment may delay or cancel your order.
+                            </p>
                           </div>
                         )}
                       </div>
-                    )}
-
-                    {/* Price breakdown */}
-                    <div className="rounded-xl bg-pearl/40 border border-border/30 p-3 space-y-1.5 text-sm">
-                      <div className="flex justify-between"><span className="text-charcoal-lighter">Subtotal</span><span className="text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(subtotal)}</span></div>
-                      {offerSavings > 0 && <div className="flex justify-between"><span className="text-charcoal-lighter">Offer savings</span><span className="text-success [font-variant-numeric:tabular-nums]">− {formatCurrency(offerSavings)}</span></div>}
-                      {discount > 0 && <div className="flex justify-between"><span className="text-charcoal-lighter">Coupon discount</span><span className="text-success [font-variant-numeric:tabular-nums]">− {formatCurrency(discount)}</span></div>}
-                      <div className="flex justify-between">
-                        <span className="text-charcoal-lighter">Shipping</span>
-                        <span className="text-charcoal [font-variant-numeric:tabular-nums]">{effectiveShipping === 0 ? "Free" : formatCurrency(effectiveShipping)}</span>
-                      </div>
-                      <div className="flex justify-between pt-1.5 border-t border-border/30 text-base font-bold">
-                        <span className="text-charcoal">Total</span>
-                        <span className="text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(finalTotal)}</span>
-                      </div>
                     </div>
 
-                    {/* Payment details */}
-                    <div className="rounded-xl border border-border/30 p-3">
-                      <p className="text-[10px] uppercase tracking-wide text-charcoal-lighter mb-2 flex items-center gap-1"><CreditCard className="h-3 w-3" /> Payment</p>
-                      {preorderCart || paymentMethod === "COD" ? (
-                        <div>
-                          <p className="text-sm font-medium text-charcoal">Cash on Delivery</p>
-                          <p className="text-xs text-charcoal-lighter mt-0.5">
-                            {preorderCart
-                              ? "Pre-order — pay the full amount on delivery when your item arrives."
-                              : `Pay ${formatCurrency(finalTotal)} in cash when your order is delivered.`}
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div>
-                              <p className="text-[10px] uppercase tracking-wide text-charcoal-lighter">Method</p>
-                              <p className="font-medium text-charcoal">{selectedMethod?.name || paymentMethod}</p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] uppercase tracking-wide text-charcoal-lighter">{confirmFieldLabel}</p>
-                              <p className="font-medium text-charcoal break-all">{transactionId || "—"}</p>
-                            </div>
-                          </div>
-                          <p className="text-xs text-charcoal-lighter">
-                            Confirming without an actual completed payment may delay or cancel your order.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    <DialogFooter>
+                    <DialogFooter className="p-4 pt-3 shrink-0 border-t border-border/20">
                       <Button variant="outline" onClick={() => setPlaceOrderConfirmOpen(false)}>Go back</Button>
                       <Button
                         variant="secondary"
