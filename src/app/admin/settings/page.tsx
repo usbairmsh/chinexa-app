@@ -168,7 +168,7 @@ function AdminSettingsPageInner() {
   const [storePhone, setStorePhone] = useState("");
   const [storeAddress, setStoreAddress] = useState("");
   const [features, setFeatures] = useState<Record<string, boolean>>({
-    product_reviews: true, wishlist: true, compare_products: true, preorders: true, guest_checkout: true,
+    wishlist: true, compare_products: true, preorders: true, guest_checkout: true,
     // Defaults OFF — opening reviews to unregistered visitors is opt-in.
     public_reviews: false,
   });
@@ -505,7 +505,7 @@ function AdminSettingsPageInner() {
             </Card>
             <Card><CardHeader><CardTitle className="text-base">Features</CardTitle><CardDescription>Toggle store features</CardDescription></CardHeader>
               <CardContent className="space-y-4">
-                {[{ key: "product_reviews", label: "Product Reviews", desc: "Allow customers to leave reviews on products", def: true }, { key: "public_reviews", label: "Open Reviews to All Visitors", desc: "Show the review form on product pages to everyone, including visitors who aren't logged in. Anonymous reviews appear as “Anonymous member” and still need your approval before showing. When off, only logged-in customers can review.", def: false }, { key: "wishlist", label: "Wishlist", desc: "Let customers save products for later", def: true }, { key: "compare_products", label: "Compare", desc: "Side-by-side product comparison", def: true }, { key: "preorders", label: "Pre-orders", desc: "Accept orders for out-of-stock products", def: true }, { key: "guest_checkout", label: "Guest Checkout", desc: "Allow checkout without creating an account", def: true }].map((f) => (
+                {[{ key: "public_reviews", label: "Open Reviews to All Visitors", desc: "Show the review form on product pages to everyone, including visitors who aren't logged in. Anonymous reviews appear as “Anonymous member” and still need your approval before showing. When off, only logged-in customers can review.", def: false }, { key: "wishlist", label: "Wishlist", desc: "Let customers save products for later", def: true }, { key: "compare_products", label: "Compare", desc: "Side-by-side product comparison", def: true }, { key: "preorders", label: "Pre-orders", desc: "Accept orders for out-of-stock products", def: true }, { key: "guest_checkout", label: "Guest Checkout", desc: "Allow checkout without creating an account", def: true }].map((f) => (
                   <div key={f.key} className="flex items-center justify-between"><p className="text-sm font-medium text-charcoal"><FieldLabel label={f.label} hint={f.desc} /></p><Switch checked={features[f.key] ?? f.def} onCheckedChange={() => setFeatures((p) => ({ ...p, [f.key]: !(p[f.key] ?? f.def) }))} /></div>
                 ))}
               </CardContent>
