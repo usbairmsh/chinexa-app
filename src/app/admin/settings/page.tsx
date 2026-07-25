@@ -170,7 +170,7 @@ function AdminSettingsPageInner() {
   const [features, setFeatures] = useState<Record<string, boolean>>({
     wishlist: true, compare_products: true, preorders: true, guest_checkout: true,
     // Defaults OFF — opt-in features.
-    public_reviews: false, order_sms: false,
+    public_reviews: false, order_sms_customer: false, order_sms_admin: false,
   });
   const [generalSaving, setGeneralSaving] = useState(false);
   const [generalSaved, setGeneralSaved] = useState(false);
@@ -520,7 +520,7 @@ function AdminSettingsPageInner() {
             </Card>
             <Card><CardHeader><CardTitle className="text-base">Features</CardTitle><CardDescription>Toggle store features</CardDescription></CardHeader>
               <CardContent className="space-y-4">
-                {[{ key: "public_reviews", label: "Open Reviews on Product Pages", desc: "When on, the “Write a Review” form on product pages is open to everyone — logged-in customers AND unregistered visitors (guests show a generated guest name). When off, the product-page form is hidden for everyone and customers review from their Profile → Reviews instead. All submissions still need your approval.", def: false }, { key: "order_sms", label: "Order SMS Notifications", desc: "When on, an SMS is sent on every new order: the customer gets an order confirmation with a track-order link, and the admin number(s) you choose (Notifications tab) get the order details plus the customer's name, tier and phone. Requires SMS gateway credit.", def: false }, { key: "wishlist", label: "Wishlist", desc: "Let customers save products for later", def: true }, { key: "compare_products", label: "Compare", desc: "Side-by-side product comparison", def: true }, { key: "preorders", label: "Pre-orders", desc: "Accept orders for out-of-stock products", def: true }, { key: "guest_checkout", label: "Guest Checkout", desc: "Allow checkout without creating an account", def: true }].map((f) => (
+                {[{ key: "public_reviews", label: "Open Reviews on Product Pages", desc: "When on, the “Write a Review” form on product pages is open to everyone — logged-in customers AND unregistered visitors (guests show a generated guest name). When off, the product-page form is hidden for everyone and customers review from their Profile → Reviews instead. All submissions still need your approval.", def: false }, { key: "order_sms_customer", label: "Order SMS — Customer", desc: "When on, the customer gets an order-confirmation SMS on every new order (order number, amount, payment, date/time) with an auto-generated track-order link. Requires SMS gateway credit.", def: false }, { key: "order_sms_admin", label: "Order SMS — Admin", desc: "When on, the admin number(s) you choose (Notifications tab) get an SMS on every new order with the order details plus the customer's name, tier and phone. Requires SMS gateway credit.", def: false },{ key: "wishlist", label: "Wishlist", desc: "Let customers save products for later", def: true }, { key: "compare_products", label: "Compare", desc: "Side-by-side product comparison", def: true }, { key: "preorders", label: "Pre-orders", desc: "Accept orders for out-of-stock products", def: true }, { key: "guest_checkout", label: "Guest Checkout", desc: "Allow checkout without creating an account", def: true }].map((f) => (
                   <div key={f.key} className="flex items-center justify-between"><p className="text-sm font-medium text-charcoal"><FieldLabel label={f.label} hint={f.desc} /></p><Switch checked={features[f.key] ?? f.def} onCheckedChange={() => setFeatures((p) => ({ ...p, [f.key]: !(p[f.key] ?? f.def) }))} /></div>
                 ))}
               </CardContent>
@@ -1014,9 +1014,9 @@ function AdminSettingsPageInner() {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2"><Bell className="h-4 w-4 text-secondary" /> Order SMS Recipients</CardTitle>
               <CardDescription>
-                {features.order_sms
-                  ? "Choose which admin number(s) receive an SMS on every new order (with the customer's name, tier & phone). Turn the feature on/off under General → Features."
-                  : "“Order SMS Notifications” is currently OFF (General → Features). Turn it on to send order SMS. You can still pick recipients here."}
+                {features.order_sms_admin
+                  ? "Choose which admin number(s) receive an SMS on every new order (with the customer's name, tier & phone). Turn “Order SMS — Admin” on/off under General → Features."
+                  : "“Order SMS — Admin” is currently OFF (General → Features). Turn it on to send order SMS to admins. You can still pick recipients here."}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">

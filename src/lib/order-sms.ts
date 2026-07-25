@@ -21,14 +21,17 @@ function parseJson(raw: unknown): Record<string, unknown> | null {
   return typeof raw === "object" ? (raw as Record<string, unknown>) : null;
 }
 
-/** Is the order-SMS feature toggled on? (features.order_sms, default false) */
-async function orderSmsEnabled(): Promise<boolean> {
+/** Read the two independent order-SMS toggles (default false each). */
+async function orderSmsFlags(): Promise<{ customer: boolean; admin: boolean }> {
   try {
     const rows = await query<RowDataPacket[]>("SELECT value FROM settings WHERE `key` = 'features' LIMIT 1");
     const features = rows.length ? parseJson(rows[0].value) : null;
-    return !!(features && features.order_sms === true);
+    return {
+      customer: !!(features && features.order_sms_customer === true),
+      admin: !!(features && features.order_sms_admin === true),
+    };
   } catch {
-    return false;
+    return { customer: false, admin: false };
   }
 }
 
@@ -75,14 +78,15 @@ function formatWhen(d: Date): string {
  */
 export async function sendOrderCreationSms(input: OrderSmsInput): Promise<void> {
   try {
-    if (!(await orderSmsEnabled())) return;
+    const flags = await orderSmsFlags();
+    if (!flags.customer && !flags.admin) return; // neither toggle on → nothing to do
 
     const when = formatWhen(input.createdAt);
     const method = (input.paymentMethod || "COD").toUpperCase();
     const trackUrl = `${siteUrl}/track-order?order=${encodeURIComponent(input.orderNumber)}`;
 
-    // ─── Customer SMS (order confirmation + track link) ───
-    if (input.customerPhone) {
+    // ─── Customer SMS (order confirmation + track link) — its own toggle ───
+    if (flags.customer && input.customerPhone) {
       const customerMsg =
         `ChineXa: Order ${input.orderNumber} placed successfully. ` +
         `Amount ${taka(input.total)} (${method}), ${when}. ` +
@@ -90,9 +94,9 @@ export async function sendOrderCreationSms(input: OrderSmsInput): Promise<void> 
       await sendSms(input.customerPhone, customerMsg);
     }
 
-    // ─── Admin SMS (order + customer name/tier/phone) ───
-    const adminIds = await orderSmsAdminIds();
-    if (adminIds.length > 0) {
+    // ─── Admin SMS (order + customer name/tier/phone) — its own toggle ───
+    const adminIds = flags.admin ? await orderSmsAdminIds() : [];
+    if (flags.admin && adminIds.length > 0) {
       // Resolve the reviewer/customer tier (guests → none).
       let tierName = "Guest";
       if (input.customerId) {
