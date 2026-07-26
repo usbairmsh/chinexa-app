@@ -107,6 +107,7 @@ export default function ProductDetailPage() {
 
   // Reviews
   const [productReviews, setProductReviews] = useState<ReviewData[]>([]);
+  const [reviewSort, setReviewSort] = useState<"recent" | "highest" | "lowest" | "photos">("recent");
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewTitle, setReviewTitle] = useState("");
@@ -323,6 +324,17 @@ export default function ProductDetailPage() {
     obs.observe(el);
     return () => obs.disconnect();
   }, [product?.id, selectionOutOfStock]);
+
+  // Client-side review sort/filter over the already-fetched set (≤20). Cheap to
+  // recompute each render; avoids an API round-trip for a small list.
+  const displayedReviews = (() => {
+    if (reviewSort === "photos") return productReviews.filter((r) => r.images && r.images.length > 0);
+    const sorted = [...productReviews];
+    if (reviewSort === "highest") sorted.sort((a, b) => b.rating - a.rating);
+    else if (reviewSort === "lowest") sorted.sort((a, b) => a.rating - b.rating);
+    else sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return sorted;
+  })();
 
   return (
     <div className="bg-background min-h-screen">
@@ -929,8 +941,34 @@ export default function ProductDetailPage() {
                       </div>
                     </div>
 
+                    {/* Sort / filter toolbar — only when there's enough to sort */}
+                    {productReviews.length > 1 && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {([
+                          { id: "recent", label: "Most recent" },
+                          { id: "highest", label: "Highest rated" },
+                          { id: "lowest", label: "Lowest rated" },
+                          { id: "photos", label: "With photos" },
+                        ] as const).map((opt) => (
+                          <button
+                            key={opt.id}
+                            onClick={() => setReviewSort(opt.id)}
+                            className={cn(
+                              "px-3 py-1.5 rounded-full text-xs font-medium transition-colors active:scale-[0.96]",
+                              reviewSort === opt.id ? "bg-charcoal !text-white" : "bg-pearl text-charcoal-lighter hover:text-charcoal"
+                            )}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
                     {/* Real Reviews */}
-                    {productReviews.map((review, reviewIdx) => (
+                    {displayedReviews.length === 0 && reviewSort === "photos" && (
+                      <p className="text-sm text-charcoal-lighter text-center py-4">No reviews with photos yet.</p>
+                    )}
+                    {displayedReviews.map((review, reviewIdx) => (
                       <motion.div
                         key={review.id}
                         initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}

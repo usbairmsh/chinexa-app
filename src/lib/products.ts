@@ -101,6 +101,8 @@ export async function getProductsList(searchParams: URLSearchParams): Promise<Pa
   const maxPrice = searchParams.get("max_price");
   const featured = searchParams.get("featured");
   const exclusive = searchParams.get("exclusive");
+  const minRating = searchParams.get("min_rating");
+  const inStock = searchParams.get("in_stock");
   const limit = searchParams.get("limit");
 
   const all = searchParams.get("all");
@@ -168,6 +170,12 @@ export async function getProductsList(searchParams: URLSearchParams): Promise<Pa
   if (badges) { where += " AND p.badges LIKE ?"; params.push(`%${escapeLike(badges)}%`); }
   if (minPrice) { where += " AND p.price >= ?"; params.push(Number(minPrice)); }
   if (maxPrice) { where += " AND p.price <= ?"; params.push(Number(maxPrice)); }
+  if (minRating) { where += " AND p.average_rating >= ?"; params.push(Number(minRating)); }
+  // In-stock: product-level stock OR any in-stock variant (variant products
+  // carry their sellable stock on product_variants, not the parent row).
+  if (inStock === "true") {
+    where += " AND (p.stock_quantity > 0 OR EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND pv.stock > 0))";
+  }
   if (featured === "true") { where += " AND p.is_featured = 1"; }
   // "Exclusive" is now an explicit product badge (like preorder), set by the
   // admin in the product form — NOT a computed recently-added/restocked window.

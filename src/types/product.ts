@@ -81,6 +81,8 @@ export interface ProductListParams {
   tags?: string[];
   badges?: ProductBadge[];
   in_stock?: boolean;
+  /** Minimum average rating (1–5); filters listings to products at or above it. */
+  min_rating?: number;
   /** Recently added OR restocked (last 30 days) — the "Exclusive" listing. */
   exclusive?: boolean;
   all?: boolean;

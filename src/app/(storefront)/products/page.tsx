@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { SlidersHorizontal, X, PackageSearch } from "lucide-react";
+import { useState, useEffect } from "react";
+import { SlidersHorizontal, X, PackageSearch, Star } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ProductCard } from "@/components/storefront/product/product-card";
 import { useProducts } from "@/hooks/queries/use-products";
 import { useCategories } from "@/hooks/queries/use-categories";
+import { cn } from "@/lib/utils";
 import type { ProductListParams } from "@/types/product";
 
 export default function ProductsPage() {
@@ -25,12 +26,36 @@ export default function ProductsPage() {
     sort_by: "featured",
   });
   const [priceRange, setPriceRange] = useState([0, 30000]);
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]); // brand names
+  const [brands, setBrands] = useState<{ id: string; name: string }[]>([]);
 
   const { data, isLoading } = useProducts(params);
   const { data: categories } = useCategories();
 
+  // Active brands for the brand filter (names are what the API matches on).
+  useEffect(() => {
+    fetch("/api/brands")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setBrands(data.filter((b: { is_active: boolean }) => b.is_active).map((b: { id: string; name: string }) => ({ id: b.id, name: b.name })));
+      })
+      .catch(() => {});
+  }, []);
+
   const updateParams = (updates: Partial<ProductListParams>) => {
     setParams((prev) => ({ ...prev, ...updates, page: 1 }));
+  };
+
+  const toggleBrand = (name: string) => {
+    const next = selectedBrands.includes(name) ? selectedBrands.filter((b) => b !== name) : [...selectedBrands, name];
+    setSelectedBrands(next);
+    updateParams({ brand: next.length > 0 ? next.join(",") : undefined });
+  };
+
+  const clearAll = () => {
+    setParams({ page: 1, page_size: 12, sort_by: "featured" });
+    setPriceRange([0, 30000]);
+    setSelectedBrands([]);
   };
 
   const mainCategories = categories?.filter((c) => !c.parent_id) || [];
@@ -84,15 +109,60 @@ export default function ProductsPage() {
         </Button>
       </div>
 
+      {/* Brand */}
+      {brands.length > 0 && (
+        <div>
+          <h4 className="text-sm font-semibold text-charcoal mb-3">Brand</h4>
+          <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+            {brands.map((b) => (
+              <label key={b.id} className="flex items-center gap-2 cursor-pointer rounded-lg px-1.5 py-1 -mx-1.5 transition-colors hover:bg-pearl">
+                <Checkbox checked={selectedBrands.includes(b.name)} onCheckedChange={() => toggleBrand(b.name)} />
+                <span className="text-sm text-charcoal-light">{b.name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Rating */}
+      <div>
+        <h4 className="text-sm font-semibold text-charcoal mb-3">Rating</h4>
+        <div className="space-y-1.5">
+          {[4, 3, 2].map((r) => (
+            <button
+              key={r}
+              onClick={() => updateParams({ min_rating: params.min_rating === r ? undefined : r })}
+              className={cn(
+                "flex items-center gap-1.5 w-full rounded-lg px-2 py-1.5 text-sm transition-colors",
+                params.min_rating === r ? "bg-primary-light text-charcoal" : "text-charcoal-light hover:bg-pearl"
+              )}
+            >
+              <span className="flex items-center gap-0.5">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star key={i} className={cn("h-3.5 w-3.5", i < r ? "text-gold fill-gold" : "text-border")} />
+                ))}
+              </span>
+              <span className="text-xs text-charcoal-lighter">&amp; up</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Availability */}
+      <div>
+        <h4 className="text-sm font-semibold text-charcoal mb-3">Availability</h4>
+        <label className="flex items-center gap-2 cursor-pointer rounded-lg px-1.5 py-1 -mx-1.5 transition-colors hover:bg-pearl">
+          <Checkbox checked={!!params.in_stock} onCheckedChange={(checked) => updateParams({ in_stock: checked ? true : undefined })} />
+          <span className="text-sm text-charcoal-light">In stock only</span>
+        </label>
+      </div>
+
       {/* Clear Filters */}
       <Button
         variant="ghost"
         size="sm"
         className="w-full text-destructive"
-        onClick={() => {
-          setParams({ page: 1, page_size: 12, sort_by: "featured" });
-          setPriceRange([0, 30000]);
-        }}
+        onClick={clearAll}
       >
         <X className="h-3.5 w-3.5 mr-1" /> Clear All Filters
       </Button>
@@ -183,7 +253,7 @@ export default function ProductsPage() {
               // its own whileInView fade-up stagger; a grid-level opacity fade
               // would mask that cascade. Key remounts on page/sort/filter change.
               <div
-                key={`${params.page}-${params.sort_by}-${params.category}`}
+                key={`${params.page}-${params.sort_by}-${params.category}-${params.brand}-${params.min_rating}-${params.in_stock}`}
                 className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:gap-6"
               >
                 {data.data.map((product, index) => (

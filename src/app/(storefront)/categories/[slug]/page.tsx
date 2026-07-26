@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { SlidersHorizontal, X, PackageSearch } from "lucide-react";
+import { SlidersHorizontal, X, PackageSearch, Star } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
@@ -124,6 +125,39 @@ export default function CategoryPage() {
         >
           Apply
         </Button>
+      </div>
+
+      {/* Rating */}
+      <div>
+        <h4 className="text-sm font-semibold text-charcoal mb-3">Rating</h4>
+        <div className="space-y-1.5">
+          {[4, 3, 2].map((r) => (
+            <button
+              key={r}
+              onClick={() => updateParams({ min_rating: params.min_rating === r ? undefined : r })}
+              className={cn(
+                "flex items-center gap-1.5 w-full rounded-lg px-2 py-1.5 text-sm transition-colors",
+                params.min_rating === r ? "bg-primary-light text-charcoal" : "text-charcoal-light hover:bg-pearl"
+              )}
+            >
+              <span className="flex items-center gap-0.5">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star key={i} className={cn("h-3.5 w-3.5", i < r ? "text-gold fill-gold" : "text-border")} />
+                ))}
+              </span>
+              <span className="text-xs text-charcoal-lighter">&amp; up</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Availability */}
+      <div>
+        <h4 className="text-sm font-semibold text-charcoal mb-3">Availability</h4>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <Checkbox checked={!!params.in_stock} onCheckedChange={(checked) => updateParams({ in_stock: checked ? true : undefined })} />
+          <span className="text-sm text-charcoal-light">In stock only</span>
+        </label>
       </div>
 
       {/* Clear */}
@@ -291,7 +325,7 @@ export default function CategoryPage() {
               // (a grid-level opacity fade would mask the cascade). Key
               // remounts on filter/page change to replay the stagger.
               <div
-                key={`${params.page}-${params.sort_by}-${params.subcategory}-${params.brand}`}
+                key={`${params.page}-${params.sort_by}-${params.subcategory}-${params.brand}-${params.min_rating}-${params.in_stock}`}
                 className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:gap-6"
               >
                 {data.data.map((product, index) => (
