@@ -188,16 +188,17 @@ function ResultsList({ state, onNavigate }: { state: SearchState; onNavigate: ()
   );
 }
 
-/** Desktop: compact pill trigger that expands into itself, with results
- * dropped in an anchored panel below — the surrounding header (logo, nav,
- * account/cart icons) never moves. */
+/** Desktop: a compact icon trigger that never grows, opening a centered
+ * pop-up search panel (command-palette style) over a dimmed backdrop. The
+ * header stays fixed — nothing in it resizes — so there's always room for the
+ * full-width input + results regardless of viewport width. */
 export function DesktopSearchBar() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const state = useSearchState();
   const searchIcon = useIconPlay<HTMLSpanElement>();
+  const shouldReduceMotion = useReducedMotion();
 
   const close = () => { setOpen(false); state.setQuery(""); };
 
@@ -205,68 +206,83 @@ export function DesktopSearchBar() {
     if (open) {
       state.loadRecent();
       setTimeout(() => inputRef.current?.focus(), 50);
+      // Lock body scroll while the pop-up is open (matches the mobile overlay).
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
     }
+    return () => { document.body.style.overflow = ""; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
-    const handleClick = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) close();
-    };
     const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
-    document.addEventListener("mousedown", handleClick);
     document.addEventListener("keydown", handleKey);
-    return () => {
-      document.removeEventListener("mousedown", handleClick);
-      document.removeEventListener("keydown", handleKey);
-    };
+    return () => document.removeEventListener("keydown", handleKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   return (
-    <div ref={containerRef} className="hidden sm:block relative">
+    <div className="hidden sm:block">
+      {/* Trigger — fixed-size icon button, never expands into the header. */}
       <button
         onClick={() => setOpen(true)}
         onMouseEnter={() => !open && searchIcon.play({ rotate: [0, -12, 10, 0], scale: [1, 1.1, 1.1, 1] }, 0.45)}
-        className={cn(
-          "flex items-center gap-2 h-9 rounded-full border transition-colors",
-          open ? "w-64 lg:w-80 px-3 border-border bg-card" : "w-9 justify-center border-transparent text-charcoal/60 hover:text-charcoal hover:bg-primary-light"
-        )}
+        className="flex items-center justify-center h-9 w-9 rounded-full text-charcoal/60 hover:text-charcoal hover:bg-primary-light transition-colors"
         aria-label="Search"
       >
         {/* Same imperative hover-play pattern as wishlist/cart/bell — a quick
-            "scanning" tilt-and-settle rather than a generic scale/rotate,
-            and always finishes back to rest instead of snapping mid-motion. */}
+            "scanning" tilt-and-settle, always finishing back to rest. */}
         <motion.span ref={searchIcon.scope} className="flex shrink-0">
           <Search className="h-4 w-4 sm:h-[18px] sm:w-[18px]" strokeWidth={2} />
         </motion.span>
-        {open ? (
-          <input
-            ref={inputRef}
-            value={state.query}
-            onChange={(e) => state.setQuery(e.target.value)}
-            onKeyDown={(e) => state.handleKeyDown(e, (slug) => { close(); router.push(`/products/${slug}`); })}
-            placeholder="Search products…"
-            className="flex-1 min-w-0 text-sm text-charcoal placeholder:text-charcoal-lighter outline-none bg-transparent"
-            autoComplete="off"
-          />
-        ) : (
-          <span className="sr-only">Search</span>
-        )}
+        <span className="sr-only">Search</span>
       </button>
 
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.15 }}
-            className="absolute right-0 top-11 w-[380px] max-h-[70vh] overflow-y-auto rounded-2xl border border-border/60 bg-card shadow-[0_16px_48px_rgba(58,36,56,0.14)] p-3"
-          >
-            <ResultsList state={state} onNavigate={() => { state.rememberSearch(state.query); close(); }} />
-          </motion.div>
+          <>
+            {/* Dimmed backdrop — click anywhere to close. */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              onClick={close}
+              className="fixed inset-0 z-[70] bg-charcoal/40 backdrop-blur-[2px]"
+            />
+            {/* Centered pop-up panel. */}
+            <motion.div
+              initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: -12, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -12, scale: 0.98 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Search products"
+              className="fixed left-1/2 top-24 z-[71] w-[92vw] max-w-[640px] -translate-x-1/2 rounded-2xl border border-border/60 bg-card shadow-[0_24px_64px_rgba(58,36,56,0.22)] overflow-hidden"
+            >
+              <div className="flex items-center gap-3 h-14 px-4 border-b border-border/50">
+                <Search className="h-5 w-5 text-charcoal-lighter shrink-0" />
+                <input
+                  ref={inputRef}
+                  value={state.query}
+                  onChange={(e) => state.setQuery(e.target.value)}
+                  onKeyDown={(e) => state.handleKeyDown(e, (slug) => { close(); router.push(`/products/${slug}`); })}
+                  placeholder="Search products, categories, or brands…"
+                  className="flex-1 min-w-0 text-base text-charcoal placeholder:text-charcoal-lighter outline-none bg-transparent"
+                  autoComplete="off"
+                />
+                <button onClick={close} className="p-1.5 rounded-full hover:bg-pearl text-charcoal-lighter shrink-0 transition-colors" aria-label="Close search">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="max-h-[60vh] overflow-y-auto p-3">
+                <ResultsList state={state} onNavigate={() => { state.rememberSearch(state.query); close(); }} />
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>
