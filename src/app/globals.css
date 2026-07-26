@@ -360,6 +360,25 @@
   .animate-clip-reveal { animation: none; }
 }
 
+/* Shimmer skeleton — a sweeping highlight for image/media placeholders, reads
+   as "loading fast" better than a flat pulse. Pairs the shimmer keyframe with
+   a moving gradient. Theme-aware via the pearl/border tokens. Prefer this over
+   bare `animate-pulse bg-pearl` for image tiles. Reduced-motion falls back to
+   a static tint. */
+.skeleton-shimmer {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-pearl) 30%,
+    color-mix(in srgb, var(--color-border) 55%, var(--color-pearl)) 50%,
+    var(--color-pearl) 70%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer { animation: none; background-image: none; background-color: var(--color-pearl); }
+}
+
 @keyframes marquee {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }

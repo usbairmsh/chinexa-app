@@ -50,7 +50,7 @@ export function ReviewsMarquee() {
 
       {/* Marquee */}
       <div className="relative">
-        <div className="flex gap-6 animate-marquee">
+        <div className="flex gap-6 animate-marquee hover:[animation-play-state:paused]">
           {[...reviews, ...reviews].map((review, i) => (
             <div
               key={i}

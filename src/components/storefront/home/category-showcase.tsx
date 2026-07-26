@@ -32,7 +32,7 @@ export function CategoryShowcase() {
             {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
-                className={`rounded-2xl bg-pearl animate-pulse aspect-[4/5] ${i === 0 ? "col-span-2 row-span-2" : ""}`}
+                className={`rounded-2xl skeleton-shimmer aspect-[4/5] ${i === 0 ? "col-span-2 row-span-2" : ""}`}
               />
             ))}
           </div>

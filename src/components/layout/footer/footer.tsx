@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { motion, useReducedMotion } from "framer-motion";
 import { Separator } from "@/components/ui/separator";
 import { FOOTER_LINKS } from "@/data/constants/navigation";
 import { useStoreSettings } from "@/hooks/use-store-settings";
@@ -9,14 +10,31 @@ import { useStoreSettings } from "@/hooks/use-store-settings";
 export function Footer() {
   const { payment_methods } = useStoreSettings();
   const enabledPayments = payment_methods.filter((m) => m.enabled);
+  const shouldReduceMotion = useReducedMotion();
+
+  // Restrained scroll-in for the footer columns — the last thing every visitor
+  // sees deserves the same finish as the rest of the page. Fires once.
+  const container = {
+    hidden: {},
+    show: { transition: { staggerChildren: shouldReduceMotion ? 0 : 0.08 } },
+  };
+  const item = shouldReduceMotion
+    ? { hidden: { opacity: 0 }, show: { opacity: 1 } }
+    : { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" as const } } };
 
   return (
     <footer className="bg-pearl border-t border-border/30">
       {/* Main Footer */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+        <motion.div
+          className="grid grid-cols-2 md:grid-cols-4 gap-8"
+          variants={container}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, amount: 0.2 }}
+        >
           {/* Brand */}
-          <div className="col-span-2 md:col-span-1">
+          <motion.div variants={item} className="col-span-2 md:col-span-1">
             <Link href="/" className="inline-block mb-4">
               <Image src="/logo.png" alt="ChineXa" width={320} height={124} className="h-[120px] w-auto dark:bg-image-surface dark:rounded-xl dark:px-3 dark:py-1.5" />
             </Link>
@@ -65,11 +83,11 @@ export function Footer() {
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/></svg>
               </a>
             </div>
-          </div>
+          </motion.div>
 
           {/* Link Columns */}
           {Object.values(FOOTER_LINKS).map((section) => (
-            <div key={section.title}>
+            <motion.div variants={item} key={section.title}>
               <h4 className="font-heading text-sm font-semibold text-charcoal mb-4 tracking-wide">
                 {section.title}
               </h4>
@@ -85,9 +103,9 @@ export function Footer() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
 
         <Separator className="my-8" />
 

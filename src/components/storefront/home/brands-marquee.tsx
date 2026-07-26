@@ -65,7 +65,7 @@ export function BrandsMarquee() {
       {/* Marquee */}
       <div className="relative">
         <div
-          className="flex gap-6 items-stretch"
+          className="flex gap-6 items-stretch hover:[animation-play-state:paused]"
           style={{
             animation: `marquee ${duration}s linear infinite`,
             width: "max-content",

@@ -29,7 +29,7 @@ export function PromoBannerStrip() {
     return (
       <section className="py-8 bg-card">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="rounded-2xl bg-pearl animate-pulse aspect-[16/7]" />
+          <div className="rounded-2xl skeleton-shimmer aspect-[16/7]" />
         </div>
       </section>
     );
@@ -97,7 +97,7 @@ export function CategoryBanner() {
     return (
       <section className="py-4">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="rounded-2xl bg-pearl animate-pulse aspect-[21/7]" />
+          <div className="rounded-2xl skeleton-shimmer aspect-[21/7]" />
         </div>
       </section>
     );
