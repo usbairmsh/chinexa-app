@@ -290,7 +290,7 @@ export default function AdminLayout({
       <div className="flex h-[76px] items-center justify-between px-4 border-b border-border/30">
         {!collapsed && (
           <Link href="/admin" className="flex items-center gap-1.5">
-            <Image src="/logo.png" alt="ChineXa" width={200} height={76} className="h-[64px] w-auto" />
+            <Image src="/logo.png" alt="ChineXa" width={200} height={76} className="h-[64px] w-auto dark:bg-image-surface dark:rounded-lg dark:px-2 dark:py-1" />
             <span className="text-[9px] text-charcoal-lighter font-body bg-pearl px-1.5 py-0.5 rounded-md">Admin</span>
           </Link>
         )}

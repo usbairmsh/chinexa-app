@@ -18,7 +18,7 @@ export function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="inline-block mb-4">
-              <Image src="/logo.png" alt="ChineXa" width={320} height={124} className="h-[120px] w-auto" />
+              <Image src="/logo.png" alt="ChineXa" width={320} height={124} className="h-[120px] w-auto dark:bg-image-surface dark:rounded-xl dark:px-3 dark:py-1.5" />
             </Link>
             <p className="text-sm text-charcoal-lighter leading-relaxed mb-4">
               Premium beauty & lifestyle products, curated with love for the modern woman in Bangladesh.

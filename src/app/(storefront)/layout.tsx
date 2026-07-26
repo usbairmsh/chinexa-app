@@ -35,7 +35,7 @@ export default async function StorefrontLayout({
     return (
       <div className="min-h-screen bg-card flex items-center justify-center">
         <div className="text-center px-6 max-w-lg animate-fade-in">
-          <Image src="/logo.png" alt="ChineXa" width={400} height={152} className="h-[120px] w-auto mx-auto mb-8 animate-float" />
+          <Image src="/logo.png" alt="ChineXa" width={400} height={152} className="h-[120px] w-auto mx-auto mb-8 animate-float dark:bg-image-surface dark:rounded-xl dark:px-3 dark:py-1.5" />
           <div className="relative mb-8">
             <div className="h-1 w-24 bg-secondary/20 rounded-full mx-auto" />
             <div className="h-1 w-12 bg-secondary rounded-full mx-auto mt-1" />

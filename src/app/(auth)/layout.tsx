@@ -15,7 +15,7 @@ export default function AuthLayout({
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-luxury-gradient px-4 py-8 sm:py-12">
       <Link href="/" className="mb-6 sm:mb-8">
-        <Image src="/logo.png" alt="ChineXa" width={480} height={186} className="h-16 sm:h-24 lg:h-[192px] w-auto" />
+        <Image src="/logo.png" alt="ChineXa" width={480} height={186} className="h-16 sm:h-24 lg:h-[192px] w-auto dark:bg-image-surface dark:rounded-xl dark:px-3 dark:py-1.5" />
       </Link>
       <div className="w-full max-w-md">
         {children}

@@ -180,7 +180,10 @@ export function Header() {
                   alt="ChineXa"
                   width={216}
                   height={84}
-                  className="h-[46px] sm:h-[58px] lg:h-[67px] w-auto object-contain scale-[1.1] sm:scale-[1.2]"
+                  // The logo's wordmark is dark ink, so on the dark header it
+                  // needs a light backing to stay legible. A subtle rounded
+                  // image-surface chip (light in dark mode) appears only in dark.
+                  className="h-[46px] sm:h-[58px] lg:h-[67px] w-auto object-contain scale-[1.1] sm:scale-[1.2] dark:bg-image-surface dark:rounded-lg dark:px-1.5"
                   priority
                 />
               </Link>
@@ -538,7 +541,7 @@ export function Header() {
               <div className="flex-1 overflow-y-auto overscroll-contain p-5">
                 {/* Mobile Header */}
                 <div className="flex items-center justify-between mb-2 pb-4 border-b border-border/20">
-                  <Image src="/logo.png" alt="ChineXa" width={120} height={46} className="h-10 w-auto" />
+                  <Image src="/logo.png" alt="ChineXa" width={120} height={46} className="h-10 w-auto dark:bg-image-surface dark:rounded-lg dark:px-1.5 dark:py-0.5" />
                   <motion.button
                     onClick={() => setMobileMenuOpen(false)}
                     whileTap={{ scale: 0.9 }}
