@@ -196,6 +196,12 @@ export default function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [useNewAddress, setUseNewAddress] = useState(false);
 
+  // Seed the checkout email from the signed-in customer's profile (they can
+  // still override it for this order). Guests start blank and must enter one.
+  useEffect(() => {
+    if (user?.email) setCustomerEmail((prev) => prev || user.email!);
+  }, [user?.email]);
+
   useEffect(() => {
     if (!user?.id) return;
     fetch(`/api/customers/${user.id}/addresses`)
@@ -309,7 +315,11 @@ export default function CheckoutPage() {
     if (!customerPhone.trim()) errors.customerPhone = "Phone number is required";
     else if (!isValidBDPhone(customerPhone)) errors.customerPhone = "Enter a valid Bangladesh phone number (01XXXXXXXXX)";
 
-    if (customerEmail.trim() && !isValidEmail(customerEmail)) errors.customerEmail = "Enter a valid email address";
+    // Email: mandatory for guests (their only way to get order updates by email
+    // + a confirmation). Registered users' email comes from their profile, so
+    // it's not required to re-enter here.
+    if (!isAuthenticated && !customerEmail.trim()) errors.customerEmail = "Email is required";
+    else if (customerEmail.trim() && !isValidEmail(customerEmail)) errors.customerEmail = "Enter a valid email address";
 
     if (useNewAddress || savedAddresses.length === 0) {
       if (!billingAddress.trim()) errors.billingAddress = "Address is required";
@@ -644,8 +654,9 @@ export default function CheckoutPage() {
                     <FieldError field="customerPhone" />
                   </div>
                   <div className="sm:col-span-2">
-                    <Input label="Email (Optional)" placeholder="email@example.com" type="email" value={customerEmail} onChange={(e) => { setCustomerEmail(e.target.value); setFieldErrors((p) => ({ ...p, customerEmail: "" })); }} className={fieldErrors.customerEmail ? "border-destructive" : ""} />
+                    <Input label={isAuthenticated ? "Email (Optional)" : "Email"} required={!isAuthenticated} placeholder="email@example.com" type="email" value={customerEmail} onChange={(e) => { setCustomerEmail(e.target.value); setFieldErrors((p) => ({ ...p, customerEmail: "" })); }} className={fieldErrors.customerEmail ? "border-destructive" : ""} />
                     <FieldError field="customerEmail" />
+                    {!isAuthenticated && <p className="text-[11px] text-charcoal-lighter mt-1">We&apos;ll send your order confirmation here.</p>}
                   </div>
                 </div>
 

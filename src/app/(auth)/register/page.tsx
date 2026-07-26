@@ -4,11 +4,11 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { User, Phone, Mail, Cake, Lock } from "lucide-react";
+import { User, Phone, Mail, Cake, Lock, MessageSquare } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { collectMissingFields } from "@/lib/utils";
+import { collectMissingFields, cn } from "@/lib/utils";
 
 function RegisterForm() {
   const router = useRouter();
@@ -21,6 +21,7 @@ function RegisterForm() {
   const [birthdate, setBirthdate] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [otpChannel, setOtpChannel] = useState<"sms" | "email">("sms");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -29,11 +30,13 @@ function RegisterForm() {
     const missing = collectMissingFields([
       { label: "Full Name", value: name },
       { label: "Phone Number", value: phone },
+      { label: "Email", value: email },
       { label: "Birthdate", value: birthdate },
       { label: "Password", value: password },
       { label: "Confirm Password", value: confirmPassword },
     ]);
     if (missing) { setError(missing); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError("Please enter a valid email address"); return; }
     if (password.length < 6) { setError("Password must be at least 6 characters"); return; }
     if (password !== confirmPassword) { setError("Passwords do not match"); return; }
 
@@ -58,11 +61,12 @@ function RegisterForm() {
         return;
       }
 
-      // Send OTP, then hand off to /verify to confirm the phone before creating the account
+      // Send OTP via the chosen channel, then hand off to /verify to confirm
+      // ownership before the account is created.
       const otpRes = await fetch("/api/otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "send", phone, purpose: "register" }),
+        body: JSON.stringify({ action: "send", phone, purpose: "register", channel: otpChannel, email: email.trim() }),
       });
       const otpData = await otpRes.json();
       if (!otpRes.ok) throw new Error(otpData.error || "Failed to send OTP");
@@ -73,9 +77,10 @@ function RegisterForm() {
         email: email.trim(),
         birthdate,
         password,
+        channel: otpChannel,
       }));
 
-      router.push(`/verify?phone=${encodeURIComponent(phone)}&mode=register`);
+      router.push(`/verify?phone=${encodeURIComponent(phone)}&mode=register&channel=${otpChannel}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
@@ -121,7 +126,8 @@ function RegisterForm() {
           />
 
           <Input
-            label="Email (optional)"
+            label="Email"
+            required
             type="email"
             placeholder="your@email.com"
             value={email}
@@ -148,6 +154,32 @@ function RegisterForm() {
             onChange={(e) => setConfirmPassword(e.target.value)}
             icon={<Lock className="h-4 w-4" />}
           />
+
+          {/* OTP delivery channel — how the customer gets their verification code */}
+          <div>
+            <label className="block text-sm font-medium text-charcoal-light mb-1.5">Send verification code via</label>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { id: "sms", label: "SMS", icon: MessageSquare },
+                { id: "email", label: "Email", icon: Mail },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setOtpChannel(opt.id)}
+                  className={cn(
+                    "flex items-center justify-center gap-2 rounded-luxury border py-2.5 text-sm font-medium transition-colors active:scale-[0.98]",
+                    otpChannel === opt.id ? "border-secondary bg-secondary/5 text-secondary" : "border-border text-charcoal-light hover:border-charcoal/30"
+                  )}
+                >
+                  <opt.icon className="h-4 w-4" /> {opt.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-charcoal-lighter mt-1.5">
+              {otpChannel === "email" ? "We'll email your code to the address above." : "We'll text your code to your phone."}
+            </p>
+          </div>
 
           {error && (
             <p className="text-sm text-destructive text-center">{error}</p>

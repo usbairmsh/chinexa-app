@@ -37,6 +37,11 @@ interface OtpTokenPayload {
   purpose: string;
   code: string;
   exp: number; // epoch ms
+  /** Delivery channel the code was sent through ("sms" | "email"). Optional for
+   *  backward compat with tokens minted before channel selection existed. */
+  channel?: "sms" | "email";
+  /** Email the code was sent to when channel === "email" (delivery target). */
+  email?: string;
 }
 
 function sign(payload: string): string {

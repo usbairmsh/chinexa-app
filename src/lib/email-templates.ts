@@ -78,6 +78,20 @@ function escapeHtml(s: string): string {
   return String(s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
 }
 
+// ── OTP verification code ──────────────────────────────────────────────────
+export function otpEmail(code: string, storeName: string, siteUrl: string, purpose: string): { subject: string; html: string; text: string } {
+  const action = purpose === "reset" ? "reset your password" : purpose === "login" ? "sign in" : "verify your account";
+  const subject = `${code} is your ${storeName} verification code`;
+  const body = `
+    <p style="font-size:18px;font-weight:700;margin:0 0 8px;">Your verification code</p>
+    <p style="font-size:14px;color:${BRAND.soft};margin:0 0 20px;line-height:1.6;">Use this code to ${escapeHtml(action)}. It expires in 5 minutes.</p>
+    <div style="text-align:center;margin:8px 0 20px;">
+      <span style="display:inline-block;font-size:32px;font-weight:800;letter-spacing:8px;color:${BRAND.ink};background:${BRAND.bg};border:1px solid ${BRAND.line};border-radius:12px;padding:14px 24px;">${escapeHtml(code)}</span>
+    </div>
+    <p style="font-size:12px;color:${BRAND.faint};text-align:center;margin:0;line-height:1.6;">If you didn't request this, you can safely ignore this email.</p>`;
+  return { subject, html: shell(storeName, siteUrl, body), text: `Your ${storeName} verification code is ${code}. It expires in 5 minutes.` };
+}
+
 // ── Order confirmation ─────────────────────────────────────────────────────
 export function orderConfirmationEmail(d: OrderEmailData): { subject: string; html: string; text: string } {
   const subject = `Order ${d.orderNumber} confirmed — ${d.storeName}`;

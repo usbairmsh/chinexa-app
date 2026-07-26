@@ -130,10 +130,16 @@ export async function POST(req: NextRequest) {
       const name = (body.name || "").trim();
       const birthdate = (body.birthdate || "").trim();
       const password = body.password || "";
+      const email = (body.email || "").trim();
 
       if (!phone) return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
       if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
       if (name.length > 100) return NextResponse.json({ error: "Name must be at most 100 characters" }, { status: 400 });
+      // Email is now REQUIRED at registration.
+      if (!email) return NextResponse.json({ error: "Email is required" }, { status: 400 });
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 255) {
+        return NextResponse.json({ error: "Please enter a valid email address" }, { status: 400 });
+      }
       if (!birthdate) return NextResponse.json({ error: "Birthdate is required" }, { status: 400 });
       {
         const dob = new Date(birthdate);
@@ -149,6 +155,32 @@ export async function POST(req: NextRequest) {
       if (password.length > 128) {
         return NextResponse.json({ error: "Password must be at most 128 characters" }, { status: 400 });
       }
+
+      // Server-side OTP verification — the register page proves ownership of the
+      // chosen channel (phone or email) before we create the account. Mirrors the
+      // reset_password guard so we never trust the client alone. The token's
+      // channel tells us which contact to stamp as verified.
+      const otpToken = (body.otp_token || "").trim();
+      const otpCode = (body.otp_code || "").trim();
+      if (!otpToken || !otpCode) {
+        return NextResponse.json({ error: "Verification session expired. Please request a new code." }, { status: 400 });
+      }
+      const otp = verifyOtpToken(otpToken);
+      if (!otp || otp.purpose !== "register" || otp.code !== otpCode) {
+        return NextResponse.json({ error: "Invalid or tampered verification session. Please request a new code." }, { status: 400 });
+      }
+      if (normalizePhone(otp.phone) !== phone) {
+        return NextResponse.json({ error: "Verification session does not match this phone number." }, { status: 400 });
+      }
+      if (otp.exp < Date.now()) {
+        return NextResponse.json({ error: "OTP has expired. Please request a new code." }, { status: 400 });
+      }
+      // Which contact did they prove? (Legacy tokens without a channel = sms.)
+      const verifiedChannel: "sms" | "email" = otp.channel === "email" ? "email" : "sms";
+      const phoneVerified = verifiedChannel === "sms" ? 1 : 0;
+      // Email counts as verified only if they verified via email AND it's the
+      // same address they're registering with.
+      const emailVerified = verifiedChannel === "email" && otp.email && otp.email.toLowerCase() === email.toLowerCase() ? 1 : 0;
 
       // Check if already exists (active or inactive)
       const existing = await query<RowDataPacket[]>(
@@ -175,8 +207,8 @@ export async function POST(req: NextRequest) {
         const hashed = await bcrypt.hash(password, 10);
         const id = existingCustomer.id as string;
         await execute(
-          "UPDATE customers SET name = ?, email = COALESCE(email, ?), password = ?, birthdate = ?, account_type = 'registered' WHERE id = ?",
-          [name, body.email || null, hashed, birthdate, id]
+          "UPDATE customers SET name = ?, email = ?, password = ?, birthdate = ?, account_type = 'registered', phone_verified = ?, email_verified = ? WHERE id = ?",
+          [name, email, hashed, birthdate, phoneVerified, emailVerified, id]
         );
         await logActivity("Temporary customer claimed account via registration", "customer", id, phone);
         await notifyAdmin("customer", `Returning customer registered: ${name}`, `${phone} claimed their account (previously a guest checkout).`, "/admin/customers");
@@ -193,7 +225,7 @@ export async function POST(req: NextRequest) {
           user: {
             id,
             name,
-            email: (existingCustomer.email as string) || body.email || undefined,
+            email,
             phone,
             role: "customer" as const,
           },
@@ -203,8 +235,8 @@ export async function POST(req: NextRequest) {
       const hashed = await bcrypt.hash(password, 10);
       const id = `cust-${Date.now()}`;
       await execute(
-        "INSERT INTO customers (id, name, email, phone, password, birthdate, is_active, account_type) VALUES (?, ?, ?, ?, ?, ?, TRUE, 'registered')",
-        [id, name, body.email || null, phone, hashed, birthdate]
+        "INSERT INTO customers (id, name, email, phone, password, birthdate, is_active, account_type, phone_verified, email_verified) VALUES (?, ?, ?, ?, ?, ?, TRUE, 'registered', ?, ?)",
+        [id, name, email, phone, hashed, birthdate, phoneVerified, emailVerified]
       );
 
       // Alert admin about the new registration
@@ -223,7 +255,7 @@ export async function POST(req: NextRequest) {
         user: {
           id,
           name,
-          email: body.email || undefined,
+          email,
           phone,
           role: "customer" as const,
         },

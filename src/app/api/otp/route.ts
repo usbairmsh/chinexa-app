@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendSms, generateOtpCode } from "@/lib/sms";
+import { sendEmail, isEmailConfigured } from "@/lib/email";
+import { otpEmail } from "@/lib/email-templates";
 import { createOtpToken, verifyOtpToken } from "@/lib/otp-token";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { publicServerError } from "@/lib/validate";
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
 
 const OTP_TTL_MINUTES = 5;
 // A 6-digit code has 1,000,000 possibilities — with no cap on verify
@@ -53,19 +57,42 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Too many codes requested. Please wait a few minutes and try again." }, { status: 429 });
       }
 
+      // Delivery channel — "sms" (default) or "email". Email requires a valid
+      // recipient and the email provider to be configured.
+      const channel: "sms" | "email" = body.channel === "email" ? "email" : "sms";
+      const email = (body.email || "").trim();
+      if (channel === "email") {
+        if (!email || !email.includes("@")) {
+          return NextResponse.json({ error: "A valid email is required to send the code by email" }, { status: 400 });
+        }
+        if (!isEmailConfigured()) {
+          return NextResponse.json({ error: "Email delivery is not available. Please use SMS instead." }, { status: 400 });
+        }
+      }
+
       const code = generateOtpCode();
       const token = createOtpToken({
         phone,
         purpose,
         code,
         exp: Date.now() + OTP_TTL_MINUTES * 60 * 1000,
+        channel,
+        ...(channel === "email" ? { email } : {}),
       });
+
+      if (channel === "email") {
+        const { subject, html, text } = otpEmail(code, "ChineXa", siteUrl, purpose);
+        const sent = await sendEmail({ to: email, subject, html, text });
+        if (!sent.success) {
+          return NextResponse.json({ error: sent.error || "Failed to send OTP email" }, { status: 502 });
+        }
+        return NextResponse.json({ success: true, message: `Code sent to ${email}`, token });
+      }
 
       const sms = await sendSms(phone, `Your ChineXa verification code is ${code}. It expires in ${OTP_TTL_MINUTES} minutes.`);
       if (!sms.success) {
         return NextResponse.json({ error: sms.error || "Failed to send OTP" }, { status: 502 });
       }
-
       return NextResponse.json({ success: true, message: `OTP sent to ${phone}`, token });
     }
 

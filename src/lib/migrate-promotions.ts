@@ -100,6 +100,11 @@ export async function ensurePromotionColumns() {
     await ensureColumn("customers", "is_fraud", "BOOLEAN NOT NULL DEFAULT FALSE");
     await ensureColumn("customers", "fraud_reason", "TEXT");
     await ensureColumn("customers", "fraud_flagged_at", "TIMESTAMP NULL DEFAULT NULL");
+    // Channel verification stamped when a registration OTP is confirmed. Soft
+    // model: the account exists regardless; these just record which channel the
+    // customer proved they own. Existing rows default to unverified.
+    await ensureColumn("customers", "phone_verified", "BOOLEAN NOT NULL DEFAULT FALSE");
+    await ensureColumn("customers", "email_verified", "BOOLEAN NOT NULL DEFAULT FALSE");
 
     // Membership tiers: superseded by applicability-based delivery_rules below —
     // drop the short-lived per-tier columns from that earlier iteration.

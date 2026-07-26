@@ -15,6 +15,7 @@ import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { useCustomerBadge } from "@/hooks/use-customer-badge";
 import { Footer } from "@/components/layout/footer/footer";
 import { CartDrawer } from "@/components/storefront/cart/cart-drawer";
+import { RequireEmailGate } from "@/components/shared/require-email-gate";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useAuthStore } from "@/stores/auth.store";
@@ -358,6 +359,8 @@ export default function AccountLayout({
       </main>
       <Footer />
       <CartDrawer />
+      {/* Legacy accounts with no email on file must add one to continue. */}
+      {isAuthenticated && <RequireEmailGate />}
     </>
   );
 }

@@ -19,6 +19,9 @@ function VerifyForm() {
   const phone = searchParams.get("phone") || "";
   const mode = searchParams.get("mode"); // "register" | "reset" | null (unused now — login no longer goes through OTP)
   const otpPurpose = mode === "register" ? "register" : mode === "reset" ? "reset" : "login";
+  // Delivery channel chosen at registration (defaults to sms) — used so a resend
+  // goes out the same way the first code did.
+  const channel: "sms" | "email" = searchParams.get("channel") === "email" ? "email" : "sms";
   const login = useAuthStore((s) => s.login);
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -126,7 +129,9 @@ function VerifyForm() {
         const res = await fetch("/api/auth", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "register", phone, name, email: email || undefined, birthdate, password }),
+          // Pass the verified OTP so the server re-proves ownership before
+          // creating the account (it no longer trusts the client's verify alone).
+          body: JSON.stringify({ action: "register", phone, name, email, birthdate, password, otp_token: otpToken, otp_code: code }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Registration failed");
@@ -208,10 +213,16 @@ function VerifyForm() {
     setResending(true);
     setError("");
     try {
+      // Resend on the same channel. For an email resend we need the email that
+      // was captured at registration (stored with the register data).
+      let resendEmail = "";
+      if (channel === "email" && otpPurpose === "register") {
+        try { resendEmail = JSON.parse(sessionStorage.getItem(`register-data:${phone}`) || "{}").email || ""; } catch {}
+      }
       const res = await fetch("/api/otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "send", phone, purpose: otpPurpose }),
+        body: JSON.stringify({ action: "send", phone, purpose: otpPurpose, channel, email: resendEmail }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to resend OTP");

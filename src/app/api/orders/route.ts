@@ -571,14 +571,23 @@ export async function POST(req: NextRequest) {
     });
 
     // ─── Order-creation email (admin-toggleable) — branded confirmation to the
-    // customer (only when an email was provided at checkout) + admin alert.
-    // Self-contained/best-effort, same as the SMS above. ───
+    // customer + admin alert. Self-contained/best-effort, same as the SMS above.
+    // Recipient: the email typed at checkout for THIS order wins; otherwise fall
+    // back to the customer's saved profile email (so a registered customer who
+    // left the optional checkout email blank still gets their confirmation).
+    let resolvedEmail: string | null = body.billing_address?.email || null;
+    if (!resolvedEmail && customerId) {
+      try {
+        const emailRows = await query<RowDataPacket[]>("SELECT email FROM customers WHERE id = ? LIMIT 1", [customerId]);
+        resolvedEmail = (emailRows[0]?.email as string) || null;
+      } catch { /* best-effort */ }
+    }
     await sendOrderConfirmationEmail({
       orderNumber,
       total: Number(body.total) || 0,
       paymentMethod: body.payment_method || "COD",
       customerName: body.customer_name,
-      customerEmail: body.billing_address?.email || null,
+      customerEmail: resolvedEmail,
       customerPhone: body.customer_phone,
       customerId,
       items: (Array.isArray(body.items) ? body.items : []).map((i: { product_name?: string; quantity: number; unit_price: number }) => ({
