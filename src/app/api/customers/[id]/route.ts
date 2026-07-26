@@ -29,7 +29,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     // below depends on `customers`' content — so all run as one round-trip.
     const [customers, addresses, orders] = await Promise.all([
       query<RowDataPacket[]>(
-        "SELECT id, name, email, phone, birthdate, account_type, avatar, total_orders, total_spent, is_active, deactivated_at, deactivation_reason, created_at, updated_at, last_order_at FROM customers WHERE id = ? LIMIT 1",
+        "SELECT id, name, email, phone, birthdate, account_type, avatar, total_orders, total_spent, is_active, is_fraud, fraud_reason, fraud_flagged_at, deactivated_at, deactivation_reason, created_at, updated_at, last_order_at FROM customers WHERE id = ? LIMIT 1",
         [id]
       ),
       query<RowDataPacket[]>("SELECT * FROM customer_addresses WHERE customer_id = ?", [id]),
@@ -66,6 +66,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({
       ...customers[0],
       is_active: !!customers[0].is_active,
+      is_fraud: !!customers[0].is_fraud,
       total_spent: Number(customers[0].total_spent) || 0,
       total_orders: Number(customers[0].total_orders) || 0,
       addresses,
@@ -134,6 +135,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       if (body[k] !== undefined) { fields.push(`${col} = ?`); values.push(body[k]); }
     }
     if (body.is_active !== undefined) { fields.push("is_active = ?"); values.push(body.is_active ? 1 : 0); }
+    // Manual fraud flag (admin-only, gated by the customers:edit check above).
+    // Setting it stamps the reason + time; clearing it wipes both. It does NOT
+    // touch is_active — flagging fraud is an awareness marker, not a block.
+    if (body.is_fraud !== undefined) {
+      const flag = !!body.is_fraud;
+      fields.push("is_fraud = ?"); values.push(flag ? 1 : 0);
+      fields.push("fraud_reason = ?"); values.push(flag ? (typeof body.fraud_reason === "string" && body.fraud_reason.trim() ? body.fraud_reason.trim().slice(0, 500) : null) : null);
+      fields.push("fraud_flagged_at = ?"); values.push(flag ? new Date().toISOString().slice(0, 19).replace("T", " ") : null);
+    }
     if (body.new_password !== undefined) {
       fields.push("password = ?");
       values.push(await bcrypt.hash(body.new_password, 10));
@@ -142,8 +152,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
     if (fields.length > 0) { values.push(id); await execute(`UPDATE customers SET ${fields.join(", ")} WHERE id = ?`, values); }
     await logActivity(
-      body.new_password !== undefined ? "Reset customer password" : "Updated customer",
-      "customer", id
+      body.new_password !== undefined
+        ? "Reset customer password"
+        : body.is_fraud !== undefined
+          ? (body.is_fraud ? "Marked customer as fraud" : "Unmarked customer as fraud")
+          : "Updated customer",
+      "customer", id,
+      body.is_fraud === true && typeof body.fraud_reason === "string" ? body.fraud_reason.slice(0, 200) : undefined
     );
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

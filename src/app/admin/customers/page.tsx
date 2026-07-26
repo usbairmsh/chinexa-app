@@ -7,7 +7,7 @@ import {
   ChevronRight, Mail, Phone, Edit,
   MapPin, Package, Clock, CheckCircle2, Truck, XCircle, Calendar,
   ArrowLeft, Loader2, Crown, Gift, Plus, Minus, Tag, Save, Cake, UserCheck, UserRound,
-  UserPlus, MessageSquare, Lock, X, Check, Eye
+  UserPlus, MessageSquare, Lock, X, Check, Eye, MoreHorizontal, ShieldAlert, ShieldCheck
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { VerifiedBadge } from "@/components/shared/verified-badge";
 import { FieldLabel } from "@/components/admin/shared/field-label";
@@ -46,6 +47,7 @@ interface Customer {
   totalOrders: number; totalSpent: number; totalItems: number;
   avgOrderValue: number; lastOrderDate: string; joinedDate: string; birthdate: string;
   isActive: boolean; tier: string; accountType: "registered" | "temporary";
+  isFraud: boolean; fraudReason: string;
   orders: CustomerOrder[];
 }
 
@@ -109,6 +111,12 @@ export default function AdminCustomersPage() {
   const [deleteCustomerDialog, setDeleteCustomerDialog] = useState<"deactivate" | "hard" | null>(null);
   const [deleteCustomerSaving, setDeleteCustomerSaving] = useState(false);
   const [deleteCustomerError, setDeleteCustomerError] = useState("");
+
+  // Mark-as-fraud (manual, gated by customers:edit). Flagging opens a small
+  // reason dialog; unflagging is immediate (no dialog).
+  const [fraudDialog, setFraudDialog] = useState<Customer | null>(null);
+  const [fraudReasonInput, setFraudReasonInput] = useState("");
+  const [fraudSaving, setFraudSaving] = useState(false);
 
   // Add customer dialog
   const [addCustomerOpen, setAddCustomerOpen] = useState(false);
@@ -195,6 +203,7 @@ export default function AdminCustomersPage() {
           birthdate: (c.birthdate as string) || "",
           isActive: c.is_active !== false, tier: (c.tier as string) || "Bronze",
           accountType: (c.account_type as "registered" | "temporary") || "temporary",
+          isFraud: c.is_fraud === true, fraudReason: (c.fraud_reason as string) || "",
           orders: [],
         })));
       }
@@ -325,6 +334,32 @@ export default function AdminCustomersPage() {
     } catch (err: unknown) {
       setDeleteCustomerError(err instanceof Error ? err.message : "Failed to delete customer");
     } finally { setDeleteCustomerSaving(false); }
+  };
+
+  // Persist a fraud flag change for one customer, updating both the list row
+  // and (if it's the open one) the detail panel optimistically.
+  const applyFraud = async (customer: Customer, flag: boolean, reason: string) => {
+    setFraudSaving(true);
+    try {
+      const res = await fetch(`/api/customers/${customer.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_fraud: flag, ...(flag ? { fraud_reason: reason.trim() || null } : {}) }),
+      });
+      if (!res.ok) throw new Error();
+      setDbCustomers((prev) => prev.map((x) => x.id === customer.id ? { ...x, isFraud: flag, fraudReason: flag ? reason.trim() : "" } : x));
+      setSelectedCustomer((prev) => prev && prev.id === customer.id ? { ...prev, isFraud: flag, fraudReason: flag ? reason.trim() : "" } : prev);
+      setFraudDialog(null);
+      setFraudReasonInput("");
+    } catch {
+      // leave the dialog open so the admin can retry
+    } finally { setFraudSaving(false); }
+  };
+
+  // Flagging asks for a reason first; unflagging is a direct toggle.
+  const handleToggleFraud = (customer: Customer) => {
+    if (customer.isFraud) { applyFraud(customer, false, ""); }
+    else { setFraudReasonInput(""); setFraudDialog(customer); }
   };
 
   const openAddCustomer = () => {
@@ -462,6 +497,7 @@ export default function AdminCustomersPage() {
           district: addr?.district || "",
           birthdate: (data.birthdate as string) || customer.birthdate,
           accountType: (data.account_type as "registered" | "temporary") || customer.accountType,
+          isFraud: data.is_fraud === true, fraudReason: (data.fraud_reason as string) || customer.fraudReason,
           orders,
         });
       }
@@ -572,6 +608,7 @@ export default function AdminCustomersPage() {
           <Badge className={cn("text-[10px]", tierColor.className)} style={tierColor.style}><Crown className="h-3 w-3 mr-1" />{tierName}</Badge>
           {tierBadgeShown && <VerifiedBadge color={membershipData!.tier!.badge_color} opacity={membershipData!.tier!.badge_opacity} size={18} tooltip={membershipData!.tier!.badge_name} />}
           <Badge variant={c.isActive ? "success" : "destructive"} className="text-[10px]">{c.isActive ? "Active" : "Inactive"}</Badge>
+          {c.isFraud && <Badge variant="destructive" className="text-[10px]"><ShieldAlert className="h-3 w-3 mr-1" /> Fraud</Badge>}
           {canEditCustomerFields && (
             <AdminButton variant="outline" size="xs" onClick={openEditCustomer}>
               <Edit className="h-3 w-3" /> Edit
@@ -582,7 +619,37 @@ export default function AdminCustomersPage() {
               <XCircle className="h-3 w-3" /> Delete
             </AdminButton>
           )}
+          {canEditCustomerFields && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center justify-center h-8 w-8 rounded-full text-charcoal-lighter hover:bg-pearl hover:text-charcoal transition-colors active:scale-[0.94]" aria-label="More actions">
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => handleToggleFraud(c)}
+                  className={c.isFraud ? "" : "text-destructive focus:text-destructive"}
+                >
+                  {c.isFraud
+                    ? <><ShieldCheck className="h-3.5 w-3.5 mr-2" /> Unmark as fraud</>
+                    : <><ShieldAlert className="h-3.5 w-3.5 mr-2" /> Mark as fraud</>}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
+
+        {/* Fraud reason note — visible context for why the customer was flagged */}
+        {c.isFraud && (
+          <div className="flex items-start gap-2 rounded-luxury border border-destructive/20 bg-destructive/5 px-4 py-2.5">
+            <ShieldAlert className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-semibold text-destructive">Flagged as fraud</p>
+              <p className="text-[11px] text-charcoal-lighter">{c.fraudReason || "No reason provided."}</p>
+            </div>
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-5">
           {/* Left: Profile + Membership + Stats */}
@@ -981,6 +1048,15 @@ export default function AdminCustomersPage() {
         </Dialog>
 
         {c.avatar && <AvatarViewDialog open={viewAvatarOpen} onOpenChange={setViewAvatarOpen} imageUrl={c.avatar} name={c.name} />}
+
+        <FraudDialog
+          customer={fraudDialog}
+          reason={fraudReasonInput}
+          setReason={setFraudReasonInput}
+          saving={fraudSaving}
+          onCancel={() => { setFraudDialog(null); setFraudReasonInput(""); }}
+          onConfirm={() => fraudDialog && applyFraud(fraudDialog, true, fraudReasonInput)}
+        />
       </div>
     );
   }
@@ -1093,7 +1169,10 @@ export default function AdminCustomersPage() {
                     <div className="flex items-center gap-3">
                       <Avatar className="h-9 w-9 shrink-0">{c.avatar && <AvatarImage src={c.avatar} alt={c.name} />}<AvatarFallback className="text-[10px] font-semibold">{getInitials(c.name)}</AvatarFallback></Avatar>
                       <div className="min-w-0">
-                        <p className="font-medium text-charcoal text-sm truncate">{c.name}</p>
+                        <p className="font-medium text-charcoal text-sm truncate flex items-center gap-1">
+                          {c.name}
+                          {c.isFraud && <ShieldAlert className="h-3 w-3 text-destructive shrink-0 md:hidden" />}
+                        </p>
                         <p className="text-[10px] text-charcoal-lighter">{c.phone}</p>
                       </div>
                     </div>
@@ -1124,10 +1203,40 @@ export default function AdminCustomersPage() {
                     {c.joinedDate ? formatDateShort(c.joinedDate) : "—"}
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
-                    <Badge variant={c.isActive ? "success" : "destructive"} className="text-[9px]">{c.isActive ? "Active" : "Inactive"}</Badge>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant={c.isActive ? "success" : "destructive"} className="text-[9px]">{c.isActive ? "Active" : "Inactive"}</Badge>
+                      {c.isFraud && <Badge variant="destructive" className="text-[9px]"><ShieldAlert className="h-2.5 w-2.5 mr-0.5" /> Fraud</Badge>}
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <ChevronRight className="h-4 w-4 text-charcoal-lighter transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-secondary" />
+                    {canEditCustomerFields ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center justify-center h-7 w-7 rounded-full text-charcoal-lighter hover:bg-pearl hover:text-charcoal transition-colors active:scale-[0.94]"
+                            aria-label="Customer actions"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleSelectCustomer(c); }}>
+                            <Eye className="h-3.5 w-3.5 mr-2" /> View details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => { e.stopPropagation(); handleToggleFraud(c); }}
+                            className={c.isFraud ? "" : "text-destructive focus:text-destructive"}
+                          >
+                            {c.isFraud
+                              ? <><ShieldCheck className="h-3.5 w-3.5 mr-2" /> Unmark as fraud</>
+                              : <><ShieldAlert className="h-3.5 w-3.5 mr-2" /> Mark as fraud</>}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-charcoal-lighter transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-secondary" />
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -1278,6 +1387,53 @@ export default function AdminCustomersPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <FraudDialog
+        customer={fraudDialog}
+        reason={fraudReasonInput}
+        setReason={setFraudReasonInput}
+        saving={fraudSaving}
+        onCancel={() => { setFraudDialog(null); setFraudReasonInput(""); }}
+        onConfirm={() => fraudDialog && applyFraud(fraudDialog, true, fraudReasonInput)}
+      />
     </div>
+  );
+}
+
+// Reason-capture dialog shown when flagging a customer as fraud. Unflagging
+// skips this and toggles directly.
+function FraudDialog({
+  customer, reason, setReason, saving, onCancel, onConfirm,
+}: {
+  customer: Customer | null;
+  reason: string; setReason: (v: string) => void;
+  saving: boolean; onCancel: () => void; onConfirm: () => void;
+}) {
+  return (
+    <Dialog open={!!customer} onOpenChange={(open) => !open && onCancel()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-destructive"><ShieldAlert className="h-5 w-5" /> Mark as Fraud</DialogTitle>
+          <DialogDescription>
+            {customer ? `Flag ${customer.name} as fraudulent. This is an internal marker only — it does not deactivate the account.` : ""}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-2">
+          <Textarea
+            label="Reason (optional)"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g. Repeated fake not-received claims, chargeback abuse…"
+            className="min-h-[80px]"
+          />
+        </div>
+        <DialogFooter>
+          <AdminButton variant="ghost" size="xs" onClick={onCancel}>Cancel</AdminButton>
+          <AdminButton variant="danger" size="xs" onClick={onConfirm} disabled={saving}>
+            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShieldAlert className="h-3 w-3" />} Mark as Fraud
+          </AdminButton>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

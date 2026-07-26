@@ -90,6 +90,13 @@ export async function ensurePromotionColumns() {
     // i.e. has a real password) vs temporary (auto-created from a guest checkout)
     await ensureColumn("customers", "account_type", "ENUM('registered', 'temporary') NOT NULL DEFAULT 'temporary'");
 
+    // Customers: manual fraud flag set by an admin from the customers page.
+    // Purely an internal-awareness marker — it does NOT deactivate the account
+    // (that's the separate is_active flag). Reversible via the same menu.
+    await ensureColumn("customers", "is_fraud", "BOOLEAN NOT NULL DEFAULT FALSE");
+    await ensureColumn("customers", "fraud_reason", "TEXT");
+    await ensureColumn("customers", "fraud_flagged_at", "TIMESTAMP NULL DEFAULT NULL");
+
     // Membership tiers: superseded by applicability-based delivery_rules below —
     // drop the short-lived per-tier columns from that earlier iteration.
     await dropColumnIfExists("membership_tiers", "free_delivery");

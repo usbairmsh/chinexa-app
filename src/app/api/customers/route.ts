@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     const [countRows, rows, tierRows] = await Promise.all([
       query<RowDataPacket[]>(`SELECT COUNT(*) as total FROM customers ${where}`, params),
       query<RowDataPacket[]>(
-        `SELECT id, name, email, phone, birthdate, account_type, avatar, total_orders, total_spent, is_active, deactivated_at, deactivation_reason, created_at, updated_at, last_order_at FROM customers ${where} ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+        `SELECT id, name, email, phone, birthdate, account_type, avatar, total_orders, total_spent, is_active, is_fraud, fraud_reason, fraud_flagged_at, deactivated_at, deactivation_reason, created_at, updated_at, last_order_at FROM customers ${where} ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
         params
       ),
       // Real membership tiers (same source of truth as /api/customers/[id]/points)
@@ -85,6 +85,7 @@ export async function GET(req: NextRequest) {
       data: rows.map((r) => ({
         ...r,
         is_active: !!r.is_active,
+        is_fraud: !!r.is_fraud,
         total_spent: Number(r.total_spent) || 0,
         total_orders: Number(r.total_orders) || 0,
         total_items: itemCounts.get(r.id as string) || 0,
