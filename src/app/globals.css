@@ -9,6 +9,35 @@
    utility ordering. */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ── Theme-switch transition ─────────────────────────────────────────────
+   A brief cross-fade of colors when toggling light↔dark. Applied ONLY while
+   the `.theme-transition` class is present on <html> — the theme store adds
+   it right before flipping `.dark` and removes it once the transition ends,
+   so this NEVER runs on normal hovers, page loads, or component state changes
+   (which would make the whole UI feel sluggish). Limited to color-family
+   properties so layout/opacity animations are untouched. */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition:
+    background-color 0.4s ease,
+    border-color 0.4s ease,
+    color 0.4s ease,
+    fill 0.4s ease,
+    stroke 0.4s ease,
+    box-shadow 0.4s ease !important;
+}
+/* Respect reduced-motion: no cross-fade, just an instant swap. */
+@media (prefers-reduced-motion: reduce) {
+  .theme-transition,
+  .theme-transition *,
+  .theme-transition *::before,
+  .theme-transition *::after {
+    transition: none !important;
+  }
+}
+
 /* ── Light theme (default) ───────────────────────────────────────────────
    The single source of truth for every color value. @theme inline (further
    down) forwards each --color-* to these, so overriding them under .dark

@@ -11,11 +11,30 @@ interface ThemeState {
   toggleTheme: () => void;
 }
 
+// Duration must match the .theme-transition rule in globals.css.
+const THEME_TRANSITION_MS = 400;
+let transitionTimer: ReturnType<typeof setTimeout> | null = null;
+
 // Applies (or removes) the `.dark` class on <html>, which flips every CSS
 // color token defined in globals.css. Safe to call on the server (no-op).
-function applyTheme(theme: Theme) {
+// When `animate` is true, the .theme-transition class is added around the
+// flip so colors cross-fade; it's removed once the transition finishes so it
+// never affects normal hovers/interactions. Rehydration on page load passes
+// animate=false for an instant, flash-free apply.
+function applyTheme(theme: Theme, animate = false) {
   if (typeof document === "undefined") return;
-  document.documentElement.classList.toggle("dark", theme === "dark");
+  const root = document.documentElement;
+
+  if (animate) {
+    root.classList.add("theme-transition");
+    if (transitionTimer) clearTimeout(transitionTimer);
+    transitionTimer = setTimeout(() => {
+      root.classList.remove("theme-transition");
+      transitionTimer = null;
+    }, THEME_TRANSITION_MS + 50);
+  }
+
+  root.classList.toggle("dark", theme === "dark");
 }
 
 // Persisted with the same "chinexa-<domain>" localStorage convention as the
@@ -26,10 +45,11 @@ export const useThemeStore = create<ThemeState>()(
   persist(
     (set, get) => ({
       theme: "light",
-      setTheme: (theme) => { applyTheme(theme); set({ theme }); },
+      // User-initiated changes animate; rehydration (below) does not.
+      setTheme: (theme) => { applyTheme(theme, true); set({ theme }); },
       toggleTheme: () => {
         const next: Theme = get().theme === "dark" ? "light" : "dark";
-        applyTheme(next);
+        applyTheme(next, true);
         set({ theme: next });
       },
     }),

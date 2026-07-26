@@ -2,8 +2,32 @@
 
 import { useEffect, useState } from "react";
 import { Sun, Moon } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useThemeStore } from "@/stores/theme.store";
 import { cn } from "@/lib/utils";
+
+// A sun/moon that rotates + scales as it swaps, so the toggle itself animates
+// alongside the page's color cross-fade. Shared by both variants.
+function AnimatedThemeIcon({ isDark, className }: { isDark: boolean; className?: string }) {
+  return (
+    <span className={cn("relative inline-flex", className)}>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={isDark ? "sun" : "moon"}
+          initial={{ rotate: -90, scale: 0, opacity: 0 }}
+          animate={{ rotate: 0, scale: 1, opacity: 1 }}
+          exit={{ rotate: 90, scale: 0, opacity: 0 }}
+          transition={{ duration: 0.35, ease: "easeInOut" }}
+          className="flex"
+        >
+          {isDark
+            ? <Sun className="h-full w-full text-gold" />
+            : <Moon className="h-full w-full text-secondary" />}
+        </motion.span>
+      </AnimatePresence>
+    </span>
+  );
+}
 
 // Light/dark toggle. Two presentations share one behaviour:
 //   variant="icon" — a round icon button (header / admin topbar)
@@ -36,7 +60,7 @@ export function ThemeToggle({
           className,
         )}
       >
-        {isDark ? <Sun className="h-4 w-4 text-gold" /> : <Moon className="h-4 w-4 text-secondary" />}
+        <AnimatedThemeIcon isDark={isDark} className="h-4 w-4" />
         <span>{isDark ? "Light mode" : "Dark mode"}</span>
       </button>
     );
@@ -53,7 +77,7 @@ export function ThemeToggle({
         className,
       )}
     >
-      {isDark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
+      <AnimatedThemeIcon isDark={isDark} className="h-[18px] w-[18px]" />
     </button>
   );
 }
