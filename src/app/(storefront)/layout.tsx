@@ -6,6 +6,7 @@ import { Footer } from "@/components/layout/footer/footer";
 import { CartDrawer } from "@/components/storefront/cart/cart-drawer-lazy";
 import { BackInStockToast } from "@/components/storefront/wishlist/back-in-stock-toast";
 import { ScrollToTop } from "@/components/shared/scroll-to-top";
+import { PageViewTracker } from "@/components/shared/page-view-tracker";
 import { PageLoader } from "@/components/shared/page-loader";
 import { OrganizationJsonLd, WebsiteJsonLd, LocalBusinessJsonLd } from "@/components/seo/json-ld";
 import { getSchemaConfig } from "@/lib/seo";
@@ -88,6 +89,7 @@ export default async function StorefrontLayout({
       <CartDrawer />
       <BackInStockToast />
       <ScrollToTop />
+      <PageViewTracker />
     </>
   );
 }
