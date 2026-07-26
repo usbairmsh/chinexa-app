@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Heart, ShoppingBag, Minus, Plus, Check, X, Clock } from "lucide-react";
+import { Heart, ShoppingBag, Minus, Plus, Check, X, Clock, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -57,6 +57,7 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const [adding, setAdding] = useState(false); // brief spinner phase before the check
 
   const handleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -82,6 +83,7 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
     setSelectedVariant(null);
     setQuantity(1);
     setAdded(false);
+    setAdding(false);
   };
 
   const handleConfirmAdd = () => {
@@ -101,12 +103,15 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
       // Ternary, not "||": a variant with 0 stock must NOT fall back to product-level stock
       stock: activeVariant ? activeVariant.stock : product.stock_quantity,
     });
-    setAdded(true);
+    // Morph: spinner → checkmark → open cart drawer. Item is already added
+    // synchronously above; the spinner is tactile feedback only.
+    setAdding(true);
+    setTimeout(() => { setAdding(false); setAdded(true); }, 350);
     setTimeout(() => {
       setModalOpen(false);
       setAdded(false);
       setCartDrawerOpen(true);
-    }, 800);
+    }, 1050);
   };
 
   return (
@@ -395,19 +400,24 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
                 <Separator />
 
                 {/* Confirm Button */}
-                <button
+                <motion.button
                   onClick={handleConfirmAdd}
-                  disabled={added || (product.variants.length > 0 && !selectedVariant)}
+                  disabled={added || adding || (product.variants.length > 0 && !selectedVariant)}
                   className={cn(
-                    "w-full h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:enabled:scale-[0.97]",
+                    "h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-300 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:enabled:scale-[0.97] overflow-hidden mx-auto",
+                    adding ? "w-12 px-0 bg-secondary !text-white" : "w-full",
                     added
                       ? "bg-success !text-white"
-                      : "bg-secondary !text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px]"
+                      : !adding && "bg-secondary !text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px]"
                   )}
                 >
                   <AnimatePresence mode="wait">
-                    {added ? (
-                      <motion.span key="done" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2">
+                    {adding ? (
+                      <motion.span key="adding" initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.6 }} className="flex items-center">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      </motion.span>
+                    ) : added ? (
+                      <motion.span key="done" initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-2">
                         <Check className="h-5 w-5" /> Added!
                       </motion.span>
                     ) : (
@@ -417,7 +427,7 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
                       </motion.span>
                     )}
                   </AnimatePresence>
-                </button>
+                </motion.button>
               </div>
             </motion.div>
           </>

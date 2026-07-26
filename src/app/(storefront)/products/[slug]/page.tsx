@@ -164,6 +164,10 @@ export default function ProductDetailPage() {
     : product?.average_rating?.toFixed(1) || "0";
   const realReviewCount = productReviews.length || product?.review_count || 0;
   const [addedToCart, setAddedToCart] = useState(false);
+  // Brief spinner phase between click and the checkmark, so the CTA morphs
+  // add → (loading) → added instead of snapping. Pure state; timing is short
+  // so it reads as tactile feedback, never as a real wait.
+  const [addingToCart, setAddingToCart] = useState(false);
 
   // ─── Loading Skeleton ───
   if (isLoading) {
@@ -249,11 +253,18 @@ export default function ProductDetailPage() {
       setTimeout(() => setPreorderMixWarning(false), 6000);
       return;
     }
-    setAddedToCart(true);
+    // Morph: spinner → checkmark → open cart. The item is already in the cart
+    // (addToCart ran synchronously above); the short spinner is purely for the
+    // tactile confirmation feel.
+    setAddingToCart(true);
+    setTimeout(() => {
+      setAddingToCart(false);
+      setAddedToCart(true);
+    }, 350);
     setTimeout(() => {
       setAddedToCart(false);
       setCartDrawerOpen(true);
-    }, 800);
+    }, 1050);
   };
 
   const handleAddToCart = () => {
@@ -580,19 +591,27 @@ export default function ProductDetailPage() {
                       </button>
                     </div>
 
-                    <button
+                    <motion.button
                       onClick={handleAddToCart}
-                      disabled={addedToCart || variantRequired}
+                      disabled={addedToCart || addingToCart || variantRequired}
+                      // Full-width pill collapses to a 48px circle for the spinner
+                      // phase, then expands back — width + rounded-full is the
+                      // morph; all compositor-friendly.
                       className={cn(
-                        "flex-1 h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
+                        "h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-300 cursor-pointer disabled:cursor-not-allowed overflow-hidden",
+                        addingToCart ? "w-12 shrink-0 px-0 bg-secondary !text-white" : "flex-1",
                         addedToCart
                           ? "bg-charcoal !text-white"
-                          : "bg-secondary !text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px] active:scale-[0.97]"
+                          : !addingToCart && "bg-secondary !text-white hover:bg-secondary-dark hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px] active:scale-[0.97]"
                       )}
                     >
                       <AnimatePresence mode="wait">
-                        {addedToCart ? (
-                          <motion.span key="added" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex items-center justify-center gap-2 text-white">
+                        {addingToCart ? (
+                          <motion.span key="adding" initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.6 }} className="flex items-center justify-center text-white">
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          </motion.span>
+                        ) : addedToCart ? (
+                          <motion.span key="added" initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, y: -10 }} className="flex items-center justify-center gap-2 text-white">
                             <Check className="h-5 w-5" /> Added to Bag
                           </motion.span>
                         ) : variantRequired ? (
@@ -605,7 +624,7 @@ export default function ProductDetailPage() {
                           </motion.span>
                         )}
                       </AnimatePresence>
-                    </button>
+                    </motion.button>
                   </div>
 
                   {/* Wishlist + Share */}
@@ -1167,17 +1186,20 @@ export default function ProductDetailPage() {
               {!selectionOutOfStock ? (
                 <button
                   onClick={handleAddToCart}
-                  disabled={addedToCart || variantRequired}
+                  disabled={addedToCart || addingToCart || variantRequired}
                   className={cn(
-                    "flex-1 h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-200 disabled:opacity-60 flex items-center justify-center gap-2",
-                    addedToCart ? "bg-charcoal !text-white" : "bg-secondary !text-white active:scale-[0.97]"
+                    "h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-300 disabled:opacity-60 flex items-center justify-center gap-2",
+                    addingToCart ? "w-12 shrink-0 px-0 bg-secondary !text-white" : "flex-1",
+                    addedToCart ? "bg-charcoal !text-white" : !addingToCart && "bg-secondary !text-white active:scale-[0.97]"
                   )}
                 >
-                  {addedToCart
-                    ? <><Check className="h-5 w-5" /> Added</>
-                    : variantRequired
-                      ? <><ShoppingBag className="h-5 w-5" /> Select an option</>
-                      : <><ShoppingBag className="h-5 w-5" /> Add to Bag</>}
+                  {addingToCart
+                    ? <Loader2 className="h-5 w-5 animate-spin" />
+                    : addedToCart
+                      ? <><Check className="h-5 w-5" /> Added</>
+                      : variantRequired
+                        ? <><ShoppingBag className="h-5 w-5" /> Select an option</>
+                        : <><ShoppingBag className="h-5 w-5" /> Add to Bag</>}
                 </button>
               ) : isPreorderable ? (
                 <button
