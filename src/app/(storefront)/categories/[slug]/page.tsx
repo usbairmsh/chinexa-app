@@ -287,16 +287,17 @@ export default function CategoryPage() {
                 }
               />
             ) : (
-              <motion.div
+              // Plain wrapper so each card's own whileInView stagger shows
+              // (a grid-level opacity fade would mask the cascade). Key
+              // remounts on filter/page change to replay the stagger.
+              <div
                 key={`${params.page}-${params.sort_by}-${params.subcategory}-${params.brand}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
                 className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:gap-6"
               >
                 {data.data.map((product, index) => (
                   <ProductCard key={product.id} product={product} index={index} priority={index === 0} />
                 ))}
-              </motion.div>
+              </div>
             )}
 
             {data && data.total_pages > 1 && (

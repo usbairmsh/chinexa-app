@@ -3,7 +3,6 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Search as SearchIcon } from "lucide-react";
-import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -73,16 +72,19 @@ function SearchContent() {
             </p>
             {data && data.data.length > 0 ? (
               <>
-                <motion.div
+                {/* No grid-level opacity fade: each ProductCard runs its own
+                    whileInView fade-up staggered by index, and a wrapper fade
+                    would mask that cascade (make the grid appear all at once).
+                    The key still forces a fresh mount per query/page so the
+                    stagger replays on a new search. */}
+                <div
                   key={`${query}-${page}`}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
                   className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6"
                 >
                   {data.data.map((product, i) => (
                     <ProductCard key={product.id} product={product} index={i} />
                   ))}
-                </motion.div>
+                </div>
                 {data.total_pages > 1 && (
                   <div className="mt-10 flex justify-center">
                     <Pagination currentPage={page} totalPages={data.total_pages} onPageChange={setPage} />

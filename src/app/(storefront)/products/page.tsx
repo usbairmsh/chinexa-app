@@ -179,16 +179,17 @@ export default function ProductsPage() {
                 ))}
               </div>
             ) : Array.isArray(data?.data) && data.data.length > 0 ? (
-              <motion.div
+              // Plain wrapper (not a fading motion.div): each ProductCard runs
+              // its own whileInView fade-up stagger; a grid-level opacity fade
+              // would mask that cascade. Key remounts on page/sort/filter change.
+              <div
                 key={`${params.page}-${params.sort_by}-${params.category}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
                 className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:gap-6"
               >
                 {data.data.map((product, index) => (
                   <ProductCard key={product.id} product={product} index={index} priority={index === 0} />
                 ))}
-              </motion.div>
+              </div>
             ) : (
               <EmptyState
                 icon={PackageSearch}
