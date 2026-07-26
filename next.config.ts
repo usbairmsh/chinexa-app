@@ -31,6 +31,20 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      // Canonical host: www.chinexabd.com -> chinexabd.com (apex), 301.
+      // Every canonical, sitemap entry, and JSON-LD URL already uses the apex
+      // domain, but www was still served 200 with no redirect — so the whole
+      // site was crawlable under both hosts (duplicate content, and why Search
+      // Console reported URLs under both variants). This app-level rule holds
+      // even if Caddy (the primary redirect layer) is bypassed/misconfigured,
+      // matching the "fallback" reasoning on the headers() below. Preserves the
+      // full path + query via :path*.
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.chinexabd.com" }],
+        destination: "https://chinexabd.com/:path*",
+        permanent: true,
+      },
       // Category slug typo fix ("makups" -> "makeup"). Google already crawled
       // the misspelled URL from the sitemap, so a permanent redirect preserves
       // any indexing/link value instead of leaving a 404 behind.
