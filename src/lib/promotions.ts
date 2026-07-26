@@ -14,6 +14,7 @@ interface CouponRow extends RowDataPacket {
   used_count: number;
   valid_from: string | null;
   valid_until: string | null;
+  audience: "all" | "registered" | null;
   applicability: OfferApplicability | null;
   applicable_ids: string | string[] | null;
 }
@@ -276,7 +277,12 @@ export async function validateCoupon(
   code: string,
   customerId: string | null,
   items: { product_id: string; variant_id?: string | null; price: number; quantity: number }[],
-  orderTotalHint?: number
+  orderTotalHint?: number,
+  // Whether this redemption is by a genuinely signed-in customer. Must be
+  // passed explicitly and NOT inferred from customerId: at order time guests
+  // get a phone-derived customerId, so `customerId != null` is not "signed in".
+  // Defaults to `!!customerId` for callers that only deal with real sessions.
+  isAuthenticated: boolean = customerId != null
 ): Promise<CouponValidationResult> {
   const fail = (message: string): CouponValidationResult => ({ valid: false, discount: 0, message });
   if (!code) return fail("Enter a coupon code");
@@ -291,17 +297,27 @@ export async function validateCoupon(
   if (coupon.usage_limit != null && Number(coupon.used_count) >= Number(coupon.usage_limit)) {
     return fail("Coupon usage limit reached");
   }
-  // Coupons are a signed-in perk — guests can't redeem any coupon.
-  if (!customerId) return fail("Please sign in to use a coupon");
 
   const applicability = (coupon.applicability || "store") as OfferApplicability;
   const applicableIds: string[] =
     typeof coupon.applicable_ids === "string" ? JSON.parse(coupon.applicable_ids) : coupon.applicable_ids || [];
 
-  const tier = await getCustomerTier(customerId);
-  const ctx: PromoContext = { customerId, tierName: tier?.name ?? null, tierId: tier?.id ?? null };
+  // Audience gate. "registered" coupons — and coupons targeted at specific
+  // customers or membership tiers (which are meaningless without a real member
+  // account) — require a genuine sign-in. "all" coupons work for guests too.
+  const registeredOnly =
+    coupon.audience === "registered" || applicability === "customers" || applicability === "tiers";
+  if (registeredOnly && !isAuthenticated) {
+    return fail("Please sign in to use this coupon");
+  }
 
-  if (applicability === "customers" && !applicableIds.includes(customerId)) {
+  // Per-customer rules below need a customer id to key against. Guests only
+  // acquire one (phone-derived) at order time; in the pre-order preview a guest
+  // has none, so tier/customer/limit checks simply don't apply to them here.
+  const tier = customerId ? await getCustomerTier(customerId) : null;
+  const ctx: PromoContext = { customerId: customerId ?? "", tierName: tier?.name ?? null, tierId: tier?.id ?? null };
+
+  if (applicability === "customers" && !(customerId && applicableIds.includes(customerId))) {
     return fail("This coupon is not available for your account");
   }
   if (
@@ -312,7 +328,10 @@ export async function validateCoupon(
     return fail("This coupon is only for specific membership tiers");
   }
 
-  if (coupon.per_customer_limit != null && Number(coupon.per_customer_limit) > 0) {
+  // Per-customer limit — keyed on customer id. A guest has no id in the preview
+  // (skipped here); at order time the guest's phone-derived id is passed, so the
+  // limit is enforced by phone for guests (same-phone repeats blocked).
+  if (customerId && coupon.per_customer_limit != null && Number(coupon.per_customer_limit) > 0) {
     const usedRows = await query<RowDataPacket[]>(
       "SELECT COUNT(*) as cnt FROM orders WHERE customer_id = ? AND coupon_code = ? AND status <> 'cancelled'",
       [customerId, coupon.code]

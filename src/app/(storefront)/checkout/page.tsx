@@ -831,8 +831,9 @@ export default function CheckoutPage() {
 
                 <Textarea label="Order Notes (Optional)" placeholder="Any special delivery instructions..." />
 
-                {/* Coupon Code — moved here from Step 3; signed-in customers only */}
-                {isAuthenticated && (
+                {/* Coupon Code — available to everyone. Guest eligibility is
+                    enforced server-side per coupon (audience: all vs registered);
+                    a registered-only code returns a clear "please sign in" message. */}
                 <div>
                   <h3 className="text-sm font-medium text-charcoal mb-2">Have a coupon?</h3>
                   {couponCode ? (
@@ -866,7 +867,6 @@ export default function CheckoutPage() {
                     </div>
                   )}
                 </div>
-                )}
 
                 <div className="flex flex-col-reverse sm:flex-row gap-3">
                   <Button variant="outline" onClick={() => setStep(1)}>Back</Button>

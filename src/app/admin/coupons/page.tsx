@@ -17,7 +17,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Separator } from "@/components/ui/separator";
 import { FieldLabel } from "@/components/admin/shared/field-label";
 import { formatCurrency, formatDateShort, cn, collectMissingFields } from "@/lib/utils";
-import type { Coupon, CouponApplicability } from "@/types/coupon";
+import type { Coupon, CouponApplicability, CouponAudience } from "@/types/coupon";
 import { useAdmin } from "@/contexts/admin-context";
 
 export default function AdminCouponsPage() {
@@ -55,6 +55,7 @@ export default function AdminCouponsPage() {
   const [formValidUntil, setFormValidUntil] = useState("");
   const [formUsageLimit, setFormUsageLimit] = useState("");
   const [formPerCustomerLimit, setFormPerCustomerLimit] = useState("");
+  const [formAudience, setFormAudience] = useState<CouponAudience>("all");
   const [formActive, setFormActive] = useState(true);
 
   // Applicability (same model as offers)
@@ -122,6 +123,7 @@ export default function AdminCouponsPage() {
     setFormCode(""); setFormDesc(""); setFormType("percentage"); setFormValue("");
     setFormMinOrder(""); setFormMaxDiscount(""); setFormValidFrom(""); setFormValidUntil("");
     setFormUsageLimit(""); setFormPerCustomerLimit(""); setFormActive(true); setEditCoupon(null);
+    setFormAudience("all");
     setFormApplicability("store"); setFormSelectedIds([]); setApplSearchQuery(""); setApplSearchResults([]);
   };
 
@@ -140,6 +142,7 @@ export default function AdminCouponsPage() {
     setFormUsageLimit(coupon.usage_limit ? String(coupon.usage_limit) : "");
     setFormPerCustomerLimit(coupon.per_customer_limit ? String(coupon.per_customer_limit) : "");
     setFormActive(coupon.is_active);
+    setFormAudience(coupon.audience || "all");
     setFormApplicability(coupon.applicability || "store");
     setFormSelectedIds((coupon.applicable_ids || []).map((id, i) => ({ id, name: coupon.applicable_names?.[i] || id })));
     setFormError("");
@@ -166,6 +169,7 @@ export default function AdminCouponsPage() {
         valid_until: formValidUntil || null,
         usage_limit: formUsageLimit ? Number(formUsageLimit) : null,
         per_customer_limit: formPerCustomerLimit ? Number(formPerCustomerLimit) : null,
+        audience: formAudience,
         applicability: formApplicability,
         applicable_ids: formApplicability === "store" ? [] : formSelectedIds.map((s) => s.id),
         is_active: formActive,
@@ -311,6 +315,7 @@ export default function AdminCouponsPage() {
                     {coupon.min_order_amount ? <p>Min. order: {formatCurrency(coupon.min_order_amount)}</p> : null}
                     {coupon.max_discount_amount ? <p>Max discount: {formatCurrency(coupon.max_discount_amount)}</p> : null}
                     {coupon.per_customer_limit ? <p>Limit: {coupon.per_customer_limit} per customer</p> : null}
+                    <p>{coupon.audience === "registered" ? "Members only" : "Everyone (guests + members)"}</p>
                     {coupon.applicability && coupon.applicability !== "store" ? <p className="capitalize">Applies to: {coupon.applicability}{coupon.applicable_ids?.length ? ` (${coupon.applicable_ids.length})` : ""}</p> : null}
                     {coupon.valid_from && coupon.valid_until && <p>Valid: {formatDateShort(coupon.valid_from)} — {formatDateShort(coupon.valid_until)}</p>}
                   </div>
@@ -347,6 +352,24 @@ export default function AdminCouponsPage() {
             <DialogDescription>{editCoupon ? "Update coupon details" : "Add a new discount coupon"}</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-4 py-2 pr-1">
+            {/* Audience — who may redeem: everyone (incl. guests) or members only */}
+            <div>
+              <label className="block text-sm font-medium text-charcoal-light mb-1.5"><FieldLabel label="Who can use it" hint="'Everyone' lets guests apply the code at checkout too. 'Registered members only' requires the customer to be signed in. Specific-Customers and Membership-Tier applicability always require sign-in regardless of this setting." /></label>
+              {(formApplicability === "customers" || formApplicability === "tiers") ? (
+                <div className="flex items-center gap-2 rounded-luxury border border-border bg-pearl/50 px-3 py-2.5 text-sm text-charcoal-lighter">
+                  <Users className="h-3.5 w-3.5 shrink-0" /> Registered members only — required for {formApplicability === "customers" ? "specific-customer" : "tier"} coupons
+                </div>
+              ) : (
+                <Select value={formAudience} onValueChange={(v) => setFormAudience(v as CouponAudience)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all"><span className="flex items-center gap-2"><Globe className="h-3.5 w-3.5" /> Everyone (guests + members)</span></SelectItem>
+                    <SelectItem value="registered"><span className="flex items-center gap-2"><Users className="h-3.5 w-3.5" /> Registered members only</span></SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
             {/* Applicability — who/what the coupon can be redeemed on */}
             <div>
               <label className="block text-sm font-medium text-charcoal-light mb-1.5"><FieldLabel label="Coupon Applicability" hint="Customers must be signed in to redeem this coupon when applicability is set to Specific Customers or Membership Tiers." /></label>

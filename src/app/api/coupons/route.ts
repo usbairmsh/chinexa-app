@@ -64,8 +64,13 @@ export async function POST(req: NextRequest) {
       }
     }
     const id = `coupon-${Date.now()}`;
+    const applicability = body.applicability || "store";
+    // customer/tier coupons inherently need a real member — force registered.
+    const audience = (applicability === "customers" || applicability === "tiers")
+      ? "registered"
+      : (body.audience === "registered" ? "registered" : "all");
     await execute(
-      "INSERT INTO coupons (id, code, description, discount_type, discount_value, min_order_amount, max_discount_amount, usage_limit, per_customer_limit, valid_from, valid_until, is_active, applicability, applicable_ids, applicable_categories, applicable_products) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO coupons (id, code, description, discount_type, discount_value, min_order_amount, max_discount_amount, usage_limit, per_customer_limit, valid_from, valid_until, is_active, audience, applicability, applicable_ids, applicable_categories, applicable_products) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [
         id, body.code, body.description || null,
         body.discount_type || "percentage", body.discount_value || 0,
@@ -74,7 +79,8 @@ export async function POST(req: NextRequest) {
         body.per_customer_limit != null && body.per_customer_limit !== "" ? Number(body.per_customer_limit) : null,
         body.valid_from || null, body.valid_until || null,
         body.is_active !== false ? 1 : 0,
-        body.applicability || "store",
+        audience,
+        applicability,
         JSON.stringify(body.applicable_ids || []),
         body.applicable_categories ? JSON.stringify(body.applicable_categories) : null,
         body.applicable_products ? JSON.stringify(body.applicable_products) : null,

@@ -179,6 +179,11 @@ export async function POST(req: NextRequest) {
 
     // Auto-create or find customer by phone number
     let customerId = body.customer_id || null;
+    // A genuinely signed-in order carries a client-supplied customer_id up front;
+    // guests don't (they only get a phone-derived id below). Capture the real
+    // auth state here for the coupon audience gate — customerId alone can't tell
+    // guest from member once it's been phone-populated.
+    const isAuthenticatedOrder = !!body.customer_id;
     const phone = (body.customer_phone || "").trim();
     const name = (body.customer_name || "").trim();
 
@@ -267,7 +272,7 @@ export async function POST(req: NextRequest) {
           price: item.unit_price,
           quantity: item.quantity,
         }));
-        const couponResult = await validateCoupon(body.coupon_code, customerId, couponItems, realSubtotal);
+        const couponResult = await validateCoupon(body.coupon_code, customerId, couponItems, realSubtotal, isAuthenticatedOrder);
         if (!couponResult.valid) {
           return validationError(`Coupon "${body.coupon_code}" is no longer valid: ${couponResult.message}`);
         }

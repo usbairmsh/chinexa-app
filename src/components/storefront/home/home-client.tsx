@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { HeroSection } from "@/components/storefront/home/hero-section";
 import { CategoryShowcase } from "@/components/storefront/home/category-showcase";
 import { ProductSection, clampRows, clampColumns } from "@/components/storefront/home/product-section";
+import { RecentlyViewedSection } from "@/components/storefront/recently-viewed-section";
 import { BrandStory } from "@/components/storefront/home/brand-story";
 import { TrustBadges } from "@/components/storefront/home/trust-badges";
 import { PromoBannerStrip, CategoryBanner, PopupBanner } from "@/components/storefront/home/promo-banner";
@@ -215,6 +216,9 @@ export function HomeClient() {
         ChineXa — Buy Original Skincare, Bags, Jewellery, Perfumes &amp; Shoes Online in Bangladesh
       </h1>
       {visibleSections.map(renderSection)}
+      {/* Client-only, personalized — rendered unconditionally at the end rather
+          than through the admin section config. Self-hides when empty. */}
+      <RecentlyViewedSection />
     </>
   );
 }

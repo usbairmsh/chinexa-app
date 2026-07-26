@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import { Package, Truck, CheckCircle2, Clock, XCircle, MapPin, PackageCheck, ThumbsDown, LocateFixed, RotateCcw } from "lucide-react";
+import { Package, Truck, CheckCircle2, Clock, XCircle, MapPin, PackageCheck, ThumbsDown, LocateFixed, RotateCcw, Loader2 } from "lucide-react";
+import { useReorder } from "@/hooks/use-reorder";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
 
 interface OrderItem {
+  product_id?: string; variant_id?: string | null;
   name: string; image: string; qty: number; price: number;
 }
 
@@ -42,6 +44,22 @@ function OrderCard({ order }: { order: Order }) {
   const config = statusConfig[order.status] || statusConfig.pending;
   const StatusIcon = config.icon;
   const displayId = order.order_number || order.id;
+  const { reorder, reordering } = useReorder();
+  const [reorderNote, setReorderNote] = useState("");
+
+  const handleReorder = async () => {
+    setReorderNote("");
+    const lines = order.items
+      .filter((i) => i.product_id)
+      .map((i) => ({ product_id: i.product_id as string, variant_id: i.variant_id, quantity: i.qty }));
+    if (lines.length === 0) { setReorderNote("Item details unavailable for reorder."); return; }
+    const res = await reorder(lines);
+    if (res.added === 0) {
+      setReorderNote(res.mixed ? "Check out pre-order items first." : "No longer available.");
+    } else if (res.unavailable > 0 || res.mixed) {
+      setReorderNote(`${res.added} added${res.unavailable > 0 ? `, ${res.unavailable} unavailable` : ""}.`);
+    }
+  };
 
   return (
     <Card className="overflow-hidden">
@@ -90,7 +108,10 @@ function OrderCard({ order }: { order: Order }) {
             <span className="text-charcoal-lighter">Total: </span>
             <span className="font-semibold text-charcoal">{formatCurrency(order.total)}</span>
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <Button size="sm" onClick={handleReorder} disabled={reordering}>
+              {reordering ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} Buy Again
+            </Button>
             <Link href={`/track-order?order=${encodeURIComponent(displayId)}`}>
               <Button variant="outline" size="sm">
                 <LocateFixed className="h-3.5 w-3.5" /> Track Order
@@ -103,6 +124,7 @@ function OrderCard({ order }: { order: Order }) {
             </Link>
           </div>
         </div>
+        {reorderNote && <p className="px-4 sm:px-5 pb-3 -mt-1 text-[11px] text-charcoal-lighter text-right">{reorderNote}</p>}
       </CardContent>
     </Card>
   );

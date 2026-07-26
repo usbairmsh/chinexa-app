@@ -43,7 +43,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (orderIds.length > 0) {
       const placeholders = orderIds.map(() => "?").join(",");
       const items = await query<RowDataPacket[]>(
-        `SELECT oi.order_id, oi.quantity, oi.unit_price as price, oi.product_name as name, COALESCE(oi.product_image, '') as image FROM order_items oi WHERE oi.order_id IN (${placeholders})`,
+        `SELECT oi.order_id, oi.product_id, oi.variant_id, oi.quantity, oi.unit_price as price, oi.product_name as name, COALESCE(oi.product_image, '') as image FROM order_items oi WHERE oi.order_id IN (${placeholders})`,
         orderIds
       );
       for (const item of items) {
@@ -56,6 +56,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const ordersWithItems = orders.map((o) => ({
       ...o,
       items: (orderItemsMap.get(o.id as string) || []).map((i) => ({
+        product_id: i.product_id || "",
+        variant_id: i.variant_id || null,
         name: i.name || "Unknown Product",
         image: i.image || "",
         qty: Number(i.quantity),

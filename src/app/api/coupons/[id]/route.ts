@@ -57,6 +57,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       if (body[k] !== undefined) { fields.push(`${col} = ?`); values.push(body[k]); }
     }
     if (body.applicable_ids !== undefined) { fields.push("applicable_ids = ?"); values.push(JSON.stringify(body.applicable_ids || [])); }
+    // Audience — customer/tier coupons are forced to registered (they can't work
+    // for guests). Uses the effective applicability (incoming, else existing).
+    if (body.audience !== undefined || body.applicability !== undefined) {
+      const eff = body.applicability !== undefined ? body.applicability : before.applicability;
+      const audience = (eff === "customers" || eff === "tiers")
+        ? "registered"
+        : (body.audience === "registered" ? "registered" : "all");
+      fields.push("audience = ?"); values.push(audience);
+    }
     if (body.is_active !== undefined) { fields.push("is_active = ?"); values.push(body.is_active ? 1 : 0); }
     if (body.valid_from !== undefined) { fields.push("valid_from = ?"); values.push(body.valid_from); }
     if (body.valid_until !== undefined) { fields.push("valid_until = ?"); values.push(body.valid_until); }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useReorder } from "@/hooks/use-reorder";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -62,7 +63,7 @@ interface OrderData {
   shipping_cost: number;
   discount: number;
   created_at: string;
-  items: { product_name: string; product_image: string; variant: string; quantity: number; unit_price: number; total_price: number }[];
+  items: { product_id: string; variant_id: string | null; product_slug?: string; product_name: string; product_image: string; variant: string; quantity: number; unit_price: number; total_price: number }[];
   shipping_address?: { name: string; phone: string; address_line_1: string; city: string; district: string; division: string };
   timeline: { status: string; note: string; created_at: string }[];
 }
@@ -80,6 +81,8 @@ export default function OrderDetailPage() {
   const [returnSubmitting, setReturnSubmitting] = useState(false);
   const [returnSubmitted, setReturnSubmitted] = useState(false);
   const [existingReturn, setExistingReturn] = useState<{ id: string; status: string; created_at: string } | null>(null);
+  const { reorder, reordering } = useReorder();
+  const [reorderNote, setReorderNote] = useState("");
 
   useEffect(() => {
     if (!user?.id) { setLoading(false); return; }
@@ -352,6 +355,25 @@ export default function OrderDetailPage() {
           {/* Actions */}
           <Card>
             <CardContent className="p-4 space-y-2">
+              {/* Buy Again — re-add this order's items to the cart (re-fetches
+                  current prices/stock; skips anything no longer available). */}
+              <Button
+                className="w-full text-sm"
+                disabled={reordering || order.items.length === 0}
+                onClick={async () => {
+                  setReorderNote("");
+                  const res = await reorder(order.items.map((i) => ({ product_id: i.product_id, variant_id: i.variant_id, quantity: i.quantity })));
+                  if (res.added === 0) {
+                    setReorderNote(res.mixed ? "Your cart has pre-order items — check those out first." : "These items are no longer available.");
+                  } else if (res.unavailable > 0 || res.mixed) {
+                    setReorderNote(`${res.added} item${res.added > 1 ? "s" : ""} added${res.unavailable > 0 ? `, ${res.unavailable} unavailable` : ""}.`);
+                  }
+                }}
+              >
+                {reordering ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} Buy Again
+              </Button>
+              {reorderNote && <p className="text-[11px] text-charcoal-lighter text-center">{reorderNote}</p>}
+
               <Button variant="outline" className="w-full text-sm" onClick={() => window.open(`/invoice?id=${encodeURIComponent(order.order_number)}`, "_blank")}>Download Invoice</Button>
 
               {/* Return Section — smart eligibility */}

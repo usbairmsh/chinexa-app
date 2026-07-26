@@ -16,11 +16,13 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductCard } from "@/components/storefront/product/product-card";
+import { RecentlyViewedSection } from "@/components/storefront/recently-viewed-section";
 import { useProduct, useRelatedProducts } from "@/hooks/queries/use-products";
 import { useCartStore } from "@/stores/cart.store";
 import { useWishlistStore } from "@/stores/wishlist.store";
 import { useUIStore } from "@/stores/ui.store";
 import { useAuthStore } from "@/stores/auth.store";
+import { useRecentlyViewedStore } from "@/stores/recently-viewed.store";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
 import { isPreorderable as computeIsPreorderable } from "@/lib/preorder";
@@ -122,6 +124,13 @@ export default function ProductDetailPage() {
       .then((data) => { if (Array.isArray(data)) setProductReviews(data); })
       .catch(() => {});
   }, [product?.id]);
+
+  // Record this product in the client-side "recently viewed" history once the
+  // query resolves a real product (no-op while loading / not-found).
+  const recordRecentlyViewed = useRecentlyViewedStore((s) => s.addItem);
+  useEffect(() => {
+    if (product?.id) recordRecentlyViewed(product.id);
+  }, [product?.id, recordRecentlyViewed]);
 
   const handleSubmitReview = async () => {
     if (!product || !reviewComment.trim()) return;
@@ -1092,6 +1101,9 @@ export default function ProductDetailPage() {
             </div>
           </div>
         )}
+
+        {/* Recently viewed — excludes the current product; self-hides if empty */}
+        <RecentlyViewedSection excludeId={product.id} />
       </div>
 
       {/* ═══ Image Lightbox ═══ */}

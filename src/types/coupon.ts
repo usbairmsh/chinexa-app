@@ -4,6 +4,9 @@ export type DiscountType = "percentage" | "fixed";
 
 export type CouponApplicability = OfferApplicability;
 
+/** Who may redeem a coupon: everyone (incl. guests) or signed-in customers only. */
+export type CouponAudience = "all" | "registered";
+
 export interface Coupon {
   id: string;
   code: string;
@@ -20,6 +23,8 @@ export interface Coupon {
   valid_from: string;
   valid_until: string;
   is_active: boolean;
+  /** Who may redeem: "all" (incl. guests) or "registered" (signed-in only). Defaults to "all". */
+  audience?: CouponAudience;
   /** Who/what the coupon applies to (same model as offers); defaults to "store" */
   applicability?: CouponApplicability;
   applicable_ids?: string[];

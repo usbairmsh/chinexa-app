@@ -77,6 +77,10 @@ export async function ensurePromotionColumns() {
     await ensureColumn("coupons", "applicability", `ENUM(${applicabilityValues.map((v) => `'${v}'`).join(",")}) DEFAULT 'store'`);
     await ensureColumn("coupons", "applicable_ids", "JSON");
     await ensureColumn("coupons", "per_customer_limit", "INT");
+    // Audience: who may redeem — everyone incl. guests ('all'), or signed-in
+    // customers only ('registered'). Default 'all' so existing coupons keep
+    // working for the newly-enabled guest coupon flow.
+    await ensureColumn("coupons", "audience", "ENUM('all','registered') NOT NULL DEFAULT 'all'");
     await ensureEnumValues("coupons", "applicability", applicabilityValues, { default: "store" });
     await ensureEnumValues("offers", "applicability", applicabilityValues, { default: "store" });
 
