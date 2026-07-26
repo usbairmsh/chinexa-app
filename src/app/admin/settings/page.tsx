@@ -249,6 +249,10 @@ function AdminSettingsPageInner() {
   const [orderSmsAdminIds, setOrderSmsAdminIds] = useState<string[]>([]);
   const [orderSmsSaving, setOrderSmsSaving] = useState(false);
   const [orderSmsSaved, setOrderSmsSaved] = useState(false);
+  // Order-email admin recipients — free-text emails (not tied to admin phones).
+  const [orderEmailAdmins, setOrderEmailAdmins] = useState("");
+  const [orderEmailSaving, setOrderEmailSaving] = useState(false);
+  const [orderEmailSaved, setOrderEmailSaved] = useState(false);
 
   const fetchSmsBalance = async () => {
     setSmsBalanceLoading(true);
@@ -273,6 +277,10 @@ function AdminSettingsPageInner() {
     fetch("/api/settings?key=order_sms").then((r) => r.json()).then((d) => {
       const ids = d?.value?.admin_ids;
       if (Array.isArray(ids)) setOrderSmsAdminIds(ids.filter((x: unknown): x is string => typeof x === "string"));
+    }).catch(() => {});
+    fetch("/api/settings?key=order_email").then((r) => r.json()).then((d) => {
+      const emails = d?.value?.admin_emails;
+      if (Array.isArray(emails)) setOrderEmailAdmins(emails.filter((x: unknown): x is string => typeof x === "string").join(", "));
     }).catch(() => {});
 
     fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,features,store_logo,our_story,instagram_feed,faq_items,social_links,maintenance_mode,delivery_config,payment_methods,notification_settings")
@@ -480,6 +488,10 @@ function AdminSettingsPageInner() {
   const saveNotifications = () => saveSettings({ notification_settings: notifications }, setNotifSaving, setNotifSaved);
   const saveOrderSmsRecipients = () => saveSettings({ order_sms: { admin_ids: orderSmsAdminIds } }, setOrderSmsSaving, setOrderSmsSaved);
   const toggleOrderSmsAdmin = (id: string) => setOrderSmsAdminIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  const saveOrderEmailRecipients = () => {
+    const emails = orderEmailAdmins.split(",").map((e) => e.trim()).filter((e) => e.includes("@"));
+    saveSettings({ order_email: { admin_emails: emails } }, setOrderEmailSaving, setOrderEmailSaved);
+  };
 
   const SaveBtn = ({ saving, saved, onSave }: { saving: boolean; saved: boolean; onSave: () => void }) => (
     <AdminButton onClick={onSave} disabled={saving} className={cn(saved && "!bg-success hover:!bg-success")}>
@@ -520,7 +532,7 @@ function AdminSettingsPageInner() {
             </Card>
             <Card><CardHeader><CardTitle className="text-base">Features</CardTitle><CardDescription>Toggle store features</CardDescription></CardHeader>
               <CardContent className="space-y-4">
-                {[{ key: "public_reviews", label: "Open Reviews on Product Pages", desc: "When on, the “Write a Review” form on product pages is open to everyone — logged-in customers AND unregistered visitors (guests show a generated guest name). When off, the product-page form is hidden for everyone and customers review from their Profile → Reviews instead. All submissions still need your approval.", def: false }, { key: "order_sms_customer", label: "Order SMS — Customer", desc: "When on, the customer gets an order-confirmation SMS on every new order (order number, amount, payment, date/time) with an auto-generated track-order link. Requires SMS gateway credit.", def: false }, { key: "order_sms_admin", label: "Order SMS — Admin", desc: "When on, the admin number(s) you choose (Notifications tab) get an SMS on every new order with the order details plus the customer's name, tier and phone. Requires SMS gateway credit.", def: false },{ key: "wishlist", label: "Wishlist", desc: "Let customers save products for later", def: true }, { key: "compare_products", label: "Compare", desc: "Side-by-side product comparison", def: true }, { key: "preorders", label: "Pre-orders", desc: "Accept orders for out-of-stock products", def: true }, { key: "guest_checkout", label: "Guest Checkout", desc: "Allow checkout without creating an account", def: true }].map((f) => (
+                {[{ key: "public_reviews", label: "Open Reviews on Product Pages", desc: "When on, the “Write a Review” form on product pages is open to everyone — logged-in customers AND unregistered visitors (guests show a generated guest name). When off, the product-page form is hidden for everyone and customers review from their Profile → Reviews instead. All submissions still need your approval.", def: false }, { key: "order_sms_customer", label: "Order SMS — Customer", desc: "When on, the customer gets an order-confirmation SMS on every new order (order number, amount, payment, date/time) with an auto-generated track-order link. Requires SMS gateway credit.", def: false }, { key: "order_sms_admin", label: "Order SMS — Admin", desc: "When on, the admin number(s) you choose (Notifications tab) get an SMS on every new order with the order details plus the customer's name, tier and phone. Requires SMS gateway credit.", def: false }, { key: "order_email_customer", label: "Order Email — Customer", desc: "When on, the customer gets a branded order-confirmation email on every new order (only if they entered an email at checkout — email is optional there). Requires email to be configured (RESEND_API_KEY/EMAIL_FROM).", def: false }, { key: "order_email_admin", label: "Order Email — Admin", desc: "When on, the admin email(s) you set (Notifications tab) get an email on every new order with the order + customer details. Requires email to be configured.", def: false }, { key: "order_email_shipped", label: "Order Email — Shipped", desc: "Email the customer when you mark their order Shipped. Requires email configured + a customer email on the order.", def: false }, { key: "order_email_delivered", label: "Order Email — Delivered", desc: "Email the customer when you mark their order Delivered. Requires email configured + a customer email on the order.", def: false },{ key: "wishlist", label: "Wishlist", desc: "Let customers save products for later", def: true }, { key: "compare_products", label: "Compare", desc: "Side-by-side product comparison", def: true }, { key: "preorders", label: "Pre-orders", desc: "Accept orders for out-of-stock products", def: true }, { key: "guest_checkout", label: "Guest Checkout", desc: "Allow checkout without creating an account", def: true }].map((f) => (
                   <div key={f.key} className="flex items-center justify-between"><p className="text-sm font-medium text-charcoal"><FieldLabel label={f.label} hint={f.desc} /></p><Switch checked={features[f.key] ?? f.def} onCheckedChange={() => setFeatures((p) => ({ ...p, [f.key]: !(p[f.key] ?? f.def) }))} /></div>
                 ))}
               </CardContent>
@@ -1041,6 +1053,29 @@ function AdminSettingsPageInner() {
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Order Email Recipients — free-text admin emails for new-order alerts */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2"><Bell className="h-4 w-4 text-secondary" /> Order Email Recipients</CardTitle>
+              <CardDescription>
+                {features.order_email_admin
+                  ? "Admin email(s) that receive an alert on every new order. Separate multiple with commas. Turn “Order Email — Admin” on/off under General → Features. Requires email to be configured on the server (RESEND_API_KEY / EMAIL_FROM)."
+                  : "“Order Email — Admin” is currently OFF (General → Features). Turn it on to email admins on new orders. You can still set recipients here."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Input
+                label="Admin emails"
+                value={orderEmailAdmins}
+                onChange={(e) => setOrderEmailAdmins(e.target.value)}
+                placeholder="ops@chinexabd.com, owner@chinexabd.com"
+              />
+              <div className="flex items-center justify-end">
+                <SaveBtn saving={orderEmailSaving} saved={orderEmailSaved} onSave={saveOrderEmailRecipients} />
+              </div>
             </CardContent>
           </Card>
 

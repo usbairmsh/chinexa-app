@@ -12,6 +12,7 @@ import { ensureOrderArchiveColumns } from "@/lib/migrate-order-archive";
 import { ensurePreorderColumns, preordersEnabled } from "@/lib/migrate-preorder";
 import { hasPreorderBadge } from "@/lib/preorder";
 import { sendOrderCreationSms } from "@/lib/order-sms";
+import { sendOrderConfirmationEmail } from "@/lib/order-email";
 
 interface OrderRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -566,6 +567,25 @@ export async function POST(req: NextRequest) {
       customerName: body.customer_name,
       customerPhone: body.customer_phone,
       customerId,
+      createdAt: new Date(),
+    });
+
+    // ─── Order-creation email (admin-toggleable) — branded confirmation to the
+    // customer (only when an email was provided at checkout) + admin alert.
+    // Self-contained/best-effort, same as the SMS above. ───
+    await sendOrderConfirmationEmail({
+      orderNumber,
+      total: Number(body.total) || 0,
+      paymentMethod: body.payment_method || "COD",
+      customerName: body.customer_name,
+      customerEmail: body.billing_address?.email || null,
+      customerPhone: body.customer_phone,
+      customerId,
+      items: (Array.isArray(body.items) ? body.items : []).map((i: { product_name?: string; quantity: number; unit_price: number }) => ({
+        name: i.product_name || "Item",
+        quantity: Number(i.quantity) || 1,
+        price: Number(i.unit_price) || 0,
+      })),
       createdAt: new Date(),
     });
 

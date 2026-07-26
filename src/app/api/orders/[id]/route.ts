@@ -3,6 +3,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import pool, { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { notifyTierUpgrade, notifyAdmin } from "@/lib/notify";
+import { sendOrderStatusEmail } from "@/lib/order-email";
 import { ensureAccountingTables } from "@/lib/migrate-accounting";
 import { insertCustomerPoints } from "@/lib/points";
 import { publicServerError } from "@/lib/validate";
@@ -374,6 +375,34 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             "INSERT INTO customer_notifications (id, customer_id, type, title, message, link) VALUES (?, ?, ?, ?, ?, ?)",
             [notifId, order.customer_id, notif.type, notif.title, notif.message, `/dashboard/orders/${order.order_number}`]
           ).catch(() => {});
+        }
+      }
+
+      // Status-change email (shipped / delivered) — best-effort, admin-toggleable.
+      // The order row carries no email, so resolve it from the billing address
+      // (falling back to the customer record) before sending.
+      if (newStatus === "shipped" || newStatus === "received") {
+        try {
+          const emailRows = await query<RowDataPacket[]>(
+            `SELECT COALESCE(NULLIF(oa.email,''), c.email) AS email
+             FROM orders o
+             LEFT JOIN order_addresses oa ON oa.order_id = o.id AND oa.type = 'billing'
+             LEFT JOIN customers c ON c.id = o.customer_id
+             WHERE o.id = ? LIMIT 1`,
+            [id]
+          );
+          const customerEmail = (emailRows[0]?.email as string) || null;
+          if (customerEmail) {
+            await sendOrderStatusEmail({
+              status: newStatus,
+              orderNumber: order.order_number as string,
+              total: Number(order.total) || 0,
+              customerName: (order.customer_name as string) || "there",
+              customerEmail,
+            });
+          }
+        } catch (err) {
+          console.error("[order status email] failed:", err);
         }
       }
 
