@@ -358,14 +358,20 @@ export default function ProductDetailPage() {
                   transition={{ duration: 0.3 }}
                   className="absolute inset-0"
                 >
-                  <Image
-                    src={product.images[selectedImage]?.url || `https://picsum.photos/seed/${product.slug}/600/750`}
-                    alt={product.images[selectedImage]?.alt || product.name}
-                    fill
-                    className="object-cover transition-transform duration-700 group-hover:scale-105"
-                    priority
-                    sizes="(max-width: 1024px) 100vw, 58vw"
-                  />
+                  {/* Clip-path sweep reveal on its own wrapper so its transform
+                      (scale settle) never collides with the image's hover-zoom
+                      transform below. Re-keys with selectedImage, so each image
+                      change re-triggers the wipe. Pure CSS/compositor. */}
+                  <div className="absolute inset-0 animate-clip-reveal">
+                    <Image
+                      src={product.images[selectedImage]?.url || `https://picsum.photos/seed/${product.slug}/600/750`}
+                      alt={product.images[selectedImage]?.alt || product.name}
+                      fill
+                      className="object-cover transition-transform duration-700 group-hover:scale-105"
+                      priority
+                      sizes="(max-width: 1024px) 100vw, 58vw"
+                    />
+                  </div>
                 </motion.div>
               </AnimatePresence>
 

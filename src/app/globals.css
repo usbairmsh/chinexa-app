@@ -340,6 +340,26 @@
   50% { transform: translateY(-10px); }
 }
 
+/* Sweeping panel reveal for product imagery — a left-to-right clip-path wipe
+   paired with a tiny scale settle. Pure compositor work (clip-path + transform),
+   no JS, no layout. Used on the PDP main gallery image. */
+@keyframes clip-reveal {
+  0% {
+    clip-path: inset(0 100% 0 0);
+    transform: scale(1.04);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    transform: scale(1);
+  }
+}
+.animate-clip-reveal {
+  animation: clip-reveal 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-clip-reveal { animation: none; }
+}
+
 @keyframes marquee {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
