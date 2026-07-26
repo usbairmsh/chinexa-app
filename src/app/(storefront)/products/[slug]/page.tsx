@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -284,6 +284,26 @@ export default function ProductDetailPage() {
     addSelectionToCart(true);
   };
 
+  // ── Mobile sticky Add-to-Bag bar ──────────────────────────────────────────
+  // On phones/tablets the desktop sticky info column doesn't apply, so the main
+  // CTA scrolls out of reach. Watch the primary action block and, once it
+  // leaves the viewport, reveal a pinned bottom bar with price + Add to Bag so
+  // the buy action is always one tap away (a real conversion win on the mobile
+  // devices that dominate this store's traffic). IntersectionObserver is cheap
+  // and passive — no scroll listeners.
+  const ctaRef = useRef<HTMLDivElement>(null);
+  const [showStickyBar, setShowStickyBar] = useState(false);
+  useEffect(() => {
+    const el = ctaRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => setShowStickyBar(!entry.isIntersecting),
+      { rootMargin: "0px 0px -40px 0px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [product?.id, selectionOutOfStock]);
+
   return (
     <div className="bg-background min-h-screen">
       {/* Breadcrumb */}
@@ -535,7 +555,7 @@ export default function ProductDetailPage() {
               {!selectionOutOfStock ? (
                 <>
                   {/* Quantity + Add to Bag */}
-                  <div className="flex items-center gap-3">
+                  <div ref={ctaRef} className="flex items-center gap-3">
                     <div className="flex items-center h-12 border border-border rounded-full overflow-hidden shrink-0">
                       <button
                         onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -1119,6 +1139,57 @@ export default function ProductDetailPage() {
                 ))}
               </div>
             )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Mobile sticky Add-to-Bag bar ── */}
+      <AnimatePresence>
+        {showStickyBar && (
+          <motion.div
+            initial={shouldReduceMotion ? { opacity: 0 } : { y: "100%" }}
+            animate={shouldReduceMotion ? { opacity: 1 } : { y: 0 }}
+            exit={shouldReduceMotion ? { opacity: 0 } : { y: "100%" }}
+            transition={{ type: "tween", duration: 0.25, ease: "easeOut" }}
+            className="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-card/95 backdrop-blur-md border-t border-border/50 shadow-[0_-8px_30px_rgba(58,36,56,0.12)] px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="min-w-0 shrink-0">
+                <p className="text-[11px] text-charcoal-lighter leading-none mb-0.5 truncate max-w-[38vw]">{product.name}</p>
+                <p className="text-base font-bold text-charcoal leading-none [font-variant-numeric:tabular-nums]">{formatCurrency(finalPrice)}</p>
+              </div>
+              {!selectionOutOfStock ? (
+                <button
+                  onClick={handleAddToCart}
+                  disabled={addedToCart || variantRequired}
+                  className={cn(
+                    "flex-1 h-12 rounded-full font-body font-semibold text-[14px] tracking-wide transition-all duration-200 disabled:opacity-60 flex items-center justify-center gap-2",
+                    addedToCart ? "bg-charcoal !text-white" : "bg-secondary !text-white active:scale-[0.97]"
+                  )}
+                >
+                  {addedToCart
+                    ? <><Check className="h-5 w-5" /> Added</>
+                    : variantRequired
+                      ? <><ShoppingBag className="h-5 w-5" /> Select an option</>
+                      : <><ShoppingBag className="h-5 w-5" /> Add to Bag</>}
+                </button>
+              ) : isPreorderable ? (
+                <button
+                  onClick={handlePreorder}
+                  disabled={variantRequired}
+                  className="flex-1 h-12 rounded-full font-body font-semibold text-[14px] tracking-wide bg-secondary !text-white active:scale-[0.97] transition-all duration-200 disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  <Clock className="h-5 w-5" /> {variantRequired ? "Select an option" : "Pre-Order"}
+                </button>
+              ) : (
+                <button
+                  onClick={handleWishlistToggle}
+                  className="flex-1 h-12 rounded-full font-body font-semibold text-[14px] tracking-wide border border-secondary text-secondary active:scale-[0.97] transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                  <Heart className={cn("h-5 w-5", wishlisted && "fill-current")} /> {wishlisted ? "In Wishlist" : "Notify Me"}
+                </button>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
