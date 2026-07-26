@@ -125,7 +125,7 @@ function ResultRow({ product, active, onNavigate }: { product: { id: string; slu
       data-index={product.id}
       className={cn("group flex items-center gap-3 p-2 rounded-xl transition-colors", active ? "bg-pearl" : "hover:bg-pearl/60")}
     >
-      <div className="relative h-11 w-11 rounded-lg overflow-hidden bg-pearl shrink-0">
+      <div className="relative h-11 w-11 rounded-lg overflow-hidden bg-image-surface shrink-0">
         <Image src={product.images[0]?.url || `https://picsum.photos/seed/${product.slug}/100/100`} alt={product.name} fill className="object-cover transition-transform duration-300 group-hover:scale-105" sizes="44px" />
       </div>
       <div className="flex-1 min-w-0">
@@ -231,7 +231,7 @@ export function DesktopSearchBar() {
         onMouseEnter={() => !open && searchIcon.play({ rotate: [0, -12, 10, 0], scale: [1, 1.1, 1.1, 1] }, 0.45)}
         className={cn(
           "flex items-center gap-2 h-9 rounded-full border transition-colors",
-          open ? "w-64 lg:w-80 px-3 border-border bg-white" : "w-9 justify-center border-transparent text-charcoal/60 hover:text-charcoal hover:bg-primary-light"
+          open ? "w-64 lg:w-80 px-3 border-border bg-card" : "w-9 justify-center border-transparent text-charcoal/60 hover:text-charcoal hover:bg-primary-light"
         )}
         aria-label="Search"
       >
@@ -263,7 +263,7 @@ export function DesktopSearchBar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 top-11 w-[380px] max-h-[70vh] overflow-y-auto rounded-2xl border border-border/60 bg-white shadow-[0_16px_48px_rgba(58,36,56,0.14)] p-3"
+            className="absolute right-0 top-11 w-[380px] max-h-[70vh] overflow-y-auto rounded-2xl border border-border/60 bg-card shadow-[0_16px_48px_rgba(58,36,56,0.14)] p-3"
           >
             <ResultsList state={state} onNavigate={() => { state.rememberSearch(state.query); close(); }} />
           </motion.div>
@@ -313,7 +313,7 @@ export function MobileSearchBar() {
       initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      className="sm:hidden fixed inset-0 z-50 bg-white flex flex-col"
+      className="sm:hidden fixed inset-0 z-50 bg-card flex flex-col"
     >
       <div className="flex items-center gap-2 h-[52px] px-4 border-b border-border/50 shrink-0">
         <Search className="h-4 w-4 text-charcoal-lighter shrink-0" />

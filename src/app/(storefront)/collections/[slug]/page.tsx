@@ -43,7 +43,7 @@ export default function CollectionPage() {
   else if (slug === "trending") { products = trending; isLoading = loadingTrending; }
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-card min-h-screen">
       <div className="bg-hero-gradient py-10 sm:py-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Breadcrumb items={[{ label: meta.title }]} />

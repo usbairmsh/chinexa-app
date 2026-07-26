@@ -100,7 +100,7 @@ export default function ProductsPage() {
   );
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-card min-h-screen">
       {/* Header */}
       <div className="bg-hero-gradient py-8 sm:py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

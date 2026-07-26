@@ -10,7 +10,7 @@ export default function FaqPage() {
   const shouldReduceMotion = useReducedMotion();
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-card min-h-screen">
       <div className="bg-hero-gradient py-10 sm:py-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Breadcrumb items={[{ label: "FAQ" }]} />
@@ -31,7 +31,7 @@ export default function FaqPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: si * 0.08, duration: 0.3, ease: "easeOut" }}
-            className="rounded-2xl border border-border/60 bg-white shadow-card hover:shadow-card-hover transition-shadow duration-300 px-5 sm:px-8 py-6 sm:py-8"
+            className="rounded-2xl border border-border/60 bg-card shadow-card hover:shadow-card-hover transition-shadow duration-300 px-5 sm:px-8 py-6 sm:py-8"
           >
             <h2 className="font-heading text-xl sm:text-2xl font-semibold text-charcoal mb-2">{section.title}</h2>
             <Accordion type="single" collapsible>

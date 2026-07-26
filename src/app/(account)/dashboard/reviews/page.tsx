@@ -124,7 +124,7 @@ export default function MyReviewsPage() {
                 <motion.div key={item.product_id} initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }} animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                   <Card className="group">
                     <CardContent className="p-4 flex items-center gap-4">
-                      <div className="relative h-14 w-14 rounded-xl bg-pearl overflow-hidden shrink-0">
+                      <div className="relative h-14 w-14 rounded-xl bg-image-surface overflow-hidden shrink-0">
                         {item.product_image ? (
                           <Image src={item.product_image} alt={item.product_name} fill className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="56px" unoptimized={item.product_image.includes("/uploads/")} />
                         ) : (

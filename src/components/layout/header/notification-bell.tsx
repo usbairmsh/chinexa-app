@@ -213,7 +213,7 @@ export function NotificationBell() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 24 }}
               transition={{ duration: 0.18, ease: "easeOut" }}
-              className="fixed inset-x-0 bottom-0 z-50 flex max-h-[80vh] flex-col rounded-t-3xl border-t border-border/20 bg-white shadow-[0_-8px_40px_rgba(0,0,0,0.18)] sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 sm:max-h-[480px] sm:rounded-2xl sm:border sm:shadow-[0_12px_40px_rgba(0,0,0,0.12)] sm:overflow-hidden"
+              className="fixed inset-x-0 bottom-0 z-50 flex max-h-[80vh] flex-col rounded-t-3xl border-t border-border/20 bg-card shadow-[0_-8px_40px_rgba(0,0,0,0.18)] sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 sm:max-h-[480px] sm:rounded-2xl sm:border sm:shadow-[0_12px_40px_rgba(0,0,0,0.12)] sm:overflow-hidden"
             >
             {/* Drag handle — mobile sheet only */}
             <div className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-border sm:hidden" />

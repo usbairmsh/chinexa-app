@@ -29,7 +29,7 @@ function SearchContent() {
   const { data, isLoading, isFetching } = useSearchProducts(query, { page, page_size: PAGE_SIZE });
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-card min-h-screen">
       <div className="bg-hero-gradient py-10 sm:py-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Breadcrumb items={[{ label: "Search" }]} />
@@ -42,7 +42,7 @@ function SearchContent() {
               value={queryInput}
               onChange={(e) => setQueryInput(e.target.value)}
               icon={<SearchIcon className="h-4 w-4" />}
-              className="bg-white h-12 text-base rounded-luxury"
+              className="bg-card h-12 text-base rounded-luxury"
             />
           </div>
         </div>
@@ -107,7 +107,7 @@ function SearchContent() {
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+    <Suspense fallback={<div className="min-h-screen bg-card" />}>
       <SearchContent />
     </Suspense>
   );

@@ -222,7 +222,7 @@ export function ChatWidget() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 24, scale: 0.97 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="fixed inset-x-3 bottom-3 z-50 sm:inset-x-auto sm:left-4 sm:bottom-4 sm:w-96 flex flex-col rounded-2xl border border-border/30 bg-white shadow-[0_8px_40px_rgba(0,0,0,0.18)] overflow-hidden max-h-[80vh] sm:max-h-[560px]"
+            className="fixed inset-x-3 bottom-3 z-50 sm:inset-x-auto sm:left-4 sm:bottom-4 sm:w-96 flex flex-col rounded-2xl border border-border/30 bg-card shadow-[0_8px_40px_rgba(0,0,0,0.18)] overflow-hidden max-h-[80vh] sm:max-h-[560px]"
           >
             {/* Header */}
             <div className="flex shrink-0 items-center justify-between px-4 py-3 bg-secondary text-white">
@@ -261,7 +261,7 @@ export function ChatWidget() {
                         "max-w-[80%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
                         m.sender_type === "customer"
                           ? "bg-secondary text-white rounded-br-sm"
-                          : "bg-white text-charcoal border border-border/20 rounded-bl-sm"
+                          : "bg-card text-charcoal border border-border/20 rounded-bl-sm"
                       )}
                     >
                       {m.flag === "help_and_support" && m.sender_type === "customer" && (
@@ -282,7 +282,7 @@ export function ChatWidget() {
             </div>
 
             {/* Composer */}
-            <div className="shrink-0 flex items-end gap-2 border-t border-border/20 bg-white p-2.5">
+            <div className="shrink-0 flex items-end gap-2 border-t border-border/20 bg-card p-2.5">
               <textarea
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}

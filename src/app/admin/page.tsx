@@ -461,7 +461,7 @@ export default function AdminDashboard() {
                 <div className="flex items-center gap-3">
                   <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold [font-variant-numeric:tabular-nums]",
                     i === 0 ? "bg-gold/15 text-gold" : i === 1 ? "bg-secondary/10 text-secondary" : "bg-pearl text-charcoal-lighter")}>{i + 1}</span>
-                  <div className="relative h-9 w-9 rounded-lg overflow-hidden bg-pearl shrink-0">
+                  <div className="relative h-9 w-9 rounded-lg overflow-hidden bg-image-surface shrink-0">
                     <Image src={p.image} alt={p.name} fill className="object-cover" sizes="36px" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -517,7 +517,7 @@ export default function AdminDashboard() {
           <CardContent className="space-y-2.5">
             {lowStockProducts.slice(0, 5).map((p) => (
               <div key={p.name} className="flex items-center gap-2.5">
-                <div className="relative h-9 w-9 rounded-lg overflow-hidden bg-pearl shrink-0"><Image src={p.image} alt={p.name} fill className="object-cover" sizes="36px" /></div>
+                <div className="relative h-9 w-9 rounded-lg overflow-hidden bg-image-surface shrink-0"><Image src={p.image} alt={p.name} fill className="object-cover" sizes="36px" /></div>
                 <div className="flex-1 min-w-0"><p className="text-[11px] text-charcoal truncate">{p.name}</p><p className={cn("text-[10px] font-semibold", p.stock <= 2 ? "text-destructive" : "text-warning")}>{p.stock} left</p></div>
               </div>
             ))}

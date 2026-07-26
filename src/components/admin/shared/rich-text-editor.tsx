@@ -189,7 +189,7 @@ export function RichTextEditor({ label, value, onChange, placeholder }: RichText
                   onClick={() => { setProductOpen(false); insertLink(`/products/${p.slug}`, p.name); }}
                   className="flex w-full items-center gap-3 rounded-lg p-2 text-left hover:bg-pearl transition-colors"
                 >
-                  <div className="relative h-9 w-9 shrink-0 rounded-lg overflow-hidden bg-pearl">
+                  <div className="relative h-9 w-9 shrink-0 rounded-lg overflow-hidden bg-image-surface">
                     <Image src={p.images?.[0]?.url || `https://picsum.photos/seed/${p.slug}/72/72`} alt={p.name} fill className="object-cover" sizes="36px" unoptimized={p.images?.[0]?.url?.includes("/uploads/")} />
                   </div>
                   <div className="min-w-0 flex-1">

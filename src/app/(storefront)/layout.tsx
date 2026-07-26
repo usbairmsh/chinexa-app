@@ -33,7 +33,7 @@ export default async function StorefrontLayout({
 
   if (maintenanceMode) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-card flex items-center justify-center">
         <div className="text-center px-6 max-w-lg animate-fade-in">
           <Image src="/logo.png" alt="ChineXa" width={400} height={152} className="h-[120px] w-auto mx-auto mb-8 animate-float" />
           <div className="relative mb-8">

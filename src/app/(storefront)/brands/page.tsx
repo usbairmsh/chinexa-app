@@ -40,7 +40,7 @@ export default function BrandsPage() {
   }, []);
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-card min-h-screen">
       {/* Header */}
       <div className="bg-hero-gradient">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
@@ -92,7 +92,7 @@ export default function BrandsPage() {
               >
                 <Link
                   href={`/brands/${brand.slug}`}
-                  className="group block rounded-2xl border border-border/30 bg-white p-5 shadow-card hover:border-primary/30 hover:shadow-luxury-hover hover:-translate-y-px active:scale-[0.98] transition-all duration-300"
+                  className="group block rounded-2xl border border-border/30 bg-card p-5 shadow-card hover:border-primary/30 hover:shadow-luxury-hover hover:-translate-y-px active:scale-[0.98] transition-all duration-300"
                 >
                   {/* Logo */}
                   <div className="flex items-center justify-center h-20 mb-4">

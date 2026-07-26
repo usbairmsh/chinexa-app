@@ -379,7 +379,7 @@ export default function AdminOffersPage() {
                       {searchLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-charcoal-lighter shrink-0" />}
                     </div>
                     {searchResults.length > 0 && (
-                      <div className="mt-1 max-h-36 overflow-y-auto border border-border/30 rounded-lg bg-white">
+                      <div className="mt-1 max-h-36 overflow-y-auto border border-border/30 rounded-lg bg-card">
                         {searchResults.map((r) => {
                           const isSelected = formSelectedIds.some((s) => s.id === r.id);
                           return (
@@ -400,7 +400,7 @@ export default function AdminOffersPage() {
 
                 {/* Category/Subcategory/Tier/Brand selection */}
                 {(formApplicability === "categories" || formApplicability === "subcategories" || formApplicability === "tiers" || formApplicability === "brands") && (
-                  <div className="max-h-44 overflow-y-auto border border-border/30 rounded-lg bg-white">
+                  <div className="max-h-44 overflow-y-auto border border-border/30 rounded-lg bg-card">
                     {getListOptions().length === 0 ? (
                       <p className="px-3 py-4 text-xs text-charcoal-lighter text-center">No {formApplicability} found</p>
                     ) : getListOptions().map((opt) => {

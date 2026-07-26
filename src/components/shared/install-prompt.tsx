@@ -138,7 +138,7 @@ export function InstallPrompt() {
           transition={{ duration: 0.3, ease: "easeOut" }}
           className="fixed inset-x-3 bottom-3 z-50 sm:inset-x-auto sm:right-5 sm:bottom-5 sm:w-96"
         >
-          <div className="flex items-start gap-3 rounded-2xl border border-border/30 bg-white p-4 shadow-[0_8px_40px_rgba(0,0,0,0.15)]">
+          <div className="flex items-start gap-3 rounded-2xl border border-border/30 bg-card p-4 shadow-[0_8px_40px_rgba(0,0,0,0.15)]">
             <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-pearl">
               <Image src="/favicon/android-chrome-192x192.png" alt="ChineXa" fill className="object-cover" sizes="44px" />
             </div>

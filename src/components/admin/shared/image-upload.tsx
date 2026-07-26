@@ -125,7 +125,7 @@ export function ImageUpload({
           onClick={() => setMode("upload")}
           className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium transition-all",
-            mode === "upload" ? "bg-white text-charcoal shadow-card" : "text-charcoal-lighter hover:text-charcoal"
+            mode === "upload" ? "bg-card text-charcoal shadow-card" : "text-charcoal-lighter hover:text-charcoal"
           )}
         >
           <Upload className="h-3 w-3" /> Upload
@@ -135,7 +135,7 @@ export function ImageUpload({
           onClick={() => setMode("url")}
           className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium transition-all",
-            mode === "url" ? "bg-white text-charcoal shadow-card" : "text-charcoal-lighter hover:text-charcoal"
+            mode === "url" ? "bg-card text-charcoal shadow-card" : "text-charcoal-lighter hover:text-charcoal"
           )}
         >
           <Link2 className="h-3 w-3" /> URL
@@ -147,7 +147,7 @@ export function ImageUpload({
 
       {/* Preview or Upload Area */}
       {preview ? (
-        <div className={cn("relative rounded-xl overflow-hidden bg-pearl border border-border/30", aspectClass)}>
+        <div className={cn("relative rounded-xl overflow-hidden bg-image-surface border border-border/30", aspectClass)}>
           <Image
             src={preview}
             alt="Preview"
@@ -159,7 +159,7 @@ export function ImageUpload({
           <button
             type="button"
             onClick={handleClear}
-            className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-charcoal-lighter hover:text-destructive hover:bg-white shadow-md transition-all"
+            className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-charcoal-lighter hover:text-destructive hover:bg-card shadow-md transition-all"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -220,7 +220,7 @@ export function ImageUpload({
               onChange={(e) => setUrlInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleUrlApply()}
               placeholder={placeholder}
-              className="flex-1 h-10 rounded-luxury bg-beige-dark/70 shadow-[inset_0_0_0_1px_rgba(58,36,56,0.06)] px-3 text-sm text-charcoal placeholder:text-charcoal-lighter/50 hover:bg-beige-dark focus:bg-white focus:shadow-[inset_0_0_0_1.5px_var(--color-secondary)] focus:outline-none transition-all"
+              className="flex-1 h-10 rounded-luxury bg-beige-dark/70 shadow-[inset_0_0_0_1px_rgba(58,36,56,0.06)] px-3 text-sm text-charcoal placeholder:text-charcoal-lighter/50 hover:bg-beige-dark focus:bg-card focus:shadow-[inset_0_0_0_1.5px_var(--color-secondary)] focus:outline-none transition-all"
             />
             <AdminButton size="sm" onClick={handleUrlApply} disabled={!urlInput.trim()}>
               Apply

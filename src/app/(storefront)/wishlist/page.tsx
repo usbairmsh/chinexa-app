@@ -45,7 +45,7 @@ export default function WishlistPage() {
   const count = mounted ? items.length : 0;
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-card min-h-screen">
       <div className="bg-hero-gradient py-10">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative">
           <Breadcrumb items={[{ label: "Wishlist" }]} />

@@ -122,7 +122,7 @@ export default function AdminActivityLogPage() {
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   placeholder="Admin name or username…"
-                  className="w-full h-11 pl-9 pr-3 rounded-luxury bg-beige-dark/70 shadow-[inset_0_0_0_1px_rgba(58,36,56,0.06)] text-sm text-charcoal placeholder:text-charcoal-lighter/50 focus:bg-white focus:shadow-[inset_0_0_0_1.5px_var(--color-secondary)] focus:outline-none transition-all"
+                  className="w-full h-11 pl-9 pr-3 rounded-luxury bg-beige-dark/70 shadow-[inset_0_0_0_1px_rgba(58,36,56,0.06)] text-sm text-charcoal placeholder:text-charcoal-lighter/50 focus:bg-card focus:shadow-[inset_0_0_0_1.5px_var(--color-secondary)] focus:outline-none transition-all"
                 />
               </div>
             </div>

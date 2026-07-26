@@ -228,7 +228,7 @@ export default function OrderDetailPage() {
                 <p className="text-sm text-charcoal-lighter text-center py-4">No items</p>
               ) : items.map((item, i) => (
                 <div key={i} className="flex gap-4 p-3 rounded-luxury bg-pearl/40">
-                  <div className="relative h-14 w-14 rounded-lg overflow-hidden bg-pearl shrink-0">
+                  <div className="relative h-14 w-14 rounded-lg overflow-hidden bg-image-surface shrink-0">
                     <Image src={(item.product_image as string) || "https://placehold.co/56x56"} alt={(item.product_name as string) || ""} fill className="object-cover" sizes="56px" />
                   </div>
                   <div className="flex-1 min-w-0">

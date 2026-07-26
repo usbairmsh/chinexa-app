@@ -257,7 +257,7 @@ export default function EngineActivityLogPage() {
             transition={{ duration: 0.15 }}
           >
             <motion.div
-              className="bg-white rounded-luxury shadow-xl max-w-lg w-full max-h-[85vh] flex flex-col"
+              className="bg-card rounded-luxury shadow-xl max-w-lg w-full max-h-[85vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
               initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 8 }}
               animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}

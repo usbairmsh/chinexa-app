@@ -393,7 +393,7 @@ export default function AdminCouponsPage() {
                       {applSearchLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-charcoal-lighter shrink-0" />}
                     </div>
                     {applSearchResults.length > 0 && (
-                      <div className="mt-1 max-h-36 overflow-y-auto border border-border/30 rounded-luxury bg-white">
+                      <div className="mt-1 max-h-36 overflow-y-auto border border-border/30 rounded-luxury bg-card">
                         {applSearchResults.map((r) => {
                           const isSelected = formSelectedIds.some((s) => s.id === r.id);
                           return (
@@ -413,7 +413,7 @@ export default function AdminCouponsPage() {
                 )}
 
                 {(formApplicability === "categories" || formApplicability === "subcategories" || formApplicability === "tiers" || formApplicability === "brands") && (
-                  <div className="max-h-44 overflow-y-auto border border-border/30 rounded-luxury bg-white">
+                  <div className="max-h-44 overflow-y-auto border border-border/30 rounded-luxury bg-card">
                     {getApplOptions().length === 0 ? (
                       <p className="px-3 py-4 text-xs text-charcoal-lighter text-center">No {formApplicability} found</p>
                     ) : getApplOptions().map((opt) => {

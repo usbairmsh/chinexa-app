@@ -147,14 +147,36 @@ export default function RootLayout({
     <html
       lang="en"
       data-scroll-behavior="smooth"
+      suppressHydrationWarning
       className={`${fraunces.variable} ${manrope.variable} h-full antialiased`}
     >
+      <head>
+        {/* No-flash theme init — runs before first paint, so a dark-mode user
+            never sees a white flash on load. Reads the same "chinexa-theme"
+            localStorage key the theme store persists to, sets the .dark class
+            on <html>, and pre-tints the splash loader below to match. Kept
+            tiny and dependency-free; wrapped in try/catch so a blocked
+            localStorage never breaks rendering. */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function(){
+            try{
+              var raw=localStorage.getItem('chinexa-theme');
+              var t='light';
+              if(raw){var p=JSON.parse(raw);t=(p&&p.state&&p.state.theme)||'light';}
+              if(t==='dark'){document.documentElement.classList.add('dark');}
+            }catch(e){}
+          })();
+        ` }} />
+      </head>
       <body className="min-h-full flex flex-col font-body text-charcoal bg-background">
-        {/* Initial splash screen — covers everything until content is ready */}
+        {/* Initial splash screen — covers everything until content is ready.
+            Background uses the theme token so it matches light/dark (the
+            no-flash script above has already set .dark by the time this
+            paints). */}
         <div id="initial-loader" style={{
           position: "fixed", inset: 0, zIndex: 99999,
           display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "16px",
-          background: "#fff",
+          background: "var(--color-background)",
         }}>
           <img src="/favicon/android-chrome-192x192.png" alt="" width="64" height="64" style={{ borderRadius: "16px" }} />
           <div style={{ width: 40, height: 40, border: "3px solid #f0e6e3", borderTop: "3px solid #C0392B", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />

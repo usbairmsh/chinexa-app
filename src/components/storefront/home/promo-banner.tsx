@@ -27,7 +27,7 @@ export function PromoBannerStrip() {
 
   if (loading) {
     return (
-      <section className="py-8 bg-white">
+      <section className="py-8 bg-card">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="rounded-2xl bg-pearl animate-pulse aspect-[16/7]" />
         </div>
@@ -38,7 +38,7 @@ export function PromoBannerStrip() {
   if (banners.length === 0) return null;
 
   return (
-    <section className="py-8 bg-white">
+    <section className="py-8 bg-card">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className={`grid gap-4 ${banners.length === 1 ? "grid-cols-1" : banners.length === 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"}`}>
           {banners.map((banner, i) => {
@@ -66,7 +66,7 @@ export function PromoBannerStrip() {
                   <h3 className="text-white font-heading text-lg font-semibold">{banner.title}</h3>
                   {banner.subtitle && <p className="text-white/80 text-xs mt-0.5">{banner.subtitle}</p>}
                   {banner.cta_text && (
-                    <span className="inline-block mt-2 px-4 py-2 rounded-full bg-white/90 text-charcoal text-xs font-semibold hover:bg-white transition-colors">
+                    <span className="inline-block mt-2 px-4 py-2 rounded-full bg-white/90 text-charcoal text-xs font-semibold hover:bg-card transition-colors">
                       {banner.cta_text}
                     </span>
                   )}
@@ -131,7 +131,7 @@ export function CategoryBanner() {
               <h3 className="text-white font-heading text-2xl sm:text-3xl font-bold">{banner.title}</h3>
               {banner.subtitle && <p className="text-white/80 text-sm mt-1 max-w-md">{banner.subtitle}</p>}
               {banner.cta_text && (
-                <span className="inline-block mt-4 px-6 py-2 rounded-full bg-white text-charcoal text-sm font-semibold hover:bg-secondary hover:!text-white hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 shadow-lg">
+                <span className="inline-block mt-4 px-6 py-2 rounded-full bg-card text-charcoal text-sm font-semibold hover:bg-secondary hover:!text-white hover:shadow-[0_6px_25px_rgba(122,79,160,0.3)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300 shadow-lg">
                   {banner.cta_text}
                 </span>
               )}
@@ -200,7 +200,7 @@ export function PopupBanner() {
             {banner.subtitle && <p className="text-white/80 text-sm mt-1">{banner.subtitle}</p>}
             {banner.cta_text && banner.link && (
               <Link href={banner.link} onClick={handleDismiss}>
-                <span className="inline-block mt-3 px-6 py-2 rounded-full bg-white text-charcoal text-sm font-semibold hover:bg-secondary hover:!text-white transition-all">
+                <span className="inline-block mt-3 px-6 py-2 rounded-full bg-card text-charcoal text-sm font-semibold hover:bg-secondary hover:!text-white transition-all">
                   {banner.cta_text}
                 </span>
               </Link>

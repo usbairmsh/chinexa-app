@@ -834,7 +834,7 @@ export default function AdminCustomersPage() {
                         {order.products.map((p, i) => (
                           <div key={i} className="flex items-center gap-3">
                             {p.image && (
-                              <div className="relative h-10 w-10 rounded-lg overflow-hidden bg-pearl shrink-0">
+                              <div className="relative h-10 w-10 rounded-lg overflow-hidden bg-image-surface shrink-0">
                                 <Image src={p.image} alt={p.name} fill className="object-cover" sizes="40px" unoptimized={p.image.includes("/uploads/")} />
                               </div>
                             )}
@@ -1312,7 +1312,7 @@ export default function AdminCustomersPage() {
               />
             </div>
             {smsSearchResults.length > 0 && (
-              <div className="max-h-40 overflow-y-auto border border-border/30 rounded-xl bg-white">
+              <div className="max-h-40 overflow-y-auto border border-border/30 rounded-xl bg-card">
                 {smsSearchResults.map((r) => {
                   const isSelected = smsSelected.some((s) => s.id === r.id);
                   return (

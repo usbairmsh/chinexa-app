@@ -93,7 +93,7 @@ export default function CartPage() {
   const shipping = getShipping();
 
   return (
-    <div className="bg-white min-h-screen overflow-x-hidden">
+    <div className="bg-card min-h-screen overflow-x-hidden">
       <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 py-6 sm:py-8">
         <Breadcrumb items={[{ label: "Shopping Bag" }]} className="mb-8" />
         <h1 className="font-heading text-2xl sm:text-3xl font-semibold text-charcoal mb-8">
@@ -117,7 +117,7 @@ export default function CartPage() {
                   <Link
                     href={`/products/${item.product_slug}`}
                     prefetch={false}
-                    className="group relative h-24 w-[68px] sm:h-40 sm:w-32 flex-shrink-0 rounded-xl overflow-hidden bg-pearl"
+                    className="group relative h-24 w-[68px] sm:h-40 sm:w-32 flex-shrink-0 rounded-xl overflow-hidden bg-image-surface"
                   >
                     <Image
                       src={item.product_image || `https://picsum.photos/seed/${item.product_slug}/300/375`}

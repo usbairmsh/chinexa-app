@@ -242,7 +242,7 @@ export default function AccountLayout({
           <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
             {/* ── Sidebar — desktop only ── */}
             <aside className="hidden lg:block w-full lg:w-[280px] shrink-0">
-              <div className="bg-white rounded-2xl shadow-card border border-border/20">
+              <div className="bg-card rounded-2xl shadow-card border border-border/20">
                 {/* User Card — dark rounded card, avatar on top, name + tier badge
                     beside it, phone below, View Profile button at the bottom.
                     Background is the customer's own tier color (same fill the
@@ -275,7 +275,7 @@ export default function AccountLayout({
 
                   <Link
                     href="/dashboard/profile"
-                    className="mt-4 w-full py-2 rounded-xl bg-white/90 text-charcoal text-sm font-medium hover:bg-white hover:shadow-card active:scale-[0.97] transition-all duration-200"
+                    className="mt-4 w-full py-2 rounded-xl bg-white/90 text-charcoal text-sm font-medium hover:bg-card hover:shadow-card active:scale-[0.97] transition-all duration-200"
                   >
                     View Profile
                   </Link>

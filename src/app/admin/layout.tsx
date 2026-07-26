@@ -18,6 +18,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { AdminButton } from "@/components/admin/shared/admin-button";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { AdminNotificationBell } from "@/components/admin/notification-bell";
 import { PageLoader } from "@/components/shared/page-loader";
 import { Badge } from "@/components/ui/badge";
@@ -402,7 +403,9 @@ export default function AdminLayout({
       </nav>
 
       {/* Bottom */}
-      <div className="border-t border-border/30 p-3">
+      <div className="border-t border-border/30 p-3 space-y-1">
+        {/* Dark / light toggle for phone & tablet, in the sidebar */}
+        <ThemeToggle variant="row" className="rounded-lg px-3 hover:bg-pearl text-charcoal-lighter hover:text-charcoal" />
         <button
           onClick={handleLogout}
           className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-charcoal-lighter hover:bg-pearl hover:text-charcoal transition-colors w-full active:scale-[0.98]"
@@ -421,7 +424,7 @@ export default function AdminLayout({
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          "hidden lg:flex flex-col border-r border-border/30 bg-white will-change-[width] shrink-0",
+          "hidden lg:flex flex-col border-r border-border/30 bg-card will-change-[width] shrink-0",
           collapsed ? "w-16" : "w-60"
         )}
         style={{ transition: "width 200ms ease-in-out" }}
@@ -433,7 +436,7 @@ export default function AdminLayout({
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-charcoal/40 animate-fade-in" onClick={() => setMobileOpen(false)} />
-          <div className="absolute inset-y-0 left-0 w-60 bg-white shadow-luxury-hover animate-slide-in-left">
+          <div className="absolute inset-y-0 left-0 w-60 bg-card shadow-luxury-hover animate-slide-in-left">
             {mobileSidebarContent}
           </div>
         </div>
@@ -442,7 +445,7 @@ export default function AdminLayout({
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Top Bar */}
-        <header className="flex h-16 items-center justify-between border-b border-border/30 bg-white px-4 lg:px-6">
+        <header className="flex h-16 items-center justify-between border-b border-border/30 bg-card px-4 lg:px-6">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileOpen(true)}
@@ -452,6 +455,7 @@ export default function AdminLayout({
             </button>
           </div>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <AdminNotificationBell />
             <Separator orientation="vertical" className="h-8" />
             <DropdownMenu>

@@ -619,7 +619,7 @@ function ModerateView({
               className={cn("flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all active:scale-[0.96]",
                 status === t.id ? "bg-charcoal !text-white" : "bg-pearl text-charcoal-lighter hover:text-charcoal")}>
               {t.label}
-              <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full", status === t.id ? "bg-white/20" : "bg-white")}>{t.count}</span>
+              <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full", status === t.id ? "bg-white/20" : "bg-card")}>{t.count}</span>
             </button>
           ))}
         </div>

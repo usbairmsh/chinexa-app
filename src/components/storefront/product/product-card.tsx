@@ -123,7 +123,7 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
           prefetch={false}
         >
           {/* Image — kept clean on phone/tablet; hover actions only on desktop */}
-          <div className="relative aspect-[3/4] overflow-hidden rounded-xl sm:rounded-2xl bg-pearl mb-2 sm:mb-3">
+          <div className="relative aspect-[3/4] overflow-hidden rounded-xl sm:rounded-2xl bg-image-surface mb-2 sm:mb-3">
             <Image
               src={product.images[0]?.url || `https://picsum.photos/seed/${product.slug}/600/750`}
               // Admin-entered alt text (per-image, from the product form) wins;
@@ -184,7 +184,7 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
                       onClick={handleWishlist}
                       className={cn(
                         "flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-[14px] font-semibold hover:shadow-[0_6px_30px_rgba(122,79,160,0.4)] hover:-translate-y-[1px] active:scale-[0.96] transition-all duration-300",
-                        wishlisted ? "bg-secondary !text-white" : "bg-white text-charcoal hover:bg-secondary hover:!text-white"
+                        wishlisted ? "bg-secondary !text-white" : "bg-card text-charcoal hover:bg-secondary hover:!text-white"
                       )}
                       aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
                     >
@@ -305,7 +305,7 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90%] max-w-md bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] overflow-hidden"
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90%] max-w-md bg-card rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] overflow-hidden"
             >
               {/* Close */}
               <button
@@ -317,7 +317,7 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
 
               {/* Product Preview */}
               <div className="flex gap-4 p-5 pb-0">
-                <div className="relative h-28 w-[88px] sm:h-32 sm:w-24 rounded-xl overflow-hidden bg-pearl shrink-0">
+                <div className="relative h-28 w-[88px] sm:h-32 sm:w-24 rounded-xl overflow-hidden bg-image-surface shrink-0">
                   <Image
                     src={product.images[0]?.url || `https://picsum.photos/seed/${product.slug}/200/250`}
                     alt={product.name}

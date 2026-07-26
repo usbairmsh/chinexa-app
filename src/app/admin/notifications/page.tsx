@@ -256,7 +256,7 @@ export default function AdminNotificationsPage() {
                   {searchLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-charcoal-lighter shrink-0" />}
                 </div>
                 {searchResults.length > 0 && (
-                  <div className="max-h-40 overflow-y-auto border border-border/30 rounded-lg bg-white shadow-card">
+                  <div className="max-h-40 overflow-y-auto border border-border/30 rounded-lg bg-card shadow-card">
                     {searchResults.map((cust) => {
                       const isSelected = selectedCustomers.some((c) => c.id === cust.id);
                       return (

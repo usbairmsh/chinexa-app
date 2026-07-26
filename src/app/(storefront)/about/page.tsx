@@ -33,7 +33,7 @@ export default function AboutPage() {
   const content = story;
 
   return (
-    <div className="bg-white">
+    <div className="bg-card">
       {/* Hero */}
       <div className="bg-hero-gradient py-12 sm:py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -100,7 +100,7 @@ export default function AboutPage() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.1 }}
-                    className="group bg-white rounded-2xl p-6 text-center shadow-card hover:shadow-card-hover hover:-translate-y-px transition-all duration-300"
+                    className="group bg-card rounded-2xl p-6 text-center shadow-card hover:shadow-card-hover hover:-translate-y-px transition-all duration-300"
                   >
                     <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-light mb-4 transition-transform duration-300 group-hover:scale-105">
                       <Icon className="h-6 w-6 text-secondary" />

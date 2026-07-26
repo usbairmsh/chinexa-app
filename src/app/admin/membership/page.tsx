@@ -386,7 +386,7 @@ export default function AdminMembershipPage() {
                 </span>
               </div>
               {showNameColorPicker && (
-                <div className="mt-2 p-3 rounded-lg border border-border/30 bg-white shadow-lg relative">
+                <div className="mt-2 p-3 rounded-lg border border-border/30 bg-card shadow-lg relative">
                   <button type="button" onClick={() => setShowNameColorPicker(false)} className="absolute top-2 right-2 p-1 hover:bg-pearl rounded-full text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96]">
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -421,7 +421,7 @@ export default function AdminMembershipPage() {
                     </div>
                   </div>
                   {showBadgeColorPicker && (
-                    <div className="p-3 rounded-lg border border-border/30 bg-white shadow-lg relative">
+                    <div className="p-3 rounded-lg border border-border/30 bg-card shadow-lg relative">
                       <button type="button" onClick={() => setShowBadgeColorPicker(false)} className="absolute top-2 right-2 p-1 hover:bg-pearl rounded-full text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96]">
                         <X className="h-3.5 w-3.5" />
                       </button>
@@ -431,7 +431,7 @@ export default function AdminMembershipPage() {
                       </div>
                     </div>
                   )}
-                  <div className="flex items-center gap-2 p-2 rounded-lg bg-white">
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-card">
                     <span className="text-xs text-charcoal-lighter">Preview:</span>
                     <span className="text-sm font-medium text-charcoal">Customer Name</span>
                     <VerifiedBadge color={formBadgeColor} opacity={formBadgeOpacity} size={22} tooltip={formName || "Tier"} />

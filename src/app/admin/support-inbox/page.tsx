@@ -266,7 +266,7 @@ export default function SupportInboxPage() {
         <p className="text-sm text-charcoal-lighter mt-1">Chat with customers and guests visiting the store.</p>
       </div>
 
-      <div className="flex h-[calc(100vh-220px)] min-h-[500px] rounded-luxury border border-border/30 bg-white shadow-card overflow-hidden">
+      <div className="flex h-[calc(100vh-220px)] min-h-[500px] rounded-luxury border border-border/30 bg-card shadow-card overflow-hidden">
         {/* Conversation list */}
         <div className={cn("w-full sm:w-80 shrink-0 border-r border-border/20 flex flex-col", activeId && "hidden sm:flex")}>
           <div className="p-3 border-b border-border/20 space-y-2">
@@ -413,7 +413,7 @@ export default function SupportInboxPage() {
                           "max-w-[70%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
                           m.sender_type === "admin"
                             ? "bg-secondary text-white rounded-br-sm"
-                            : "bg-white text-charcoal border border-border/20 rounded-bl-sm"
+                            : "bg-card text-charcoal border border-border/20 rounded-bl-sm"
                         )}
                       >
                         {m.flag === "help_and_support" && m.sender_type === "customer" && (

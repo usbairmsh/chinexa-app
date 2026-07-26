@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { NotificationBell } from "./notification-bell";
 import { AnnouncementBar } from "./announcement-bar";
 import { DesktopSearchBar, MobileSearchBar } from "./search-bar";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { useCustomerBadge } from "@/hooks/use-customer-badge";
 import { useIconPlay } from "@/hooks/use-icon-play";
 import { resolveTierColorStyle } from "@/lib/tier-color";
@@ -131,8 +132,8 @@ export function Header() {
           className={cn(
             "w-full transition-all duration-300",
             scrolled
-              ? "bg-white/97 backdrop-blur-xl shadow-[0_1px_20px_rgba(0,0,0,0.06)] border-b border-border/20"
-              : "bg-white border-b border-border/10"
+              ? "bg-card/97 backdrop-blur-xl shadow-[0_1px_20px_rgba(0,0,0,0.06)] border-b border-border/20"
+              : "bg-card border-b border-border/10"
           )}
         >
         <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
@@ -241,7 +242,7 @@ export function Header() {
                         transition={{ duration: 0.18, ease: "easeOut" }}
                         className="absolute left-0 top-full pt-3 z-50"
                       >
-                        <div className="w-60 rounded-2xl bg-white shadow-[0_12px_40px_rgba(0,0,0,0.1)] border border-border/20 p-2 backdrop-blur-xl">
+                        <div className="w-60 rounded-2xl bg-popover shadow-[0_12px_40px_rgba(0,0,0,0.1)] border border-border/20 p-2 backdrop-blur-xl">
                           {item.children.map((child) => (
                             <Link
                               key={child.label}
@@ -289,6 +290,10 @@ export function Header() {
             <div className="flex items-center gap-1 shrink-0 ml-auto lg:ml-0">
               <DesktopSearchBar />
 
+              {/* Dark / light toggle — hidden on the smallest screens where a
+                  dedicated row lives in the mobile drawer instead. */}
+              <ThemeToggle className="hidden sm:flex" />
+
               {/* Notifications — signed-in customers only */}
               {isAuthenticated && <NotificationBell />}
 
@@ -311,7 +316,7 @@ export function Header() {
                         animate={{ scale: 1 }}
                         exit={{ scale: 0 }}
                         transition={{ type: "spring", stiffness: 500, damping: 12 }}
-                        className="absolute top-0 right-0 sm:top-0.5 sm:right-0.5 flex h-[14px] w-[14px] items-center justify-center rounded-full bg-secondary text-[8px] font-bold text-white ring-2 ring-white"
+                        className="absolute top-0 right-0 sm:top-0.5 sm:right-0.5 flex h-[14px] w-[14px] items-center justify-center rounded-full bg-secondary text-[8px] font-bold text-white ring-2 ring-card"
                       >
                         {wishlistCount}
                       </motion.span>
@@ -340,7 +345,7 @@ export function Header() {
                         animate={{ scale: 1 }}
                         exit={{ scale: 0 }}
                         transition={{ type: "spring", stiffness: 500, damping: 12 }}
-                        className="absolute top-0 right-0 sm:top-0.5 sm:right-0.5 flex h-[14px] w-[14px] items-center justify-center rounded-full bg-secondary text-[8px] font-bold text-white ring-2 ring-white"
+                        className="absolute top-0 right-0 sm:top-0.5 sm:right-0.5 flex h-[14px] w-[14px] items-center justify-center rounded-full bg-secondary text-[8px] font-bold text-white ring-2 ring-card"
                       >
                         {cartCount}
                       </motion.span>
@@ -379,7 +384,7 @@ export function Header() {
                         ref={accountPillIcon.scope}
                         onHoverStart={() => accountPillIcon.play({ y: [0, -3, 0], scale: [1, 1.08, 1] }, 0.4)}
                         whileTap={{ scale: 0.92 }}
-                        className="flex items-center justify-center h-7 w-7 rounded-full bg-white overflow-hidden"
+                        className="flex items-center justify-center h-7 w-7 rounded-full bg-card overflow-hidden"
                         style={{ boxShadow: "inset 0 0 0 1px currentColor" }}
                       >
                         {user?.avatar ? (
@@ -423,7 +428,7 @@ export function Header() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 6, scale: 0.97 }}
                         transition={{ duration: 0.16, ease: "easeOut" }}
-                        className="absolute right-0 top-full mt-2.5 w-64 rounded-2xl bg-white shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-border/20 overflow-hidden z-50"
+                        className="absolute right-0 top-full mt-2.5 w-64 rounded-2xl bg-popover shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-border/20 overflow-hidden z-50"
                       >
                         {/* Header block — filled with the tier color, like the pill itself */}
                         <div
@@ -431,7 +436,7 @@ export function Header() {
                           style={tierPillColor.style}
                         >
                           <span
-                            className="flex items-center justify-center h-11 w-11 rounded-full bg-white overflow-hidden shrink-0"
+                            className="flex items-center justify-center h-11 w-11 rounded-full bg-card overflow-hidden shrink-0"
                             style={{ boxShadow: "inset 0 0 0 1px currentColor" }}
                           >
                             {user?.avatar ? (
@@ -528,7 +533,7 @@ export function Header() {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 300 }}
-              className="fixed inset-y-0 left-0 z-[60] w-[85vw] max-w-[300px] bg-white shadow-[20px_0_60px_rgba(0,0,0,0.1)] lg:hidden flex flex-col"
+              className="fixed inset-y-0 left-0 z-[60] w-[85vw] max-w-[300px] bg-card shadow-[20px_0_60px_rgba(0,0,0,0.1)] lg:hidden flex flex-col"
             >
               <div className="flex-1 overflow-y-auto overscroll-contain p-5">
                 {/* Mobile Header */}
@@ -552,7 +557,7 @@ export function Header() {
                     style={tierPillColor.style}
                   >
                     <span
-                      className="flex items-center justify-center h-16 w-16 rounded-full bg-white overflow-hidden ring-2 ring-white/70 shadow-md"
+                      className="flex items-center justify-center h-16 w-16 rounded-full bg-card overflow-hidden ring-2 ring-white/70 shadow-md"
                     >
                       {user?.avatar ? (
                         <img src={user.avatar} alt={user.name || "Account"} className="h-full w-full object-cover" />
@@ -577,7 +582,7 @@ export function Header() {
                     <Link
                       href="/dashboard/profile"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="mt-4 w-full py-2 rounded-xl bg-white/90 text-charcoal text-sm font-medium hover:bg-white transition-colors"
+                      className="mt-4 w-full py-2 rounded-xl bg-white/90 text-charcoal text-sm font-medium hover:bg-card transition-colors"
                     >
                       View Profile
                     </Link>
@@ -691,6 +696,8 @@ export function Header() {
                       <ShoppingBag className="h-4 w-4" /> Track Order
                     </motion.span>
                   </Link>
+                  {/* Dark / light toggle for phone & tablet */}
+                  <ThemeToggle variant="row" />
                   {isAuthenticated ? (
                     <button
                       onClick={() => { setMobileMenuOpen(false); handleLogout(); }}

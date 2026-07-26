@@ -179,7 +179,7 @@ export function RecordSaleDialog({ open, onOpenChange, onRecorded }: RecordSaleD
                           icon={<Search className="h-4 w-4" />}
                         />
                         {productOptionsByKey(it.key).length > 0 && (
-                          <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-white shadow-lg max-h-48 overflow-y-auto">
+                          <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-card shadow-lg max-h-48 overflow-y-auto">
                             {productOptionsByKey(it.key).map((p) => (
                               <button key={p.id} onClick={() => selectProduct(it.key, p)} className="block w-full text-left px-3 py-2 text-sm hover:bg-pearl/50">
                                 {p.name} — {formatCurrency(p.price)}

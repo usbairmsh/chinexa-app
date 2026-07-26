@@ -145,28 +145,28 @@ function ImagePositionEditor({ imageUrl, crop, onChange }: { imageUrl: string; c
         {/* Zoom controls */}
         <div className="flex items-center gap-1 bg-pearl/60 rounded-lg p-0.5">
           <button type="button" onClick={() => adjustZoom(-0.1)} disabled={crop.zoom <= 1}
-            className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white text-charcoal-lighter hover:text-charcoal disabled:opacity-30 transition-all active:scale-[0.96]">
+            className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-card text-charcoal-lighter hover:text-charcoal disabled:opacity-30 transition-all active:scale-[0.96]">
             <ZoomOut className="h-3.5 w-3.5" />
           </button>
           <span className="text-[10px] font-mono text-charcoal-lighter w-10 text-center">{Math.round(crop.zoom * 100)}%</span>
           <button type="button" onClick={() => adjustZoom(0.1)} disabled={crop.zoom >= 3}
-            className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white text-charcoal-lighter hover:text-charcoal disabled:opacity-30 transition-all active:scale-[0.96]">
+            className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-card text-charcoal-lighter hover:text-charcoal disabled:opacity-30 transition-all active:scale-[0.96]">
             <ZoomIn className="h-3.5 w-3.5" />
           </button>
         </div>
 
         {/* Position nudge */}
         <div className="flex items-center gap-0.5 bg-pearl/60 rounded-lg p-0.5">
-          <button type="button" onClick={() => nudge(-5, 0)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white text-charcoal-lighter hover:text-charcoal transition-all active:scale-[0.96] text-[10px] font-bold">
+          <button type="button" onClick={() => nudge(-5, 0)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-card text-charcoal-lighter hover:text-charcoal transition-all active:scale-[0.96] text-[10px] font-bold">
             ←
           </button>
-          <button type="button" onClick={() => nudge(0, -5)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white text-charcoal-lighter hover:text-charcoal transition-all active:scale-[0.96] text-[10px] font-bold">
+          <button type="button" onClick={() => nudge(0, -5)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-card text-charcoal-lighter hover:text-charcoal transition-all active:scale-[0.96] text-[10px] font-bold">
             ↑
           </button>
-          <button type="button" onClick={() => nudge(0, 5)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white text-charcoal-lighter hover:text-charcoal transition-all active:scale-[0.96] text-[10px] font-bold">
+          <button type="button" onClick={() => nudge(0, 5)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-card text-charcoal-lighter hover:text-charcoal transition-all active:scale-[0.96] text-[10px] font-bold">
             ↓
           </button>
-          <button type="button" onClick={() => nudge(5, 0)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white text-charcoal-lighter hover:text-charcoal transition-all active:scale-[0.96] text-[10px] font-bold">
+          <button type="button" onClick={() => nudge(5, 0)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-card text-charcoal-lighter hover:text-charcoal transition-all active:scale-[0.96] text-[10px] font-bold">
             →
           </button>
         </div>
@@ -588,7 +588,7 @@ export default function AdminBannersPage() {
           </DialogHeader>
           {deleteDialog && (
             <div className="flex items-center gap-3 p-3 rounded-lg bg-pearl/60">
-              <div className="relative h-14 w-24 rounded-lg overflow-hidden bg-pearl shrink-0"><Image src={deleteDialog.image} alt={deleteDialog.title} fill className="object-cover" sizes="96px" unoptimized={deleteDialog.image.includes("/uploads/")} /></div>
+              <div className="relative h-14 w-24 rounded-lg overflow-hidden bg-image-surface shrink-0"><Image src={deleteDialog.image} alt={deleteDialog.title} fill className="object-cover" sizes="96px" unoptimized={deleteDialog.image.includes("/uploads/")} /></div>
               <div className="min-w-0"><p className="text-sm font-medium text-charcoal truncate">{deleteDialog.title}</p><p className="text-xs text-charcoal-lighter capitalize">{deleteDialog.position} banner</p></div>
             </div>
           )}

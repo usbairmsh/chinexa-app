@@ -102,7 +102,7 @@ function DeliveryApplicabilityPicker({
                 {searchLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-charcoal-lighter shrink-0" />}
               </div>
               {searchResults.length > 0 && (
-                <div className="mt-1 max-h-36 overflow-y-auto border border-border/30 rounded-lg bg-white">
+                <div className="mt-1 max-h-36 overflow-y-auto border border-border/30 rounded-lg bg-card">
                   {searchResults.map((r) => {
                     const isSelected = selectedIds.some((s) => s.id === r.id);
                     return (
@@ -122,7 +122,7 @@ function DeliveryApplicabilityPicker({
           )}
 
           {(applicability === "categories" || applicability === "subcategories" || applicability === "tiers" || applicability === "brands") && (
-            <div className="max-h-44 overflow-y-auto border border-border/30 rounded-lg bg-white">
+            <div className="max-h-44 overflow-y-auto border border-border/30 rounded-lg bg-card">
               {options.length === 0 ? (
                 <p className="px-3 py-4 text-xs text-charcoal-lighter text-center">No {applicability} found</p>
               ) : options.map((opt) => {
@@ -498,7 +498,7 @@ function AdminSettingsPageInner() {
       <div className="flex gap-1 bg-pearl/60 p-1 rounded-lg overflow-x-auto">
         {tabList.map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={cn("flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all active:scale-[0.97]", activeTab === tab.id ? "bg-white text-charcoal shadow-card" : "text-charcoal-lighter hover:text-charcoal")}>
+            className={cn("flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all active:scale-[0.97]", activeTab === tab.id ? "bg-card text-charcoal shadow-card" : "text-charcoal-lighter hover:text-charcoal")}>
             <tab.icon className="h-4 w-4" /> {tab.label}
           </button>
         ))}

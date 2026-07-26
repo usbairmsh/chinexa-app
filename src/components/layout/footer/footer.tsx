@@ -102,7 +102,7 @@ export function Footer() {
               <span className="font-medium">We Accept:</span>
               {enabledPayments.map((m) =>
                 m.icon ? (
-                  <span key={m.id} title={m.name} className="flex h-6 items-center rounded-md border border-border/70 bg-white px-1.5">
+                  <span key={m.id} title={m.name} className="flex h-6 items-center rounded-md border border-border/70 bg-image-surface px-1.5">
                     <Image
                       src={m.icon}
                       alt={m.name}
@@ -113,7 +113,7 @@ export function Footer() {
                     />
                   </span>
                 ) : (
-                  <span key={m.id} className="rounded-md border border-border/70 bg-white px-1.5 py-0.5 text-[10px] font-medium text-charcoal-light">
+                  <span key={m.id} className="rounded-md border border-border/70 bg-image-surface px-1.5 py-0.5 text-[10px] font-medium text-charcoal-light">
                     {m.name}
                   </span>
                 )

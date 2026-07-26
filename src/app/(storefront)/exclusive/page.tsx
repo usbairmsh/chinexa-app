@@ -26,7 +26,7 @@ export default function ExclusivePage() {
   const totalPages = data?.total_pages || 1;
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-card min-h-screen">
       {/* Hero */}
       <div className="relative overflow-hidden bg-gradient-to-br from-secondary/[0.07] via-white to-primary-light/40 border-b border-border/30">
         {/* Themed background image — same low-opacity full-bleed treatment as

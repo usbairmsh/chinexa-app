@@ -73,7 +73,7 @@ export default function MembershipBenefitsPage() {
   const currentTier = tiers.find((t) => t.id === currentTierId) || null;
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-card min-h-screen">
       <div className="bg-hero-gradient py-10 sm:py-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Breadcrumb items={[{ label: "Membership Benefits" }]} />

@@ -398,7 +398,7 @@ export default function AddProductPage() {
             className={cn(
               "flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 transition-all duration-200 active:scale-[0.97]",
               activeTab === tab.id
-                ? "bg-white text-charcoal shadow-card"
+                ? "bg-card text-charcoal shadow-card"
                 : "text-charcoal-lighter hover:text-charcoal"
             )}
           >
@@ -678,7 +678,7 @@ export default function AddProductPage() {
                   {/* Live Search Preview */}
                   <div>
                     <p className="text-xs font-semibold text-charcoal-lighter uppercase tracking-wider mb-2">Google Search Preview</p>
-                    <div className="p-4 rounded-luxury border border-border/30 bg-white">
+                    <div className="p-4 rounded-luxury border border-border/30 bg-card">
                       <p className="text-blue-600 text-base font-medium truncate">{seoTitle || productName || "Product Name"} {!seoTitle && !productName ? "— ChineXa" : ""}</p>
                       <p className="text-green-700 text-xs">chinexabd.com/products/{productName ? productName.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-").replace(/^-+|-+$/g, "") : "product-slug"}</p>
                       <p className="text-sm text-charcoal-light mt-1 line-clamp-2">
@@ -765,7 +765,7 @@ export default function AddProductPage() {
                         "inline-flex items-center rounded-full border text-xs font-medium transition-all duration-200",
                         selected
                           ? "bg-secondary text-white border-secondary"
-                          : "bg-white text-charcoal-lighter border-border hover:border-charcoal hover:text-charcoal"
+                          : "bg-card text-charcoal-lighter border-border hover:border-charcoal hover:text-charcoal"
                       )}
                     >
                       <button
@@ -808,7 +808,7 @@ export default function AddProductPage() {
                     type="date"
                     value={preorderDate}
                     onChange={(e) => setPreorderDate(e.target.value)}
-                    className="w-full h-10 px-3 rounded-luxury bg-beige-dark/70 shadow-[inset_0_0_0_1px_rgba(58,36,56,0.06)] text-sm text-charcoal focus:bg-white focus:shadow-[inset_0_0_0_1.5px_var(--color-secondary)] focus:outline-none transition-all"
+                    className="w-full h-10 px-3 rounded-luxury bg-beige-dark/70 shadow-[inset_0_0_0_1px_rgba(58,36,56,0.06)] text-sm text-charcoal focus:bg-card focus:shadow-[inset_0_0_0_1.5px_var(--color-secondary)] focus:outline-none transition-all"
                   />
                   <p className="text-[11px] text-charcoal-lighter mt-1.5 leading-relaxed">
                     Customers can pre-order this item (COD, pay on delivery) whenever it&apos;s out of stock. Restock it, then use &ldquo;Fulfil Pre-Order&rdquo; on each reservation to ship.

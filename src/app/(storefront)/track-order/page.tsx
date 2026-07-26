@@ -142,7 +142,7 @@ function TrackOrderContent() {
   };
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-card min-h-screen">
       <div className="bg-hero-gradient py-10 sm:py-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Breadcrumb items={[{ label: "Track Order" }]} />
@@ -255,7 +255,7 @@ function TrackOrderContent() {
                             "flex h-8 w-8 items-center justify-center rounded-full border-2 flex-shrink-0 transition-colors duration-300",
                             step.done
                               ? "bg-secondary border-secondary text-white"
-                              : "bg-white border-border text-charcoal-lighter"
+                              : "bg-card border-border text-charcoal-lighter"
                           )}>
                             <Icon className="h-3.5 w-3.5" />
                           </div>

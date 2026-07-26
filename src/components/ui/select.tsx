@@ -19,8 +19,8 @@ const SelectTrigger = React.forwardRef<
       "flex h-11 w-full items-center justify-between rounded-luxury bg-beige-dark/70 px-4 py-2.5 text-sm text-charcoal transition-colors duration-200 ease-out shadow-[inset_0_0_0_1px_rgba(58,36,56,0.06)]",
       "placeholder:text-charcoal-lighter/70",
       "hover:bg-beige-dark",
-      "focus:bg-white focus:outline-none focus:ring-0 focus:shadow-[inset_0_0_0_1.5px_var(--color-secondary)]",
-      "data-[state=open]:bg-white data-[state=open]:shadow-[inset_0_0_0_1.5px_var(--color-secondary)]",
+      "focus:bg-card focus:outline-none focus:ring-0 focus:shadow-[inset_0_0_0_1.5px_var(--color-secondary)]",
+      "data-[state=open]:bg-card data-[state=open]:shadow-[inset_0_0_0_1.5px_var(--color-secondary)]",
       "disabled:cursor-not-allowed disabled:opacity-50",
       "[&>span]:line-clamp-1",
       className
@@ -71,7 +71,7 @@ const SelectContent = React.forwardRef<
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
-        "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-luxury border border-border/50 bg-white shadow-luxury-hover animate-scale-in",
+        "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-luxury border border-border/50 bg-popover text-popover-foreground shadow-luxury-hover animate-scale-in",
         position === "popper" &&
           "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
         className

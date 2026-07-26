@@ -4,11 +4,17 @@
    ChineXa Luxury Theme - Tailwind v4
    ============================================ */
 
-@theme inline {
-  /* Colors — "Cotton Candy Pastel": pink + lilac kept genuinely pastel
-     throughout, with a dark plum-black ink (never grey) and gold carrying
-     all the "premium" signal, so the softness doesn't read as childish.
-     Applies to both customer-facing and admin sides — same token file. */
+/* Dark mode is class-based: adding `.dark` to <html> flips every token below.
+   Using :where() keeps the variant at zero specificity so it never fights
+   utility ordering. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Light theme (default) ───────────────────────────────────────────────
+   The single source of truth for every color value. @theme inline (further
+   down) forwards each --color-* to these, so overriding them under .dark
+   re-themes the entire app — utilities, base element styles, and custom
+   classes alike — with no per-utility duplication. */
+:root {
   --color-primary: #F9CFE0;
   --color-primary-dark: #EFAAC7;
   --color-primary-light: #FDEEF4;
@@ -23,9 +29,6 @@
   --color-primary-800: #6E2A43;
   --color-primary-900: #47192B;
 
-  /* Soft lilac, deepened enough for white-text buttons/CTAs to stay legible —
-     the artifact's pastel lilac (#C9AEE6) is used for badges/accents below;
-     this is that same hue pushed darker specifically for solid-fill controls. */
   --color-secondary: #7A4FA0;
   --color-secondary-dark: #5F3C7D;
   --color-secondary-light: #EDE0F5;
@@ -38,8 +41,6 @@
   --color-pearl: #FFF8FB;
   --color-cream: #FEF6FA;
 
-  /* Ink — genuinely dark plum-black, never grey, so pastel surfaces still
-     have real contrast to sit against */
   --color-charcoal: #3A2438;
   --color-charcoal-light: #5C4058;
   --color-charcoal-lighter: #8A7590;
@@ -47,7 +48,6 @@
   --color-trunk: #6E2A43;
   --color-trunk-light: #97395A;
 
-  /* Gold — carries the premium signal since everything else leans soft */
   --color-gold: #E0B96C;
   --color-gold-light: #EDD39C;
 
@@ -73,6 +73,156 @@
 
   --color-accent: #FDEEF4;
   --color-accent-foreground: #47192B;
+
+  /* Product-image backdrop — kept explicitly LIGHT in both themes so white
+     product photos never sit inside a dark frame. In light mode it equals
+     pearl; in dark mode it stays a soft light-mauve tile (see .dark). */
+  --color-image-surface: #FFF8FB;
+
+  /* Elevated surface (dropdowns/menus that sit above cards). Light = white. */
+  --color-elevated: #FFFFFF;
+}
+
+/* ── Dark theme — "warm charcoal-plum" ───────────────────────────────────
+   A soft, premium dark tuned to the pink/plum brand (never pure black), so
+   white product images and pastel accents sit comfortably. Text is a warm
+   off-white; pinks are softened and lilac/gold brightened a touch to stay
+   legible on the dark ground. */
+.dark {
+  /* Pinks: pull the pale tints DOWN into usable dark surfaces, push the
+     mid/dark pinks brighter so they read as accents, not mud. */
+  --color-primary: #E88CAF;
+  --color-primary-dark: #D9668F;
+  --color-primary-light: #3A2530;   /* was near-white tint → dark plum surface */
+  --color-primary-50: #241820;
+  --color-primary-100: #2E1F28;
+  --color-primary-200: #3A2530;
+  --color-primary-300: #5A3A4C;
+  --color-primary-400: #E88CAF;
+  --color-primary-500: #E8749A;
+  --color-primary-600: #EFAAC7;
+  --color-primary-700: #F2AFC9;
+  --color-primary-800: #F9CFE0;
+  --color-primary-900: #FDEEF4;
+
+  --color-secondary: #B48AD6;       /* brightened lilac for dark bg legibility */
+  --color-secondary-dark: #9B6FC4;
+  --color-secondary-light: #33263F; /* soft lilac tint → dark surface */
+
+  --color-coral: #C9AEE6;
+  --color-coral-light: #33263F;
+  --color-beige: #2E2029;
+  --color-beige-dark: #3A2C36;      /* input background in dark */
+  --color-ivory: #2E2029;
+  --color-pearl: #2A1D26;           /* section/footer/admin-shell bg */
+  --color-cream: #2E2029;
+
+  /* Ink → warm off-white scale */
+  --color-charcoal: #F3E9EF;
+  --color-charcoal-light: #C9B8C4;
+  --color-charcoal-lighter: #9A8794;
+
+  --color-trunk: #EFAAC7;
+  --color-trunk-light: #F2AFC9;
+
+  --color-gold: #E8C57E;            /* slightly brighter gold on dark */
+  --color-gold-light: #F0DCA8;
+
+  --color-background: #241820;      /* page background — warm plum-black */
+  --color-foreground: #F3E9EF;
+  --color-muted: #2E2029;
+  --color-muted-foreground: #9A8794;
+  --color-border: #3E2E39;          /* subtle warm border */
+  --color-ring: #B48AD6;
+  --color-input: #3E2E39;
+
+  --color-destructive: #F87171;
+  --color-destructive-foreground: #FFFFFF;
+  --color-success: #34D399;
+  --color-success-foreground: #0A2018;
+  --color-warning: #FBBF24;
+  --color-warning-foreground: #2A1C05;
+
+  --color-card: #2E2029;            /* raised card surface */
+  --color-card-foreground: #F3E9EF;
+  --color-popover: #33242E;
+  --color-popover-foreground: #F3E9EF;
+
+  --color-accent: #3A2530;
+  --color-accent-foreground: #F9CFE0;
+
+  /* Product images stay on a light-leaning muted-mauve tile so white cutouts
+     blend instead of being framed by a dark rectangle. */
+  --color-image-surface: #E7DCE3;
+
+  /* Elevated menus a touch lighter than cards for separation. */
+  --color-elevated: #33242E;
+}
+
+@theme inline {
+  /* Colors — forwarded to the :root / .dark variables above so a single class
+     toggle re-themes everything. Applies to both storefront and admin. */
+  --color-primary: var(--color-primary);
+  --color-primary-dark: var(--color-primary-dark);
+  --color-primary-light: var(--color-primary-light);
+  --color-primary-50: var(--color-primary-50);
+  --color-primary-100: var(--color-primary-100);
+  --color-primary-200: var(--color-primary-200);
+  --color-primary-300: var(--color-primary-300);
+  --color-primary-400: var(--color-primary-400);
+  --color-primary-500: var(--color-primary-500);
+  --color-primary-600: var(--color-primary-600);
+  --color-primary-700: var(--color-primary-700);
+  --color-primary-800: var(--color-primary-800);
+  --color-primary-900: var(--color-primary-900);
+
+  --color-secondary: var(--color-secondary);
+  --color-secondary-dark: var(--color-secondary-dark);
+  --color-secondary-light: var(--color-secondary-light);
+
+  --color-coral: var(--color-coral);
+  --color-coral-light: var(--color-coral-light);
+  --color-beige: var(--color-beige);
+  --color-beige-dark: var(--color-beige-dark);
+  --color-ivory: var(--color-ivory);
+  --color-pearl: var(--color-pearl);
+  --color-cream: var(--color-cream);
+
+  --color-charcoal: var(--color-charcoal);
+  --color-charcoal-light: var(--color-charcoal-light);
+  --color-charcoal-lighter: var(--color-charcoal-lighter);
+
+  --color-trunk: var(--color-trunk);
+  --color-trunk-light: var(--color-trunk-light);
+
+  --color-gold: var(--color-gold);
+  --color-gold-light: var(--color-gold-light);
+
+  --color-background: var(--color-background);
+  --color-foreground: var(--color-foreground);
+  --color-muted: var(--color-muted);
+  --color-muted-foreground: var(--color-muted-foreground);
+  --color-border: var(--color-border);
+  --color-ring: var(--color-ring);
+  --color-input: var(--color-input);
+
+  --color-destructive: var(--color-destructive);
+  --color-destructive-foreground: var(--color-destructive-foreground);
+  --color-success: var(--color-success);
+  --color-success-foreground: var(--color-success-foreground);
+  --color-warning: var(--color-warning);
+  --color-warning-foreground: var(--color-warning-foreground);
+
+  --color-card: var(--color-card);
+  --color-card-foreground: var(--color-card-foreground);
+  --color-popover: var(--color-popover);
+  --color-popover-foreground: var(--color-popover-foreground);
+
+  --color-accent: var(--color-accent);
+  --color-accent-foreground: var(--color-accent-foreground);
+
+  --color-image-surface: var(--color-image-surface);
+  --color-elevated: var(--color-elevated);
 
   /* Fonts */
   --font-heading: "Fraunces", Georgia, serif;
@@ -205,6 +355,10 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
   }
 
   html[data-scroll-behavior="smooth"] {
@@ -317,6 +471,10 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.3);
+}
+.dark .glass {
+  background: rgba(46, 32, 41, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* Luxury gradient backgrounds */

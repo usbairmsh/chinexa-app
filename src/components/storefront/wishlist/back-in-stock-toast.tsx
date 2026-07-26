@@ -30,7 +30,7 @@ export function BackInStockToast() {
           role="status"
           aria-live="polite"
         >
-          <div className="relative overflow-hidden rounded-2xl bg-white shadow-[0_16px_50px_rgba(58,36,56,0.22)] border border-border/40 p-4 pr-9">
+          <div className="relative overflow-hidden rounded-2xl bg-card shadow-[0_16px_50px_rgba(58,36,56,0.22)] border border-border/40 p-4 pr-9">
             <button
               onClick={hide}
               className="absolute top-2.5 right-2.5 flex h-7 w-7 items-center justify-center rounded-full text-charcoal-lighter hover:bg-pearl hover:text-charcoal transition-colors"

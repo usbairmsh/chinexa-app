@@ -75,7 +75,7 @@ export function CookieConsent() {
             transition={{ duration: 0.3, ease: "easeOut" }}
             className="fixed inset-x-3 bottom-3 z-50 sm:inset-x-auto sm:right-5 sm:bottom-5 sm:w-[26rem]"
           >
-            <div className="flex items-start gap-3 rounded-2xl border border-border/30 bg-white p-4 shadow-[0_8px_40px_rgba(0,0,0,0.15)]">
+            <div className="flex items-start gap-3 rounded-2xl border border-border/30 bg-card p-4 shadow-[0_8px_40px_rgba(0,0,0,0.15)]">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-light text-secondary">
                 <Cookie className="h-5 w-5" />
               </div>

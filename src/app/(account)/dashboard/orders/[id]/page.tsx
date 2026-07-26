@@ -212,7 +212,7 @@ export default function OrderDetailPage() {
                   transition={{ duration: 0.3, delay: i * 0.05, ease: "easeOut" }}
                   className="flex gap-3 sm:gap-4 group"
                 >
-                  <div className="relative h-16 w-16 sm:h-20 sm:w-20 rounded-xl overflow-hidden bg-pearl shrink-0">
+                  <div className="relative h-16 w-16 sm:h-20 sm:w-20 rounded-xl overflow-hidden bg-image-surface shrink-0">
                     <Image src={item.product_image || "https://placehold.co/80x80"} alt={item.product_name} fill className="object-cover transition-transform duration-300 group-hover:scale-105" sizes="80px" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -255,7 +255,7 @@ export default function OrderDetailPage() {
                       <div className="flex flex-col items-center">
                         <div className={cn(
                           "flex h-9 w-9 items-center justify-center rounded-full border-2 shrink-0 transition-colors duration-300",
-                          step.done ? "bg-secondary border-secondary text-white" : "bg-white border-border text-charcoal-lighter"
+                          step.done ? "bg-secondary border-secondary text-white" : "bg-card border-border text-charcoal-lighter"
                         )}>
                           <Icon className="h-4 w-4" />
                         </div>

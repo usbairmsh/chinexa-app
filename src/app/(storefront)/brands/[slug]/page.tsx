@@ -91,7 +91,7 @@ export default function BrandPage() {
 
   if (brandLoading) {
     return (
-      <div className="bg-white min-h-screen">
+      <div className="bg-card min-h-screen">
         <div className="bg-hero-gradient">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
             <Skeleton className="h-4 w-32 mb-4" />
@@ -105,7 +105,7 @@ export default function BrandPage() {
 
   if (!brand) {
     return (
-      <div className="bg-white min-h-screen flex items-center justify-center">
+      <div className="bg-card min-h-screen flex items-center justify-center">
         <EmptyState
           icon={Award}
           title="Brand Not Found"
@@ -116,7 +116,7 @@ export default function BrandPage() {
   }
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-card min-h-screen">
       {/* Brand Header */}
       <div className="relative bg-hero-gradient overflow-hidden">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14 relative z-10">
@@ -130,7 +130,7 @@ export default function BrandPage() {
                 animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1 }}
                 className="hidden sm:block shrink-0"
               >
-                <div className="animate-float relative h-20 w-20 lg:h-24 lg:w-24 rounded-2xl bg-white border border-border/20 overflow-hidden shadow-sm">
+                <div className="animate-float relative h-20 w-20 lg:h-24 lg:w-24 rounded-2xl bg-card border border-border/20 overflow-hidden shadow-sm">
                   <Image
                     src={brand.logo}
                     alt={brand.name}

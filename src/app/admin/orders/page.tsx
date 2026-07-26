@@ -297,7 +297,7 @@ export default function OrderManagementPage() {
             className={cn("flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all",
               activeTab === tab.id ? "bg-charcoal !text-white" : "bg-pearl text-charcoal-lighter hover:text-charcoal")}>
             {tab.label}
-            <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full", activeTab === tab.id ? "bg-white/20" : "bg-white")}>{tab.count}</span>
+            <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full", activeTab === tab.id ? "bg-white/20" : "bg-card")}>{tab.count}</span>
           </button>
         ))}
       </div>

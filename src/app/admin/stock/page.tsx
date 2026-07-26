@@ -266,7 +266,7 @@ export default function StockManagementPage() {
             className={cn("flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all active:scale-[0.96]",
               filter === tab.id ? "bg-charcoal !text-white" : "bg-pearl text-charcoal-lighter hover:text-charcoal")}>
             {tab.label}
-            <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full", filter === tab.id ? "bg-white/20" : "bg-white")}>{tab.count}</span>
+            <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full", filter === tab.id ? "bg-white/20" : "bg-card")}>{tab.count}</span>
           </button>
         ))}
       </div>
@@ -333,7 +333,7 @@ export default function StockManagementPage() {
                     {/* Product */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="relative h-10 w-10 rounded-lg overflow-hidden bg-pearl shrink-0">
+                        <div className="relative h-10 w-10 rounded-lg overflow-hidden bg-image-surface shrink-0">
                           <Image src={product.image} alt={product.name} fill className="object-cover" sizes="40px" />
                           {product.stock === 0 && <div className="absolute inset-0 bg-destructive/20 flex items-center justify-center"><XCircle className="h-4 w-4 text-destructive" /></div>}
                         </div>
@@ -391,12 +391,12 @@ export default function StockManagementPage() {
             <motion.div
               initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 300 }}
-              className="fixed inset-y-0 right-0 z-50 w-full sm:w-[420px] bg-white shadow-[0_0_60px_rgba(0,0,0,0.15)] flex flex-col"
+              className="fixed inset-y-0 right-0 z-50 w-full sm:w-[420px] bg-card shadow-[0_0_60px_rgba(0,0,0,0.15)] flex flex-col"
             >
               {/* Panel Header — full product name + SKU (no truncation) */}
               <div className="flex items-start justify-between gap-3 p-5 border-b border-border/20">
                 <div className="flex items-start gap-3 min-w-0">
-                  <div className="relative h-12 w-12 rounded-lg overflow-hidden bg-pearl shrink-0">
+                  <div className="relative h-12 w-12 rounded-lg overflow-hidden bg-image-surface shrink-0">
                     <Image src={editProduct.image} alt={editProduct.name} fill className="object-cover" sizes="48px" />
                   </div>
                   <div className="min-w-0">
@@ -426,7 +426,7 @@ export default function StockManagementPage() {
                       <button
                         onClick={() => selectVariant("")}
                         className={cn("px-3 py-2 rounded-luxury text-xs font-medium border transition-all active:scale-[0.96]",
-                          selectedVariantId === "" ? "bg-secondary !text-white border-secondary" : "bg-white text-charcoal border-border hover:border-charcoal")}>
+                          selectedVariantId === "" ? "bg-secondary !text-white border-secondary" : "bg-card text-charcoal border-border hover:border-charcoal")}>
                         Whole product
                       </button>
                       {variants.map((v) => (
@@ -434,7 +434,7 @@ export default function StockManagementPage() {
                           key={v.id}
                           onClick={() => selectVariant(v.id)}
                           className={cn("flex items-center gap-1.5 px-3 py-2 rounded-luxury text-xs font-medium border transition-all active:scale-[0.96]",
-                            selectedVariantId === v.id ? "bg-secondary !text-white border-secondary" : "bg-white text-charcoal border-border hover:border-charcoal")}>
+                            selectedVariantId === v.id ? "bg-secondary !text-white border-secondary" : "bg-card text-charcoal border-border hover:border-charcoal")}>
                           {v.hex && <span className="h-3 w-3 rounded-full border border-border/40 shrink-0" style={{ backgroundColor: v.hex }} />}
                           {v.name}
                           <span className={cn("text-[9px] [font-variant-numeric:tabular-nums]", selectedVariantId === v.id ? "text-white/80" : "text-charcoal-lighter")}>({v.stock})</span>

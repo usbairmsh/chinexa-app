@@ -168,7 +168,7 @@ export default function ProductDetailPage() {
   // ─── Loading Skeleton ───
   if (isLoading) {
     return (
-      <div className="bg-white min-h-screen">
+      <div className="bg-background min-h-screen">
         <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-10 py-6">
           <Skeleton className="h-4 w-48 mb-8" />
           <div className="grid lg:grid-cols-12 gap-8 lg:gap-14">
@@ -285,7 +285,7 @@ export default function ProductDetailPage() {
   };
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-background min-h-screen">
       {/* Breadcrumb */}
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-10 pt-5 pb-2">
         <Breadcrumb items={[
@@ -326,7 +326,7 @@ export default function ProductDetailPage() {
 
             {/* Main Image */}
             <div
-              className="relative flex-1 aspect-[3/4] sm:aspect-auto sm:min-h-[500px] lg:min-h-[600px] rounded-2xl overflow-hidden bg-pearl group cursor-zoom-in"
+              className="relative flex-1 aspect-[3/4] sm:aspect-auto sm:min-h-[500px] lg:min-h-[600px] rounded-2xl overflow-hidden bg-image-surface group cursor-zoom-in"
               onClick={() => setLightboxOpen(true)}
             >
               <AnimatePresence mode="wait">
@@ -982,7 +982,7 @@ export default function ProductDetailPage() {
                       value={reviewTitle}
                       onChange={(e) => setReviewTitle(e.target.value)}
                       maxLength={255}
-                      className="w-full h-10 rounded-xl border border-border bg-white px-3 text-sm text-charcoal placeholder:text-charcoal-lighter/50 focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                      className="w-full h-10 rounded-xl border border-border bg-card px-3 text-sm text-charcoal placeholder:text-charcoal-lighter/50 focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
                     />
 
                     <Textarea

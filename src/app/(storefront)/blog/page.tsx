@@ -15,7 +15,7 @@ export default function BlogPage() {
   const { data: posts, isLoading } = useRecentPosts(20);
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-card min-h-screen">
       <div className="bg-hero-gradient py-10 sm:py-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Breadcrumb items={[{ label: "Blog" }]} />
@@ -58,7 +58,7 @@ export default function BlogPage() {
                 transition={{ delay: index * 0.05 }}
               >
                 <Link href={`/blog/${post.slug}`} className="group block">
-                  <div className="relative aspect-[16/9] rounded-2xl overflow-hidden bg-pearl mb-4">
+                  <div className="relative aspect-[16/9] rounded-2xl overflow-hidden bg-image-surface mb-4">
                     <Image
                       src={post.featured_image}
                       alt={post.title}

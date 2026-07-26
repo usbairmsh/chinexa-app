@@ -19,7 +19,7 @@ export function FaqSection() {
   if (!faqs || faqs.length === 0) return null;
 
   return (
-    <section className="py-8 sm:py-10 lg:py-12 bg-white">
+    <section className="py-8 sm:py-10 lg:py-12 bg-card">
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

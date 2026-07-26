@@ -144,7 +144,7 @@ export default function CategoryPage() {
   );
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-card min-h-screen">
       {/* Category Header */}
       <div className="relative bg-hero-gradient overflow-hidden">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14 relative z-10">

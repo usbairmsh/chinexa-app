@@ -41,7 +41,7 @@ export default function BlogPostPage() {
   }
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-card min-h-screen">
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8">
         <Breadcrumb items={[{ label: "Blog", href: "/blog" }, { label: post.title }]} className="mb-6" />
 
@@ -55,7 +55,7 @@ export default function BlogPostPage() {
           transition={{ duration: 0.4, ease: "easeOut" }}
         >
           {/* Featured Image */}
-          <div className="relative aspect-[16/9] rounded-2xl overflow-hidden bg-pearl mb-8 shadow-card">
+          <div className="relative aspect-[16/9] rounded-2xl overflow-hidden bg-image-surface mb-8 shadow-card">
             <Image
               src={post.featured_image}
               alt={post.title}

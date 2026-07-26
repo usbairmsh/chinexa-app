@@ -22,7 +22,7 @@ const buttonVariants = cva(
         secondary:
           "bg-secondary !text-white hover:bg-secondary-dark hover:!text-white hover:shadow-[0_8px_28px_rgba(122,79,160,0.35)] hover:-translate-y-px",
         outline:
-          "border border-secondary/25 bg-white !text-secondary hover:bg-secondary hover:!text-white hover:border-secondary hover:shadow-[0_8px_24px_rgba(122,79,160,0.22)] hover:-translate-y-px",
+          "border border-secondary/25 bg-card !text-secondary hover:bg-secondary hover:!text-white hover:border-secondary hover:shadow-[0_8px_24px_rgba(122,79,160,0.22)] hover:-translate-y-px",
         ghost:
           "!text-charcoal-light hover:bg-pearl hover:!text-charcoal",
         link:

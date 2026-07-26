@@ -248,7 +248,7 @@ export function HeroSection() {
                     transition={{ delay: 0.5 }}
                   >
                     <Link href={slide.link}>
-                      <span className="group inline-flex items-center gap-1.5 sm:gap-2.5 h-8 px-4 sm:h-12 sm:px-8 lg:h-14 lg:px-10 rounded-full bg-white text-charcoal text-[11px] sm:text-sm lg:text-[15px] font-body font-semibold tracking-wide shadow-[0_4px_30px_rgba(0,0,0,0.2)] hover:bg-secondary hover:!text-white hover:shadow-[0_6px_35px_rgba(122,79,160,0.4)] active:scale-[0.96] transition-all duration-300">
+                      <span className="group inline-flex items-center gap-1.5 sm:gap-2.5 h-8 px-4 sm:h-12 sm:px-8 lg:h-14 lg:px-10 rounded-full bg-card text-charcoal text-[11px] sm:text-sm lg:text-[15px] font-body font-semibold tracking-wide shadow-[0_4px_30px_rgba(0,0,0,0.2)] hover:bg-secondary hover:!text-white hover:shadow-[0_6px_35px_rgba(122,79,160,0.4)] active:scale-[0.96] transition-all duration-300">
                         {slide.cta_text}
                         <svg className="h-3 w-3 sm:h-4 sm:w-4 transition-transform duration-200 group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                       </span>
@@ -289,7 +289,7 @@ export function HeroSection() {
                 aria-label={`Go to slide ${i + 1}`}
               >
                 <span className={`h-2 rounded-full transition-all duration-300 ${
-                  i === current ? "w-6 sm:w-8 bg-white" : "w-2 bg-white/50"
+                  i === current ? "w-6 sm:w-8 bg-card" : "w-2 bg-white/50"
                 }`} />
               </button>
             ))}

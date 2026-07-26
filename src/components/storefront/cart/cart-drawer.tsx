@@ -114,7 +114,7 @@ export function CartDrawer() {
                         transition={{ delay: index * 0.05 }}
                         className="flex gap-4 py-4 border-b border-border/30 last:border-0"
                       >
-                        <div className="relative h-24 w-20 flex-shrink-0 rounded-lg overflow-hidden bg-pearl group">
+                        <div className="relative h-24 w-20 flex-shrink-0 rounded-lg overflow-hidden bg-image-surface group">
                           <Image
                             src={item.product_image || `https://picsum.photos/seed/${item.product_slug}/160/192`}
                             alt={item.product_name}

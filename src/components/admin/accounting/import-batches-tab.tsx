@@ -203,7 +203,7 @@ export function ImportBatchesTab() {
                     icon={<Search className="h-4 w-4" />}
                   />
                   {productOptions.length > 0 && (
-                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-white shadow-lg max-h-48 overflow-y-auto">
+                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-card shadow-lg max-h-48 overflow-y-auto">
                       {productOptions.map((p) => (
                         <button
                           key={p.id}

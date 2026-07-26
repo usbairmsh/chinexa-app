@@ -139,7 +139,7 @@ export default function AdminProductsPage() {
                 <div className="w-5" />
               )}
               <div className="flex items-center gap-3 cursor-pointer group" onClick={() => router.push(`/admin/products/${product.id}`)}>
-                <div className="relative h-11 w-11 rounded-lg overflow-hidden bg-pearl shrink-0">
+                <div className="relative h-11 w-11 rounded-lg overflow-hidden bg-image-surface shrink-0">
                   <Image src={product.images[0]?.url || "https://placehold.co/44x44"} alt={product.name} fill className="object-cover" sizes="44px" unoptimized={product.images[0]?.url?.includes("/uploads/")} />
                   {!product.is_active && <div className="absolute inset-0 bg-white/60 flex items-center justify-center"><EyeOff className="h-4 w-4 text-charcoal-lighter" /></div>}
                 </div>
@@ -268,7 +268,7 @@ export default function AdminProductsPage() {
                 Stock(md) · DateAdded(lg) · Wishlist(xl) · Status(md) · Actions */}
             <td className="px-4 py-2.5" colSpan={2}>
               <div className="flex items-center gap-3 ml-7">
-                <div className="relative h-9 w-9 rounded-lg overflow-hidden bg-pearl shrink-0 border border-border/20">
+                <div className="relative h-9 w-9 rounded-lg overflow-hidden bg-image-surface shrink-0 border border-border/20">
                   {v.image ? (
                     <Image src={v.image} alt={v.name} fill className="object-cover" sizes="36px" unoptimized={v.image.includes("/uploads/")} />
                   ) : (
@@ -310,16 +310,16 @@ export default function AdminProductsPage() {
             {/* Actions */}
             <td className="px-4 py-2.5">
               <div className="flex items-center gap-1">
-                <button onClick={() => setViewVariant({ variant: v, product })} className="p-1 hover:bg-white rounded text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96]" title="View">
+                <button onClick={() => setViewVariant({ variant: v, product })} className="p-1 hover:bg-card rounded text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96]" title="View">
                   <Eye className="h-3.5 w-3.5" />
                 </button>
                 {canEditProduct && (
-                  <button onClick={() => openEditVariant(v, product)} className="p-1 hover:bg-white rounded text-charcoal-lighter hover:text-secondary transition-colors active:scale-[0.96]" title="Edit">
+                  <button onClick={() => openEditVariant(v, product)} className="p-1 hover:bg-card rounded text-charcoal-lighter hover:text-secondary transition-colors active:scale-[0.96]" title="Edit">
                     <Edit className="h-3.5 w-3.5" />
                   </button>
                 )}
                 {canDeleteProduct && (
-                  <button onClick={() => setDeleteVariant({ variant: v, product })} className="p-1 hover:bg-white rounded text-charcoal-lighter hover:text-destructive transition-colors active:scale-[0.96]" title="Delete">
+                  <button onClick={() => setDeleteVariant({ variant: v, product })} className="p-1 hover:bg-card rounded text-charcoal-lighter hover:text-destructive transition-colors active:scale-[0.96]" title="Delete">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 )}
@@ -446,7 +446,7 @@ export default function AdminProductsPage() {
           </DialogHeader>
           {deleteProduct && (
             <div className="flex items-center gap-3 p-3 rounded-luxury bg-pearl/60">
-              <div className="relative h-12 w-12 rounded-lg overflow-hidden bg-pearl shrink-0">
+              <div className="relative h-12 w-12 rounded-lg overflow-hidden bg-image-surface shrink-0">
                 <Image src={deleteProduct.images[0]?.url || "https://placehold.co/48x48"} alt={deleteProduct.name} fill className="object-cover" sizes="48px" />
               </div>
               <div className="min-w-0">
@@ -471,7 +471,7 @@ export default function AdminProductsPage() {
           {viewVariant && (
             <div className="space-y-3">
               <div className="flex items-center gap-3 p-3 rounded-luxury bg-pearl/60">
-                <div className="relative h-16 w-16 rounded-lg overflow-hidden bg-pearl shrink-0 border border-border/20">
+                <div className="relative h-16 w-16 rounded-lg overflow-hidden bg-image-surface shrink-0 border border-border/20">
                   {viewVariant.variant.image ? (
                     <Image src={viewVariant.variant.image} alt={viewVariant.variant.name} fill className="object-cover" sizes="64px" unoptimized={viewVariant.variant.image.includes("/uploads/")} />
                   ) : (

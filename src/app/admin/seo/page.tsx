@@ -736,7 +736,7 @@ export default function AdminSeoPage() {
                 <CardDescription>How your site appears in Google</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="rounded-lg border border-border/50 p-4 bg-white">
+                <div className="rounded-lg border border-border/50 p-4 bg-card">
                   <p className="text-blue-600 text-lg font-medium hover:underline cursor-pointer truncate">
                     {siteTitle || "Your Site Title"}
                   </p>
@@ -1345,7 +1345,7 @@ export default function AdminSeoPage() {
                 value={fetchSearch}
                 onChange={(e) => setFetchSearch(e.target.value)}
                 placeholder="Search by URL or title…"
-                className="w-full h-9 pl-9 pr-3 rounded-luxury bg-beige-dark/70 shadow-[inset_0_0_0_1px_rgba(58,36,56,0.06)] text-sm text-charcoal placeholder:text-charcoal-lighter/50 focus:bg-white focus:shadow-[inset_0_0_0_1.5px_var(--color-secondary)] focus:outline-none transition-all"
+                className="w-full h-9 pl-9 pr-3 rounded-luxury bg-beige-dark/70 shadow-[inset_0_0_0_1px_rgba(58,36,56,0.06)] text-sm text-charcoal placeholder:text-charcoal-lighter/50 focus:bg-card focus:shadow-[inset_0_0_0_1.5px_var(--color-secondary)] focus:outline-none transition-all"
               />
             </div>
             <div className="w-full sm:w-44">

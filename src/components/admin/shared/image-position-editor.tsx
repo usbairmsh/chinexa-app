@@ -115,17 +115,17 @@ export function ImagePositionEditor({ imageUrl, value, onChange, aspectRatio = "
       {/* Controls */}
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-0.5 bg-pearl/60 rounded-md p-0.5">
-          <button type="button" onClick={() => adjustZoom(-0.1)} disabled={crop.zoom <= 1} className="flex h-6 w-6 items-center justify-center rounded hover:bg-white text-charcoal-lighter hover:text-charcoal disabled:opacity-30 transition-all">
+          <button type="button" onClick={() => adjustZoom(-0.1)} disabled={crop.zoom <= 1} className="flex h-6 w-6 items-center justify-center rounded hover:bg-card text-charcoal-lighter hover:text-charcoal disabled:opacity-30 transition-all">
             <ZoomOut className="h-3 w-3" />
           </button>
           <span className="text-[9px] font-mono text-charcoal-lighter w-8 text-center">{Math.round(crop.zoom * 100)}%</span>
-          <button type="button" onClick={() => adjustZoom(0.1)} disabled={crop.zoom >= 3} className="flex h-6 w-6 items-center justify-center rounded hover:bg-white text-charcoal-lighter hover:text-charcoal disabled:opacity-30 transition-all">
+          <button type="button" onClick={() => adjustZoom(0.1)} disabled={crop.zoom >= 3} className="flex h-6 w-6 items-center justify-center rounded hover:bg-card text-charcoal-lighter hover:text-charcoal disabled:opacity-30 transition-all">
             <ZoomIn className="h-3 w-3" />
           </button>
         </div>
         <div className="flex items-center gap-0.5 bg-pearl/60 rounded-md p-0.5">
           {[{ l: "←", dx: -5, dy: 0 }, { l: "↑", dx: 0, dy: -5 }, { l: "↓", dx: 0, dy: 5 }, { l: "→", dx: 5, dy: 0 }].map((n) => (
-            <button key={n.l} type="button" onClick={() => nudge(n.dx, n.dy)} className="flex h-6 w-6 items-center justify-center rounded hover:bg-white text-charcoal-lighter hover:text-charcoal transition-all text-[9px] font-bold">{n.l}</button>
+            <button key={n.l} type="button" onClick={() => nudge(n.dx, n.dy)} className="flex h-6 w-6 items-center justify-center rounded hover:bg-card text-charcoal-lighter hover:text-charcoal transition-all text-[9px] font-bold">{n.l}</button>
           ))}
         </div>
         <span className="text-[9px] font-mono text-charcoal-lighter ml-auto">{crop.x}%, {crop.y}%</span>

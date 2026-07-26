@@ -532,7 +532,7 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="bg-white min-h-screen overflow-x-hidden">
+    <div className="bg-card min-h-screen overflow-x-hidden">
       <div className="mx-auto max-w-4xl px-3 sm:px-6 lg:px-8 py-6 sm:py-8">
         <Breadcrumb items={[{ label: "Cart", href: "/cart" }, { label: "Checkout" }]} className="mb-6" />
 
@@ -968,7 +968,7 @@ export default function CheckoutPage() {
 
                     {qrImage && (
                       <div className="flex flex-col items-center gap-2">
-                        <div className="relative h-[250px] w-[250px] rounded-xl overflow-hidden bg-white border border-border/30">
+                        <div className="relative h-[250px] w-[250px] rounded-xl overflow-hidden bg-card border border-border/30">
                           <Image src={qrImage} alt={`${selectedMethod?.name} QR code`} fill className="object-contain" sizes="250px" unoptimized={qrImage.startsWith("data:") || qrImage.includes("/uploads/")} />
                         </div>
                         <a
@@ -1039,7 +1039,7 @@ export default function CheckoutPage() {
                       <div className="min-h-0 overflow-y-auto rounded-xl border border-border/30 divide-y divide-border/20 shrink">
                         {items.map((item) => (
                           <div key={item.id} className="flex items-center gap-2.5 p-2">
-                            <div className="relative h-9 w-9 shrink-0 rounded-md overflow-hidden bg-pearl">
+                            <div className="relative h-9 w-9 shrink-0 rounded-md overflow-hidden bg-image-surface">
                               <Image src={item.product_image || `https://picsum.photos/seed/${item.product_slug}/80/80`} alt={item.product_name} fill className="object-cover" sizes="36px" unoptimized={item.product_image?.includes("/uploads/")} />
                             </div>
                             <div className="min-w-0 flex-1">
@@ -1174,7 +1174,7 @@ export default function CheckoutPage() {
                 <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
                   {items.map((item) => (
                     <div key={item.id} className="flex gap-3">
-                      <div className="relative h-14 w-12 rounded-lg overflow-hidden bg-white shrink-0">
+                      <div className="relative h-14 w-12 rounded-lg overflow-hidden bg-card shrink-0">
                         <Image src={item.product_image || `https://picsum.photos/seed/${item.product_slug}/96/112`} alt={item.product_name} fill className="object-cover" sizes="48px" />
                         <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-charcoal text-[10px] text-white font-bold">{item.quantity}</span>
                       </div>

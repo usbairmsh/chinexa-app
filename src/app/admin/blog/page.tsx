@@ -158,7 +158,7 @@ export default function AdminBlogPage() {
               <CardContent className="p-0">
                 <div className="flex gap-4 p-4">
                   {post.featured_image && (
-                    <div className="relative h-24 w-36 flex-shrink-0 rounded-lg overflow-hidden bg-pearl hidden sm:block">
+                    <div className="relative h-24 w-36 flex-shrink-0 rounded-lg overflow-hidden bg-image-surface hidden sm:block">
                       <Image src={post.featured_image} alt={post.title} fill className="object-cover" sizes="144px" unoptimized={post.featured_image.startsWith("/uploads/")} />
                     </div>
                   )}

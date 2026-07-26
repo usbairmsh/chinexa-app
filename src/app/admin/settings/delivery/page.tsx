@@ -224,23 +224,23 @@ export default function DeliverySettingsPage() {
                     <tr key={zone.id} className="border-b border-secondary/20 bg-primary-light/30">
                       <td className="px-4 py-2">
                         <input value={editZoneData.name} onChange={(e) => setEditZoneData({ ...editZoneData, name: e.target.value })}
-                          className="w-full h-8 px-2 text-sm font-medium border border-secondary/30 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-secondary/20" />
+                          className="w-full h-8 px-2 text-sm font-medium border border-secondary/30 rounded-lg bg-card focus:outline-none focus:ring-2 focus:ring-secondary/20" />
                       </td>
                       <td className="px-4 py-2 hidden sm:table-cell">
                         <input value={editZoneData.areas} onChange={(e) => setEditZoneData({ ...editZoneData, areas: e.target.value })}
-                          className="w-full h-8 px-2 text-xs border border-secondary/30 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-secondary/20" />
+                          className="w-full h-8 px-2 text-xs border border-secondary/30 rounded-lg bg-card focus:outline-none focus:ring-2 focus:ring-secondary/20" />
                       </td>
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-1">
                           <span className="text-xs text-charcoal-lighter">৳</span>
                           <input type="number" value={editZoneData.charge} onChange={(e) => setEditZoneData({ ...editZoneData, charge: e.target.value })}
-                            className="w-16 h-8 px-2 text-sm font-medium text-center border border-secondary/30 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-secondary/20 [font-variant-numeric:tabular-nums]" />
+                            className="w-16 h-8 px-2 text-sm font-medium text-center border border-secondary/30 rounded-lg bg-card focus:outline-none focus:ring-2 focus:ring-secondary/20 [font-variant-numeric:tabular-nums]" />
                         </div>
                       </td>
                       <td className="px-4 py-2 hidden md:table-cell">
                         <div className="flex items-center gap-1">
                           <input value={editZoneData.estimatedDays} onChange={(e) => setEditZoneData({ ...editZoneData, estimatedDays: e.target.value })}
-                            className="w-14 h-8 px-2 text-xs text-center border border-secondary/30 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-secondary/20" />
+                            className="w-14 h-8 px-2 text-xs text-center border border-secondary/30 rounded-lg bg-card focus:outline-none focus:ring-2 focus:ring-secondary/20" />
                           <span className="text-[10px] text-charcoal-lighter">days</span>
                         </div>
                       </td>

@@ -38,7 +38,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
               "flex h-11 w-full rounded-luxury bg-beige-dark/70 px-4 py-2.5 text-sm text-charcoal transition-colors duration-200 ease-out caret-secondary shadow-[inset_0_0_0_1px_rgba(58,36,56,0.06)]",
               "placeholder:text-charcoal-lighter/70",
               "hover:bg-beige-dark",
-              "focus:bg-white focus:outline-none focus:ring-0 focus:shadow-[inset_0_0_0_1.5px_var(--color-secondary)]",
+              "focus:bg-card focus:outline-none focus:ring-0 focus:shadow-[inset_0_0_0_1.5px_var(--color-secondary)]",
               "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-muted",
               icon && "pl-10",
               error && "text-destructive",

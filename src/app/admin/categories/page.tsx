@@ -270,7 +270,7 @@ export default function AdminCategoriesPage() {
                         </div>
 
                         {/* Image */}
-                        <div className="relative h-11 w-11 rounded-lg overflow-hidden bg-pearl shrink-0">
+                        <div className="relative h-11 w-11 rounded-lg overflow-hidden bg-image-surface shrink-0">
                           <Image src={cat.image || `https://picsum.photos/seed/cat-${cat.slug}/100/100`} alt={cat.name} fill className="object-cover" sizes="44px" unoptimized={cat.image?.startsWith("data:")} />
                           {!visible && <div className="absolute inset-0 bg-white/60 flex items-center justify-center"><EyeOff className="h-3.5 w-3.5 text-charcoal-lighter" /></div>}
                         </div>
@@ -332,20 +332,20 @@ export default function AdminCategoriesPage() {
                                   <button
                                     onClick={(e) => { e.stopPropagation(); moveSubcategory(cat, subIdx, "up"); }}
                                     disabled={subIdx === 0}
-                                    className="h-5 w-5 flex items-center justify-center rounded hover:bg-white disabled:opacity-20 transition-colors active:scale-[0.96]"
+                                    className="h-5 w-5 flex items-center justify-center rounded hover:bg-card disabled:opacity-20 transition-colors active:scale-[0.96]"
                                   >
                                     <ChevronUp className="h-3 w-3 text-charcoal-lighter" />
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); moveSubcategory(cat, subIdx, "down"); }}
                                     disabled={subIdx === cat.children!.length - 1}
-                                    className="h-5 w-5 flex items-center justify-center rounded hover:bg-white disabled:opacity-20 transition-colors active:scale-[0.96]"
+                                    className="h-5 w-5 flex items-center justify-center rounded hover:bg-card disabled:opacity-20 transition-colors active:scale-[0.96]"
                                   >
                                     <ChevronDown className="h-3 w-3 text-charcoal-lighter" />
                                   </button>
                                 </div>
                                 <span
-                                  className={cn("flex items-center gap-1 rounded-full bg-white border border-border/30 px-2.5 py-1 text-[10px] transition-colors", canEditCategory ? "cursor-pointer hover:border-secondary/30" : "cursor-default")}
+                                  className={cn("flex items-center gap-1 rounded-full bg-card border border-border/30 px-2.5 py-1 text-[10px] transition-colors", canEditCategory ? "cursor-pointer hover:border-secondary/30" : "cursor-default")}
                                   onClick={() => canEditCategory && openEditSub({ ...sub, parent_id: cat.id })}
                                 >
                                   <FolderTree className="h-2.5 w-2.5 text-secondary" />
@@ -384,7 +384,7 @@ export default function AdminCategoriesPage() {
                             <div className="flex flex-col gap-1 ml-8 sm:ml-14">
                               {catBrands.map((brand) => (
                                 <div key={brand.id} className="flex items-center gap-1.5 group">
-                                  <span className="flex items-center gap-1 rounded-full bg-white border border-blue-200/50 px-2.5 py-1 text-[10px] cursor-pointer hover:border-secondary/30 transition-colors">
+                                  <span className="flex items-center gap-1 rounded-full bg-card border border-blue-200/50 px-2.5 py-1 text-[10px] cursor-pointer hover:border-secondary/30 transition-colors">
                                     <Award className="h-2.5 w-2.5 text-blue-500" />
                                     <span className="font-medium">{brand.name}</span>
                                     <span className="text-charcoal-lighter">({brand.product_count})</span>
@@ -487,7 +487,7 @@ export default function AdminCategoriesPage() {
                 </p>
                 <div className="flex items-center gap-3">
                   {formImage ? (
-                    <div className="relative h-9 w-9 rounded-lg overflow-hidden bg-pearl shrink-0">
+                    <div className="relative h-9 w-9 rounded-lg overflow-hidden bg-image-surface shrink-0">
                       <Image src={formImage} alt="" fill className="object-cover" sizes="36px" unoptimized={formImage.startsWith("data:")} />
                     </div>
                   ) : (
@@ -522,7 +522,7 @@ export default function AdminCategoriesPage() {
           {deleteDialog && (
             <div className="space-y-3">
               <div className="flex items-center gap-3 p-3 rounded-lg bg-pearl/60">
-                <div className="relative h-10 w-10 rounded-lg overflow-hidden bg-pearl shrink-0">
+                <div className="relative h-10 w-10 rounded-lg overflow-hidden bg-image-surface shrink-0">
                   {deleteDialog.image ? (
                     <Image src={deleteDialog.image} alt={deleteDialog.name} fill className="object-cover" sizes="40px" unoptimized={deleteDialog.image.startsWith("data:") || deleteDialog.image.startsWith("/uploads/")} />
                   ) : (

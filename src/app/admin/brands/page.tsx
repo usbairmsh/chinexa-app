@@ -141,7 +141,7 @@ export default function AdminBrandsPage() {
                 <div className="flex items-start justify-between mb-3 gap-2">
                   <div className="flex items-center gap-3 min-w-0">
                     {brand.logo ? (
-                      <div className="relative h-12 w-12 rounded-lg overflow-hidden bg-pearl border border-border/20 shrink-0">
+                      <div className="relative h-12 w-12 rounded-lg overflow-hidden bg-image-surface border border-border/20 shrink-0">
                         <Image src={brand.logo} alt={brand.name} fill className="object-contain p-1" sizes="48px" unoptimized={brand.logo.includes("/uploads/")} />
                       </div>
                     ) : (
@@ -254,7 +254,7 @@ export default function AdminBrandsPage() {
                 {/* Live Search Preview */}
                 <div>
                   <p className="text-xs font-semibold text-charcoal-lighter uppercase tracking-wider mb-2">Google Search Preview</p>
-                  <div className="p-4 rounded-lg border border-border/30 bg-white">
+                  <div className="p-4 rounded-lg border border-border/30 bg-card">
                     <p className="text-blue-600 text-base font-medium truncate">
                       {fSeoTitle || (fName ? `${fName} — Authentic Products in Bangladesh` : "Brand Name")}
                     </p>
