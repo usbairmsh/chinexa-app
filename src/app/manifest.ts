@@ -11,8 +11,12 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "portrait-primary",
-    background_color: "#ffffff",
-    theme_color: "#C0392B",
+    // Install splash + app tint. A static manifest can hold only one value
+    // each (no media queries), so these use the light palette to match the
+    // app's light-first default; the per-scheme switch lives on the viewport
+    // themeColor in layout.tsx. Pearl background, plum-ink theme.
+    background_color: "#FFF8FB",
+    theme_color: "#3A2438",
     icons: [
       { src: "/favicon/android-chrome-192x192.png", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/favicon/android-chrome-192x192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },

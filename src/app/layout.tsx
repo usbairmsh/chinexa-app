@@ -19,7 +19,15 @@ export const viewport: Viewport = {
   // failure Lighthouse penalizes ("[user-scalable=no] is used") and Google
   // factors page experience into ranking. Modern browsers already prevent the
   // old iOS input-zoom quirk this lock was typically added for.
-  themeColor: "#C0392B",
+  // Browser-chrome / installed-app title-bar tint, matched to the palette and
+  // switched by the device's OS theme: pearl in light, warm plum-black in dark
+  // (the same --color-background values used by globals.css). This reacts to
+  // prefers-color-scheme (the OS setting) rather than the in-app class toggle,
+  // which the browser chrome can't read — the standard PWA approach.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FFF8FB" },
+    { media: "(prefers-color-scheme: dark)", color: "#241820" },
+  ],
 };
 
 const DEFAULT_TITLE = "ChineXa — Premium Beauty, Skincare & Lifestyle Store in Bangladesh";
