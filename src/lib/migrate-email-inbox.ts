@@ -1,5 +1,6 @@
 import { execute, query } from "@/lib/db";
 import { type RowDataPacket } from "mysql2/promise";
+import { normalizeSubject as normSubjectSql } from "@/lib/email-inbox";
 
 // Self-healing schema for the configurable multi-mailbox Email Center. Mirrors
 // the chat/roles migration pattern: CREATE TABLE IF NOT EXISTS is idempotent,
@@ -17,14 +18,17 @@ import { type RowDataPacket } from "mysql2/promise";
 //   email_messages   — every message in a thread, inbound or outbound.
 //   email_broadcasts — audit of no-reply segment sends.
 
-async function ensureColumn(table: string, column: string, definition: string) {
+/** Adds the column if missing. Returns true when it was actually added (so the
+ *  caller can run a one-time backfill), false if it already existed. */
+async function ensureColumn(table: string, column: string, definition: string): Promise<boolean> {
   const rows = await query<RowDataPacket[]>(
     `SELECT COUNT(*) AS c FROM information_schema.columns
      WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?`,
     [table, column]
   );
-  if (Number(rows[0]?.c) > 0) return;
+  if (Number(rows[0]?.c) > 0) return false;
   await execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  return true;
 }
 
 let ensured = false;
@@ -53,6 +57,7 @@ export async function ensureEmailInboxTables() {
         correspondent VARCHAR(255) NOT NULL,
         correspondent_name VARCHAR(255) NULL,
         subject VARCHAR(500) NOT NULL DEFAULT '(no subject)',
+        norm_subject VARCHAR(255) NOT NULL DEFAULT '(no subject)',
         status ENUM('open','closed') NOT NULL DEFAULT 'open',
         admin_unread INT NOT NULL DEFAULT 0,
         message_count INT NOT NULL DEFAULT 0,
@@ -60,6 +65,7 @@ export async function ensureEmailInboxTables() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_mailbox_recent (mailbox_id, last_message_at),
         INDEX idx_correspondent (mailbox_id, correspondent),
+        INDEX idx_thread_match (mailbox_id, correspondent, norm_subject, status),
         FOREIGN KEY (mailbox_id) REFERENCES email_mailboxes(id) ON DELETE CASCADE
       ) ENGINE=InnoDB`
     );
@@ -122,6 +128,21 @@ export async function ensureEmailInboxTables() {
 
     // Future-proofing hook for adding columns to older deployments.
     await ensureColumn("email_mailboxes", "can_broadcast", "BOOLEAN NOT NULL DEFAULT FALSE");
+    // norm_subject drives thread matching (reply vs new email). On DBs created
+    // before this column existed, add it then backfill from the stored subject
+    // (Re:/Fwd: stripped, lowercased) so existing threads still match their own
+    // replies instead of all collapsing onto the '(no subject)' default.
+    const addedNormSubject = await ensureColumn("email_threads", "norm_subject", "VARCHAR(255) NOT NULL DEFAULT '(no subject)'");
+    if (addedNormSubject) {
+      // Backfill existing threads from the JS-normalized subject (avoids relying
+      // on REGEXP_REPLACE, which is MySQL 8+ only). Chunked, keyed by id.
+      const rows = await query<RowDataPacket[]>("SELECT id, subject FROM email_threads");
+      for (const r of rows) {
+        await execute("UPDATE email_threads SET norm_subject = ? WHERE id = ?", [
+          normSubjectSql(String(r.subject || "")), r.id,
+        ]);
+      }
+    }
 
     ensured = true;
   } catch (err) {

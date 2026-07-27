@@ -13,6 +13,16 @@ export const newEmailMsgId = () => genId("emsg");
 export const newBroadcastId = () => genId("ebrd");
 export const newDraftId = () => genId("edft");
 
+/** Strips leading Re:/Fwd:/Fw: prefixes and lowercases, so a reply's subject
+ *  matches the thread it belongs to and a genuinely different subject doesn't. */
+export function normalizeSubject(subject: string): string {
+  return (subject || "")
+    .replace(/^\s*((re|fwd?|aw|sv)\s*:\s*)+/i, "")
+    .trim()
+    .toLowerCase()
+    .slice(0, 255) || "(no subject)";
+}
+
 export interface Mailbox {
   id: string;
   address: string;
@@ -97,26 +107,45 @@ export async function recordInbound(params: {
 }): Promise<string> {
   const { mailbox, fromAddress, subject } = params;
   const correspondent = fromAddress.toLowerCase().trim();
+  const normSubject = normalizeSubject(subject);
 
-  // Prefer threading onto the correspondent's most recent open thread in this
-  // mailbox; fall back to a new thread. (Header-based matching could be added
-  // here by looking up in_reply_to against email_messages.message_id.)
-  const existing = await query<RowDataPacket[]>(
-    `SELECT id FROM email_threads
-     WHERE mailbox_id = ? AND correspondent = ? AND status = 'open'
-     ORDER BY last_message_at DESC LIMIT 1`,
-    [mailbox.id, correspondent]
-  );
+  // Decide whether this email continues an existing conversation or starts a
+  // new one. A new email from a known correspondent must open a NEW thread —
+  // only genuine replies should attach to an existing thread. We treat it as a
+  // reply when either:
+  //   (a) its In-Reply-To header points at a message we already have, or
+  //   (b) it shares the same normalized subject (strip Re:/Fwd:) as an open
+  //       thread from the same correspondent.
+  // Otherwise, a fresh thread is opened.
+  let threadId: string | null = null;
 
-  let threadId: string;
-  if (existing.length) {
-    threadId = existing[0].id as string;
-  } else {
+  if (params.inReplyTo) {
+    const byHeader = await query<RowDataPacket[]>(
+      `SELECT t.id FROM email_messages m
+       JOIN email_threads t ON t.id = m.thread_id
+       WHERE t.mailbox_id = ? AND m.message_id = ? LIMIT 1`,
+      [mailbox.id, params.inReplyTo]
+    );
+    if (byHeader.length) threadId = byHeader[0].id as string;
+  }
+
+  if (!threadId) {
+    const bySubject = await query<RowDataPacket[]>(
+      `SELECT id FROM email_threads
+       WHERE mailbox_id = ? AND correspondent = ? AND status = 'open'
+         AND norm_subject = ?
+       ORDER BY last_message_at DESC LIMIT 1`,
+      [mailbox.id, correspondent, normSubject]
+    );
+    if (bySubject.length) threadId = bySubject[0].id as string;
+  }
+
+  if (!threadId) {
     threadId = newThreadId();
     await execute(
-      `INSERT INTO email_threads (id, mailbox_id, correspondent, correspondent_name, subject, status, admin_unread, message_count, last_message_at)
-       VALUES (?, ?, ?, ?, ?, 'open', 0, 0, CURRENT_TIMESTAMP)`,
-      [threadId, mailbox.id, correspondent, params.fromName || null, subject.slice(0, 500) || "(no subject)"]
+      `INSERT INTO email_threads (id, mailbox_id, correspondent, correspondent_name, subject, norm_subject, status, admin_unread, message_count, last_message_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'open', 0, 0, CURRENT_TIMESTAMP)`,
+      [threadId, mailbox.id, correspondent, params.fromName || null, subject.slice(0, 500) || "(no subject)", normSubject]
     );
   }
 
