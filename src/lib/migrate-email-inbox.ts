@@ -31,6 +31,15 @@ async function ensureColumn(table: string, column: string, definition: string): 
   return true;
 }
 
+async function tableExists(table: string): Promise<boolean> {
+  const rows = await query<RowDataPacket[]>(
+    `SELECT COUNT(*) AS c FROM information_schema.tables
+     WHERE table_schema = DATABASE() AND table_name = ?`,
+    [table]
+  );
+  return Number(rows[0]?.c) > 0;
+}
+
 let ensured = false;
 
 export async function ensureEmailInboxTables() {
@@ -106,6 +115,43 @@ export async function ensureEmailInboxTables() {
         INDEX idx_created (created_at)
       ) ENGINE=InnoDB`
     );
+
+    // Persistent lifetime tallies — incremented on every send/receive and only
+    // cleared by an explicit admin Reset. Kept separate from email_messages so
+    // deleting a message never changes the totals. One row per mailbox.
+    const countersExisted = await tableExists("email_counters");
+    await execute(
+      `CREATE TABLE IF NOT EXISTS email_counters (
+        mailbox_id VARCHAR(50) PRIMARY KEY,
+        sent BIGINT NOT NULL DEFAULT 0,
+        received BIGINT NOT NULL DEFAULT 0,
+        broadcast BIGINT NOT NULL DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB`
+    );
+    // First creation: seed the tallies from whatever messages/broadcasts already
+    // exist, so the counts don't reset to zero on deployments that predate this
+    // table. (email_threads/messages may themselves not exist yet on a brand-new
+    // DB — the queries are guarded to no-op in that case.)
+    if (!countersExisted && (await tableExists("email_messages"))) {
+      await execute(
+        `INSERT INTO email_counters (mailbox_id, sent, received)
+         SELECT t.mailbox_id,
+                SUM(m.direction = 'outbound') AS sent,
+                SUM(m.direction = 'inbound')  AS received
+         FROM email_messages m JOIN email_threads t ON t.id = m.thread_id
+         GROUP BY t.mailbox_id
+         ON DUPLICATE KEY UPDATE sent = VALUES(sent), received = VALUES(received)`
+      );
+      if (await tableExists("email_broadcasts")) {
+        await execute(
+          `INSERT INTO email_counters (mailbox_id, broadcast)
+           SELECT mailbox_id, COALESCE(SUM(sent_count),0) FROM email_broadcasts
+           WHERE mailbox_id IS NOT NULL GROUP BY mailbox_id
+           ON DUPLICATE KEY UPDATE broadcast = VALUES(broadcast)`
+        );
+      }
+    }
 
     await execute(
       `CREATE TABLE IF NOT EXISTS email_drafts (

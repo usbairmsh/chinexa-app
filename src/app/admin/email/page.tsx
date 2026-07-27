@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Mail, Send, Loader2, Inbox, ArrowDownLeft, ArrowUpRight, Plus, Trash2,
-  Megaphone, Settings2, RefreshCw, Check, Reply, FileText, Save,
+  Megaphone, Settings2, RefreshCw, Check, Reply, FileText, Save, RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -138,6 +138,12 @@ export default function EmailCenterPage() {
     load();
   };
 
+  const resetCounts = async () => {
+    if (!confirm("Reset the Sent / Received / Broadcast / Total counts to zero? This doesn't delete any emails.")) return;
+    const res = await fetch("/api/admin-email/reset-counters", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+    if (res.ok) load();
+  };
+
   // The most recent message in the open thread — used to pre-fill the reply's To.
   const lastInbound = [...messages].reverse().find((m) => m.direction === "inbound");
 
@@ -166,12 +172,21 @@ export default function EmailCenterPage() {
         </div>
       </div>
 
-      {/* Always-visible counters */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard icon={ArrowUpRight} label="Sent" value={totals.sent} tone="bg-blue-50 text-blue-600" />
-        <StatCard icon={ArrowDownLeft} label="Received" value={totals.received} tone="bg-emerald-50 text-emerald-600" />
-        <StatCard icon={Megaphone} label="Broadcast sent" value={totals.broadcast} tone="bg-amber-50 text-amber-600" />
-        <StatCard icon={Inbox} label="Total emails" value={totals.total} tone="bg-secondary/10 text-secondary" />
+      {/* Always-visible lifetime counters (persist across deletion) */}
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatCard icon={ArrowUpRight} label="Sent" value={totals.sent} tone="bg-blue-50 text-blue-600" />
+          <StatCard icon={ArrowDownLeft} label="Received" value={totals.received} tone="bg-emerald-50 text-emerald-600" />
+          <StatCard icon={Megaphone} label="Broadcast sent" value={totals.broadcast} tone="bg-amber-50 text-amber-600" />
+          <StatCard icon={Inbox} label="Total emails" value={totals.total} tone="bg-secondary/10 text-secondary" />
+        </div>
+        {canDelete && (
+          <div className="flex justify-end">
+            <button onClick={resetCounts} className="flex items-center gap-1 text-[11px] text-charcoal-lighter hover:text-destructive transition-colors">
+              <RotateCcw className="h-3 w-3" /> Reset counts
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[220px_320px_1fr] gap-4">

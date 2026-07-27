@@ -167,7 +167,27 @@ export async function recordInbound(params: {
     [threadId]
   );
 
+  await bumpCounter(mailbox.id, "received");
   return threadId;
+}
+
+// ─── Persistent counters ───
+// Lifetime tallies that survive message/thread deletion; only Reset clears them.
+async function bumpCounter(mailboxId: string, field: "sent" | "received" | "broadcast", by = 1): Promise<void> {
+  if (by <= 0) return;
+  await execute(
+    `INSERT INTO email_counters (mailbox_id, ${field}) VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE ${field} = ${field} + VALUES(${field})`,
+    [mailboxId, by]
+  );
+}
+
+export async function resetCounters(mailboxId?: string): Promise<void> {
+  if (mailboxId) {
+    await execute("UPDATE email_counters SET sent = 0, received = 0, broadcast = 0 WHERE mailbox_id = ?", [mailboxId]);
+  } else {
+    await execute("UPDATE email_counters SET sent = 0, received = 0, broadcast = 0");
+  }
 }
 
 /** Appends an admin's outbound reply and refreshes thread recency. */
@@ -194,6 +214,7 @@ export async function recordOutbound(params: {
      WHERE id = ?`,
     [params.threadId]
   );
+  await bumpCounter(params.mailbox.id, "sent");
 }
 
 export async function listThreads(mailboxId?: string): Promise<EmailThread[]> {
@@ -266,39 +287,30 @@ export async function deleteMessage(messageId: string): Promise<{ threadId: stri
 }
 
 /**
- * Dashboard counters. `sent`/`received` count individual messages (inbound vs
- * outbound), `total` is their sum. Broadcast sends count toward `sent`. When
- * mailboxId is given the counts are scoped to that mailbox, else store-wide.
+ * Dashboard counters. `sent`/`received`/`broadcast` are PERSISTENT lifetime
+ * tallies read from email_counters — they survive message/thread deletion and
+ * are only cleared by resetCounters(). `total` = sent + received. `unread` is
+ * a live count from open threads (a state, not a tally). When mailboxId is
+ * given the counters are scoped to that mailbox, else summed store-wide.
  */
 export async function emailCounts(mailboxId?: string): Promise<{ sent: number; received: number; broadcast: number; total: number; unread: number }> {
-  const where = mailboxId ? "WHERE t.mailbox_id = ?" : "";
   const p = mailboxId ? [mailboxId] : [];
-  const msgRows = await query<RowDataPacket[]>(
-    `SELECT
-       SUM(m.direction = 'outbound') AS sent,
-       SUM(m.direction = 'inbound')  AS received,
-       COUNT(*) AS total
-     FROM email_messages m
-     JOIN email_threads t ON t.id = m.thread_id
-     ${where}`,
+  const cRows = await query<RowDataPacket[]>(
+    `SELECT COALESCE(SUM(sent),0) AS sent, COALESCE(SUM(received),0) AS received, COALESCE(SUM(broadcast),0) AS broadcast
+     FROM email_counters ${mailboxId ? "WHERE mailbox_id = ?" : ""}`,
     p
   );
   const unreadRows = await query<RowDataPacket[]>(
     `SELECT COALESCE(SUM(admin_unread),0) AS unread FROM email_threads ${mailboxId ? "WHERE mailbox_id = ?" : ""}`,
     p
   );
-  const bcRows = await query<RowDataPacket[]>(
-    `SELECT COALESCE(SUM(sent_count),0) AS broadcast FROM email_broadcasts ${mailboxId ? "WHERE mailbox_id = ?" : ""}`,
-    p
-  );
-  const sent = Number(msgRows[0]?.sent) || 0;
-  const received = Number(msgRows[0]?.received) || 0;
-  const total = Number(msgRows[0]?.total) || 0;
+  const sent = Number(cRows[0]?.sent) || 0;
+  const received = Number(cRows[0]?.received) || 0;
   return {
     sent,
     received,
-    broadcast: Number(bcRows[0]?.broadcast) || 0,
-    total,
+    broadcast: Number(cRows[0]?.broadcast) || 0,
+    total: sent + received,
     unread: Number(unreadRows[0]?.unread) || 0,
   };
 }
@@ -429,4 +441,7 @@ export async function recordBroadcast(b: {
       b.failedCount > 0 && b.sentCount === 0 ? "failed" : "sent", b.sentBy,
     ]
   );
+  // A broadcast counts toward both the lifetime "broadcast" tally and "sent".
+  await bumpCounter(b.mailbox.id, "broadcast", b.sentCount);
+  await bumpCounter(b.mailbox.id, "sent", b.sentCount);
 }
