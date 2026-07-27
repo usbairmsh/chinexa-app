@@ -234,6 +234,38 @@ export async function deleteThread(threadId: string): Promise<void> {
 }
 
 /**
+ * Deletes a single message from a thread and re-syncs the thread's counters.
+ * If it was the thread's last message, the (now empty) thread is removed too.
+ * Returns the thread id it belonged to (or null if the message didn't exist).
+ */
+export async function deleteMessage(messageId: string): Promise<{ threadId: string; threadDeleted: boolean } | null> {
+  const rows = await query<RowDataPacket[]>(
+    "SELECT thread_id FROM email_messages WHERE id = ? LIMIT 1",
+    [messageId]
+  );
+  if (!rows.length) return null;
+  const threadId = rows[0].thread_id as string;
+
+  await execute("DELETE FROM email_messages WHERE id = ?", [messageId]);
+
+  // Recompute the thread's message count and recency from what remains.
+  const agg = await query<RowDataPacket[]>(
+    "SELECT COUNT(*) AS cnt, MAX(created_at) AS last_at FROM email_messages WHERE thread_id = ?",
+    [threadId]
+  );
+  const remaining = Number(agg[0]?.cnt) || 0;
+  if (remaining === 0) {
+    await execute("DELETE FROM email_threads WHERE id = ?", [threadId]);
+    return { threadId, threadDeleted: true };
+  }
+  await execute(
+    "UPDATE email_threads SET message_count = ?, last_message_at = COALESCE(?, last_message_at) WHERE id = ?",
+    [remaining, agg[0]?.last_at ?? null, threadId]
+  );
+  return { threadId, threadDeleted: false };
+}
+
+/**
  * Dashboard counters. `sent`/`received` count individual messages (inbound vs
  * outbound), `total` is their sum. Broadcast sends count toward `sent`. When
  * mailboxId is given the counts are scoped to that mailbox, else store-wide.

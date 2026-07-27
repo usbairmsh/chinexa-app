@@ -114,13 +114,28 @@ export default function EmailCenterPage() {
   };
 
   const deleteThread = async (t: Thread) => {
-    if (!confirm(`Delete this email thread with ${t.correspondent}? This cannot be undone.`)) return;
+    if (!confirm(`Delete this entire email thread with ${t.correspondent}? This cannot be undone.`)) return;
     const res = await fetch(`/api/admin-email/threads/${t.id}`, { method: "DELETE" });
     if (res.ok) {
       setThreads((prev) => prev.filter((x) => x.id !== t.id));
       if (activeThread?.id === t.id) setActiveThread(null);
       load();
     }
+  };
+
+  const deleteMessage = async (m: Message) => {
+    if (!confirm(`Delete this ${m.direction === "outbound" ? "sent" : "received"} message? This cannot be undone.`)) return;
+    const res = await fetch(`/api/admin-email/messages/${m.id}`, { method: "DELETE" });
+    if (!res.ok) return;
+    const r = await res.json().catch(() => ({}));
+    if (r.thread_deleted && activeThread) {
+      // That was the last message — the thread is gone.
+      setThreads((prev) => prev.filter((x) => x.id !== activeThread.id));
+      setActiveThread(null);
+    } else {
+      setMessages((prev) => prev.filter((x) => x.id !== m.id));
+    }
+    load();
   };
 
   // The most recent message in the open thread — used to pre-fill the reply's To.
@@ -261,7 +276,9 @@ export default function EmailCenterPage() {
                       <AdminButton size="sm" onClick={() => setReplyModal(true)}><Reply className="h-3.5 w-3.5 mr-1" /> Reply</AdminButton>
                     )}
                     {canDelete && (
-                      <button onClick={() => deleteThread(activeThread)} className="text-charcoal-lighter hover:text-destructive transition-colors" title="Delete thread"><Trash2 className="h-4 w-4" /></button>
+                      <button onClick={() => deleteThread(activeThread)} className="flex items-center gap-1 text-xs text-charcoal-lighter hover:text-destructive transition-colors" title="Delete the entire thread and all its messages">
+                        <Trash2 className="h-4 w-4" /> <span className="hidden sm:inline">Delete thread</span>
+                      </button>
                     )}
                   </div>
                 </div>
@@ -271,11 +288,20 @@ export default function EmailCenterPage() {
               <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[55vh]">
                 {messages.length === 0 && <div className="text-center py-6"><Loader2 className="h-5 w-5 animate-spin mx-auto text-charcoal-lighter" /></div>}
                 {messages.map((m) => (
-                  <div key={m.id} className={cn("rounded-xl border p-3", m.direction === "outbound" ? "border-secondary/20 bg-secondary/5" : "border-border/40 bg-pearl/40")}>
+                  <div key={m.id} className={cn("group rounded-xl border p-3", m.direction === "outbound" ? "border-secondary/20 bg-secondary/5" : "border-border/40 bg-pearl/40")}>
                     <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium">
                       {m.direction === "outbound"
                         ? <><ArrowUpRight className="h-3 w-3 text-secondary" /><span className="text-secondary">Sent</span><span className="text-charcoal-lighter">· {m.from_address} → {m.to_address}</span></>
                         : <><ArrowDownLeft className="h-3 w-3 text-emerald-600" /><span className="text-emerald-700">Received</span><span className="text-charcoal-lighter">· from {m.from_address}</span></>}
+                      {canDelete && (
+                        <button
+                          onClick={() => deleteMessage(m)}
+                          className="ml-auto text-charcoal-lighter opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                          title="Delete this message"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                     {(() => {
                       const shown = (m.body_text && m.body_text.trim()) || stripHtml(m.body_html);
