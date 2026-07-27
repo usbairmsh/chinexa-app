@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
-import { useFlushUploads } from "@/components/admin/shared/pending-uploads";
+import { useFlushUploads, cleanupReplacedImage } from "@/components/admin/shared/pending-uploads";
 import { FieldLabel } from "@/components/admin/shared/field-label";
 import { BrandMultiSelect } from "@/components/admin/shared/brand-multi-select";
 import { useCategories } from "@/hooks/queries/use-categories";
@@ -110,6 +110,10 @@ export default function AdminCategoriesPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: formName.trim(), slug, description: formDesc.trim(), image: image || null, is_active: showInTopbar, brand_ids: formBrandIds }),
         });
+        if (res.ok) {
+          // The image was replaced/cleared → remove the old file from disk.
+          await cleanupReplacedImage(editCategory.image, image || null);
+        }
       } else {
         // Create new
         res = await fetch("/api/categories", {

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
+import { writeFile, mkdir, unlink } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import crypto from "crypto";
 import { publicServerError } from "@/lib/validate";
+import { getVerifiedAdminId } from "@/lib/admin-session";
 
 export async function POST(req: NextRequest) {
   try {
@@ -79,5 +80,35 @@ export async function POST(req: NextRequest) {
     }, { status: 201 });
   } catch (error: unknown) {
     return publicServerError("POST /api/upload", error);
+  }
+}
+
+// DELETE — remove a previously-uploaded file when an admin replaces/clears an
+// image, so old files don't accumulate on disk. Admin-only, and strictly scoped
+// to files under public/uploads (path-traversal guarded). Best-effort: a
+// missing file or any failure returns ok so a cleanup call never blocks a save.
+export async function DELETE(req: NextRequest) {
+  // Admin session required — this deletes files from disk.
+  if (!getVerifiedAdminId(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  try {
+    const url = new URL(req.url).searchParams.get("url") || "";
+    // Only accept our own served paths.
+    const m = url.match(/^\/api\/uploads\/(.+)$/);
+    if (!m) return NextResponse.json({ ok: true, skipped: "not an uploaded file" });
+
+    const rel = m[1];
+    const uploadsDir = path.resolve(path.join(process.cwd(), "public", "uploads"));
+    const resolved = path.resolve(path.join(uploadsDir, ...rel.split("/")));
+    // Path-traversal guard: must stay inside uploads/.
+    if (!resolved.startsWith(uploadsDir + path.sep)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (existsSync(resolved)) await unlink(resolved);
+    return NextResponse.json({ ok: true });
+  } catch {
+    // Never fail a cleanup — the save already succeeded.
+    return NextResponse.json({ ok: true });
   }
 }

@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
-import { useFlushUploads } from "@/components/admin/shared/pending-uploads";
+import { useFlushUploads, cleanupReplacedImage } from "@/components/admin/shared/pending-uploads";
 import { RichTextEditor } from "@/components/admin/shared/rich-text-editor";
 import { SeoStatusChip } from "@/components/admin/shared/seo-status-chip";
 import { blogSeoMissing } from "@/lib/seo-completeness";
@@ -115,6 +115,8 @@ export default function AdminBlogPage() {
       };
       if (editPost) {
         await fetch(`/api/blog/${editPost.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        // The featured image was replaced/cleared → remove the old file from disk.
+        await cleanupReplacedImage(editPost.featured_image, featuredImage || null);
       } else {
         await fetch("/api/blog", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       }

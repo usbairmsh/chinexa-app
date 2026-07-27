@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
-import { useFlushUploads } from "@/components/admin/shared/pending-uploads";
+import { useFlushUploads, cleanupReplacedImage } from "@/components/admin/shared/pending-uploads";
 import { FieldLabel } from "@/components/admin/shared/field-label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -271,6 +271,8 @@ export default function AdminBannersPage() {
       };
       if (editBanner) {
         await fetch(`/api/banners/${editBanner.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        // The image was replaced/cleared → remove the old file from disk.
+        await cleanupReplacedImage(editBanner.image, image || null);
       } else {
         await fetch("/api/banners", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       }

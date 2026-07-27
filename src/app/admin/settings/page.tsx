@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Separator } from "@/components/ui/separator";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
-import { useFlushUploads } from "@/components/admin/shared/pending-uploads";
+import { useFlushUploads, cleanupReplacedImage } from "@/components/admin/shared/pending-uploads";
 import { FieldLabel } from "@/components/admin/shared/field-label";
 import { useDeliveryStore } from "@/stores/delivery.store";
 import { formatCurrency, cn, randomId } from "@/lib/utils";
@@ -216,6 +216,9 @@ function AdminSettingsPageInner() {
 
   // ═══ STORE ═══
   const [storeLogo, setStoreLogo] = useState("");
+  // Tracks the last PERSISTED store-logo URL (not the staged blob preview), so a
+  // replaced logo's old file can be deleted after a successful save.
+  const savedLogoRef = useRef<string>("");
   const [ourStory, setOurStory] = useState<OurStoryContent>(DEFAULT_OUR_STORY);
   const [instagramHandle, setInstagramHandle] = useState("");
   const [instagramPosts, setInstagramPosts] = useState<InstagramPost[]>([]);
@@ -339,7 +342,7 @@ function AdminSettingsPageInner() {
         if (data.store_phone) setStorePhone(data.store_phone);
         if (data.store_address) setStoreAddress(data.store_address);
         if (data.features) setFeatures((p) => ({ ...p, ...data.features }));
-        if (data.store_logo) setStoreLogo(data.store_logo);
+        if (data.store_logo) { setStoreLogo(data.store_logo); savedLogoRef.current = data.store_logo; }
         if (data.our_story) setOurStory({ ...DEFAULT_OUR_STORY, ...data.our_story });
         if (data.instagram_feed) {
           setInstagramHandle(data.instagram_feed.handle || "");
@@ -480,6 +483,11 @@ function AdminSettingsPageInner() {
       faq_items: faqItems,
       social_links: socialLinks, maintenance_mode: maintenanceMode,
     }, setStoreSaving, setStoreSaved);
+    // Logo replaced → remove the previously-persisted file.
+    if (savedLogoRef.current !== resolvedLogo) {
+      await cleanupReplacedImage(savedLogoRef.current, resolvedLogo || null);
+      savedLogoRef.current = resolvedLogo || "";
+    }
   };
 
   // ─── Our Story helpers ───

@@ -58,3 +58,27 @@ export function useFlushUploads(): () => Promise<Record<string, string>> {
 export function usePendingUploadRegistration() {
   return useContext(Ctx);
 }
+
+/**
+ * Deletes a previously-uploaded file from the server. Call AFTER a successful
+ * save when a single-image field's value changed from one uploaded file to a
+ * different one (or was cleared), so the old file doesn't linger on disk.
+ * Best-effort — only touches /api/uploads/* paths, ignores http(s) URLs and
+ * blank values, and never throws.
+ */
+export async function deleteUploadedFile(url: string | null | undefined): Promise<void> {
+  if (!url || !url.startsWith("/api/uploads/")) return;
+  try {
+    await fetch(`/api/upload?url=${encodeURIComponent(url)}`, { method: "DELETE" });
+  } catch { /* best-effort */ }
+}
+
+/**
+ * Helper for the common "single image field" save pattern: if `oldUrl` was an
+ * uploaded file and the saved value is now a DIFFERENT one (or empty), delete
+ * the old file. No-op when unchanged or when the old value was an external URL.
+ */
+export async function cleanupReplacedImage(oldUrl: string | null | undefined, newUrl: string | null | undefined): Promise<void> {
+  if (!oldUrl || oldUrl === newUrl) return;
+  await deleteUploadedFile(oldUrl);
+}

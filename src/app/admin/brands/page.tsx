@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
-import { useFlushUploads } from "@/components/admin/shared/pending-uploads";
+import { useFlushUploads, cleanupReplacedImage } from "@/components/admin/shared/pending-uploads";
 import { CountrySearch } from "@/components/admin/shared/country-search";
 import { SeoStatusChip } from "@/components/admin/shared/seo-status-chip";
 import { brandSeoMissing } from "@/lib/seo-completeness";
@@ -103,6 +103,8 @@ export default function AdminBrandsPage() {
       };
       if (editBrand) {
         await fetch(`/api/brands/${editBrand.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        // The logo was replaced/cleared → remove the old file from disk.
+        await cleanupReplacedImage(editBrand.logo, logo || null);
       } else {
         await fetch("/api/brands", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       }

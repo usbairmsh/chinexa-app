@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Globe, Search, FileText, Link2, Code, Settings, Loader2, Check,
   Plus, Trash2, Pencil, ExternalLink, AlertTriangle, RefreshCw, Send,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
-import { useFlushUploads } from "@/components/admin/shared/pending-uploads";
+import { useFlushUploads, cleanupReplacedImage } from "@/components/admin/shared/pending-uploads";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AdminButton } from "@/components/admin/shared/admin-button";
@@ -130,6 +130,9 @@ export default function AdminSeoPage() {
   const [siteTitle, setSiteTitle] = useState("ChineXa — Premium Beauty & Lifestyle");
   const [siteDescription, setSiteDescription] = useState("Discover premium skincare, luxury bags, exquisite jewelry, fine perfumes, and imported beauty products. ChineXa brings world-class beauty to Bangladesh.");
   const [ogImage, setOgImage] = useState("");
+  // Last PERSISTED global OG image (not the staged blob preview) → lets us
+  // delete the old file when it's replaced.
+  const savedOgImageRef = useRef<string>("");
   const [savingGlobal, setSavingGlobal] = useState(false);
   const [savedGlobal, setSavedGlobal] = useState(false);
 
@@ -245,7 +248,7 @@ export default function AdminSeoPage() {
         if (globalRow) {
           if (globalRow.title) setSiteTitle(globalRow.title);
           if (globalRow.meta_description) setSiteDescription(globalRow.meta_description);
-          if (globalRow.og_image) setOgImage(globalRow.og_image);
+          if (globalRow.og_image) { setOgImage(globalRow.og_image); savedOgImageRef.current = globalRow.og_image; }
         }
       }
     } catch {}
@@ -313,6 +316,11 @@ export default function AdminSeoPage() {
         const data = await res.json().catch(() => ({}));
         setError(data.error || "Failed to save global SEO settings");
         return;
+      }
+      // OG image replaced → delete the previously-persisted file.
+      if (savedOgImageRef.current !== resolvedOgImage) {
+        await cleanupReplacedImage(savedOgImageRef.current, resolvedOgImage || null);
+        savedOgImageRef.current = resolvedOgImage || "";
       }
       setSavedGlobal(true);
       setTimeout(() => setSavedGlobal(false), 2000);
@@ -466,6 +474,9 @@ export default function AdminSeoPage() {
       return;
     }
     setSavingMeta(true); setError("");
+    // The saved OG image for the meta row being edited (before this save) —
+    // read from the loaded rows, not metaForm (which holds the new preview).
+    const prevOgImage = rowFor(path)?.og_image ?? null;
     try {
       // Upload any staged (cropped, not-yet-uploaded) images now.
       const uploaded = await flushUploads();
@@ -492,6 +503,9 @@ export default function AdminSeoPage() {
         setError(data.error || "Failed to save page meta");
         return;
       }
+      // Only on an edit of an existing row — the OG image was replaced/cleared,
+      // so remove the old file from disk.
+      if (!metaIsNew) await cleanupReplacedImage(prevOgImage, resolvedOgImage || null);
       setMetaDialogOpen(false);
       loadSeoRows();
     } catch {
