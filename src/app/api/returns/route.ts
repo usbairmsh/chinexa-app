@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
     await ensureReturnColumns();
     const customerId = req.nextUrl.searchParams.get("customer_id");
     const orderId = req.nextUrl.searchParams.get("order_id");
+    const orderNumber = req.nextUrl.searchParams.get("order_number");
 
     let sql = "SELECT * FROM order_returns";
     const params: string[] = [];
@@ -24,8 +25,12 @@ export async function GET(req: NextRequest) {
       sql += " WHERE customer_id = ?";
       params.push(customerId);
     } else if (orderId) {
-      sql += " WHERE order_id = ?";
-      params.push(orderId);
+      // Accept either the internal order id or the order number.
+      sql += " WHERE order_id = ? OR order_number = ?";
+      params.push(orderId, orderId);
+    } else if (orderNumber) {
+      sql += " WHERE order_number = ?";
+      params.push(orderNumber);
     }
 
     sql += " ORDER BY created_at DESC";

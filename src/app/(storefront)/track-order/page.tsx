@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { Search, Package, Truck, CheckCircle2, Clock, MapPin, PackageCheck, CreditCard, Loader2, ShoppingBag } from "lucide-react";
+import { Search, Package, Truck, CheckCircle2, Clock, MapPin, PackageCheck, CreditCard, Loader2, ShoppingBag, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -79,6 +79,7 @@ function TrackOrderContent() {
   const shouldReduceMotion = useReducedMotion();
   const [queryInput, setQueryInput] = useState("");
   const [order, setOrder] = useState<OrderData | null>(null);
+  const [activeReturn, setActiveReturn] = useState<{ status: string; resolution?: string | null } | null>(null);
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
@@ -96,6 +97,18 @@ function TrackOrderContent() {
       const data = await res.json();
       if (!data || !data.order_number) { setNotFound(true); return; }
       setOrder(data);
+      // Once delivered, a return may be active — fetch it so tracking can
+      // switch to the return/exchange lifecycle.
+      setActiveReturn(null);
+      fetch(`/api/returns?order_number=${encodeURIComponent(data.order_number)}`)
+        .then((r) => r.json())
+        .then((rows) => {
+          if (Array.isArray(rows)) {
+            const act = rows.find((x: { status: string }) => x.status !== "rejected");
+            if (act) setActiveReturn({ status: act.status, resolution: act.resolution });
+          }
+        })
+        .catch(() => {});
     } catch {
       setNotFound(true);
     } finally {
@@ -116,9 +129,35 @@ function TrackOrderContent() {
     trackOrder(queryInput);
   };
 
-  // Build timeline from real data — map each step to completed/pending
+  // Return/exchange lifecycle steps (shown instead of the delivery cycle once a
+  // return is active).
+  const RETURN_STEP_META: Record<string, { label: string; icon: typeof Clock }> = {
+    requested: { label: "Return Requested", icon: RotateCcw },
+    approved: { label: "Return Approved", icon: CheckCircle2 },
+    pickup_scheduled: { label: "Pickup Scheduled", icon: Truck },
+    received: { label: "Product Received", icon: PackageCheck },
+    refund_in_progress: { label: "Refund in Progress", icon: Clock },
+    refunded: { label: "Refund Completed", icon: CheckCircle2 },
+    exchange_in_progress: { label: "Replacement in Progress", icon: Package },
+    exchange_shipped: { label: "Replacement Shipped", icon: Truck },
+    exchange_delivered: { label: "Replacement Delivered", icon: PackageCheck },
+  };
+
+  // Build timeline from real data — map each step to completed/pending. When a
+  // return is active, show ONLY the return/exchange lifecycle.
   const buildTimeline = () => {
     if (!order) return [];
+    if (activeReturn) {
+      const isExchange = activeReturn.resolution === "exchange";
+      const seq = isExchange
+        ? ["requested", "approved", "pickup_scheduled", "received", "exchange_in_progress", "exchange_shipped", "exchange_delivered"]
+        : ["requested", "approved", "pickup_scheduled", "received", "refund_in_progress", "refunded"];
+      const idx = seq.indexOf(activeReturn.status);
+      return seq.map((key, i) => ({
+        key, label: RETURN_STEP_META[key].label, icon: RETURN_STEP_META[key].icon,
+        done: idx >= 0 && i <= idx, date: "",
+      }));
+    }
     const timelineMap = new Map<string, string>();
     for (const entry of order.timeline || []) {
       timelineMap.set(entry.status, entry.created_at);

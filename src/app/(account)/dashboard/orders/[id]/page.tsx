@@ -268,11 +268,44 @@ export default function OrderDetailPage() {
   for (const entry of order.timeline || []) {
     timelineMap.set(entry.status, entry.created_at);
   }
-  const builtTimeline = timelineSteps.map((step) => ({
-    ...step,
-    done: timelineMap.has(step.key),
-    date: timelineMap.get(step.key) || "",
-  }));
+
+  // Once a return is active, the general delivery cycle is hidden and the
+  // timeline shows ONLY the return/exchange lifecycle (built from the return's
+  // current status). Otherwise the normal delivery cycle is shown.
+  const activeReturn = existingReturn; // most-recent non-rejected return
+  const isExchange = activeReturn?.resolution === "exchange";
+  const RETURN_ORDER = ["requested", "approved", "pickup_scheduled", "received", "refund_in_progress", "refunded"];
+  const EXCHANGE_ORDER = ["requested", "approved", "pickup_scheduled", "received", "exchange_in_progress", "exchange_shipped", "exchange_delivered"];
+  const RETURN_STEP_META: Record<string, { label: string; icon: typeof Clock }> = {
+    requested: { label: "Return Requested", icon: RotateCcw },
+    approved: { label: "Return Approved", icon: CheckCircle2 },
+    pickup_scheduled: { label: "Pickup Scheduled", icon: Truck },
+    received: { label: "Product Received", icon: PackageCheck },
+    refund_in_progress: { label: "Refund in Progress", icon: Clock },
+    refunded: { label: "Refund Completed", icon: CheckCircle2 },
+    exchange_in_progress: { label: "Replacement in Progress", icon: Package },
+    exchange_shipped: { label: "Replacement Shipped", icon: Truck },
+    exchange_delivered: { label: "Replacement Delivered", icon: PackageCheck },
+  };
+
+  let builtTimeline: { key: string; label: string; icon: typeof Clock; done: boolean; date: string }[];
+  if (activeReturn) {
+    const seq = isExchange ? EXCHANGE_ORDER : RETURN_ORDER;
+    const currentIdx = seq.indexOf(activeReturn.status);
+    builtTimeline = seq.map((key, idx) => ({
+      key,
+      label: RETURN_STEP_META[key].label,
+      icon: RETURN_STEP_META[key].icon,
+      done: currentIdx >= 0 && idx <= currentIdx,
+      date: "",
+    }));
+  } else {
+    builtTimeline = timelineSteps.map((step) => ({
+      ...step,
+      done: timelineMap.has(step.key),
+      date: timelineMap.get(step.key) || "",
+    }));
+  }
 
   const customerStatus = customerStatusLabels[order.status] || order.status;
   const statusVariant: "warning" | "secondary" | "success" | "destructive" =
@@ -358,7 +391,7 @@ export default function OrderDetailPage() {
 
           {/* Timeline */}
           <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-base">Order Timeline</CardTitle></CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-base">{activeReturn ? (isExchange ? "Exchange Progress" : "Return Progress") : "Order Timeline"}</CardTitle></CardHeader>
             <CardContent>
               <div className="space-y-0">
                 {builtTimeline.map((step, i) => {
@@ -399,6 +432,48 @@ export default function OrderDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Return & Exchange history */}
+          {orderReturns.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3"><CardTitle className="text-base">Return & Exchange History</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                {orderReturns.map((r) => {
+                  const RLABEL: Record<string, string> = {
+                    requested: "Requested", approved: "Approved", pickup_scheduled: "Pickup Scheduled",
+                    received: "Product Received", refund_in_progress: "Refund in Progress", refunded: "Refunded",
+                    exchange_in_progress: "Replacement in Progress", exchange_shipped: "Replacement Shipped",
+                    exchange_delivered: "Replacement Delivered", rejected: "Rejected",
+                  };
+                  const good = ["refunded", "exchange_delivered"].includes(r.status);
+                  const bad = r.status === "rejected";
+                  return (
+                    <div key={r.id} className="rounded-xl border border-border/30 p-3">
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="text-xs font-medium text-charcoal">{r.resolution === "exchange" ? "Exchange" : "Return"} · {r.reason_label || r.reason}</span>
+                        <Badge variant={good ? "success" : bad ? "destructive" : "warning"} className="text-[9px]">{RLABEL[r.status] || r.status}</Badge>
+                      </div>
+                      {r.items && r.items.length > 0 && (
+                        <p className="text-[11px] text-charcoal-lighter">{r.items.map((it) => `${it.name}${it.qty ? ` ×${it.qty}` : ""}`).join(", ")}</p>
+                      )}
+                      {r.description && <p className="text-[11px] text-charcoal-lighter mt-1 italic">&ldquo;{r.description}&rdquo;</p>}
+                      {r.images && r.images.length > 0 && (
+                        <div className="flex gap-1.5 mt-2">
+                          {r.images.map((url, i) => (
+                            <div key={i} className="relative h-12 w-12 rounded-lg overflow-hidden border border-border/30 bg-pearl shrink-0">
+                              <Image src={url} alt={`Return photo ${i + 1}`} fill className="object-cover" sizes="48px" unoptimized={url.includes("/uploads/")} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {r.refund_amount ? <p className="text-[11px] text-charcoal-lighter mt-1.5">Refund: <span className="font-medium text-charcoal">{formatCurrency(Number(r.refund_amount))}</span></p> : null}
+                      <p className="text-[10px] text-charcoal-lighter mt-1">{formatDateTime(r.created_at)}</p>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
         </motion.div>
 
         {/* Sidebar — Address + Payment */}
@@ -509,42 +584,60 @@ export default function OrderDetailPage() {
                 const returnDeadline = deliveredEntry ? new Date(new Date(deliveredEntry.created_at).getTime() + returnWindowDays * 24 * 60 * 60 * 1000) : null;
 
                 // Already submitted return
-                if (returnSubmitted || existingReturn) {
-                  const retStatus = existingReturn?.status || "requested";
+                // Active return status card (most-recent non-rejected). Multiple
+                // returns can exist; the "request another" button below still
+                // shows while other items remain returnable + in window.
+                const activeCard = existingReturn ? (() => {
+                  const s = existingReturn.status;
+                  const good = ["refunded", "exchange_delivered"].includes(s);
+                  const bad = s === "rejected";
+                  const LABELS: Record<string, string> = {
+                    requested: "Return Requested — Pending Review",
+                    approved: "Return Approved — In Progress",
+                    pickup_scheduled: "Pickup Scheduled",
+                    received: "Product Received — Processing",
+                    refund_in_progress: "Refund in Progress",
+                    refunded: "Refund Completed",
+                    exchange_in_progress: "Replacement in Progress",
+                    exchange_shipped: "Replacement Shipped",
+                    exchange_delivered: "Replacement Delivered",
+                    rejected: "Return Request Rejected",
+                  };
                   return (
-                    <div className={cn("p-3 rounded-xl border text-center", retStatus === "approved" ? "bg-success/10 border-success/20" : retStatus === "rejected" ? "bg-destructive/10 border-destructive/20" : retStatus === "refunded" ? "bg-success/10 border-success/20" : "bg-amber-50 border-amber-200")}>
-                      <RotateCcw className={cn("h-5 w-5 mx-auto mb-1", retStatus === "approved" || retStatus === "refunded" ? "text-success" : retStatus === "rejected" ? "text-destructive" : "text-amber-600")} />
-                      <p className={cn("text-xs font-medium", retStatus === "approved" || retStatus === "refunded" ? "text-success" : retStatus === "rejected" ? "text-destructive" : "text-amber-700")}>
-                        {retStatus === "requested" && "Return Request Pending"}
-                        {retStatus === "approved" && "Return Approved — Awaiting Refund"}
-                        {retStatus === "refunded" && "Return Completed & Refunded"}
-                        {retStatus === "rejected" && "Return Request Rejected"}
-                      </p>
-                      <p className="text-[10px] text-charcoal-lighter mt-0.5">
-                        {retStatus === "requested" && "We're reviewing your return request. You'll be notified soon."}
-                        {retStatus === "approved" && "Your refund is being processed."}
-                        {retStatus === "refunded" && "Your refund has been issued."}
-                        {retStatus === "rejected" && "Please contact support if you have questions."}
-                      </p>
+                    <div className={cn("p-3 rounded-xl border", good ? "bg-success/10 border-success/20" : bad ? "bg-destructive/10 border-destructive/20" : "bg-amber-50 border-amber-200")}>
+                      <div className="flex items-center gap-2 justify-center">
+                        <RotateCcw className={cn("h-4 w-4", good ? "text-success" : bad ? "text-destructive" : "text-amber-600")} />
+                        <p className={cn("text-xs font-medium", good ? "text-success" : bad ? "text-destructive" : "text-amber-700")}>{LABELS[s] || s}</p>
+                      </div>
+                      {existingReturn.refund_amount ? <p className="text-[10px] text-charcoal-lighter text-center mt-0.5">Refund: {formatCurrency(Number(existingReturn.refund_amount))}</p> : null}
+                      {s === "requested" && (
+                        <button onClick={() => handleWithdrawReturn(existingReturn.id)} disabled={withdrawing} className="mt-2 w-full text-[11px] text-destructive hover:underline">
+                          {withdrawing ? "Withdrawing…" : "Withdraw this return"}
+                        </button>
+                      )}
                     </div>
                   );
+                })() : null;
+
+                // Request-return button: shown while delivered, within window,
+                // and at least one line is still returnable.
+                const canRequest = status === "received" && daysSinceDelivery <= returnWindowDays && returnableItems.length > 0;
+                const requestBtn = canRequest ? (
+                  <>
+                    <Button variant="outline" className="w-full text-sm text-secondary border-secondary/30" onClick={openReturnDialog}>
+                      <RotateCcw className="h-3.5 w-3.5 mr-1" /> {existingReturn ? "Return Other Items" : "Request Return"}
+                    </Button>
+                    <p className="text-[10px] text-charcoal-lighter text-center">
+                      Return window closes {returnDeadline ? returnDeadline.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "soon"}
+                    </p>
+                  </>
+                ) : null;
+
+                if (activeCard || requestBtn) {
+                  return <div className="space-y-2">{activeCard}{requestBtn}</div>;
                 }
 
-                // Order delivered and within return window
-                if (status === "received" && daysSinceDelivery <= returnWindowDays) {
-                  return (
-                    <>
-                      <Button variant="outline" className="w-full text-sm text-secondary border-secondary/30" onClick={openReturnDialog}>
-                        <RotateCcw className="h-3.5 w-3.5 mr-1" /> Request Return
-                      </Button>
-                      <p className="text-[10px] text-charcoal-lighter text-center">
-                        Return window closes {returnDeadline ? returnDeadline.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "soon"}
-                      </p>
-                    </>
-                  );
-                }
-
-                // Order delivered but return window expired
+                // Order delivered but return window expired (and no active return)
                 if (status === "received" && daysSinceDelivery > returnWindowDays) {
                   return (
                     <div className="p-3 rounded-xl bg-pearl/60 border border-border/20 text-center">
@@ -554,6 +647,7 @@ export default function OrderDetailPage() {
                   );
                 }
 
+                // Order delivered but return window expired
                 // Order returned/cancelled
                 if (status === "returned") {
                   return (

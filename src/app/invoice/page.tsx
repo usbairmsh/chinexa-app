@@ -31,7 +31,7 @@ interface OrderData {
 const statusLabels: Record<string, string> = {
   pending: "Pending", confirmed: "Confirmed", processing: "Processing",
   shipped: "Shipped", on_delivery: "On Delivery", received: "Received",
-  not_received: "Not Received",
+  not_received: "Not Received", returned: "Returned", cancelled: "Cancelled",
 };
 
 function formatDate(date: string) {
@@ -176,7 +176,7 @@ function InvoiceContent() {
                 </tr>
                 <tr>
                   <td style={{ textAlign: "right", fontWeight: 500, color: "#999", paddingRight: 6 }}>Paid:</td>
-                  <td><span style={{ display: "inline-block", padding: "1px 6px", borderRadius: 3, fontSize: 8, fontWeight: 700, background: order.payment_status === "paid" ? "#ecfdf5" : "#fffbeb", color: order.payment_status === "paid" ? "#047857" : "#b45309" }}>{order.payment_status === "paid" ? "Paid" : "Pending"}</span></td>
+                  <td><span style={{ display: "inline-block", padding: "1px 6px", borderRadius: 3, fontSize: 8, fontWeight: 700, background: order.payment_status === "paid" ? "#ecfdf5" : order.payment_status === "refunded" ? "#eef2ff" : "#fffbeb", color: order.payment_status === "paid" ? "#047857" : order.payment_status === "refunded" ? "#4338ca" : "#b45309" }}>{order.payment_status === "paid" ? "Paid" : order.payment_status === "refunded" ? "Refunded" : "Pending"}</span></td>
                 </tr>
                 {order.transaction_id && (
                   <tr>
