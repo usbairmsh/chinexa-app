@@ -277,7 +277,12 @@ export default function EmailCenterPage() {
                         ? <><ArrowUpRight className="h-3 w-3 text-secondary" /><span className="text-secondary">Sent</span><span className="text-charcoal-lighter">· {m.from_address} → {m.to_address}</span></>
                         : <><ArrowDownLeft className="h-3 w-3 text-emerald-600" /><span className="text-emerald-700">Received</span><span className="text-charcoal-lighter">· from {m.from_address}</span></>}
                     </div>
-                    <div className="whitespace-pre-wrap break-words text-sm text-charcoal">{m.body_text || stripHtml(m.body_html)}</div>
+                    {(() => {
+                      const shown = (m.body_text && m.body_text.trim()) || stripHtml(m.body_html);
+                      return shown
+                        ? <div className="whitespace-pre-wrap break-words text-sm text-charcoal">{shown}</div>
+                        : <div className="text-sm italic text-charcoal-lighter">(This message has no readable text content.)</div>;
+                    })()}
                     {/* Per-message timestamp below the body */}
                     <div className="mt-2 text-right text-[10px] text-charcoal-lighter tabular-nums">{fmtTime(m.created_at)}</div>
                   </div>

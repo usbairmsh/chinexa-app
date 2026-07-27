@@ -39,6 +39,25 @@ function firstString(...vals: unknown[]): string | null {
   return null;
 }
 
+// Recursively search an object for the first non-empty string value whose key
+// matches one of `keys` (case-insensitive). Providers nest the body under
+// varying shapes (data.content.html, data.parsed.text, …); this finds it
+// wherever it lives without us having to enumerate every provider's schema.
+function deepFindString(obj: unknown, keys: string[], depth = 0): string | null {
+  if (depth > 5 || obj == null || typeof obj !== "object") return null;
+  const lowerKeys = keys.map((k) => k.toLowerCase());
+  for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+    if (typeof v === "string" && v.trim() && lowerKeys.includes(k.toLowerCase())) return v;
+  }
+  for (const v of Object.values(obj as Record<string, unknown>)) {
+    if (v && typeof v === "object") {
+      const found = deepFindString(v, keys, depth + 1);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   const secret = process.env.INBOUND_EMAIL_SECRET;
   if (!secret) {
@@ -66,8 +85,26 @@ export async function POST(req: NextRequest) {
   const to = extractAddress(data.to ?? data.recipient ?? data.To);
   const from = extractAddress(data.from ?? data.sender ?? data.From);
   const subject = firstString(data.subject, data.Subject) || "(no subject)";
-  const bodyHtml = firstString(data.html, data.body_html, data["html_body"], data["stripped-html"]);
-  const bodyText = firstString(data.text, data.body_text, data["text_body"], data["stripped-text"], data.plain);
+
+  // Body: try the common flat field names first, then deep-scan the payload
+  // (providers nest it under content/parsed/body objects). This is why a
+  // received email could show blank — the body lived under a key we weren't
+  // reading. Deep-search finds it wherever it is.
+  let bodyHtml = firstString(data.html, data.body_html, data["html_body"], data["stripped-html"]);
+  let bodyText = firstString(data.text, data.body_text, data["text_body"], data["stripped-text"], data.plain);
+  if (!bodyHtml) bodyHtml = deepFindString(payload, ["html", "body_html", "html_body", "stripped-html", "htmlBody"]);
+  if (!bodyText) bodyText = deepFindString(payload, ["text", "body_text", "text_body", "stripped-text", "plain", "textBody", "body"]);
+
+  // Last-resort: if the raw email content is available, keep it so the body is
+  // never lost. If nothing at all parses, log the payload keys to diagnose.
+  if (!bodyHtml && !bodyText) {
+    const raw = firstString(data.raw, data["raw_email"], (data as Record<string, unknown>).rawEmail, deepFindString(payload, ["raw", "raw_email", "content"]));
+    if (raw) {
+      bodyText = raw;
+    } else {
+      console.error("[inbound-email] no body found in payload. Top-level keys:", Object.keys(payload), "data keys:", Object.keys(data));
+    }
+  }
 
   const headers = (data.headers && typeof data.headers === "object" ? data.headers : {}) as Record<string, unknown>;
   const messageId = firstString(data.message_id, headers["message-id"], headers["Message-ID"]);
