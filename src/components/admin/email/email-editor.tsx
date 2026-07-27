@@ -66,6 +66,41 @@ export function EmailEditor({ value, onChange, resetKey = 0, placeholder, minHei
     try { return document.queryCommandState(cmd); } catch { return false; }
   };
 
+  // The current block element's tag (h1/h2/h3/p/blockquote/div…), normalized.
+  const currentBlock = (): string => {
+    try {
+      const v = String(document.queryCommandValue("formatBlock") || "").toLowerCase();
+      return v.replace(/[<>]/g, "");
+    } catch { return ""; }
+  };
+  const blockActive = (tag: string) => currentBlock() === tag;
+
+  // Toggle a block format: apply the tag, or revert to a paragraph if the
+  // selection is already that tag. This is what lets Quote / headings turn OFF.
+  const toggleBlock = (tag: string) => {
+    ref.current?.focus();
+    const next = currentBlock() === tag ? "p" : tag;
+    document.execCommand("formatBlock", false, next);
+    emit();
+    refresh();
+  };
+
+  // Pressing Enter inside a blockquote should let you leave it: an Enter on an
+  // empty line at the end of the quote breaks out to a normal paragraph.
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Enter" && !e.shiftKey && currentBlock() === "blockquote") {
+      const sel = window.getSelection();
+      const line = sel?.anchorNode?.textContent ?? "";
+      // Empty current line → exit the quote instead of adding another quoted line.
+      if (line.trim() === "") {
+        e.preventDefault();
+        document.execCommand("formatBlock", false, "p");
+        emit();
+        refresh();
+      }
+    }
+  };
+
   const saveSelection = () => {
     const sel = window.getSelection();
     savedRange.current = sel && sel.rangeCount > 0 && ref.current?.contains(sel.anchorNode)
@@ -108,7 +143,8 @@ export function EmailEditor({ value, onChange, resetKey = 0, placeholder, minHei
   };
 
   const btn = "flex h-8 w-8 items-center justify-center rounded-md text-charcoal-lighter transition-colors hover:bg-pearl hover:text-charcoal active:scale-[0.94]";
-  const activeCls = "bg-primary-light !text-charcoal";
+  // Selected/active tool: dark background, white icon — clearly reads as "on".
+  const activeCls = "!bg-charcoal !text-white hover:!bg-charcoal";
   const sep = <span className="mx-0.5 h-5 w-px bg-border/50" />;
 
   return (
@@ -118,10 +154,10 @@ export function EmailEditor({ value, onChange, resetKey = 0, placeholder, minHei
         <button type="button" title="Undo" className={btn} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("undo")}><Undo2 className="h-4 w-4" /></button>
         <button type="button" title="Redo" className={btn} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("redo")}><Redo2 className="h-4 w-4" /></button>
         {sep}
-        <button type="button" title="Heading 1" className={btn} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("formatBlock", "h1")}><Heading1 className="h-4 w-4" /></button>
-        <button type="button" title="Heading 2" className={btn} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("formatBlock", "h2")}><Heading2 className="h-4 w-4" /></button>
-        <button type="button" title="Heading 3" className={btn} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("formatBlock", "h3")}><Heading3 className="h-4 w-4" /></button>
-        <button type="button" title="Paragraph" className={btn} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("formatBlock", "p")}><Pilcrow className="h-4 w-4" /></button>
+        <button type="button" title="Heading 1" className={cn(btn, blockActive("h1") && activeCls)} onMouseDown={(e) => e.preventDefault()} onClick={() => toggleBlock("h1")}><Heading1 className="h-4 w-4" /></button>
+        <button type="button" title="Heading 2" className={cn(btn, blockActive("h2") && activeCls)} onMouseDown={(e) => e.preventDefault()} onClick={() => toggleBlock("h2")}><Heading2 className="h-4 w-4" /></button>
+        <button type="button" title="Heading 3" className={cn(btn, blockActive("h3") && activeCls)} onMouseDown={(e) => e.preventDefault()} onClick={() => toggleBlock("h3")}><Heading3 className="h-4 w-4" /></button>
+        <button type="button" title="Paragraph" className={cn(btn, (blockActive("p") || blockActive("div") || currentBlock() === "") && activeCls)} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("formatBlock", "p")}><Pilcrow className="h-4 w-4" /></button>
         {sep}
         <button type="button" title="Bold" className={cn(btn, isActive("bold") && activeCls)} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("bold")}><Bold className="h-4 w-4" /></button>
         <button type="button" title="Italic" className={cn(btn, isActive("italic") && activeCls)} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("italic")}><Italic className="h-4 w-4" /></button>
@@ -141,7 +177,7 @@ export function EmailEditor({ value, onChange, resetKey = 0, placeholder, minHei
         {sep}
         <button type="button" title="Bullet list" className={cn(btn, isActive("insertUnorderedList") && activeCls)} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("insertUnorderedList")}><List className="h-4 w-4" /></button>
         <button type="button" title="Numbered list" className={cn(btn, isActive("insertOrderedList") && activeCls)} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("insertOrderedList")}><ListOrdered className="h-4 w-4" /></button>
-        <button type="button" title="Quote" className={btn} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("formatBlock", "blockquote")}><Quote className="h-4 w-4" /></button>
+        <button type="button" title="Quote (click again to remove)" className={cn(btn, blockActive("blockquote") && activeCls)} onMouseDown={(e) => e.preventDefault()} onClick={() => toggleBlock("blockquote")}><Quote className="h-4 w-4" /></button>
         {sep}
         <button type="button" title="Align left" className={cn(btn, isActive("justifyLeft") && activeCls)} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("justifyLeft")}><AlignLeft className="h-4 w-4" /></button>
         <button type="button" title="Align center" className={cn(btn, isActive("justifyCenter") && activeCls)} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("justifyCenter")}><AlignCenter className="h-4 w-4" /></button>
@@ -172,6 +208,7 @@ export function EmailEditor({ value, onChange, resetKey = 0, placeholder, minHei
           aria-multiline="true"
           onInput={emit}
           onBlur={emit}
+          onKeyDown={onKeyDown}
           onKeyUp={refresh}
           onMouseUp={refresh}
           data-placeholder={placeholder || "Write your message…"}
