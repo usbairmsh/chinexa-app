@@ -186,6 +186,7 @@ export async function ensureEmailInboxTables() {
         mime_type VARCHAR(150) NOT NULL DEFAULT 'application/octet-stream',
         size INT NOT NULL DEFAULT 0,
         url VARCHAR(500) NOT NULL,
+        is_inline BOOLEAN NOT NULL DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_message (message_id),
         INDEX idx_draft (draft_id),
@@ -195,6 +196,10 @@ export async function ensureEmailInboxTables() {
 
     // Future-proofing hook for adding columns to older deployments.
     await ensureColumn("email_mailboxes", "can_broadcast", "BOOLEAN NOT NULL DEFAULT FALSE");
+    // is_inline marks attachments that are embedded in the email body (inline
+    // images) rather than sent as separate file attachments — tracked so the
+    // orphan-cleanup can delete them if the compose is abandoned.
+    await ensureColumn("email_attachments", "is_inline", "BOOLEAN NOT NULL DEFAULT FALSE");
     // norm_subject drives thread matching (reply vs new email). On DBs created
     // before this column existed, add it then backfill from the stored subject
     // (Re:/Fwd: stripped, lowercased) so existing threads still match their own

@@ -28,13 +28,16 @@ function absoluteUrl(url: string): string {
 
 const PALETTE = ["#2f3b3a", "#BC4A72", "#C79A42", "#159A8C", "#2563eb", "#dc2626", "#16a34a", "#9333ea", "#0f172a", "#6b7280"];
 
-export function EmailEditor({ value, onChange, resetKey = 0, placeholder, minHeight = 220 }: {
+export function EmailEditor({ value, onChange, resetKey = 0, placeholder, minHeight = 220, composeToken }: {
   value: string;
   onChange: (html: string) => void;
   /** Bump to force the editor to re-seed from `value` (e.g. clear after send). */
   resetKey?: number;
   placeholder?: string;
   minHeight?: number;
+  /** Compose-session token: inline images are staged under it so an abandoned
+   *  compose can be cleaned up. Falls back to the generic /api/upload if absent. */
+  composeToken?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const savedRange = useRef<Range | null>(null);
@@ -171,11 +174,21 @@ export function EmailEditor({ value, onChange, resetKey = 0, placeholder, minHei
     try {
       const fd = new FormData();
       fd.append("file", file);
-      fd.append("folder", "email");
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const d = await res.json().catch(() => ({}));
-      if (!res.ok) { setImageError(d.error || "Upload failed"); return; }
-      setImageUrl(absoluteUrl(d.url));
+      if (composeToken) {
+        // Stage under the compose token so an abandoned compose is cleaned up.
+        fd.append("compose_token", composeToken);
+        fd.append("inline", "1");
+        const res = await fetch("/api/admin-email/attachments", { method: "POST", body: fd });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) { setImageError(d.error || "Upload failed"); return; }
+        setImageUrl(absoluteUrl(d.attachment.url));
+      } else {
+        fd.append("folder", "email");
+        const res = await fetch("/api/upload", { method: "POST", body: fd });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) { setImageError(d.error || "Upload failed"); return; }
+        setImageUrl(absoluteUrl(d.url));
+      }
     } catch { setImageError("Upload failed"); }
     finally { setImageUploading(false); if (fileRef.current) fileRef.current.value = ""; }
   };

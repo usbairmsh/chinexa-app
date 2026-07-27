@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureEmailInboxTables } from "@/lib/migrate-email-inbox";
-import { getDraft, updateDraft, deleteDraft } from "@/lib/email-inbox";
+import { getDraft, updateDraft, deleteDraft, linkAttachmentsToDraft } from "@/lib/email-inbox";
 import { requirePermission } from "@/lib/admin-permissions-server";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +21,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     body_text: body.body_html !== undefined ? body.body_html : (body.body !== undefined ? body.body : (body.body_text !== undefined ? body.body_text : undefined)),
     segment: body.segment !== undefined ? body.segment : undefined,
   });
+  // Link any inline images uploaded while editing (staged under a compose token)
+  // to this draft so they aren't treated as orphans.
+  if (typeof body.compose_token === "string" && body.compose_token) {
+    await linkAttachmentsToDraft(body.compose_token, id);
+  }
   return NextResponse.json({ draft: await getDraft(id) });
 }
 

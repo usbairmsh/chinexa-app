@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
     const form = await req.formData();
     const file = form.get("file") as File | null;
     const composeToken = (form.get("compose_token") as string) || null;
+    const isInline = form.get("inline") === "1";
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 
     const ext = EXT_BY_MIME[file.type];
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
       mimeType: file.type,
       size: file.size,
       url: `/api/uploads/email/${fileName}`,
+      isInline,
     });
     return NextResponse.json({ attachment }, { status: 201 });
   } catch (error) {

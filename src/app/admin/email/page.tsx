@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Mail, Send, Loader2, Inbox, ArrowDownLeft, ArrowUpRight, Plus, Trash2,
   Megaphone, Settings2, RefreshCw, Check, Reply, FileText, Save, RotateCcw, Paperclip,
@@ -19,6 +19,18 @@ import { useAdmin } from "@/contexts/admin-context";
 // or draft exists, so they can be linked to it on send/save.
 function makeComposeToken() {
   return `cmp-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+// Discard staged uploads (inline images + attachments) for an abandoned compose
+// — the modal was closed without sending or saving. Best-effort.
+async function discardCompose(token: string) {
+  if (!token) return;
+  try {
+    await fetch("/api/admin-email/discard", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ compose_token: token }),
+    });
+  } catch { /* best-effort */ }
 }
 
 interface Mailbox {
@@ -442,10 +454,14 @@ function ReplyModal({ open, onClose, mailbox, thread, toAddress, footerText, can
   const [attachments, setAttachments] = useState<StagedAttachment[]>([]);
   const [busy, setBusy] = useState<"send" | "draft" | null>(null);
   const [error, setError] = useState("");
+  const committed = useRef(false);
 
-  useEffect(() => { if (open) { setBody(""); setError(""); setAttachments([]); setToken(makeComposeToken()); setResetKey((k) => k + 1); } }, [open]);
+  useEffect(() => { if (open) { setBody(""); setError(""); setAttachments([]); setToken(makeComposeToken()); setResetKey((k) => k + 1); committed.current = false; } }, [open]);
 
   const isEmpty = !stripTags(body).trim() && attachments.length === 0;
+
+  // Closing without a send/save discards the staged uploads.
+  const handleClose = () => { if (!committed.current) discardCompose(token); onClose(); };
 
   const send = async () => {
     setBusy("send"); setError("");
@@ -455,6 +471,7 @@ function ReplyModal({ open, onClose, mailbox, thread, toAddress, footerText, can
     });
     setBusy(null);
     if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error || "Could not send"); return; }
+    committed.current = true;
     onSent();
   };
 
@@ -466,11 +483,12 @@ function ReplyModal({ open, onClose, mailbox, thread, toAddress, footerText, can
     });
     setBusy(null);
     if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error || "Could not save draft"); return; }
+    committed.current = true;
     onDrafted();
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Reply className="h-5 w-5 text-secondary" /> Reply to this mail</DialogTitle>
@@ -482,14 +500,14 @@ function ReplyModal({ open, onClose, mailbox, thread, toAddress, footerText, can
           <Input label="Subject" value={reSubject} readOnly disabled />
           <div>
             <label className="block text-sm font-medium text-charcoal-light mb-1.5">Message</label>
-            <EmailEditor value={body} onChange={setBody} resetKey={resetKey} placeholder="Type your reply…" />
+            <EmailEditor value={body} onChange={setBody} resetKey={resetKey} composeToken={token} placeholder="Type your reply…" />
           </div>
           {token && <AttachmentUploader composeToken={token} attachments={attachments} onChange={setAttachments} />}
           <FooterPreview footerText={footerText} />
           {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
         <DialogFooter className="gap-2">
-          <AdminButton variant="outline" onClick={onClose}>Cancel</AdminButton>
+          <AdminButton variant="outline" onClick={handleClose}>Cancel</AdminButton>
           {canDraft && (
             <AdminButton variant="outline" onClick={saveDraft} disabled={busy !== null || isEmpty}>
               {busy === "draft" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />} Save as Draft
@@ -574,36 +592,41 @@ function DraftEditorModal({ draft, mailboxes, footerText, canSend, onClose, onCh
   const [body, setBody] = useState(draft.body_text || "");
   const [busy, setBusy] = useState<"save" | "send" | null>(null);
   const [error, setError] = useState("");
+  const [token] = useState(() => makeComposeToken());
+  const committed = useRef(false);
   const mailbox = mailboxes.find((m) => m.id === draft.mailbox_id);
 
   const isEmpty = !stripTags(body).trim();
+  const handleClose = () => { if (!committed.current) discardCompose(token); onClose(); };
 
   const save = async () => {
     setBusy("save"); setError("");
     const res = await fetch(`/api/admin-email/drafts/${draft.id}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subject, to_address: to, body_html: body }),
+      body: JSON.stringify({ subject, to_address: to, body_html: body, compose_token: token }),
     });
     setBusy(null);
     if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error || "Could not save"); return; }
+    committed.current = true;
     onChanged();
   };
 
   const send = async () => {
     setBusy("send"); setError("");
-    // Persist edits first, then send.
+    // Persist edits (and link inline images) first, then send.
     await fetch(`/api/admin-email/drafts/${draft.id}`, {
-      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject, to_address: to, body_html: body }),
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject, to_address: to, body_html: body, compose_token: token }),
     });
     const res = await fetch(`/api/admin-email/drafts/${draft.id}/send`, { method: "POST" });
     setBusy(null);
     const r = await res.json().catch(() => ({}));
     if (!res.ok) { setError(r.error || "Could not send"); return; }
+    committed.current = true;
     onChanged();
   };
 
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
+    <Dialog open onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-secondary" /> {draft.kind === "broadcast" ? "Broadcast draft" : "Reply draft"}</DialogTitle>
@@ -616,13 +639,13 @@ function DraftEditorModal({ draft, mailboxes, footerText, canSend, onClose, onCh
           <Input label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
           <div>
             <label className="block text-sm font-medium text-charcoal-light mb-1.5">Message</label>
-            <EmailEditor value={body} onChange={setBody} />
+            <EmailEditor value={body} onChange={setBody} composeToken={token} />
           </div>
           <FooterPreview footerText={footerText} />
           {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
         <DialogFooter className="gap-2">
-          <AdminButton variant="outline" onClick={onClose}>Cancel</AdminButton>
+          <AdminButton variant="outline" onClick={handleClose}>Cancel</AdminButton>
           <AdminButton variant="outline" onClick={save} disabled={busy !== null || isEmpty}>
             {busy === "save" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />} Save
           </AdminButton>
@@ -741,6 +764,9 @@ function BroadcastDialog({ open, onClose, mailboxes, footerText, canDraft, onDra
   const [minSpent, setMinSpent] = useState("");
   const [busy, setBusy] = useState<"send" | "draft" | null>(null);
   const [result, setResult] = useState("");
+  // The set of tokens already committed (sent/drafted) this session, so closing
+  // never discards uploads that were actually used.
+  const committedTokens = useRef<Set<string>>(new Set());
 
   useEffect(() => { if (open && mailboxes.length && !mailboxId) setMailboxId(mailboxes[0].id); }, [open, mailboxes, mailboxId]);
   useEffect(() => { if (open && !token) setToken(makeComposeToken()); }, [open, token]);
@@ -748,6 +774,8 @@ function BroadcastDialog({ open, onClose, mailboxes, footerText, canDraft, onDra
   const segment = () => segType === "min_spent" ? { type: "min_spent", value: Number(minSpent) || 0 } : { type: segType };
   const bodyEmpty = !stripTags(body).trim();
   const resetCompose = () => { setSubject(""); setBody(""); setAttachments([]); setToken(makeComposeToken()); setResetKey((k) => k + 1); };
+
+  const handleClose = () => { if (token && !committedTokens.current.has(token)) discardCompose(token); onClose(); };
 
   const send = async () => {
     setBusy("send"); setResult("");
@@ -758,6 +786,7 @@ function BroadcastDialog({ open, onClose, mailboxes, footerText, canDraft, onDra
     const d = await res.json().catch(() => ({}));
     setBusy(null);
     if (!res.ok) { setResult(d.error || "Broadcast failed"); return; }
+    committedTokens.current.add(token);
     setResult(`Sent to ${d.sent}/${d.recipient_count} recipients${d.failed ? ` (${d.failed} failed)` : ""}.`);
     resetCompose();
   };
@@ -770,13 +799,14 @@ function BroadcastDialog({ open, onClose, mailboxes, footerText, canDraft, onDra
     });
     setBusy(null);
     if (!res.ok) { const d = await res.json().catch(() => ({})); setResult(d.error || "Could not save draft"); return; }
+    committedTokens.current.add(token);
     setResult("Saved to Drafts.");
     resetCompose();
     onDrafted();
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Megaphone className="h-5 w-5 text-secondary" /> Broadcast email</DialogTitle>
@@ -809,7 +839,7 @@ function BroadcastDialog({ open, onClose, mailboxes, footerText, canDraft, onDra
               <Input label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
               <div>
                 <label className="block text-sm font-medium text-charcoal-light mb-1.5">Message</label>
-                <EmailEditor value={body} onChange={setBody} resetKey={resetKey} placeholder="Write your promotion…" />
+                <EmailEditor value={body} onChange={setBody} resetKey={resetKey} composeToken={token} placeholder="Write your promotion…" />
               </div>
               {token && <AttachmentUploader composeToken={token} attachments={attachments} onChange={setAttachments} />}
               <FooterPreview footerText={footerText} />
@@ -818,7 +848,7 @@ function BroadcastDialog({ open, onClose, mailboxes, footerText, canDraft, onDra
           )}
         </div>
         <DialogFooter className="gap-2">
-          <AdminButton variant="outline" onClick={onClose}>Close</AdminButton>
+          <AdminButton variant="outline" onClick={handleClose}>Close</AdminButton>
           {mailboxes.length > 0 && canDraft && (
             <AdminButton variant="outline" onClick={saveDraft} disabled={busy !== null || !subject.trim() || bodyEmpty || !mailboxId}>
               {busy === "draft" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />} Save as Draft

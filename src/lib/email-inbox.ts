@@ -465,21 +465,48 @@ export interface EmailAttachment {
   mime_type: string;
   size: number;
   url: string;
+  is_inline: boolean;
   created_at: string;
 }
 
 export async function createAttachment(a: {
   composeToken?: string | null; draftId?: string | null; messageId?: string | null;
   direction?: "inbound" | "outbound"; filename: string; mimeType: string; size: number; url: string;
+  isInline?: boolean;
 }): Promise<EmailAttachment> {
   const id = newAttachmentId();
   await execute(
-    `INSERT INTO email_attachments (id, message_id, draft_id, compose_token, direction, filename, mime_type, size, url)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO email_attachments (id, message_id, draft_id, compose_token, direction, filename, mime_type, size, url, is_inline)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [id, a.messageId ?? null, a.draftId ?? null, a.composeToken ?? null, a.direction || "outbound",
-     a.filename.slice(0, 255), a.mimeType.slice(0, 150), a.size, a.url]
+     a.filename.slice(0, 255), a.mimeType.slice(0, 150), a.size, a.url, a.isInline ? 1 : 0]
   );
   return (await getAttachment(id))!;
+}
+
+/** Deletes the disk file for an attachment url, guarded to uploads/email. */
+async function unlinkAttachmentFile(url: string): Promise<void> {
+  try {
+    const rel = url.replace(/^\/api\/uploads\//, "");
+    if (!rel.startsWith("email/")) return;
+    const filePath = path.join(process.cwd(), "public", "uploads", ...rel.split("/"));
+    const { unlink } = await import("fs/promises");
+    await unlink(filePath);
+  } catch { /* best-effort */ }
+}
+
+/**
+ * Cleanup for an ABANDONED compose session: deletes every attachment (file +
+ * row) still staged under this compose token — i.e. never linked to a sent
+ * message or saved draft. Covers both inline images and file attachments.
+ */
+export async function discardComposeToken(token: string): Promise<void> {
+  if (!token) return;
+  const records = await attachmentsForToken(token);
+  for (const a of records) {
+    await unlinkAttachmentFile(a.url);
+    await deleteAttachment(a.id);
+  }
 }
 
 export async function getAttachment(id: string): Promise<EmailAttachment | null> {
@@ -492,7 +519,9 @@ export async function deleteAttachment(id: string): Promise<void> {
 }
 
 export async function attachmentsForMessage(messageId: string): Promise<EmailAttachment[]> {
-  const rows = await query<RowDataPacket[]>("SELECT * FROM email_attachments WHERE message_id = ? ORDER BY created_at ASC", [messageId]);
+  // Only real file attachments as download chips — inline images already render
+  // in the message body.
+  const rows = await query<RowDataPacket[]>("SELECT * FROM email_attachments WHERE message_id = ? AND is_inline = 0 ORDER BY created_at ASC", [messageId]);
   return rows as unknown as EmailAttachment[];
 }
 
@@ -510,7 +539,7 @@ export async function attachmentsForToken(token: string): Promise<EmailAttachmen
  *  Resend. Skips any file that can't be read. Returns [] for a null/empty token. */
 export async function loadAttachmentsForSend(token: string | null | undefined): Promise<{ filename: string; content: string }[]> {
   if (!token) return [];
-  const records = await attachmentsForToken(token);
+  const records = (await attachmentsForToken(token)).filter((a) => !a.is_inline);
   const out: { filename: string; content: string }[] = [];
   for (const a of records) {
     try {
@@ -524,9 +553,10 @@ export async function loadAttachmentsForSend(token: string | null | undefined): 
   return out;
 }
 
-/** Same, but for a saved draft's attachments (by draft id). */
+/** Same, but for a saved draft's attachments (by draft id). Inline images are
+ *  excluded — they live in the body, not as separate files. */
 export async function loadDraftAttachmentsForSend(draftId: string): Promise<{ filename: string; content: string }[]> {
-  const records = await attachmentsForDraft(draftId);
+  const records = (await attachmentsForDraft(draftId)).filter((a) => !a.is_inline);
   const out: { filename: string; content: string }[] = [];
   for (const a of records) {
     try {
