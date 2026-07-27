@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
+import { useFlushUploads } from "@/components/admin/shared/pending-uploads";
 import { ImagePositionEditor } from "@/components/admin/shared/image-position-editor";
 import { FieldLabel } from "@/components/admin/shared/field-label";
 import { cn, collectMissingFields } from "@/lib/utils";
@@ -53,6 +54,7 @@ type ImageRow = {
 };
 
 export default function AddProductPage() {
+  const flushUploads = useFlushUploads();
   const router = useRouter();
   const queryClient = useQueryClient();
   const shouldReduceMotion = useReducedMotion();
@@ -260,6 +262,13 @@ export default function AddProductPage() {
     const totalStock = variants.reduce((s, v) => s + (Number(v.stock) || 0), 0);
 
     try {
+      // Upload any staged (cropped, not-yet-uploaded) images now, then remap
+      // each image row to its freshly-uploaded server URL (keyed by index).
+      const uploaded = await flushUploads();
+      const resolvedImages = images.map((img, i) => ({
+        ...img,
+        url: uploaded[`product_image_${i}`] ?? img.url,
+      }));
       const payload = {
         name: productName.trim(),
         sku: sku.trim() || firstVariant.sku,
@@ -292,10 +301,10 @@ export default function AddProductPage() {
         hidden_card_badges: hiddenCardBadges.filter((b) => selectedBadges.includes(b)),
         // Only send a pre-order date when the badge is actually on.
         preorder_release_date: selectedBadges.includes("preorder") ? (preorderDate || null) : null,
-        images: images.filter((img) => img.url).map((img) => ({ url: img.url, alt: img.alt, variant_id: img.variant_id || null, focal_point: img.focal_point || null })),
+        images: resolvedImages.filter((img) => img.url).map((img) => ({ url: img.url, alt: img.alt, variant_id: img.variant_id || null, focal_point: img.focal_point || null })),
         variants: variants.filter((v) => v.name).map((v) => {
           // Find the first image linked to this variant
-          const linkedImg = images.find((img) => img.variant_id === v.id && img.url);
+          const linkedImg = resolvedImages.find((img) => img.variant_id === v.id && img.url);
           return {
             name: v.name, type: v.type, value: v.value || v.name,
             hex: v.hex || null, price_adjustment: (Number(v.price) || 0) - basePrice,
@@ -561,6 +570,7 @@ export default function AddProductPage() {
                             aspectRatio="square"
                             productId={`prod-new`}
                             imageIndex={String(i).padStart(4, "0")}
+                            field={`product_image_${i}`}
                           />
                           <div className="space-y-3">
                             <Input label="Alt Text" placeholder="Auto-generated from product name if left blank" value={img.alt} onChange={(e) => { const u = [...images]; u[i].alt = e.target.value; setImages(u); }} />

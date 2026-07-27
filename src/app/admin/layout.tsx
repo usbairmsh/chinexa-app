@@ -24,6 +24,7 @@ import { PageLoader } from "@/components/shared/page-loader";
 import { Badge } from "@/components/ui/badge";
 import { AdminContext } from "@/contexts/admin-context";
 import { PERMISSION_SECTIONS, normalizePermissions, canDo, type PermissionsMap, type PermissionAction } from "@/lib/admin-permissions";
+import { PendingUploadsProvider } from "@/components/admin/shared/pending-uploads";
 
 function getCookie(name: string): string {
   if (typeof document === "undefined") return "";
@@ -489,7 +490,7 @@ export default function AdminLayout({
 
         {/* Page Content */}
         <main ref={mainRef} className="flex-1 overflow-y-auto p-4 lg:p-6">
-          {children}
+          <PendingUploadsProvider>{children}</PendingUploadsProvider>
         </main>
       </div>
 

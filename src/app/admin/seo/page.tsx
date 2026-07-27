@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
+import { useFlushUploads } from "@/components/admin/shared/pending-uploads";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AdminButton } from "@/components/admin/shared/admin-button";
@@ -124,6 +125,7 @@ const EMPTY_FORM: MetaForm = {
 };
 
 export default function AdminSeoPage() {
+  const flushUploads = useFlushUploads();
   // ─── Global tab state ───
   const [siteTitle, setSiteTitle] = useState("ChineXa — Premium Beauty & Lifestyle");
   const [siteDescription, setSiteDescription] = useState("Discover premium skincare, luxury bags, exquisite jewelry, fine perfumes, and imported beauty products. ChineXa brings world-class beauty to Bangladesh.");
@@ -291,6 +293,9 @@ export default function AdminSeoPage() {
   const saveGlobal = async () => {
     setSavingGlobal(true); setError(""); setSavedGlobal(false);
     try {
+      // Upload any staged (cropped, not-yet-uploaded) images now.
+      const uploaded = await flushUploads();
+      const resolvedOgImage = uploaded.seo_og_image ?? ogImage;
       const res = await fetch("/api/seo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -301,7 +306,7 @@ export default function AdminSeoPage() {
           meta_description: siteDescription,
           og_title: siteTitle,
           og_description: siteDescription,
-          og_image: ogImage || null,
+          og_image: resolvedOgImage || null,
         }),
       });
       if (!res.ok) {
@@ -462,6 +467,9 @@ export default function AdminSeoPage() {
     }
     setSavingMeta(true); setError("");
     try {
+      // Upload any staged (cropped, not-yet-uploaded) images now.
+      const uploaded = await flushUploads();
+      const resolvedOgImage = uploaded.seo_meta_og_image ?? metaForm.og_image;
       const res = await fetch("/api/seo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -474,7 +482,7 @@ export default function AdminSeoPage() {
           canonical_url: metaForm.canonical_url || null,
           og_title: metaForm.og_title || null,
           og_description: metaForm.og_description || null,
-          og_image: metaForm.og_image || null,
+          og_image: resolvedOgImage || null,
           no_index: metaForm.no_index,
           no_follow: metaForm.no_follow,
         }),
@@ -718,7 +726,7 @@ export default function AdminSeoPage() {
                     </>
                   }
                 >
-                  <ImageUpload aspectRatio="video" value={ogImage} onChange={setOgImage} folder="seo" />
+                  <ImageUpload aspectRatio="video" value={ogImage} onChange={setOgImage} folder="seo" field="seo_og_image" />
                 </HelpedField>
 
                 <AdminButton onClick={saveGlobal} disabled={savingGlobal}>
@@ -1293,7 +1301,7 @@ export default function AdminSeoPage() {
                 </>
               }
             >
-              <ImageUpload aspectRatio="video" value={metaForm.og_image} onChange={(v) => setMetaForm((f) => ({ ...f, og_image: v }))} folder="seo" />
+              <ImageUpload aspectRatio="video" value={metaForm.og_image} onChange={(v) => setMetaForm((f) => ({ ...f, og_image: v }))} folder="seo" field="seo_meta_og_image" />
             </HelpedField>
 
             <Separator />

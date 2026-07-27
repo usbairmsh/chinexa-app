@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Separator } from "@/components/ui/separator";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
+import { useFlushUploads } from "@/components/admin/shared/pending-uploads";
 import { FieldLabel } from "@/components/admin/shared/field-label";
 import { useDeliveryStore } from "@/stores/delivery.store";
 import { formatCurrency, cn, randomId } from "@/lib/utils";
@@ -194,6 +195,7 @@ export default function AdminSettingsPage() {
 }
 
 function AdminSettingsPageInner() {
+  const flushUploads = useFlushUploads();
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get("tab") as Tab | null;
   const [activeTab, setActiveTab] = useState<Tab>(requestedTab && tabList.some((t) => t.id === requestedTab) ? requestedTab : "general");
@@ -463,12 +465,22 @@ function AdminSettingsPageInner() {
   };
 
   const saveGeneral = () => saveSettings({ store_name: storeName, store_email: storeEmail, store_phone: storePhone, store_address: storeAddress, features }, setGeneralSaving, setGeneralSaved);
-  const saveStoreSettings = () => saveSettings({
-    store_logo: storeLogo, our_story: ourStory,
-    instagram_feed: { handle: instagramHandle, posts: instagramPosts },
-    faq_items: faqItems,
-    social_links: socialLinks, maintenance_mode: maintenanceMode,
-  }, setStoreSaving, setStoreSaved);
+  const saveStoreSettings = async () => {
+    // Upload any staged (cropped, not-yet-uploaded) images now.
+    const uploaded = await flushUploads();
+    const resolvedLogo = uploaded.store_logo ?? storeLogo;
+    const resolvedStoryImage = uploaded.our_story_image ?? ourStory.image;
+    const resolvedPosts = instagramPosts.map((post, i) => ({
+      ...post,
+      image: uploaded[`instagram_image_${i}`] ?? post.image,
+    }));
+    await saveSettings({
+      store_logo: resolvedLogo, our_story: { ...ourStory, image: resolvedStoryImage },
+      instagram_feed: { handle: instagramHandle, posts: resolvedPosts },
+      faq_items: faqItems,
+      social_links: socialLinks, maintenance_mode: maintenanceMode,
+    }, setStoreSaving, setStoreSaved);
+  };
 
   // ─── Our Story helpers ───
   const updateStory = (patch: Partial<OurStoryContent>) => setOurStory((s) => ({ ...s, ...patch }));
@@ -530,7 +542,16 @@ function AdminSettingsPageInner() {
       setDeliverySaved(true); setTimeout(() => setDeliverySaved(false), 3000);
     } catch {} finally { setDeliverySaving(false); }
   };
-  const savePayment = () => saveSettings({ payment_methods: paymentMethods }, setPaymentSaving, setPaymentSaved);
+  const savePayment = async () => {
+    // Upload any staged (cropped, not-yet-uploaded) images now.
+    const uploaded = await flushUploads();
+    const resolvedMethods = paymentMethods.map((m) => ({
+      ...m,
+      icon: uploaded[`payment_icon_${m.id}`] ?? m.icon,
+      qr_image: uploaded[`payment_qr_${m.id}`] ?? m.qr_image,
+    }));
+    await saveSettings({ payment_methods: resolvedMethods }, setPaymentSaving, setPaymentSaved);
+  };
   const saveNotifications = () => saveSettings({ notification_settings: notifications }, setNotifSaving, setNotifSaved);
   const saveOrderSmsRecipients = () => saveSettings({ order_sms: { admin_ids: orderSmsAdminIds } }, setOrderSmsSaving, setOrderSmsSaved);
   const saveEmailFooter = () => saveSettings({ email_footer: emailFooter }, setEmailFooterSaving, setEmailFooterSaved);
@@ -609,7 +630,7 @@ function AdminSettingsPageInner() {
           <div className="grid lg:grid-cols-2 gap-5">
             <Card><CardHeader><CardTitle className="text-base">Branding</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                <ImageUpload label="Store Logo" value={storeLogo} onChange={setStoreLogo} aspectRatio="square" folder="general" />
+                <ImageUpload label="Store Logo" value={storeLogo} onChange={setStoreLogo} aspectRatio="square" folder="general" field="store_logo" />
               </CardContent>
             </Card>
             <div className="space-y-5">
@@ -702,7 +723,7 @@ function AdminSettingsPageInner() {
                 <Input label="Eyebrow" value={ourStory.eyebrow} onChange={(e) => updateStory({ eyebrow: e.target.value })} placeholder="Who We Are" />
                 <Input label="Heading" value={ourStory.heading} onChange={(e) => updateStory({ heading: e.target.value })} placeholder="Beauty that speaks to your soul" />
               </div>
-              <ImageUpload label="Story Image" value={ourStory.image} onChange={(v) => updateStory({ image: v })} aspectRatio="portrait" folder="general" />
+              <ImageUpload label="Story Image" value={ourStory.image} onChange={(v) => updateStory({ image: v })} aspectRatio="portrait" folder="general" field="our_story_image" />
 
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -799,7 +820,7 @@ function AdminSettingsPageInner() {
                       <button onClick={() => removeInstagramPost(i)} className="absolute top-2 right-2 z-10 p-1 rounded-md bg-white/90 text-charcoal-lighter/60 hover:text-destructive transition-colors active:scale-[0.96]">
                         <X className="h-3 w-3" />
                       </button>
-                      <ImageUpload label="Image" value={post.image} onChange={(v) => updateInstagramPost(i, { image: v })} aspectRatio="square" folder="general" />
+                      <ImageUpload label="Image" value={post.image} onChange={(v) => updateInstagramPost(i, { image: v })} aspectRatio="square" folder="general" field={`instagram_image_${i}`} />
                       <Input value={post.link} onChange={(e) => updateInstagramPost(i, { link: e.target.value })} placeholder="Post URL (optional)" className="h-9" />
                     </div>
                   ))}
@@ -1021,6 +1042,7 @@ function AdminSettingsPageInner() {
                       onChange={(url) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, icon: url } : pm))}
                       aspectRatio="square"
                       folder="payment-icons"
+                      field={`payment_icon_${m.id}`}
                     />
                     {m.id !== "COD" && (
                       <>
@@ -1042,6 +1064,7 @@ function AdminSettingsPageInner() {
                           onChange={(url) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, qr_image: url } : pm))}
                           aspectRatio="square"
                           folder="payment-qr"
+                          field={`payment_qr_${m.id}`}
                         />
                       </>
                     )}

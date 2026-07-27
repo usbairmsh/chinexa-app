@@ -20,6 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
+import { useFlushUploads } from "@/components/admin/shared/pending-uploads";
 import { ImagePositionEditor } from "@/components/admin/shared/image-position-editor";
 import { FieldLabel } from "@/components/admin/shared/field-label";
 import { cn, formatCurrency, collectMissingFields } from "@/lib/utils";
@@ -40,6 +41,7 @@ type VariantRow = {
 type ImageRow = { id: string; url: string; alt: string; variant_id: string; focal_point: string };
 
 export default function EditProductPage() {
+  const flushUploads = useFlushUploads();
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
@@ -261,6 +263,13 @@ export default function EditProductPage() {
     const baseCostPrice = Number(firstVariant.cost_price) || 0;
     const totalStock = variants.reduce((s, v) => s + (Number(v.stock) || 0), 0);
     try {
+      // Upload any staged (cropped, not-yet-uploaded) images now, then remap
+      // each image row to its freshly-uploaded server URL (keyed by index).
+      const uploaded = await flushUploads();
+      const resolvedImages = images.map((img, i) => ({
+        ...img,
+        url: uploaded[`product_image_${i}`] ?? img.url,
+      }));
       const payload = {
         name: productName.trim(), sku: sku.trim() || firstVariant.sku,
         short_description: shortDesc.trim(), description: fullDesc.trim(),
@@ -280,9 +289,9 @@ export default function EditProductPage() {
         is_active: isActive, is_featured: isFeatured, badges: selectedBadges,
         hidden_card_badges: hiddenCardBadges.filter((b) => selectedBadges.includes(b)),
         preorder_release_date: selectedBadges.includes("preorder") ? (preorderDate || null) : null,
-        images: images.filter((img) => img.url).map((img) => ({ url: img.url, alt: img.alt, variant_id: img.variant_id || null, focal_point: img.focal_point || null })),
+        images: resolvedImages.filter((img) => img.url).map((img) => ({ url: img.url, alt: img.alt, variant_id: img.variant_id || null, focal_point: img.focal_point || null })),
         variants: variants.filter((v) => v.name).map((v) => {
-          const linkedImg = images.find((img) => img.variant_id === v.id && img.url);
+          const linkedImg = resolvedImages.find((img) => img.variant_id === v.id && img.url);
           return {
             name: v.name, type: v.type, value: v.value || v.name,
             hex: v.hex || null, price_adjustment: (Number(v.price) || 0) - basePrice,
@@ -570,7 +579,7 @@ export default function EditProductPage() {
                           </button>
                         </div>
                         <div className="grid sm:grid-cols-2 gap-4">
-                          <ImageUpload value={img.url} onChange={(url) => { const u = [...images]; u[i].url = url; setImages(u); }} aspectRatio="square" productId={id} imageIndex={String(i).padStart(4, "0")} />
+                          <ImageUpload value={img.url} onChange={(url) => { const u = [...images]; u[i].url = url; setImages(u); }} aspectRatio="square" productId={id} imageIndex={String(i).padStart(4, "0")} field={`product_image_${i}`} />
                           <div className="space-y-3">
                             <Input label="Alt Text" placeholder="Auto-generated from product name if left blank" value={img.alt} onChange={(e) => { const u = [...images]; u[i].alt = e.target.value; setImages(u); }} />
                             <div>

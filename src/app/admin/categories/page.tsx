@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
+import { useFlushUploads } from "@/components/admin/shared/pending-uploads";
 import { FieldLabel } from "@/components/admin/shared/field-label";
 import { BrandMultiSelect } from "@/components/admin/shared/brand-multi-select";
 import { useCategories } from "@/hooks/queries/use-categories";
@@ -26,6 +27,7 @@ import { categorySeoMissing } from "@/lib/seo-completeness";
 import { useAdmin } from "@/contexts/admin-context";
 
 export default function AdminCategoriesPage() {
+  const flushUploads = useFlushUploads();
   const { can } = useAdmin();
   const canAddCategory = can("categories", "add");
   const canEditCategory = can("categories", "edit");
@@ -97,20 +99,23 @@ export default function AdminCategoriesPage() {
     if (!formName.trim()) return;
     const slug = formSlug.trim() || slugify(formName);
     try {
+      // Upload any staged (cropped, not-yet-uploaded) images now.
+      const uploaded = await flushUploads();
+      const image = uploaded.category_image ?? formImage;
       let res: Response;
       if (editCategory) {
         // Update existing
         res = await fetch(`/api/categories/${editCategory.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: formName.trim(), slug, description: formDesc.trim(), image: formImage || null, is_active: showInTopbar, brand_ids: formBrandIds }),
+          body: JSON.stringify({ name: formName.trim(), slug, description: formDesc.trim(), image: image || null, is_active: showInTopbar, brand_ids: formBrandIds }),
         });
       } else {
         // Create new
         res = await fetch("/api/categories", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: formName.trim(), slug, description: formDesc.trim(), image: formImage, parent_id: formParentId || null, is_active: showInTopbar, brand_ids: formBrandIds }),
+          body: JSON.stringify({ name: formName.trim(), slug, description: formDesc.trim(), image: image, parent_id: formParentId || null, is_active: showInTopbar, brand_ids: formBrandIds }),
         });
       }
       if (!res.ok) {
@@ -456,7 +461,7 @@ export default function AdminCategoriesPage() {
             <Textarea label="Description" placeholder="Brief description for SEO..." value={formDesc} onChange={(e) => setFormDesc(e.target.value)} className="min-h-[70px]" />
 
             {!formParentId && (
-              <ImageUpload label="Category Image" aspectRatio="video" value={formImage} onChange={setFormImage} folder="categories" />
+              <ImageUpload label="Category Image" aspectRatio="video" value={formImage} onChange={setFormImage} folder="categories" field="category_image" />
             )}
 
             {/* Associated Brands */}

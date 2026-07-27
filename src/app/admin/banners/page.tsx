@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
+import { useFlushUploads } from "@/components/admin/shared/pending-uploads";
 import { FieldLabel } from "@/components/admin/shared/field-label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -182,6 +183,7 @@ function ImagePositionEditor({ imageUrl, crop, onChange }: { imageUrl: string; c
 
 // ─── Main Page ────────────────────────────────────────────
 export default function AdminBannersPage() {
+  const flushUploads = useFlushUploads();
   const { can } = useAdmin();
   const canAddBanner = can("banners", "add");
   const canEditBanner = can("banners", "edit");
@@ -256,9 +258,12 @@ export default function AdminBannersPage() {
     setFormError("");
     setSaving(true);
     try {
+      // Upload any staged (cropped, not-yet-uploaded) images now.
+      const uploaded = await flushUploads();
+      const image = uploaded.banner_image ?? formImage;
       const payload = {
         title: formTitle.trim(), subtitle: formSubtitle.trim() || null,
-        image: formImage, mobile_image: formMobileImage || null,
+        image: image, mobile_image: formMobileImage || null,
         link: formLink.trim() || null, cta_text: formCta.trim() || null,
         position: formPosition, is_active: formActive,
         focal_point: cropToString(formCrop),
@@ -376,7 +381,7 @@ export default function AdminBannersPage() {
               <Input label="Subtitle" placeholder="Discover radiance with our new arrivals" value={formSubtitle} onChange={(e) => setFormSubtitle(e.target.value)} />
             </div>
             <div className="space-y-1">
-              <ImageUpload label={<FieldLabel label="Banner Image" required hint={<>Recommended: <span className="font-semibold">1920 x 800px</span>. Larger images can be repositioned below.</>} />} value={formImage} onChange={setFormImage} aspectRatio="video" placeholder="Upload banner image" folder="banners" />
+              <ImageUpload label={<FieldLabel label="Banner Image" required hint={<>Recommended: <span className="font-semibold">1920 x 800px</span>. Larger images can be repositioned below.</>} />} value={formImage} onChange={setFormImage} aspectRatio="video" placeholder="Upload banner image" folder="banners" field="banner_image" />
             </div>
             {formImage && <ImagePositionEditor imageUrl={formImage} crop={formCrop} onChange={setFormCrop} />}
             <div className="grid sm:grid-cols-2 gap-3">

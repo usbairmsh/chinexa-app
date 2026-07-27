@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
+import { useFlushUploads } from "@/components/admin/shared/pending-uploads";
 import { RichTextEditor } from "@/components/admin/shared/rich-text-editor";
 import { SeoStatusChip } from "@/components/admin/shared/seo-status-chip";
 import { blogSeoMissing } from "@/lib/seo-completeness";
@@ -22,6 +23,7 @@ import type { BlogPost } from "@/types/blog";
 import { useAdmin } from "@/contexts/admin-context";
 
 export default function AdminBlogPage() {
+  const flushUploads = useFlushUploads();
   const { can } = useAdmin();
   const canAddBlog = can("blog", "add");
   const canEditBlog = can("blog", "edit");
@@ -95,13 +97,16 @@ export default function AdminBlogPage() {
     setFormError("");
     setSaving(true);
     try {
+      // Upload any staged (cropped, not-yet-uploaded) images now.
+      const uploaded = await flushUploads();
+      const featuredImage = uploaded.blog_featured_image ?? formImage;
       const tags = formTags.split(",").map((t) => t.trim()).filter(Boolean);
       const payload = {
         title: formTitle.trim(),
         slug: formSlug.trim() || slugify(formTitle),
         excerpt: formExcerpt.trim() || null,
         content: formContent.trim() || null,
-        featured_image: formImage || null,
+        featured_image: featuredImage || null,
         category: formCategory.trim() || null,
         tags,
         author_name: formAuthor.trim() || "ChineXa Team",
@@ -222,7 +227,7 @@ export default function AdminBlogPage() {
             {/* Rich editor writes the same HTML string the old textarea held —
                 existing posts load/save unchanged; only the editing UX changed. */}
             <RichTextEditor label="Content" placeholder="Write your blog post content here..." value={formContent} onChange={setFormContent} />
-            <ImageUpload label="Featured Image" value={formImage} onChange={setFormImage} aspectRatio="video" placeholder="Upload featured image (1200x675 recommended)" folder="blog" />
+            <ImageUpload label="Featured Image" value={formImage} onChange={setFormImage} aspectRatio="video" placeholder="Upload featured image (1200x675 recommended)" folder="blog" field="blog_featured_image" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="Category" placeholder="Skincare, Fashion, Beauty" value={formCategory} onChange={(e) => setFormCategory(e.target.value)} />
               <Input label="Tags (comma separated)" placeholder="skincare, guide, tips" value={formTags} onChange={(e) => setFormTags(e.target.value)} />

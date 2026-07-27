@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
+import { useFlushUploads } from "@/components/admin/shared/pending-uploads";
 import { CountrySearch } from "@/components/admin/shared/country-search";
 import { SeoStatusChip } from "@/components/admin/shared/seo-status-chip";
 import { brandSeoMissing } from "@/lib/seo-completeness";
@@ -30,6 +31,7 @@ interface Brand {
 }
 
 export default function AdminBrandsPage() {
+  const flushUploads = useFlushUploads();
   const { can } = useAdmin();
   const canAddBrand = can("brands", "add");
   const canEditBrand = can("brands", "edit");
@@ -89,9 +91,12 @@ export default function AdminBrandsPage() {
     if (!fName.trim()) return;
     setSaving(true);
     try {
+      // Upload any staged (cropped, not-yet-uploaded) images now.
+      const uploaded = await flushUploads();
+      const logo = uploaded.brand_logo ?? fLogo;
       const payload = {
         name: fName.trim(), slug: fSlug.trim() || slugify(fName),
-        logo: fLogo || null, country: fCountry || null, description: fDesc.trim() || null,
+        logo: logo || null, country: fCountry || null, description: fDesc.trim() || null,
         website: normalizeWebsite(fWebsite), certifications: fCerts.filter((c) => c.trim()),
         is_active: fActive, show_on_homepage: fHomepage,
         seo_title: fSeoTitle.trim() || null, seo_description: fSeoDesc.trim() || null,
@@ -198,7 +203,7 @@ export default function AdminBrandsPage() {
           <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
             <Input label="Brand Name" required value={fName} onChange={(e) => { setFName(e.target.value); if (autoSlug) setFSlug(slugify(e.target.value)); }} placeholder="e.g., CosRX" />
             <Input label="URL Slug" value={fSlug} onChange={(e) => { setFSlug(e.target.value); setAutoSlug(false); }} placeholder="cosrx" />
-            <ImageUpload label="Brand Logo" value={fLogo} onChange={setFLogo} aspectRatio="square" folder="brands" />
+            <ImageUpload label="Brand Logo" value={fLogo} onChange={setFLogo} aspectRatio="square" folder="brands" field="brand_logo" />
             <CountrySearch value={fCountry} onChange={setFCountry} />
             <Textarea label="Description" value={fDesc} onChange={(e) => setFDesc(e.target.value)} placeholder="Brief brand story..." className="min-h-[60px]" />
             <Input label="Website" value={fWebsite} onChange={(e) => setFWebsite(e.target.value)} placeholder="https://www.cosrx.com" />
