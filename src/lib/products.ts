@@ -85,7 +85,7 @@ function toBooleanFulltextQuery(term: string): string {
  * is byte-for-byte what the client's own useProducts() call would fetch,
  * and the two can never drift out of sync with each other.
  */
-export async function getProductsList(searchParams: URLSearchParams): Promise<PaginatedResponse<Product> & { data: Product[] }> {
+export async function getProductsList(searchParams: URLSearchParams): Promise<PaginatedResponse<Product> & { data: Product[]; active_count?: number; inactive_count?: number }> {
   const page = Number(searchParams.get("page")) || 1;
   const pageSize = Number(searchParams.get("page_size")) || 12;
   const category = searchParams.get("category");
@@ -206,20 +206,27 @@ export async function getProductsList(searchParams: URLSearchParams): Promise<Pa
   const safeOffset = Math.max(0, Math.floor(offset));
 
   const [countRows, products] = await Promise.all([
-    query<RowDataPacket[]>(`SELECT COUNT(*) as total FROM products p ${where}`, params),
+    // total + active/inactive breakdown over the FULL filtered set (ignoring
+    // pagination) so admin tab counts reflect real totals, not the current page.
+    query<RowDataPacket[]>(
+      `SELECT COUNT(*) as total, SUM(p.is_active = 1) as active_count, SUM(p.is_active = 0) as inactive_count FROM products p ${where}`,
+      params
+    ),
     query<RowDataPacket[]>(
       `SELECT p.*${relevanceSelect} FROM products p ${where} ${orderBy} LIMIT ${safeLimit} OFFSET ${safeOffset}`,
       [...relevanceParams, ...params]
     ),
   ]);
   const total = countRows[0]?.total || 0;
+  const active_count = Number(countRows[0]?.active_count) || 0;
+  const inactive_count = Number(countRows[0]?.inactive_count) || 0;
 
   if (search) {
     execute("INSERT INTO search_logs (term, result_count) VALUES (?, ?)", [search.slice(0, 255), total]).catch(() => {});
   }
 
   if (products.length === 0) {
-    return { data: [], total, page, page_size: pageSize, total_pages: Math.ceil(total / pageSize) };
+    return { data: [], total, page, page_size: pageSize, total_pages: Math.ceil(total / pageSize), active_count, inactive_count };
   }
 
   const productIds = products.map((p) => p.id);
@@ -266,5 +273,7 @@ export async function getProductsList(searchParams: URLSearchParams): Promise<Pa
     page,
     page_size: pageSize,
     total_pages: Math.ceil(total / pageSize),
+    active_count,
+    inactive_count,
   };
 }

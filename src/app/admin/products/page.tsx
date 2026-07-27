@@ -118,6 +118,9 @@ export default function AdminProductsPage() {
   const activeProducts = allProducts.filter((p) => p.is_active);
   const inactiveProducts = allProducts.filter((p) => !p.is_active);
   const displayProducts = activeTab === "active" ? activeProducts : inactiveProducts;
+  // True totals across ALL pages (from the API), not just the current page.
+  const activeCount = data?.active_count ?? activeProducts.length;
+  const inactiveCount = data?.inactive_count ?? inactiveProducts.length;
 
   const ProductRow = ({ product }: { product: Product }) => {
     const hasVariants = product.variants.length > 1;
@@ -369,7 +372,7 @@ export default function AdminProductsPage() {
             {tab === "active" ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
             {tab === "active" ? "Active" : "Inactive"}
             <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", activeTab === tab ? "bg-secondary/10 text-secondary" : "bg-pearl text-charcoal-lighter")}>
-              {tab === "active" ? activeProducts.length : inactiveProducts.length}
+              {tab === "active" ? activeCount : inactiveCount}
             </span>
           </button>
         ))}
