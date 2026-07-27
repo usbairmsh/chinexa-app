@@ -113,20 +113,30 @@ export async function POST(req: NextRequest) {
       `[inbound-email] no inline body. top keys=${JSON.stringify(Object.keys(payload))} data keys=${JSON.stringify(Object.keys(data))} emailId=${emailId || "NONE"} hasApiKey=${!!apiKey}`
     );
     if (emailId && apiKey) {
-      try {
-        const r = await fetch(`https://api.resend.com/emails/${emailId}`, {
-          headers: { Authorization: `Bearer ${apiKey}` },
-        });
-        if (r.ok) {
-          const full = (await r.json()) as Record<string, unknown>;
-          bodyHtml = bodyHtml || firstString(full.html, deepFindString(full, ["html", "body_html"]));
-          bodyText = bodyText || firstString(full.text, deepFindString(full, ["text", "body_text"]));
-          console.error(`[inbound-email] fetched email ${emailId}; got body=${!!(bodyHtml || bodyText)} fullKeys=${JSON.stringify(Object.keys(full))}`);
-        } else {
-          console.error("[inbound-email] Resend email fetch failed:", r.status, (await r.text()).slice(0, 300));
+      // The webhook carries no body — only an id. Received emails live under
+      // Resend's INBOUND endpoint, not /emails/{id} (that's for outbound sends,
+      // which 404s for an inbound id). Try the inbound routes first.
+      const candidates = [
+        `https://api.resend.com/emails/inbound/${emailId}`,
+        `https://api.resend.com/inbound/emails/${emailId}`,
+        `https://api.resend.com/inbound/${emailId}`,
+        `https://api.resend.com/emails/${emailId}`,
+      ];
+      for (const url of candidates) {
+        try {
+          const r = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
+          if (r.ok) {
+            const full = (await r.json()) as Record<string, unknown>;
+            bodyHtml = bodyHtml || firstString(full.html, deepFindString(full, ["html", "body_html", "html_body"]));
+            bodyText = bodyText || firstString(full.text, deepFindString(full, ["text", "body_text", "plain"]));
+            console.error(`[inbound-email] fetched via ${url}; got body=${!!(bodyHtml || bodyText)} keys=${JSON.stringify(Object.keys(full))}`);
+            if (bodyHtml || bodyText) break;
+          } else {
+            console.error(`[inbound-email] fetch ${url} -> ${r.status}`);
+          }
+        } catch (err) {
+          console.error(`[inbound-email] fetch ${url} error:`, err);
         }
-      } catch (err) {
-        console.error("[inbound-email] Resend email fetch error:", err);
       }
     }
   }
