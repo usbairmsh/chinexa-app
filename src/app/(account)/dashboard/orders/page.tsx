@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useAuthStore } from "@/stores/auth.store";
 import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
@@ -40,12 +41,35 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
   returned: { label: "Returned", color: "text-orange-500 bg-orange-50", icon: RotateCcw, badge: "warning" },
 };
 
-function OrderCard({ order }: { order: Order }) {
+function OrderCard({ order, customerId, onCancelled }: { order: Order; customerId?: string; onCancelled?: (orderId: string) => void }) {
   const config = statusConfig[order.status] || statusConfig.pending;
   const StatusIcon = config.icon;
   const displayId = order.order_number || order.id;
   const { reorder, reordering } = useReorder();
   const [reorderNote, setReorderNote] = useState("");
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState("");
+  const canCancel = ["preorder", "pending", "confirmed", "processing"].includes(order.status);
+
+  const handleCancel = async () => {
+    if (!customerId) return;
+    setCancelling(true);
+    setCancelError("");
+    try {
+      const res = await fetch(`/api/orders/${encodeURIComponent(order.id)}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customer_id: customerId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Couldn't cancel this order");
+      setCancelOpen(false);
+      onCancelled?.(order.id);
+    } catch (err: unknown) {
+      setCancelError(err instanceof Error ? err.message : "Couldn't cancel this order");
+    } finally { setCancelling(false); }
+  };
 
   const handleReorder = async () => {
     setReorderNote("");
@@ -122,10 +146,34 @@ function OrderCard({ order }: { order: Order }) {
                 View Details &rarr;
               </Button>
             </Link>
+            {canCancel && (
+              <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/5" onClick={() => { setCancelError(""); setCancelOpen(true); }}>
+                <XCircle className="h-3.5 w-3.5" /> Cancel
+              </Button>
+            )}
           </div>
         </div>
         {reorderNote && <p className="px-4 sm:px-5 pb-3 -mt-1 text-[11px] text-charcoal-lighter text-right">{reorderNote}</p>}
       </CardContent>
+
+      {/* Cancel confirmation */}
+      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive"><XCircle className="h-5 w-5" /> Cancel Order</DialogTitle>
+            <DialogDescription>
+              Cancel order {displayId}? This can&apos;t be undone. If you&apos;ve already paid, a refund will be processed.
+            </DialogDescription>
+          </DialogHeader>
+          {cancelError && <p className="text-sm text-destructive">{cancelError}</p>}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCancelOpen(false)} disabled={cancelling}>Keep Order</Button>
+            <Button variant="secondary" className="!bg-destructive hover:!bg-destructive/90 !text-white" onClick={handleCancel} disabled={cancelling}>
+              {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />} Cancel Order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
@@ -160,6 +208,11 @@ export default function OrdersPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [user?.id, mounted]);
+
+  // Reflect a cancellation immediately without a full refetch — flip that order
+  // to cancelled so it drops out of Active and into the Failed tab.
+  const markCancelled = (orderId: string) =>
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: "cancelled" } : o)));
 
   const activeOrders = orders.filter(o => ["preorder", "pending", "confirmed", "processing", "shipped", "on_delivery"].includes(o.status));
   const completedOrders = orders.filter(o => o.status === "received");
@@ -220,7 +273,7 @@ export default function OrdersPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
               >
-                <OrderCard order={order} />
+                <OrderCard order={order} customerId={user?.id} onCancelled={markCancelled} />
               </motion.div>
             ))}
           </div>
@@ -236,7 +289,7 @@ export default function OrdersPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
               >
-                <OrderCard order={o} />
+                <OrderCard order={o} customerId={user?.id} onCancelled={markCancelled} />
               </motion.div>
             ))}
           </div>
@@ -252,7 +305,7 @@ export default function OrdersPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
               >
-                <OrderCard order={o} />
+                <OrderCard order={o} customerId={user?.id} onCancelled={markCancelled} />
               </motion.div>
             ))}
           </div>
@@ -268,7 +321,7 @@ export default function OrdersPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
               >
-                <OrderCard order={o} />
+                <OrderCard order={o} customerId={user?.id} onCancelled={markCancelled} />
               </motion.div>
             ))}
           </div>

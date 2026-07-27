@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowLeft, Package, Truck, CheckCircle2, Clock, MapPin, CreditCard, Copy, PackageCheck, Loader2, ShoppingBag, RotateCcw } from "lucide-react";
+import { ArrowLeft, Package, Truck, CheckCircle2, Clock, MapPin, CreditCard, Copy, PackageCheck, Loader2, ShoppingBag, RotateCcw, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -83,6 +83,9 @@ export default function OrderDetailPage() {
   const [existingReturn, setExistingReturn] = useState<{ id: string; status: string; created_at: string } | null>(null);
   const { reorder, reordering } = useReorder();
   const [reorderNote, setReorderNote] = useState("");
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState("");
 
   useEffect(() => {
     if (!user?.id) { setLoading(false); return; }
@@ -126,6 +129,29 @@ export default function OrderDetailPage() {
       alert(err instanceof Error ? err.message : "Failed to submit return request");
     } finally { setReturnSubmitting(false); }
   };
+
+  const handleCancel = async () => {
+    if (!order || !user?.id) return;
+    setCancelling(true);
+    setCancelError("");
+    try {
+      const res = await fetch(`/api/orders/${encodeURIComponent(order.id)}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customer_id: user.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Couldn't cancel this order");
+      setCancelOpen(false);
+      // Reflect the new status immediately.
+      setOrder((prev) => (prev ? { ...prev, status: "cancelled" } : prev));
+    } catch (err: unknown) {
+      setCancelError(err instanceof Error ? err.message : "Couldn't cancel this order");
+    } finally { setCancelling(false); }
+  };
+
+  // A customer may cancel only while the order is still early in fulfilment.
+  const canCancel = !!order && ["preorder", "pending", "confirmed", "processing"].includes(order.status);
 
   if (loading) {
     return (
@@ -376,6 +402,13 @@ export default function OrderDetailPage() {
 
               <Button variant="outline" className="w-full text-sm" onClick={() => window.open(`/invoice?id=${encodeURIComponent(order.order_number)}`, "_blank")}>Download Invoice</Button>
 
+              {/* Cancel Order — only while the order is still cancellable */}
+              {canCancel && (
+                <Button variant="outline" className="w-full text-sm text-destructive border-destructive/30 hover:bg-destructive/5" onClick={() => { setCancelError(""); setCancelOpen(true); }}>
+                  <XCircle className="h-3.5 w-3.5" /> Cancel Order
+                </Button>
+              )}
+
               {/* Return Section — smart eligibility */}
               {(() => {
                 const status = order.status;
@@ -485,6 +518,25 @@ export default function OrderDetailPage() {
           </Card>
         </motion.div>
       </div>
+
+      {/* Cancel Order Dialog */}
+      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive"><XCircle className="h-5 w-5" /> Cancel Order</DialogTitle>
+            <DialogDescription>
+              Cancel order {order?.order_number}? This can&apos;t be undone. If you&apos;ve already paid, a refund will be processed.
+            </DialogDescription>
+          </DialogHeader>
+          {cancelError && <p className="text-sm text-destructive">{cancelError}</p>}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCancelOpen(false)} disabled={cancelling}>Keep Order</Button>
+            <Button variant="secondary" className="!bg-destructive hover:!bg-destructive/90 !text-white" onClick={handleCancel} disabled={cancelling}>
+              {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />} Cancel Order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Return Request Dialog */}
       <Dialog open={returnOpen} onOpenChange={setReturnOpen}>
