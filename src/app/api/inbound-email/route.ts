@@ -96,14 +96,40 @@ export async function POST(req: NextRequest) {
   if (!bodyText) bodyText = deepFindString(payload, ["text", "body_text", "text_body", "stripped-text", "plain", "textBody", "body"]);
 
   // Last-resort: if the raw email content is available, keep it so the body is
-  // never lost. If nothing at all parses, log the payload keys to diagnose.
+  // never lost.
   if (!bodyHtml && !bodyText) {
     const raw = firstString(data.raw, data["raw_email"], (data as Record<string, unknown>).rawEmail, deepFindString(payload, ["raw", "raw_email", "content"]));
-    if (raw) {
-      bodyText = raw;
-    } else {
-      console.error("[inbound-email] no body found in payload. Top-level keys:", Object.keys(payload), "data keys:", Object.keys(data));
+    if (raw) bodyText = raw;
+  }
+
+  // Resend's email.received webhook often carries only metadata + an email id;
+  // the full html/text body must be fetched from the API. If we still have no
+  // body but do have an id and an API key, pull the full email.
+  if (!bodyHtml && !bodyText) {
+    const emailId = firstString(data.email_id, data.id, (data as Record<string, unknown>).emailId);
+    const apiKey = process.env.RESEND_API_KEY;
+    if (emailId && apiKey) {
+      try {
+        const r = await fetch(`https://api.resend.com/emails/${emailId}`, {
+          headers: { Authorization: `Bearer ${apiKey}` },
+        });
+        if (r.ok) {
+          const full = (await r.json()) as Record<string, unknown>;
+          bodyHtml = bodyHtml || firstString(full.html, deepFindString(full, ["html", "body_html"]));
+          bodyText = bodyText || firstString(full.text, deepFindString(full, ["text", "body_text"]));
+        } else {
+          console.error("[inbound-email] Resend email fetch failed:", r.status);
+        }
+      } catch (err) {
+        console.error("[inbound-email] Resend email fetch error:", err);
+      }
     }
+  }
+
+  // Still nothing — log the FULL payload (truncated) so we can see the exact
+  // shape this provider sends and map the body field precisely.
+  if (!bodyHtml && !bodyText) {
+    console.error("[inbound-email] no body found. Payload:", JSON.stringify(payload).slice(0, 4000));
   }
 
   const headers = (data.headers && typeof data.headers === "object" ? data.headers : {}) as Record<string, unknown>;
