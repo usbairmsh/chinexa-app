@@ -101,6 +101,25 @@ export async function ensureEmailInboxTables() {
       ) ENGINE=InnoDB`
     );
 
+    await execute(
+      `CREATE TABLE IF NOT EXISTS email_drafts (
+        id VARCHAR(50) PRIMARY KEY,
+        kind ENUM('reply','broadcast') NOT NULL DEFAULT 'reply',
+        mailbox_id VARCHAR(50) NULL,
+        thread_id VARCHAR(50) NULL,
+        from_address VARCHAR(255) NULL,
+        to_address VARCHAR(255) NULL,
+        subject VARCHAR(500) NOT NULL DEFAULT '(no subject)',
+        body_text MEDIUMTEXT NULL,
+        segment JSON NULL,
+        created_by VARCHAR(50) NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_kind_recent (kind, updated_at),
+        INDEX idx_thread (thread_id)
+      ) ENGINE=InnoDB`
+    );
+
     // Future-proofing hook for adding columns to older deployments.
     await ensureColumn("email_mailboxes", "can_broadcast", "BOOLEAN NOT NULL DEFAULT FALSE");
 

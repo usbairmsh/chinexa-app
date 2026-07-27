@@ -35,7 +35,7 @@ interface AdminUser {
 
 const ACTION_LABELS: Record<PermissionAction, string> = {
   view: "View", add: "Add", edit: "Edit", delete: "Delete",
-  handle_orders: "Handle Orders", approve: "Approve/Reject",
+  handle_orders: "Handle Orders", approve: "Approve/Reject", draft: "Drafts",
 };
 
 // Explains what each checkbox actually grants — shown as a "?" tooltip next
@@ -48,6 +48,7 @@ const ACTION_HINTS: Record<PermissionAction, string> = {
   delete: "Permanently remove records in this section.",
   handle_orders: "Change order status (shipped, delivered, cancelled) and approve/refund returns — without granting full order editing.",
   approve: "Approve or reject submissions (e.g. customer reviews, return requests) without granting delete or full edit access.",
+  draft: "Access the Email Center Drafts inbox — save, edit, and delete draft replies and broadcasts. Actually sending a draft still requires the Add (send) permission.",
 };
 
 interface AdminRole {

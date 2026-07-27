@@ -1,4 +1,4 @@
-export type PermissionAction = "view" | "add" | "edit" | "delete" | "handle_orders" | "approve";
+export type PermissionAction = "view" | "add" | "edit" | "delete" | "handle_orders" | "approve" | "draft";
 
 // The single, top-most owner role. Sits above superadmin: has full access to
 // everything, cannot be created/edited/deleted/deactivated/demoted by anyone
@@ -43,7 +43,7 @@ export const PERMISSION_SECTIONS: PermissionSectionDef[] = [
   { key: "support_inbox", label: "Support Inbox", navSection: "Support", actions: ["view", "add", "delete"] },
   // email_inbox: view = read mailboxes/threads, add = send (reply + broadcast),
   // edit = configure mailboxes (also gated superadmin server-side), delete = remove threads.
-  { key: "email_inbox", label: "Email Center", navSection: "Support", actions: ["view", "add", "edit", "delete"] },
+  { key: "email_inbox", label: "Email Center", navSection: "Support", actions: ["view", "add", "draft", "edit", "delete"] },
   { key: "users", label: "Users, Roles & Access", navSection: "System", actions: ["view", "add", "edit", "delete"] },
   { key: "settings", label: "Settings", navSection: "System", actions: ["view", "edit"] },
 ];
@@ -77,7 +77,7 @@ export function normalizePermissions(raw: unknown): PermissionsMap {
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
     if (Array.isArray(v)) {
       map[k] = v.filter((a): a is PermissionAction =>
-        a === "view" || a === "add" || a === "edit" || a === "delete" || a === "handle_orders" || a === "approve"
+        a === "view" || a === "add" || a === "edit" || a === "delete" || a === "handle_orders" || a === "approve" || a === "draft"
       );
     }
   }

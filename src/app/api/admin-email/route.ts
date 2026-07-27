@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureEmailInboxTables } from "@/lib/migrate-email-inbox";
-import { listMailboxes, listThreads, emailCounts } from "@/lib/email-inbox";
+import { listMailboxes, listThreads, emailCounts, listDrafts } from "@/lib/email-inbox";
+import { canDo } from "@/lib/admin-permissions";
+import { getRequester } from "@/lib/admin-permissions-server";
 import { requirePermission } from "@/lib/admin-permissions-server";
 
 export const dynamic = "force-dynamic";
@@ -23,5 +25,13 @@ export async function GET(req: NextRequest) {
     emailCounts(undefined),
   ]);
 
-  return NextResponse.json({ mailboxes, threads, counts, totals });
+  // Include a draft count so the UI can badge the Drafts inbox — only for
+  // admins who can access drafts.
+  let draftCount = 0;
+  const requester = await getRequester(req);
+  if (requester && canDo(requester.role, requester.permissions, "email_inbox", "draft")) {
+    draftCount = (await listDrafts()).length;
+  }
+
+  return NextResponse.json({ mailboxes, threads, counts, totals, draft_count: draftCount });
 }

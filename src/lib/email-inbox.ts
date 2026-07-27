@@ -11,6 +11,7 @@ export const newMailboxId = () => genId("mbx");
 export const newThreadId = () => genId("ethr");
 export const newEmailMsgId = () => genId("emsg");
 export const newBroadcastId = () => genId("ebrd");
+export const newDraftId = () => genId("edft");
 
 export interface Mailbox {
   id: string;
@@ -268,6 +269,89 @@ export async function updateMailbox(id: string, fields: Partial<Pick<Mailbox, "d
 
 export async function deleteMailbox(id: string): Promise<ResultSetHeader> {
   return execute("DELETE FROM email_mailboxes WHERE id = ?", [id]);
+}
+
+// ─── Drafts ───
+export interface EmailDraft {
+  id: string;
+  kind: "reply" | "broadcast";
+  mailbox_id: string | null;
+  thread_id: string | null;
+  from_address: string | null;
+  to_address: string | null;
+  subject: string;
+  body_text: string | null;
+  segment: unknown;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DraftInput {
+  kind: "reply" | "broadcast";
+  mailbox_id: string | null;
+  thread_id?: string | null;
+  from_address?: string | null;
+  to_address?: string | null;
+  subject: string;
+  body_text: string | null;
+  segment?: unknown;
+  created_by: string | null;
+}
+
+function toDraft(r: RowDataPacket): EmailDraft {
+  let segment: unknown = null;
+  if (r.segment != null) {
+    if (typeof r.segment === "string") { try { segment = JSON.parse(r.segment); } catch { segment = null; } }
+    else segment = r.segment;
+  }
+  return {
+    id: r.id, kind: r.kind, mailbox_id: r.mailbox_id, thread_id: r.thread_id,
+    from_address: r.from_address, to_address: r.to_address, subject: r.subject,
+    body_text: r.body_text, segment, created_by: r.created_by,
+    created_at: r.created_at, updated_at: r.updated_at,
+  };
+}
+
+export async function listDrafts(): Promise<EmailDraft[]> {
+  const rows = await query<RowDataPacket[]>("SELECT * FROM email_drafts ORDER BY updated_at DESC LIMIT 200");
+  return rows.map(toDraft);
+}
+
+export async function getDraft(id: string): Promise<EmailDraft | null> {
+  const rows = await query<RowDataPacket[]>("SELECT * FROM email_drafts WHERE id = ? LIMIT 1", [id]);
+  return rows.length ? toDraft(rows[0]) : null;
+}
+
+export async function createDraft(d: DraftInput): Promise<EmailDraft> {
+  const id = newDraftId();
+  await execute(
+    `INSERT INTO email_drafts (id, kind, mailbox_id, thread_id, from_address, to_address, subject, body_text, segment, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id, d.kind, d.mailbox_id, d.thread_id ?? null, d.from_address ?? null, d.to_address ?? null,
+      (d.subject || "(no subject)").slice(0, 500), d.body_text ?? null,
+      d.segment != null ? JSON.stringify(d.segment) : null, d.created_by,
+    ]
+  );
+  return (await getDraft(id))!;
+}
+
+export async function updateDraft(id: string, d: Partial<DraftInput>): Promise<void> {
+  const sets: string[] = [];
+  const vals: (string | number | boolean | null)[] = [];
+  if (d.mailbox_id !== undefined) { sets.push("mailbox_id = ?"); vals.push(d.mailbox_id); }
+  if (d.to_address !== undefined) { sets.push("to_address = ?"); vals.push(d.to_address ?? null); }
+  if (d.subject !== undefined) { sets.push("subject = ?"); vals.push((d.subject || "(no subject)").slice(0, 500)); }
+  if (d.body_text !== undefined) { sets.push("body_text = ?"); vals.push(d.body_text ?? null); }
+  if (d.segment !== undefined) { sets.push("segment = ?"); vals.push(d.segment != null ? JSON.stringify(d.segment) : null); }
+  if (!sets.length) return;
+  vals.push(id);
+  await execute(`UPDATE email_drafts SET ${sets.join(", ")} WHERE id = ?`, vals);
+}
+
+export async function deleteDraft(id: string): Promise<void> {
+  await execute("DELETE FROM email_drafts WHERE id = ?", [id]);
 }
 
 export async function recordBroadcast(b: {

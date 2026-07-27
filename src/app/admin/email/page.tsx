@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Mail, Send, Loader2, Inbox, ArrowDownLeft, ArrowUpRight, Plus, Trash2,
-  Megaphone, Settings2, RefreshCw, X, Check,
+  Megaphone, Settings2, RefreshCw, Check, Reply, FileText, Save,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -26,6 +26,11 @@ interface Message {
   id: string; direction: "inbound" | "outbound"; from_address: string; to_address: string;
   subject: string; body_html: string | null; body_text: string | null; created_at: string;
 }
+interface Draft {
+  id: string; kind: "reply" | "broadcast"; mailbox_id: string | null; thread_id: string | null;
+  from_address: string | null; to_address: string | null; subject: string; body_text: string | null;
+  segment: { type?: string; value?: number } | null; created_at: string; updated_at: string;
+}
 interface Counts { sent: number; received: number; broadcast: number; total: number; unread: number }
 
 const fmtTime = (s: string) => {
@@ -33,71 +38,79 @@ const fmtTime = (s: string) => {
   return isNaN(d.getTime()) ? "" : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 };
 
+function stripHtml(html: string | null): string {
+  if (!html) return "";
+  return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim();
+}
+
+// Sentinel for the fixed Drafts inbox in the mailbox rail.
+const DRAFTS = "__drafts__";
+
 export default function EmailCenterPage() {
   const { can, role } = useAdmin();
   const isSuper = role === "superadmin" || role === "system_admin";
   const canSend = can("email_inbox", "add");
+  const canDraft = can("email_inbox", "draft");
   const canDelete = can("email_inbox", "delete");
 
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
-  const [selectedMailbox, setSelectedMailbox] = useState<string>(""); // "" = all
+  const [selected, setSelected] = useState<string>(""); // "" = all, mailbox id, or DRAFTS
   const [threads, setThreads] = useState<Thread[]>([]);
-  const [counts, setCounts] = useState<Counts>({ sent: 0, received: 0, broadcast: 0, total: 0, unread: 0 });
+  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [draftCount, setDraftCount] = useState(0);
   const [totals, setTotals] = useState<Counts>({ sent: 0, received: 0, broadcast: 0, total: 0, unread: 0 });
+  const [counts, setCounts] = useState<Counts>({ sent: 0, received: 0, broadcast: 0, total: 0, unread: 0 });
   const [loading, setLoading] = useState(true);
+  const [footerText, setFooterText] = useState("");
 
   const [activeThread, setActiveThread] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [threadMailbox, setThreadMailbox] = useState<Mailbox | null>(null);
-  const [reply, setReply] = useState("");
-  const [sending, setSending] = useState(false);
 
   const [mailboxDialog, setMailboxDialog] = useState(false);
   const [broadcastDialog, setBroadcastDialog] = useState(false);
+  const [replyModal, setReplyModal] = useState(false);
+  const [editingDraft, setEditingDraft] = useState<Draft | null>(null);
 
   const load = useCallback(async () => {
-    const url = `/api/admin-email${selectedMailbox ? `?mailbox_id=${selectedMailbox}` : ""}`;
-    const res = await fetch(url);
-    if (!res.ok) { setLoading(false); return; }
-    const data = await res.json();
-    setMailboxes(data.mailboxes || []);
-    setThreads(data.threads || []);
-    setCounts(data.counts);
-    setTotals(data.totals);
+    const mid = selected && selected !== DRAFTS ? selected : "";
+    const [dashRes, footerRes] = await Promise.all([
+      fetch(`/api/admin-email${mid ? `?mailbox_id=${mid}` : ""}`),
+      fetch("/api/settings?key=email_footer"),
+    ]);
+    if (dashRes.ok) {
+      const data = await dashRes.json();
+      setMailboxes(data.mailboxes || []);
+      setThreads(data.threads || []);
+      setCounts(data.counts);
+      setTotals(data.totals);
+      setDraftCount(data.draft_count || 0);
+    }
+    if (footerRes.ok) {
+      const f = await footerRes.json();
+      if (typeof f?.value === "string") setFooterText(f.value);
+    }
     setLoading(false);
-  }, [selectedMailbox]);
+  }, [selected]);
+
+  const loadDrafts = useCallback(async () => {
+    if (!canDraft) return;
+    const res = await fetch("/api/admin-email/drafts");
+    if (res.ok) { const d = await res.json(); setDrafts(d.drafts || []); }
+  }, [canDraft]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (selected === DRAFTS) loadDrafts(); }, [selected, loadDrafts]);
 
   const openThread = async (t: Thread) => {
     setActiveThread(t);
     setMessages([]);
-    setReply("");
     const res = await fetch(`/api/admin-email/threads/${t.id}`);
     if (!res.ok) return;
     const data = await res.json();
     setMessages(data.messages || []);
     setThreadMailbox(data.mailbox || null);
-    // Clear the unread badge locally.
     setThreads((prev) => prev.map((x) => (x.id === t.id ? { ...x, admin_unread: 0 } : x)));
-  };
-
-  const sendReply = async () => {
-    if (!activeThread || !reply.trim()) return;
-    setSending(true);
-    const res = await fetch(`/api/admin-email/threads/${activeThread.id}/reply`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body: reply.trim() }),
-    });
-    setSending(false);
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}));
-      alert(d.error || "Could not send reply");
-      return;
-    }
-    setReply("");
-    await openThread(activeThread);
-    load();
   };
 
   const deleteThread = async (t: Thread) => {
@@ -110,11 +123,12 @@ export default function EmailCenterPage() {
     }
   };
 
+  // The most recent message in the open thread — used to pre-fill the reply's To.
+  const lastInbound = [...messages].reverse().find((m) => m.direction === "inbound");
+
   const StatCard = ({ icon: Icon, label, value, tone }: { icon: typeof Mail; label: string; value: number; tone: string }) => (
     <div className="flex items-center gap-3 rounded-xl border border-border/40 bg-card px-4 py-3">
-      <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg", tone)}>
-        <Icon className="h-4 w-4" />
-      </div>
+      <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg", tone)}><Icon className="h-4 w-4" /></div>
       <div>
         <p className="text-lg font-semibold leading-none text-charcoal tabular-nums">{value.toLocaleString()}</p>
         <p className="text-[11px] text-charcoal-lighter mt-1">{label}</p>
@@ -124,24 +138,20 @@ export default function EmailCenterPage() {
 
   return (
     <div className="space-y-5">
-      {/* Header + counts */}
+      {/* Header + actions */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-charcoal flex items-center gap-2"><Mail className="h-5 w-5 text-secondary" /> Email Center</h1>
           <p className="text-sm text-charcoal-lighter">Receive, reply to, and broadcast email across your mailboxes.</p>
         </div>
         <div className="flex items-center gap-2">
-          <AdminButton variant="outline" size="sm" onClick={load}><RefreshCw className="h-3.5 w-3.5 mr-1" /> Refresh</AdminButton>
-          {canSend && (
-            <AdminButton variant="outline" size="sm" onClick={() => setBroadcastDialog(true)}><Megaphone className="h-3.5 w-3.5 mr-1" /> Broadcast</AdminButton>
-          )}
-          {isSuper && (
-            <AdminButton size="sm" onClick={() => setMailboxDialog(true)}><Settings2 className="h-3.5 w-3.5 mr-1" /> Mailboxes</AdminButton>
-          )}
+          <AdminButton variant="outline" size="sm" onClick={() => { load(); loadDrafts(); }}><RefreshCw className="h-3.5 w-3.5 mr-1" /> Refresh</AdminButton>
+          {canSend && <AdminButton variant="outline" size="sm" onClick={() => setBroadcastDialog(true)}><Megaphone className="h-3.5 w-3.5 mr-1" /> Broadcast</AdminButton>}
+          {isSuper && <AdminButton size="sm" onClick={() => setMailboxDialog(true)}><Settings2 className="h-3.5 w-3.5 mr-1" /> Mailboxes</AdminButton>}
         </div>
       </div>
 
-      {/* Always-visible counters: Sent / Received / Total (store-wide). */}
+      {/* Always-visible counters */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard icon={ArrowUpRight} label="Sent" value={totals.sent} tone="bg-blue-50 text-blue-600" />
         <StatCard icon={ArrowDownLeft} label="Received" value={totals.received} tone="bg-emerald-50 text-emerald-600" />
@@ -151,20 +161,14 @@ export default function EmailCenterPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[220px_320px_1fr] gap-4">
         {/* Mailbox rail */}
-        <div className="rounded-xl border border-border/40 bg-card p-2 h-fit">
-          <button
-            onClick={() => setSelectedMailbox("")}
-            className={cn("flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors",
-              selectedMailbox === "" ? "bg-primary-light text-charcoal font-medium" : "text-charcoal-lighter hover:bg-pearl")}
-          >
-            <span className="flex items-center gap-2"><Inbox className="h-4 w-4" /> All mailboxes</span>
-          </button>
+        <div className="rounded-xl border border-border/40 bg-card p-2 h-fit space-y-0.5">
+          <RailButton active={selected === ""} onClick={() => { setSelected(""); setActiveThread(null); }} icon={Inbox} label="All mailboxes" />
           {mailboxes.map((m) => (
             <button
               key={m.id}
-              onClick={() => setSelectedMailbox(m.id)}
+              onClick={() => { setSelected(m.id); setActiveThread(null); }}
               className={cn("flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors",
-                selectedMailbox === m.id ? "bg-primary-light text-charcoal font-medium" : "text-charcoal-lighter hover:bg-pearl")}
+                selected === m.id ? "bg-primary-light text-charcoal font-medium" : "text-charcoal-lighter hover:bg-pearl")}
               title={m.address}
             >
               <span className="truncate text-left">
@@ -174,47 +178,68 @@ export default function EmailCenterPage() {
               {!m.is_active && <span className="text-[9px] text-charcoal-lighter">off</span>}
             </button>
           ))}
+          {/* Fixed Drafts inbox */}
+          {canDraft && (
+            <div className="pt-1 mt-1 border-t border-border/30">
+              <button
+                onClick={() => { setSelected(DRAFTS); setActiveThread(null); }}
+                className={cn("flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors",
+                  selected === DRAFTS ? "bg-primary-light text-charcoal font-medium" : "text-charcoal-lighter hover:bg-pearl")}
+              >
+                <span className="flex items-center gap-2"><FileText className="h-4 w-4" /> Drafts</span>
+                {draftCount > 0 && <span className="rounded-full bg-secondary/15 px-1.5 py-0.5 text-[9px] font-medium text-secondary">{draftCount}</span>}
+              </button>
+            </div>
+          )}
           {mailboxes.length === 0 && !loading && (
-            <p className="px-3 py-4 text-center text-xs text-charcoal-lighter">
-              No mailboxes yet.{isSuper && " Add one to start receiving."}
-            </p>
+            <p className="px-3 py-4 text-center text-xs text-charcoal-lighter">No mailboxes yet.{isSuper && " Add one to start receiving."}</p>
           )}
         </div>
 
-        {/* Thread list */}
-        <div className="rounded-xl border border-border/40 bg-card overflow-hidden">
-          <div className="border-b border-border/30 px-3 py-2 text-xs font-medium text-charcoal-lighter flex items-center justify-between">
-            <span>{threads.length} conversation{threads.length === 1 ? "" : "s"}</span>
-            <span className="tabular-nums">{counts.unread > 0 ? `${counts.unread} unread` : ""}</span>
+        {/* Middle column: thread list OR drafts list */}
+        {selected === DRAFTS ? (
+          <DraftsList drafts={drafts} mailboxes={mailboxes} canSend={canSend} onEdit={(d) => setEditingDraft(d)} onChanged={() => { loadDrafts(); load(); }} />
+        ) : (
+          <div className="rounded-xl border border-border/40 bg-card overflow-hidden">
+            <div className="border-b border-border/30 px-3 py-2 text-xs font-medium text-charcoal-lighter flex items-center justify-between">
+              <span>{threads.length} conversation{threads.length === 1 ? "" : "s"}</span>
+              <span className="tabular-nums">{counts.unread > 0 ? `${counts.unread} unread` : ""}</span>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto divide-y divide-border/20">
+              {loading && <div className="p-6 text-center"><Loader2 className="h-5 w-5 animate-spin mx-auto text-charcoal-lighter" /></div>}
+              {!loading && threads.length === 0 && <p className="p-6 text-center text-sm text-charcoal-lighter">No emails yet.</p>}
+              {threads.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => openThread(t)}
+                  className={cn("flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left transition-colors hover:bg-pearl", activeThread?.id === t.id && "bg-pearl")}
+                >
+                  <div className="flex w-full items-center justify-between gap-2">
+                    <span className={cn("truncate text-sm", t.admin_unread > 0 ? "font-semibold text-charcoal" : "text-charcoal")}>
+                      {t.correspondent_name || t.correspondent}
+                    </span>
+                    {/* Latest message timestamp, beside the address */}
+                    <span className="shrink-0 text-[10px] text-charcoal-lighter tabular-nums">{fmtTime(t.last_message_at)}</span>
+                  </div>
+                  <span className="truncate text-[11px] text-charcoal-lighter w-full">{t.correspondent}</span>
+                  <span className="truncate text-xs text-charcoal-lighter w-full">{t.subject}</span>
+                  {t.admin_unread > 0 && <span className="mt-0.5 rounded-full bg-secondary/15 px-1.5 py-0.5 text-[9px] font-medium text-secondary">{t.admin_unread} new</span>}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="max-h-[60vh] overflow-y-auto divide-y divide-border/20">
-            {loading && <div className="p-6 text-center"><Loader2 className="h-5 w-5 animate-spin mx-auto text-charcoal-lighter" /></div>}
-            {!loading && threads.length === 0 && (
-              <p className="p-6 text-center text-sm text-charcoal-lighter">No emails yet.</p>
-            )}
-            {threads.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => openThread(t)}
-                className={cn("flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left transition-colors hover:bg-pearl",
-                  activeThread?.id === t.id && "bg-pearl")}
-              >
-                <div className="flex w-full items-center justify-between gap-2">
-                  <span className={cn("truncate text-sm", t.admin_unread > 0 ? "font-semibold text-charcoal" : "text-charcoal")}>
-                    {t.correspondent_name || t.correspondent}
-                  </span>
-                  <span className="shrink-0 text-[10px] text-charcoal-lighter">{fmtTime(t.last_message_at)}</span>
-                </div>
-                <span className="truncate text-xs text-charcoal-lighter w-full">{t.subject}</span>
-                {t.admin_unread > 0 && <span className="mt-0.5 rounded-full bg-secondary/15 px-1.5 py-0.5 text-[9px] font-medium text-secondary">{t.admin_unread} new</span>}
-              </button>
-            ))}
-          </div>
-        </div>
+        )}
 
-        {/* Thread view */}
+        {/* Thread view (redesigned): header block with From/To/Subject, then bodies */}
         <div className="rounded-xl border border-border/40 bg-card overflow-hidden flex flex-col min-h-[50vh]">
-          {!activeThread ? (
+          {selected === DRAFTS ? (
+            <div className="flex flex-1 items-center justify-center text-center p-8">
+              <div>
+                <FileText className="h-8 w-8 mx-auto text-charcoal-lighter/50" />
+                <p className="mt-2 text-sm text-charcoal-lighter">Select a draft to edit or send it.</p>
+              </div>
+            </div>
+          ) : !activeThread ? (
             <div className="flex flex-1 items-center justify-center text-center p-8">
               <div>
                 <Mail className="h-8 w-8 mx-auto text-charcoal-lighter/50" />
@@ -223,62 +248,296 @@ export default function EmailCenterPage() {
             </div>
           ) : (
             <>
-              <div className="border-b border-border/30 px-4 py-3 flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-charcoal">{activeThread.subject}</p>
-                  <p className="truncate text-xs text-charcoal-lighter">
-                    {activeThread.correspondent_name ? `${activeThread.correspondent_name} · ` : ""}{activeThread.correspondent}
-                    {threadMailbox && <span> → {threadMailbox.address}</span>}
-                  </p>
+              {/* Header block — From / To / Subject for the conversation */}
+              <div className="border-b border-border/30 px-4 py-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 space-y-0.5 text-xs">
+                    <FieldLine label="From" value={activeThread.correspondent_name ? `${activeThread.correspondent_name} <${activeThread.correspondent}>` : activeThread.correspondent} />
+                    <FieldLine label="To" value={threadMailbox?.address || ""} />
+                    <FieldLine label="Subject" value={activeThread.subject} strong />
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {canSend && threadMailbox?.can_send && (
+                      <AdminButton size="sm" onClick={() => setReplyModal(true)}><Reply className="h-3.5 w-3.5 mr-1" /> Reply</AdminButton>
+                    )}
+                    {canDelete && (
+                      <button onClick={() => deleteThread(activeThread)} className="text-charcoal-lighter hover:text-destructive transition-colors" title="Delete thread"><Trash2 className="h-4 w-4" /></button>
+                    )}
+                  </div>
                 </div>
-                {canDelete && (
-                  <button onClick={() => deleteThread(activeThread)} className="text-charcoal-lighter hover:text-destructive transition-colors" title="Delete thread">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[50vh]">
+              {/* Message bodies — received + sent, in order, each with its timestamp */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[55vh]">
+                {messages.length === 0 && <div className="text-center py-6"><Loader2 className="h-5 w-5 animate-spin mx-auto text-charcoal-lighter" /></div>}
                 {messages.map((m) => (
-                  <div key={m.id} className={cn("flex", m.direction === "outbound" ? "justify-end" : "justify-start")}>
-                    <div className={cn("max-w-[80%] rounded-xl px-3 py-2 text-sm",
-                      m.direction === "outbound" ? "bg-secondary/10 text-charcoal" : "bg-pearl text-charcoal")}>
-                      <div className="mb-1 flex items-center gap-1.5 text-[10px] text-charcoal-lighter">
-                        {m.direction === "outbound" ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownLeft className="h-3 w-3" />}
-                        <span>{m.direction === "outbound" ? "You" : m.from_address}</span>
-                        <span>· {fmtTime(m.created_at)}</span>
-                      </div>
-                      <div className="whitespace-pre-wrap break-words">{m.body_text || stripHtml(m.body_html)}</div>
+                  <div key={m.id} className={cn("rounded-xl border p-3", m.direction === "outbound" ? "border-secondary/20 bg-secondary/5" : "border-border/40 bg-pearl/40")}>
+                    <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium">
+                      {m.direction === "outbound"
+                        ? <><ArrowUpRight className="h-3 w-3 text-secondary" /><span className="text-secondary">Sent</span><span className="text-charcoal-lighter">· {m.from_address} → {m.to_address}</span></>
+                        : <><ArrowDownLeft className="h-3 w-3 text-emerald-600" /><span className="text-emerald-700">Received</span><span className="text-charcoal-lighter">· from {m.from_address}</span></>}
                     </div>
+                    <div className="whitespace-pre-wrap break-words text-sm text-charcoal">{m.body_text || stripHtml(m.body_html)}</div>
+                    {/* Per-message timestamp below the body */}
+                    <div className="mt-2 text-right text-[10px] text-charcoal-lighter tabular-nums">{fmtTime(m.created_at)}</div>
                   </div>
                 ))}
               </div>
-
-              {canSend && threadMailbox?.can_send && (
-                <div className="border-t border-border/30 p-3">
-                  <Textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder={`Reply as ${threadMailbox.address}…`} rows={3} className="mb-2" />
-                  <div className="flex justify-end">
-                    <AdminButton size="sm" onClick={sendReply} disabled={sending || !reply.trim()}>
-                      {sending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />}
-                      Send reply
-                    </AdminButton>
-                  </div>
-                </div>
-              )}
             </>
           )}
         </div>
       </div>
 
+      {/* Reply modal */}
+      {activeThread && threadMailbox && (
+        <ReplyModal
+          open={replyModal}
+          onClose={() => setReplyModal(false)}
+          mailbox={threadMailbox}
+          thread={activeThread}
+          toAddress={lastInbound?.from_address || activeThread.correspondent}
+          footerText={footerText}
+          canSend={canSend}
+          canDraft={canDraft}
+          onSent={() => { setReplyModal(false); openThread(activeThread); load(); }}
+          onDrafted={() => { setReplyModal(false); loadDrafts(); load(); }}
+        />
+      )}
+
+      {/* Edit-draft modal */}
+      {editingDraft && (
+        <DraftEditorModal
+          draft={editingDraft}
+          mailboxes={mailboxes}
+          footerText={footerText}
+          canSend={canSend}
+          onClose={() => setEditingDraft(null)}
+          onChanged={() => { setEditingDraft(null); loadDrafts(); load(); }}
+        />
+      )}
+
       {isSuper && <MailboxDialog open={mailboxDialog} onClose={() => setMailboxDialog(false)} mailboxes={mailboxes} onChanged={load} />}
-      {canSend && <BroadcastDialog open={broadcastDialog} onClose={() => setBroadcastDialog(false)} mailboxes={mailboxes.filter((m) => m.can_broadcast)} />}
+      {canSend && <BroadcastDialog open={broadcastDialog} onClose={() => setBroadcastDialog(false)} mailboxes={mailboxes.filter((m) => m.can_broadcast)} footerText={footerText} canDraft={canDraft} onDrafted={() => { loadDrafts(); load(); }} />}
     </div>
   );
 }
 
-function stripHtml(html: string | null): string {
-  if (!html) return "";
-  return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim();
+function RailButton({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: typeof Mail; label: string }) {
+  return (
+    <button onClick={onClick} className={cn("flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors", active ? "bg-primary-light text-charcoal font-medium" : "text-charcoal-lighter hover:bg-pearl")}>
+      <Icon className="h-4 w-4" /> {label}
+    </button>
+  );
+}
+
+function FieldLine({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="flex gap-2">
+      <span className="w-14 shrink-0 text-charcoal-lighter">{label}</span>
+      <span className={cn("min-w-0 break-words", strong ? "font-medium text-charcoal" : "text-charcoal")}>{value}</span>
+    </div>
+  );
+}
+
+// Read-only footer preview reused by every compose surface.
+function FooterPreview({ footerText }: { footerText: string }) {
+  return (
+    <div>
+      <p className="text-[11px] font-medium text-charcoal-lighter mb-1">Footer (added automatically)</p>
+      <div className="rounded-lg border border-border/40 bg-[#FDF4F8] p-3 text-center opacity-80">
+        <div className="text-[#9A8592] text-[11px] leading-relaxed whitespace-pre-line">{footerText.trim() || "No footer configured (Settings → Notifications → Email Footer)."}</div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="ChineXa" className="mt-2 inline-block h-6 w-auto" />
+      </div>
+    </div>
+  );
+}
+
+// ─── Reply modal ───
+function ReplyModal({ open, onClose, mailbox, thread, toAddress, footerText, canSend, canDraft, onSent, onDrafted }: {
+  open: boolean; onClose: () => void; mailbox: Mailbox; thread: Thread; toAddress: string;
+  footerText: string; canSend: boolean; canDraft: boolean; onSent: () => void; onDrafted: () => void;
+}) {
+  const reSubject = thread.subject.toLowerCase().startsWith("re:") ? thread.subject : `Re: ${thread.subject}`;
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState<"send" | "draft" | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => { if (open) { setBody(""); setError(""); } }, [open]);
+
+  const send = async () => {
+    setBusy("send"); setError("");
+    const res = await fetch(`/api/admin-email/threads/${thread.id}/reply`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body: body.trim() }),
+    });
+    setBusy(null);
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error || "Could not send"); return; }
+    onSent();
+  };
+
+  const saveDraft = async () => {
+    setBusy("draft"); setError("");
+    const res = await fetch("/api/admin-email/drafts", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "reply", mailbox_id: mailbox.id, thread_id: thread.id, from_address: mailbox.address, to_address: toAddress, subject: reSubject, body }),
+    });
+    setBusy(null);
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error || "Could not save draft"); return; }
+    onDrafted();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Reply className="h-5 w-5 text-secondary" /> Reply to this mail</DialogTitle>
+          <DialogDescription>Your reply is sent from this mailbox; the customer&apos;s reply comes back to the same inbox.</DialogDescription>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto space-y-3 py-1 pr-1">
+          <Input label="From" value={`${mailbox.display_name} <${mailbox.address}>`} readOnly disabled />
+          <Input label="To" value={toAddress} readOnly disabled />
+          <Input label="Subject" value={reSubject} readOnly disabled />
+          <Textarea label="Message" value={body} onChange={(e) => setBody(e.target.value)} rows={7} placeholder="Type your reply…" />
+          <FooterPreview footerText={footerText} />
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <DialogFooter className="gap-2">
+          <AdminButton variant="outline" onClick={onClose}>Cancel</AdminButton>
+          {canDraft && (
+            <AdminButton variant="outline" onClick={saveDraft} disabled={busy !== null || !body.trim()}>
+              {busy === "draft" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />} Save as Draft
+            </AdminButton>
+          )}
+          {canSend && (
+            <AdminButton onClick={send} disabled={busy !== null || !body.trim()}>
+              {busy === "send" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />} Send
+            </AdminButton>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Drafts list (middle column) ───
+function DraftsList({ drafts, mailboxes, canSend, onEdit, onChanged }: {
+  drafts: Draft[]; mailboxes: Mailbox[]; canSend: boolean; onEdit: (d: Draft) => void; onChanged: () => void;
+}) {
+  const [sendingId, setSendingId] = useState<string | null>(null);
+  const mbName = (id: string | null) => mailboxes.find((m) => m.id === id)?.address || "—";
+
+  const send = async (d: Draft) => {
+    if (!confirm(d.kind === "broadcast" ? "Send this broadcast draft now?" : `Send this reply to ${d.to_address}?`)) return;
+    setSendingId(d.id);
+    const res = await fetch(`/api/admin-email/drafts/${d.id}/send`, { method: "POST" });
+    setSendingId(null);
+    const r = await res.json().catch(() => ({}));
+    if (!res.ok) { alert(r.error || "Could not send draft"); return; }
+    if (d.kind === "broadcast") alert(`Broadcast sent to ${r.sent}/${r.recipient_count}${r.failed ? ` (${r.failed} failed)` : ""}.`);
+    onChanged();
+  };
+
+  const remove = async (d: Draft) => {
+    if (!confirm("Delete this draft?")) return;
+    await fetch(`/api/admin-email/drafts/${d.id}`, { method: "DELETE" });
+    onChanged();
+  };
+
+  return (
+    <div className="rounded-xl border border-border/40 bg-card overflow-hidden">
+      <div className="border-b border-border/30 px-3 py-2 text-xs font-medium text-charcoal-lighter">{drafts.length} draft{drafts.length === 1 ? "" : "s"}</div>
+      <div className="max-h-[60vh] overflow-y-auto divide-y divide-border/20">
+        {drafts.length === 0 && <p className="p-6 text-center text-sm text-charcoal-lighter">No saved drafts.</p>}
+        {drafts.map((d) => (
+          <div key={d.id} className="px-3 py-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5 text-xs font-medium text-charcoal">
+                {d.kind === "broadcast" ? <Megaphone className="h-3 w-3 text-amber-600" /> : <Reply className="h-3 w-3 text-secondary" />}
+                {d.kind === "broadcast" ? "Broadcast" : "Reply"}
+              </span>
+              <span className="text-[10px] text-charcoal-lighter tabular-nums">{fmtTime(d.updated_at)}</span>
+            </div>
+            <p className="mt-0.5 truncate text-sm text-charcoal">{d.subject}</p>
+            <p className="truncate text-[11px] text-charcoal-lighter">
+              {mbName(d.mailbox_id)}{d.kind === "reply" ? ` → ${d.to_address || "—"}` : d.segment?.type ? ` · ${d.segment.type}` : ""}
+            </p>
+            <div className="mt-1.5 flex items-center gap-2">
+              <button onClick={() => onEdit(d)} className="text-[11px] text-secondary hover:underline">Edit</button>
+              {canSend && <button onClick={() => send(d)} disabled={sendingId === d.id} className="text-[11px] text-secondary hover:underline">{sendingId === d.id ? "Sending…" : "Send"}</button>}
+              <button onClick={() => remove(d)} className="text-[11px] text-destructive hover:underline">Delete</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Draft editor modal (edit a saved reply/broadcast draft) ───
+function DraftEditorModal({ draft, mailboxes, footerText, canSend, onClose, onChanged }: {
+  draft: Draft; mailboxes: Mailbox[]; footerText: string; canSend: boolean; onClose: () => void; onChanged: () => void;
+}) {
+  const [subject, setSubject] = useState(draft.subject);
+  const [to, setTo] = useState(draft.to_address || "");
+  const [body, setBody] = useState(draft.body_text || "");
+  const [busy, setBusy] = useState<"save" | "send" | null>(null);
+  const [error, setError] = useState("");
+  const mailbox = mailboxes.find((m) => m.id === draft.mailbox_id);
+
+  const save = async () => {
+    setBusy("save"); setError("");
+    const res = await fetch(`/api/admin-email/drafts/${draft.id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subject, to_address: to, body }),
+    });
+    setBusy(null);
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error || "Could not save"); return; }
+    onChanged();
+  };
+
+  const send = async () => {
+    setBusy("send"); setError("");
+    // Persist edits first, then send.
+    await fetch(`/api/admin-email/drafts/${draft.id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject, to_address: to, body }),
+    });
+    const res = await fetch(`/api/admin-email/drafts/${draft.id}/send`, { method: "POST" });
+    setBusy(null);
+    const r = await res.json().catch(() => ({}));
+    if (!res.ok) { setError(r.error || "Could not send"); return; }
+    onChanged();
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-secondary" /> {draft.kind === "broadcast" ? "Broadcast draft" : "Reply draft"}</DialogTitle>
+          <DialogDescription>Edit and save, or send it now.</DialogDescription>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto space-y-3 py-1 pr-1">
+          <Input label="From" value={mailbox ? `${mailbox.display_name} <${mailbox.address}>` : "—"} readOnly disabled />
+          {draft.kind === "reply" && <Input label="To" value={to} onChange={(e) => setTo(e.target.value)} />}
+          {draft.kind === "broadcast" && draft.segment?.type && <Input label="Segment" value={draft.segment.type + (draft.segment.value ? ` ≥ ${draft.segment.value}` : "")} readOnly disabled />}
+          <Input label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
+          <Textarea label="Message" value={body} onChange={(e) => setBody(e.target.value)} rows={7} />
+          <FooterPreview footerText={footerText} />
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <DialogFooter className="gap-2">
+          <AdminButton variant="outline" onClick={onClose}>Cancel</AdminButton>
+          <AdminButton variant="outline" onClick={save} disabled={busy !== null || !body.trim()}>
+            {busy === "save" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />} Save
+          </AdminButton>
+          {canSend && (
+            <AdminButton onClick={send} disabled={busy !== null || !body.trim()}>
+              {busy === "send" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />} Send now
+            </AdminButton>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 // ─── Mailbox configuration dialog (superadmin) ───
@@ -304,10 +563,7 @@ function MailboxDialog({ open, onClose, mailboxes, onChanged }: { open: boolean;
   };
 
   const toggle = async (m: Mailbox, field: "is_active" | "can_receive" | "can_send" | "can_broadcast") => {
-    await fetch(`/api/admin-email/mailboxes/${m.id}`, {
-      method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [field]: !m[field] }),
-    });
+    await fetch(`/api/admin-email/mailboxes/${m.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [field]: !m[field] }) });
     onChanged();
   };
 
@@ -342,7 +598,6 @@ function MailboxDialog({ open, onClose, mailboxes, onChanged }: { open: boolean;
               </div>
             </div>
           ))}
-
           <div className="rounded-lg border border-dashed border-border/60 p-3 space-y-2">
             <p className="text-sm font-medium text-charcoal flex items-center gap-1.5"><Plus className="h-4 w-4" /> Add mailbox</p>
             <Input label="Email address" placeholder="support@chinexabd.com" value={address} onChange={(e) => setAddress(e.target.value)} />
@@ -375,30 +630,46 @@ function FlagRow({ label, on, onToggle }: { label: string; on: boolean; onToggle
   );
 }
 
-// ─── Broadcast (no-reply) dialog ───
-function BroadcastDialog({ open, onClose, mailboxes }: { open: boolean; onClose: () => void; mailboxes: Mailbox[] }) {
+// ─── Broadcast dialog (with save-as-draft) ───
+function BroadcastDialog({ open, onClose, mailboxes, footerText, canDraft, onDrafted }: {
+  open: boolean; onClose: () => void; mailboxes: Mailbox[]; footerText: string; canDraft: boolean; onDrafted: () => void;
+}) {
   const [mailboxId, setMailboxId] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [segType, setSegType] = useState<"all" | "registered" | "min_spent">("all");
   const [minSpent, setMinSpent] = useState("");
-  const [sending, setSending] = useState(false);
-  const [result, setResult] = useState<string>("");
+  const [busy, setBusy] = useState<"send" | "draft" | null>(null);
+  const [result, setResult] = useState("");
 
   useEffect(() => { if (open && mailboxes.length && !mailboxId) setMailboxId(mailboxes[0].id); }, [open, mailboxes, mailboxId]);
 
+  const segment = () => segType === "min_spent" ? { type: "min_spent", value: Number(minSpent) || 0 } : { type: segType };
+
   const send = async () => {
-    setSending(true); setResult("");
-    const segment = segType === "min_spent" ? { type: "min_spent", value: Number(minSpent) || 0 } : { type: segType };
+    setBusy("send"); setResult("");
     const res = await fetch("/api/admin-email/broadcast", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mailbox_id: mailboxId, subject, body, segment }),
+      body: JSON.stringify({ mailbox_id: mailboxId, subject, body, segment: segment() }),
     });
     const d = await res.json().catch(() => ({}));
-    setSending(false);
+    setBusy(null);
     if (!res.ok) { setResult(d.error || "Broadcast failed"); return; }
     setResult(`Sent to ${d.sent}/${d.recipient_count} recipients${d.failed ? ` (${d.failed} failed)` : ""}.`);
     setSubject(""); setBody("");
+  };
+
+  const saveDraft = async () => {
+    setBusy("draft"); setResult("");
+    const res = await fetch("/api/admin-email/drafts", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "broadcast", mailbox_id: mailboxId, subject, body, segment: segment() }),
+    });
+    setBusy(null);
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setResult(d.error || "Could not save draft"); return; }
+    setResult("Saved to Drafts.");
+    setSubject(""); setBody("");
+    onDrafted();
   };
 
   return (
@@ -417,9 +688,7 @@ function BroadcastDialog({ open, onClose, mailboxes }: { open: boolean; onClose:
                 <label className="block text-sm font-medium text-charcoal-light mb-1.5">Send from</label>
                 <Select value={mailboxId} onValueChange={setMailboxId}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {mailboxes.map((m) => <SelectItem key={m.id} value={m.id}>{m.display_name} ({m.address})</SelectItem>)}
-                  </SelectContent>
+                  <SelectContent>{mailboxes.map((m) => <SelectItem key={m.id} value={m.id}>{m.display_name} ({m.address})</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
@@ -433,20 +702,24 @@ function BroadcastDialog({ open, onClose, mailboxes }: { open: boolean; onClose:
                   </SelectContent>
                 </Select>
               </div>
-              {segType === "min_spent" && (
-                <Input label="Minimum total spent (৳)" type="number" value={minSpent} onChange={(e) => setMinSpent(e.target.value)} />
-              )}
+              {segType === "min_spent" && <Input label="Minimum total spent (৳)" type="number" value={minSpent} onChange={(e) => setMinSpent(e.target.value)} />}
               <Input label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
               <Textarea label="Message" value={body} onChange={(e) => setBody(e.target.value)} rows={6} />
+              <FooterPreview footerText={footerText} />
               {result && <p className="text-xs text-secondary flex items-center gap-1"><Check className="h-3 w-3" /> {result}</p>}
             </>
           )}
         </div>
-        <DialogFooter>
+        <DialogFooter className="gap-2">
           <AdminButton variant="outline" onClick={onClose}>Close</AdminButton>
+          {mailboxes.length > 0 && canDraft && (
+            <AdminButton variant="outline" onClick={saveDraft} disabled={busy !== null || !subject.trim() || !body.trim() || !mailboxId}>
+              {busy === "draft" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />} Save as Draft
+            </AdminButton>
+          )}
           {mailboxes.length > 0 && (
-            <AdminButton onClick={send} disabled={sending || !subject.trim() || !body.trim() || !mailboxId}>
-              {sending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />} Send broadcast
+            <AdminButton onClick={send} disabled={busy !== null || !subject.trim() || !body.trim() || !mailboxId}>
+              {busy === "send" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />} Send broadcast
             </AdminButton>
           )}
         </DialogFooter>
