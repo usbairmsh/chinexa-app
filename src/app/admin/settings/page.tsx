@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   Settings, Store, Truck, CreditCard, Bell, Save, Loader2, Check,
   Plus, Trash2, X, Edit, Globe, FolderTree, ShoppingCart, Award, Users, Search,
-  BookOpen, Megaphone
+  BookOpen, Megaphone, Mail, MessageSquare
 } from "lucide-react";
 import { SOCIAL_PLATFORMS, getPlatform } from "@/lib/social-platforms";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -36,6 +36,44 @@ const tabList: { id: Tab; label: string; icon: typeof Settings }[] = [
   { id: "payment", label: "Payment", icon: CreditCard },
   { id: "notifications", label: "Notifications", icon: Bell },
 ];
+
+// ── Feature toggles, grouped so Email and SMS each get their own section ──
+interface FeatureToggle { key: string; label: string; desc: string; def: boolean }
+
+const GENERAL_FEATURES: FeatureToggle[] = [
+  { key: "public_reviews", label: "Open Reviews on Product Pages", desc: "When on, the “Write a Review” form on product pages is open to everyone — logged-in customers AND unregistered visitors (guests show a generated guest name). When off, the product-page form is hidden for everyone and customers review from their Profile → Reviews instead. All submissions still need your approval.", def: false },
+  { key: "wishlist", label: "Wishlist", desc: "Let customers save products for later", def: true },
+  { key: "compare_products", label: "Compare", desc: "Side-by-side product comparison", def: true },
+  { key: "preorders", label: "Pre-orders", desc: "Accept orders for out-of-stock products", def: true },
+  { key: "guest_checkout", label: "Guest Checkout", desc: "Allow checkout without creating an account", def: true },
+];
+
+const EMAIL_FEATURES: FeatureToggle[] = [
+  { key: "order_email_customer", label: "Order Confirmation — Customer", desc: "Email the customer a branded order-confirmation on every new order (only if they have an email on file). Requires email configured (RESEND_API_KEY/EMAIL_FROM).", def: false },
+  { key: "order_email_admin", label: "New Order — Admin", desc: "Email the admin recipient(s) (set below in Notifications) on every new order with the order + customer details. Requires email configured.", def: false },
+  { key: "order_email_shipped", label: "Shipped Update — Customer", desc: "Email the customer when you mark their order Shipped. Requires email configured + a customer email on the order.", def: false },
+  { key: "order_email_delivered", label: "Delivered Update — Customer", desc: "Email the customer when you mark their order Delivered. Requires email configured + a customer email on the order.", def: false },
+  { key: "reset_otp_email", label: "Password Reset OTP via Email", desc: "Allow customers to receive their forgot-password code by email. Requires email configured. (When both this and the SMS option are off, self-service password reset is disabled.)", def: false },
+];
+
+const SMS_FEATURES: FeatureToggle[] = [
+  { key: "order_sms_customer", label: "Order Confirmation — Customer", desc: "Text the customer an order-confirmation on every new order (order number, amount, payment, date/time) with a track-order link. Requires SMS gateway credit.", def: false },
+  { key: "order_sms_admin", label: "New Order — Admin", desc: "Text the admin number(s) (set below in Notifications) on every new order with the order details plus the customer's name, tier and phone. Requires SMS gateway credit.", def: false },
+  { key: "reset_otp_sms", label: "Password Reset OTP via SMS", desc: "Allow customers to receive their forgot-password code by SMS. Requires SMS gateway credit. (When both this and the Email option are off, self-service password reset is disabled.)", def: false },
+];
+
+function renderFeatureToggle(
+  f: FeatureToggle,
+  features: Record<string, boolean>,
+  setFeatures: React.Dispatch<React.SetStateAction<Record<string, boolean>>>,
+) {
+  return (
+    <div key={f.key} className="flex items-center justify-between">
+      <p className="text-sm font-medium text-charcoal"><FieldLabel label={f.label} hint={f.desc} /></p>
+      <Switch checked={features[f.key] ?? f.def} onCheckedChange={() => setFeatures((p) => ({ ...p, [f.key]: !(p[f.key] ?? f.def) }))} />
+    </div>
+  );
+}
 
 interface ApplicableItem { id: string; name: string; extra?: string }
 
@@ -532,9 +570,23 @@ function AdminSettingsPageInner() {
             </Card>
             <Card><CardHeader><CardTitle className="text-base">Features</CardTitle><CardDescription>Toggle store features</CardDescription></CardHeader>
               <CardContent className="space-y-4">
-                {[{ key: "public_reviews", label: "Open Reviews on Product Pages", desc: "When on, the “Write a Review” form on product pages is open to everyone — logged-in customers AND unregistered visitors (guests show a generated guest name). When off, the product-page form is hidden for everyone and customers review from their Profile → Reviews instead. All submissions still need your approval.", def: false }, { key: "order_sms_customer", label: "Order SMS — Customer", desc: "When on, the customer gets an order-confirmation SMS on every new order (order number, amount, payment, date/time) with an auto-generated track-order link. Requires SMS gateway credit.", def: false }, { key: "order_sms_admin", label: "Order SMS — Admin", desc: "When on, the admin number(s) you choose (Notifications tab) get an SMS on every new order with the order details plus the customer's name, tier and phone. Requires SMS gateway credit.", def: false }, { key: "order_email_customer", label: "Order Email — Customer", desc: "When on, the customer gets a branded order-confirmation email on every new order (only if they entered an email at checkout — email is optional there). Requires email to be configured (RESEND_API_KEY/EMAIL_FROM).", def: false }, { key: "order_email_admin", label: "Order Email — Admin", desc: "When on, the admin email(s) you set (Notifications tab) get an email on every new order with the order + customer details. Requires email to be configured.", def: false }, { key: "order_email_shipped", label: "Order Email — Shipped", desc: "Email the customer when you mark their order Shipped. Requires email configured + a customer email on the order.", def: false }, { key: "order_email_delivered", label: "Order Email — Delivered", desc: "Email the customer when you mark their order Delivered. Requires email configured + a customer email on the order.", def: false },{ key: "wishlist", label: "Wishlist", desc: "Let customers save products for later", def: true }, { key: "compare_products", label: "Compare", desc: "Side-by-side product comparison", def: true }, { key: "preorders", label: "Pre-orders", desc: "Accept orders for out-of-stock products", def: true }, { key: "guest_checkout", label: "Guest Checkout", desc: "Allow checkout without creating an account", def: true }].map((f) => (
-                  <div key={f.key} className="flex items-center justify-between"><p className="text-sm font-medium text-charcoal"><FieldLabel label={f.label} hint={f.desc} /></p><Switch checked={features[f.key] ?? f.def} onCheckedChange={() => setFeatures((p) => ({ ...p, [f.key]: !(p[f.key] ?? f.def) }))} /></div>
-                ))}
+                {GENERAL_FEATURES.map((f) => renderFeatureToggle(f, features, setFeatures))}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Messaging toggles — Email and SMS kept in their own sections */}
+          <div className="grid lg:grid-cols-2 gap-5">
+            <Card>
+              <CardHeader><CardTitle className="text-base flex items-center gap-2"><Mail className="h-4 w-4 text-secondary" /> Email Notifications</CardTitle><CardDescription>Order + verification emails (needs RESEND_API_KEY / EMAIL_FROM configured)</CardDescription></CardHeader>
+              <CardContent className="space-y-4">
+                {EMAIL_FEATURES.map((f) => renderFeatureToggle(f, features, setFeatures))}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-base flex items-center gap-2"><MessageSquare className="h-4 w-4 text-secondary" /> SMS Notifications</CardTitle><CardDescription>Order + verification SMS (needs SMS gateway credit)</CardDescription></CardHeader>
+              <CardContent className="space-y-4">
+                {SMS_FEATURES.map((f) => renderFeatureToggle(f, features, setFeatures))}
               </CardContent>
             </Card>
           </div>

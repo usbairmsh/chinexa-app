@@ -83,6 +83,12 @@ export function generateOtpCode(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+/** Whether the SMS gateway credentials are present (server-only). Mirrors
+ *  isEmailConfigured() in email.ts so callers can pre-check a channel. */
+export function isSmsConfigured(): boolean {
+  return !!process.env.SMS_API_KEY && !!process.env.SMS_SENDER_ID;
+}
+
 export async function getSmsBalance(): Promise<{ success: boolean; balance?: number; error?: string }> {
   const apiKey = process.env.SMS_API_KEY;
   if (!apiKey) {

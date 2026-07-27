@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { type RowDataPacket } from "mysql2/promise";
+import { query } from "@/lib/db";
 import { sendSms, generateOtpCode } from "@/lib/sms";
 import { sendEmail, isEmailConfigured } from "@/lib/email";
 import { otpEmail } from "@/lib/email-templates";
@@ -60,10 +62,17 @@ export async function POST(req: NextRequest) {
       // Delivery channel — "sms" (default) or "email". Email requires a valid
       // recipient and the email provider to be configured.
       const channel: "sms" | "email" = body.channel === "email" ? "email" : "sms";
-      const email = (body.email || "").trim();
+      let email = (body.email || "").trim();
       if (channel === "email") {
+        // Forgot-password only knows the phone, so for a reset we resolve the
+        // account's email server-side by phone (never exposing it to the client).
+        if (!email && purpose === "reset") {
+          const rawPhone = (body.phone || "").trim();
+          const rows = await query<RowDataPacket[]>("SELECT email FROM customers WHERE phone = ? OR phone = ? LIMIT 1", [phone, rawPhone]);
+          email = (rows[0]?.email as string) || "";
+        }
         if (!email || !email.includes("@")) {
-          return NextResponse.json({ error: "A valid email is required to send the code by email" }, { status: 400 });
+          return NextResponse.json({ error: "No email on file for this account. Please use SMS instead." }, { status: 400 });
         }
         if (!isEmailConfigured()) {
           return NextResponse.json({ error: "Email delivery is not available. Please use SMS instead." }, { status: 400 });
