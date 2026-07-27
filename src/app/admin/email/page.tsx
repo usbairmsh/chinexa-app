@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { AdminButton } from "@/components/admin/shared/admin-button";
-import { RichTextEditor } from "@/components/admin/shared/rich-text-editor";
+import { EmailEditor } from "@/components/admin/email/email-editor";
 import { AttachmentUploader, type StagedAttachment } from "@/components/admin/email/attachment-uploader";
 import { useAdmin } from "@/contexts/admin-context";
 
@@ -438,11 +438,12 @@ function ReplyModal({ open, onClose, mailbox, thread, toAddress, footerText, can
   const reSubject = thread.subject.toLowerCase().startsWith("re:") ? thread.subject : `Re: ${thread.subject}`;
   const [body, setBody] = useState("");
   const [token, setToken] = useState("");
+  const [resetKey, setResetKey] = useState(0);
   const [attachments, setAttachments] = useState<StagedAttachment[]>([]);
   const [busy, setBusy] = useState<"send" | "draft" | null>(null);
   const [error, setError] = useState("");
 
-  useEffect(() => { if (open) { setBody(""); setError(""); setAttachments([]); setToken(makeComposeToken()); } }, [open]);
+  useEffect(() => { if (open) { setBody(""); setError(""); setAttachments([]); setToken(makeComposeToken()); setResetKey((k) => k + 1); } }, [open]);
 
   const isEmpty = !stripTags(body).trim() && attachments.length === 0;
 
@@ -481,7 +482,7 @@ function ReplyModal({ open, onClose, mailbox, thread, toAddress, footerText, can
           <Input label="Subject" value={reSubject} readOnly disabled />
           <div>
             <label className="block text-sm font-medium text-charcoal-light mb-1.5">Message</label>
-            <RichTextEditor value={body} onChange={setBody} placeholder="Type your reply…" />
+            <EmailEditor value={body} onChange={setBody} resetKey={resetKey} placeholder="Type your reply…" />
           </div>
           {token && <AttachmentUploader composeToken={token} attachments={attachments} onChange={setAttachments} />}
           <FooterPreview footerText={footerText} />
@@ -615,7 +616,7 @@ function DraftEditorModal({ draft, mailboxes, footerText, canSend, onClose, onCh
           <Input label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
           <div>
             <label className="block text-sm font-medium text-charcoal-light mb-1.5">Message</label>
-            <RichTextEditor value={body} onChange={setBody} />
+            <EmailEditor value={body} onChange={setBody} />
           </div>
           <FooterPreview footerText={footerText} />
           {error && <p className="text-xs text-destructive">{error}</p>}
@@ -734,6 +735,7 @@ function BroadcastDialog({ open, onClose, mailboxes, footerText, canDraft, onDra
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [token, setToken] = useState("");
+  const [resetKey, setResetKey] = useState(0);
   const [attachments, setAttachments] = useState<StagedAttachment[]>([]);
   const [segType, setSegType] = useState<"all" | "registered" | "min_spent">("all");
   const [minSpent, setMinSpent] = useState("");
@@ -745,7 +747,7 @@ function BroadcastDialog({ open, onClose, mailboxes, footerText, canDraft, onDra
 
   const segment = () => segType === "min_spent" ? { type: "min_spent", value: Number(minSpent) || 0 } : { type: segType };
   const bodyEmpty = !stripTags(body).trim();
-  const resetCompose = () => { setSubject(""); setBody(""); setAttachments([]); setToken(makeComposeToken()); };
+  const resetCompose = () => { setSubject(""); setBody(""); setAttachments([]); setToken(makeComposeToken()); setResetKey((k) => k + 1); };
 
   const send = async () => {
     setBusy("send"); setResult("");
@@ -807,7 +809,7 @@ function BroadcastDialog({ open, onClose, mailboxes, footerText, canDraft, onDra
               <Input label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
               <div>
                 <label className="block text-sm font-medium text-charcoal-light mb-1.5">Message</label>
-                <RichTextEditor value={body} onChange={setBody} placeholder="Write your promotion…" />
+                <EmailEditor value={body} onChange={setBody} resetKey={resetKey} placeholder="Write your promotion…" />
               </div>
               {token && <AttachmentUploader composeToken={token} attachments={attachments} onChange={setAttachments} />}
               <FooterPreview footerText={footerText} />
