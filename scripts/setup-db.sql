@@ -421,12 +421,26 @@ CREATE TABLE IF NOT EXISTS order_returns (
   order_number VARCHAR(50),
   customer_id VARCHAR(50),
   customer_name VARCHAR(255),
-  reason ENUM('damaged', 'wrong_item', 'not_as_described', 'changed_mind', 'defective', 'other') NOT NULL,
+  -- reason is a configurable code from the admin-managed Return Reasons list
+  -- (no longer a fixed ENUM). reason_label snapshots the label at request time.
+  reason VARCHAR(60) NOT NULL,
+  reason_label VARCHAR(120),
   description TEXT,
-  status ENUM('requested', 'approved', 'rejected', 'received', 'refunded') DEFAULT 'requested',
+  images JSON,
+  -- Full lifecycle: shared path → then a refund OR exchange track.
+  status ENUM(
+    'requested','approved','pickup_scheduled','received','rejected',
+    'refund_in_progress','refunded',
+    'exchange_in_progress','exchange_shipped','exchange_delivered'
+  ) DEFAULT 'requested',
+  resolution ENUM('refund','exchange') NULL,
   refund_amount DECIMAL(10,2),
   admin_note TEXT,
+  -- Selected line snapshots being returned: [{product_id,variant_id,name,qty,unit_price,cost_price}]
   items JSON,
+  reversals_applied BOOLEAN NOT NULL DEFAULT FALSE,
+  refunded_at TIMESTAMP NULL DEFAULT NULL,
+  exchange_shipped_at TIMESTAMP NULL DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,

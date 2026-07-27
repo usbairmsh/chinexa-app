@@ -4,12 +4,14 @@ import pool, { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { validate, validationError, publicServerError } from "@/lib/validate";
 import { notifyAdmin } from "@/lib/notify";
+import { ensureReturnColumns } from "@/lib/migrate-returns";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/returns — list all returns (admin) or by customer_id
 export async function GET(req: NextRequest) {
   try {
+    await ensureReturnColumns();
     const customerId = req.nextUrl.searchParams.get("customer_id");
     const orderId = req.nextUrl.searchParams.get("order_id");
 
@@ -40,6 +42,7 @@ export async function GET(req: NextRequest) {
 // POST /api/returns — customer requests a return
 export async function POST(req: NextRequest) {
   try {
+    await ensureReturnColumns();
     const body = await req.json();
     const err = validate([
       { field: "order_id", value: body.order_id, rules: ["required", "string"], label: "Order" },

@@ -5,10 +5,12 @@ import { logActivity } from "@/lib/log-activity";
 import { insertCustomerPoints } from "@/lib/points";
 import { checkInstantReturnAbuseRules } from "@/lib/points-deduction-engine";
 import { requirePermission } from "@/lib/admin-permissions-server";
+import { ensureReturnColumns } from "@/lib/migrate-returns";
 
 // PUT /api/returns/[id] — admin updates return status
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await ensureReturnColumns();
     const { id } = await params;
     const body = await req.json();
 
