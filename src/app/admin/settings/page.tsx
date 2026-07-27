@@ -290,6 +290,11 @@ function AdminSettingsPageInner() {
   const [orderEmailAdmins, setOrderEmailAdmins] = useState("");
   const [orderEmailSaving, setOrderEmailSaving] = useState(false);
   const [orderEmailSaved, setOrderEmailSaved] = useState(false);
+  // Email footer — plain text shown at the bottom of EVERY email, above the
+  // fixed ChineXa logo.
+  const [emailFooter, setEmailFooter] = useState("");
+  const [emailFooterSaving, setEmailFooterSaving] = useState(false);
+  const [emailFooterSaved, setEmailFooterSaved] = useState(false);
 
   const fetchSmsBalance = async () => {
     setSmsBalanceLoading(true);
@@ -318,6 +323,10 @@ function AdminSettingsPageInner() {
     fetch("/api/settings?key=order_email").then((r) => r.json()).then((d) => {
       const emails = d?.value?.admin_emails;
       if (Array.isArray(emails)) setOrderEmailAdmins(emails.filter((x: unknown): x is string => typeof x === "string").join(", "));
+    }).catch(() => {});
+
+    fetch("/api/settings?key=email_footer").then((r) => r.json()).then((d) => {
+      if (typeof d?.value === "string") setEmailFooter(d.value);
     }).catch(() => {});
 
     fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,features,store_logo,our_story,instagram_feed,faq_items,social_links,maintenance_mode,delivery_config,payment_methods,notification_settings")
@@ -524,6 +533,7 @@ function AdminSettingsPageInner() {
   const savePayment = () => saveSettings({ payment_methods: paymentMethods }, setPaymentSaving, setPaymentSaved);
   const saveNotifications = () => saveSettings({ notification_settings: notifications }, setNotifSaving, setNotifSaved);
   const saveOrderSmsRecipients = () => saveSettings({ order_sms: { admin_ids: orderSmsAdminIds } }, setOrderSmsSaving, setOrderSmsSaved);
+  const saveEmailFooter = () => saveSettings({ email_footer: emailFooter }, setEmailFooterSaving, setEmailFooterSaved);
   const toggleOrderSmsAdmin = (id: string) => setOrderSmsAdminIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   const saveOrderEmailRecipients = () => {
     const emails = orderEmailAdmins.split(",").map((e) => e.trim()).filter((e) => e.includes("@"));
@@ -1126,6 +1136,48 @@ function AdminSettingsPageInner() {
               />
               <div className="flex items-center justify-end">
                 <SaveBtn saving={orderEmailSaving} saved={orderEmailSaved} onSave={saveOrderEmailRecipients} />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Email Footer — plain text appended to EVERY email (order
+              notifications, OTP, Email Center replies, broadcasts) above the
+              fixed ChineXa logo. */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2"><Mail className="h-4 w-4 text-secondary" /> Email Footer</CardTitle>
+              <CardDescription>
+                Shown at the bottom of every email (order notifications, verification codes, Email Center replies and broadcasts). The ChineXa logo is added automatically below your text.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Textarea
+                label="Footer text"
+                value={emailFooter}
+                onChange={(e) => setEmailFooter(e.target.value)}
+                rows={4}
+                placeholder={"ChineXa — Premium Beauty & Lifestyle\nHouse 12, Road 5, Dhaka · support@chinexabd.com · +880 1XXX-XXXXXX"}
+              />
+
+              {/* Live preview of exactly what the footer renders as in an email */}
+              <div>
+                <p className="text-xs font-medium text-charcoal-lighter mb-1.5">Preview</p>
+                <div className="rounded-xl border border-border/40 bg-[#FDF4F8] p-5 text-center">
+                  <div className="mx-auto max-w-[420px]">
+                    <div className="text-[#9A8592] text-xs leading-relaxed whitespace-pre-line">
+                      {emailFooter.trim() || "Your footer text will appear here."}
+                    </div>
+                    <div className="mt-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/logo.png" alt="ChineXa" className="inline-block h-8 w-auto" />
+                    </div>
+                  </div>
+                </div>
+                <p className="text-[11px] text-charcoal-lighter mt-1.5">The logo is fixed and always shown beneath your text.</p>
+              </div>
+
+              <div className="flex items-center justify-end">
+                <SaveBtn saving={emailFooterSaving} saved={emailFooterSaved} onSave={saveEmailFooter} />
               </div>
             </CardContent>
           </Card>
