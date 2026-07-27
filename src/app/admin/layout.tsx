@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Package, FolderTree, ShoppingCart, RotateCcw, Users, Star,
   Image as ImageIcon, Tag, Gift, FileText, Search, BarChart3,
   DollarSign, AlertTriangle, Activity, UserCog, Settings,
-  Menu, ChevronLeft, ChevronDown, LogOut, Bell, Warehouse, Key, User, Loader2, Lock, MessageCircle, Megaphone, ShieldMinus
+  Menu, ChevronLeft, LogOut, Bell, Warehouse, Key, User, Loader2, Lock, MessageCircle, Megaphone, ShieldMinus
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -31,50 +31,18 @@ function getCookie(name: string): string {
   return match ? match[2] : "";
 }
 
-// Permission keys for each sidebar item. Items may carry a `children` array of
-// quick-access sub-links; each child is permission-filtered independently and
-// deep-links to a real page (or a page's ?tab=/?status= view) for faster reach.
-type NavChild = { label: string; href: string; perm: string };
-type NavItem = {
-  icon: typeof LayoutDashboard;
-  label: string;
-  href: string;
-  perm: string;
-  children?: NavChild[];
-};
-const navSections: { label: string; items: NavItem[] }[] = [
+// Permission keys for each sidebar item
+const navSections = [
   {
     label: "Main",
     items: [
       { icon: LayoutDashboard, label: "Dashboard", href: "/admin", perm: "dashboard" },
-      {
-        icon: Package, label: "Products", href: "/admin/products", perm: "products",
-        children: [
-          { label: "All Products", href: "/admin/products", perm: "products" },
-          { label: "Add Product", href: "/admin/products/new", perm: "products" },
-          { label: "Categories", href: "/admin/categories", perm: "categories" },
-          { label: "Brands", href: "/admin/brands", perm: "brands" },
-          { label: "Stock Management", href: "/admin/stock", perm: "stock" },
-        ],
-      },
+      { icon: Package, label: "Products", href: "/admin/products", perm: "products" },
       { icon: Warehouse, label: "Stock Management", href: "/admin/stock", perm: "stock" },
       { icon: FolderTree, label: "Categories", href: "/admin/categories", perm: "categories" },
-      {
-        icon: ShoppingCart, label: "Order Management", href: "/admin/orders", perm: "orders",
-        children: [
-          { label: "All Orders", href: "/admin/orders", perm: "orders" },
-          { label: "Returns & Refunds", href: "/admin/returns", perm: "returns" },
-        ],
-      },
+      { icon: ShoppingCart, label: "Order Management", href: "/admin/orders", perm: "orders" },
       { icon: RotateCcw, label: "Returns & Refunds", href: "/admin/returns", perm: "returns" },
-      {
-        icon: Users, label: "Customers", href: "/admin/customers", perm: "customers",
-        children: [
-          { label: "All Customers", href: "/admin/customers", perm: "customers" },
-          { label: "Membership", href: "/admin/membership", perm: "customers" },
-          { label: "Notifications", href: "/admin/notifications", perm: "customers" },
-        ],
-      },
+      { icon: Users, label: "Customers", href: "/admin/customers", perm: "customers" },
       { icon: Star, label: "Membership", href: "/admin/membership", perm: "customers" },
       { icon: ShieldMinus, label: "Points Deduction Rules", href: "/admin/points-deduction-rules", perm: "points_deduction_rules" },
     ],
@@ -112,24 +80,8 @@ const navSections: { label: string; items: NavItem[] }[] = [
   {
     label: "System",
     items: [
-      {
-        icon: UserCog, label: "Users, Roles & Access", href: "/admin/users", perm: "users",
-        children: [
-          { label: "Users & Access", href: "/admin/users", perm: "users" },
-          { label: "Manage Roles", href: "/admin/roles", perm: "users" },
-        ],
-      },
-      {
-        icon: Settings, label: "Settings", href: "/admin/settings", perm: "settings",
-        children: [
-          { label: "General", href: "/admin/settings?tab=general", perm: "settings" },
-          { label: "Store", href: "/admin/settings?tab=store", perm: "settings" },
-          { label: "Delivery", href: "/admin/settings?tab=delivery", perm: "settings" },
-          { label: "Payment", href: "/admin/settings?tab=payment", perm: "settings" },
-          { label: "Notifications", href: "/admin/settings?tab=notifications", perm: "settings" },
-          { label: "Delivery Zones", href: "/admin/settings/delivery", perm: "settings" },
-        ],
-      },
+      { icon: UserCog, label: "Users, Roles & Access", href: "/admin/users", perm: "users" },
+      { icon: Settings, label: "Settings", href: "/admin/settings", perm: "settings" },
     ],
   },
 ];
@@ -138,130 +90,6 @@ const navSections: { label: string; items: NavItem[] }[] = [
 // section declares which of view/add/edit/delete are actually meaningful for
 // it, so the grid never shows a checkbox that would do nothing.
 export const ALL_PERMISSIONS = PERMISSION_SECTIONS;
-
-// A single sidebar entry. Plain items are a Link; items with `children` render
-// an expandable group: inline accordion when the sidebar is expanded, and a
-// hover flyout when it's collapsed — so sub-pages stay one click away either way.
-function NavItemRow({
-  item, collapsed, pathname, visibleChildren, onNavigate,
-}: {
-  item: NavItem;
-  collapsed: boolean;
-  pathname: string;
-  visibleChildren: NavChild[];
-  onNavigate: () => void;
-}) {
-  const hasChildren = visibleChildren.length > 0;
-  // Strip query strings so ?tab= children still match on pathname.
-  const childActive = (href: string) => {
-    const base = href.split("?")[0];
-    if (base === "/admin") return pathname === "/admin";
-    // Exact-match child bases so /admin/settings doesn't light up for
-    // /admin/settings/delivery and vice-versa.
-    return pathname === base;
-  };
-  const groupActive =
-    hasChildren && visibleChildren.some((c) => childActive(c.href));
-  const selfActive =
-    item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
-
-  // Inline accordion open state; auto-open when a child (or the parent route)
-  // is active so the current location is always revealed.
-  const [open, setOpen] = useState(groupActive || selfActive);
-  useEffect(() => {
-    if (groupActive || selfActive) setOpen(true);
-  }, [groupActive, selfActive]);
-
-  // Collapsed-sidebar hover flyout.
-  const [flyoutOpen, setFlyoutOpen] = useState(false);
-
-  const rowClass = (active: boolean) =>
-    cn(
-      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors w-full",
-      active
-        ? "bg-primary-light text-charcoal font-medium"
-        : "text-charcoal-lighter hover:bg-pearl hover:text-charcoal"
-    );
-
-  if (!hasChildren) {
-    return (
-      <Link
-        href={item.href}
-        onClick={onNavigate}
-        className={rowClass(selfActive)}
-        title={collapsed ? item.label : undefined}
-      >
-        <item.icon className="h-4 w-4 flex-shrink-0" />
-        {!collapsed && <span>{item.label}</span>}
-      </Link>
-    );
-  }
-
-  // Collapsed: icon with a hover flyout listing the children.
-  if (collapsed) {
-    return (
-      <div
-        className="relative"
-        onMouseEnter={() => setFlyoutOpen(true)}
-        onMouseLeave={() => setFlyoutOpen(false)}
-      >
-        <Link href={item.href} onClick={onNavigate} className={rowClass(groupActive || selfActive)} title={item.label}>
-          <item.icon className="h-4 w-4 flex-shrink-0" />
-        </Link>
-        {flyoutOpen && (
-          <div className="absolute left-full top-0 z-50 ml-1 min-w-[180px] rounded-lg border border-border/40 bg-card p-1.5 shadow-luxury-hover">
-            <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-charcoal-lighter">{item.label}</p>
-            {visibleChildren.map((child) => (
-              <Link
-                key={child.href}
-                href={child.href}
-                onClick={onNavigate}
-                className={cn(
-                  "block rounded-md px-2 py-1.5 text-sm transition-colors",
-                  childActive(child.href)
-                    ? "bg-primary-light text-charcoal font-medium"
-                    : "text-charcoal-lighter hover:bg-pearl hover:text-charcoal"
-                )}
-              >
-                {child.label}
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Expanded: parent toggles an inline accordion of child links.
-  return (
-    <div>
-      <button type="button" onClick={() => setOpen((o) => !o)} className={rowClass(groupActive && !open)}>
-        <item.icon className="h-4 w-4 flex-shrink-0" />
-        <span className="flex-1 text-left">{item.label}</span>
-        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
-      </button>
-      {open && (
-        <div className="mt-0.5 ml-4 space-y-0.5 border-l border-border/40 pl-2">
-          {visibleChildren.map((child) => (
-            <Link
-              key={child.href}
-              href={child.href}
-              onClick={onNavigate}
-              className={cn(
-                "block rounded-md px-3 py-1.5 text-sm transition-colors",
-                childActive(child.href)
-                  ? "bg-primary-light text-charcoal font-medium"
-                  : "text-charcoal-lighter hover:bg-pearl hover:text-charcoal"
-              )}
-            >
-              {child.label}
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function AdminLayout({
   children,
@@ -448,6 +276,11 @@ export default function AdminLayout({
     return <AdminContext.Provider value={adminContextValue}>{children}</AdminContext.Provider>;
   }
 
+  const isActive = (href: string) => {
+    if (href === "/admin") return pathname === "/admin";
+    return pathname.startsWith(href);
+  };
+
   // Plain JSX, not a nested component function — a nested function gets a new
   // identity every render, so React tore down and remounted the whole sidebar
   // (including this <nav>'s scroll position) on every navigation, since
@@ -487,16 +320,21 @@ export default function AdminLayout({
               )}
               <div className="space-y-0.5">
                 {visibleItems.map((item) => (
-                  <NavItemRow
+                  <Link
                     key={item.href}
-                    item={item}
-                    collapsed={collapsed}
-                    pathname={pathname}
-                    visibleChildren={(item.children || []).filter((c) =>
-                      canDo(adminRole, adminPermissionsMap, c.perm, "view")
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                      isActive(item.href)
+                        ? "bg-primary-light text-charcoal font-medium"
+                        : "text-charcoal-lighter hover:bg-pearl hover:text-charcoal"
                     )}
-                    onNavigate={() => setMobileOpen(false)}
-                  />
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <item.icon className="h-4 w-4 flex-shrink-0" />
+                    {!collapsed && <span>{item.label}</span>}
+                  </Link>
                 ))}
               </div>
             </div>
@@ -544,16 +382,20 @@ export default function AdminLayout({
               </p>
               <div className="space-y-0.5">
                 {visibleItems.map((item) => (
-                  <NavItemRow
+                  <Link
                     key={item.href}
-                    item={item}
-                    collapsed={false}
-                    pathname={pathname}
-                    visibleChildren={(item.children || []).filter((c) =>
-                      canDo(adminRole, adminPermissionsMap, c.perm, "view")
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                      isActive(item.href)
+                        ? "bg-primary-light text-charcoal font-medium"
+                        : "text-charcoal-lighter hover:bg-pearl hover:text-charcoal"
                     )}
-                    onNavigate={() => setMobileOpen(false)}
-                  />
+                  >
+                    <item.icon className="h-4 w-4 flex-shrink-0" />
+                    <span>{item.label}</span>
+                  </Link>
                 ))}
               </div>
             </div>
