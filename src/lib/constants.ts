@@ -6,7 +6,6 @@ export const PHONE_PREFIX = "+880";
 export const DEFAULT_OTP = "123456";
 
 export const ITEMS_PER_PAGE = 12;
-export const MAX_COMPARE_ITEMS = 4;
 export const MAX_CART_QUANTITY = 10;
 
 export const ORDER_STATUSES = [

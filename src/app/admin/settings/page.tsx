@@ -43,7 +43,6 @@ interface FeatureToggle { key: string; label: string; desc: string; def: boolean
 const GENERAL_FEATURES: FeatureToggle[] = [
   { key: "public_reviews", label: "Open Reviews on Product Pages", desc: "When on, the “Write a Review” form on product pages is open to everyone — logged-in customers AND unregistered visitors (guests show a generated guest name). When off, the product-page form is hidden for everyone and customers review from their Profile → Reviews instead. All submissions still need your approval.", def: false },
   { key: "wishlist", label: "Wishlist", desc: "Let customers save products for later", def: true },
-  { key: "compare_products", label: "Compare", desc: "Side-by-side product comparison", def: true },
   { key: "preorders", label: "Pre-orders", desc: "Accept orders for out-of-stock products", def: true },
   { key: "guest_checkout", label: "Guest Checkout", desc: "Allow checkout without creating an account", def: true },
 ];
@@ -206,7 +205,7 @@ function AdminSettingsPageInner() {
   const [storePhone, setStorePhone] = useState("");
   const [storeAddress, setStoreAddress] = useState("");
   const [features, setFeatures] = useState<Record<string, boolean>>({
-    wishlist: true, compare_products: true, preorders: true, guest_checkout: true,
+    wishlist: true, preorders: true, guest_checkout: true,
     // Defaults OFF — opt-in features.
     public_reviews: false, order_sms_customer: false, order_sms_admin: false,
   });
