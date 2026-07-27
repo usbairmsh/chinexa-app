@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { ReviewImageUpload } from "@/components/storefront/reviews/review-image-upload";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
@@ -68,6 +69,19 @@ interface OrderData {
   timeline: { status: string; note: string; created_at: string }[];
 }
 
+interface ReturnRow {
+  id: string;
+  status: string;
+  resolution?: string | null;
+  reason: string;
+  reason_label?: string | null;
+  description?: string | null;
+  images?: string[];
+  refund_amount?: number | null;
+  items?: { product_id?: string; variant_id?: string | null; name?: string; qty?: number; unit_price?: number }[];
+  created_at: string;
+}
+
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const user = useAuthStore((s) => s.user);
@@ -78,9 +92,19 @@ export default function OrderDetailPage() {
   const [returnOpen, setReturnOpen] = useState(false);
   const [returnReason, setReturnReason] = useState("");
   const [returnDesc, setReturnDesc] = useState("");
+  const [returnImages, setReturnImages] = useState<string[]>([]);
+  const [returnSelectedItems, setReturnSelectedItems] = useState<string[]>([]); // keys of chosen lines
   const [returnSubmitting, setReturnSubmitting] = useState(false);
   const [returnSubmitted, setReturnSubmitted] = useState(false);
-  const [existingReturn, setExistingReturn] = useState<{ id: string; status: string; created_at: string } | null>(null);
+  const [returnError, setReturnError] = useState("");
+  // ALL returns on this order (per-item / multiple returns over time).
+  const [orderReturns, setOrderReturns] = useState<ReturnRow[]>([]);
+  const [returnReasons, setReturnReasons] = useState<{ code: string; label: string }[]>([]);
+  const [returnWindowDays, setReturnWindowDays] = useState(7);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const RETURN_DESC_MAX = 500;
+  // The most recent non-rejected return, for the primary status card.
+  const existingReturn = orderReturns.find((r) => r.status !== "rejected") || null;
   const { reorder, reordering } = useReorder();
   const [reorderNote, setReorderNote] = useState("");
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -94,14 +118,20 @@ export default function OrderDetailPage() {
       .then(setOrder)
       .catch(() => setOrder(null))
       .finally(() => setLoading(false));
-    // Check for existing return
+    // All returns for this order (per-item + multiple over time).
     fetch(`/api/returns?order_id=${encodeURIComponent(id)}`)
       .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          const active = data.find((r: Record<string, unknown>) => r.status !== "rejected");
-          if (active) setExistingReturn({ id: active.id as string, status: active.status as string, created_at: active.created_at as string });
+      .then((data) => { if (Array.isArray(data)) setOrderReturns(data as ReturnRow[]); })
+      .catch(() => {});
+    // Configurable reasons + return window.
+    fetch("/api/settings?key=return_config")
+      .then((r) => r.json())
+      .then((d) => {
+        const cfg = d?.value;
+        if (cfg?.reasons && Array.isArray(cfg.reasons)) {
+          setReturnReasons(cfg.reasons.filter((x: { enabled?: boolean }) => x.enabled !== false).map((x: { code: string; label: string }) => ({ code: x.code, label: x.label })));
         }
+        if (cfg?.windowDays) setReturnWindowDays(Number(cfg.windowDays) || 7);
       })
       .catch(() => {});
   }, [id, user?.id]);
@@ -113,21 +143,51 @@ export default function OrderDetailPage() {
   };
 
   const handleReturn = async () => {
-    if (!returnReason || !order) return;
+    if (!order) return;
+    setReturnError("");
+    if (returnSelectedItems.length === 0) { setReturnError("Select at least one item to return."); return; }
+    if (!returnReason) { setReturnError("Please choose a reason."); return; }
     setReturnSubmitting(true);
     try {
+      // Snapshot the selected order lines so the return is self-contained.
+      const items = order.items
+        .filter((it) => returnSelectedItems.includes(itemKey(it)))
+        .map((it) => ({ product_id: it.product_id, variant_id: it.variant_id, name: it.product_name, qty: it.quantity, unit_price: it.unit_price }));
       const res = await fetch("/api/returns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order_id: order.id, reason: returnReason, description: returnDesc.trim() || null }),
+        body: JSON.stringify({
+          order_id: order.id,
+          reason: returnReason,
+          description: returnDesc.trim().slice(0, RETURN_DESC_MAX) || null,
+          images: returnImages,
+          items,
+        }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed");
+      if (!res.ok) throw new Error(data.error || "Failed to submit return request");
       setReturnSubmitted(true);
       setReturnOpen(false);
+      // Refresh the order's returns so the UI reflects the new request.
+      fetch(`/api/returns?order_id=${encodeURIComponent(id)}`).then((r) => r.json()).then((d) => { if (Array.isArray(d)) setOrderReturns(d as ReturnRow[]); }).catch(() => {});
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to submit return request");
+      setReturnError(err instanceof Error ? err.message : "Failed to submit return request");
     } finally { setReturnSubmitting(false); }
+  };
+
+  const handleWithdrawReturn = async (returnId: string) => {
+    setWithdrawing(true);
+    try {
+      const res = await fetch(`/api/returns/${returnId}/withdraw`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customer_id: user?.id }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || "Couldn't withdraw"); }
+      setOrderReturns((prev) => prev.filter((r) => r.id !== returnId));
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Couldn't withdraw the return");
+    } finally { setWithdrawing(false); }
   };
 
   const handleCancel = async () => {
@@ -152,6 +212,37 @@ export default function OrderDetailPage() {
 
   // A customer may cancel only while the order is still early in fulfilment.
   const canCancel = !!order && ["preorder", "pending", "confirmed", "processing"].includes(order.status);
+
+  // ── Return item helpers (per-item, whole-line) ──
+  // A stable key per order line (product + variant), used for selection and
+  // "already returned" detection.
+  const itemKey = (it: { product_id?: string; variant_id?: string | null }) => `${it.product_id || ""}::${it.variant_id || ""}`;
+  // Lines already covered by a non-rejected return can't be returned again.
+  const returnedKeys = new Set(
+    orderReturns
+      .filter((r) => r.status !== "rejected")
+      .flatMap((r) => (r.items || []).map((it) => `${it.product_id || ""}::${it.variant_id || ""}`))
+  );
+  const returnableItems = (order?.items || []).filter((it) => !returnedKeys.has(itemKey(it)));
+  const selectedSubtotal = (order?.items || [])
+    .filter((it) => returnSelectedItems.includes(itemKey(it)))
+    .reduce((s, it) => s + it.unit_price * it.quantity, 0);
+  // Reasons: config-driven, with a safe default if config hasn't loaded.
+  const effectiveReasons = returnReasons.length > 0 ? returnReasons : [
+    { code: "damaged", label: "Product damaged during delivery" },
+    { code: "wrong_item", label: "Received wrong item" },
+    { code: "not_as_described", label: "Product not as described" },
+    { code: "defective", label: "Product is defective" },
+    { code: "changed_mind", label: "Changed my mind" },
+    { code: "other", label: "Other reason" },
+  ];
+  const openReturnDialog = () => {
+    setReturnReason(""); setReturnDesc(""); setReturnImages([]);
+    setReturnSelectedItems(returnableItems.map(itemKey)); // default: all returnable selected
+    setReturnError(""); setReturnOpen(true);
+  };
+  const toggleReturnItem = (key: string) =>
+    setReturnSelectedItems((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
 
   if (loading) {
     return (
@@ -443,7 +534,7 @@ export default function OrderDetailPage() {
                 if (status === "received" && daysSinceDelivery <= returnWindowDays) {
                   return (
                     <>
-                      <Button variant="outline" className="w-full text-sm text-secondary border-secondary/30" onClick={() => setReturnOpen(true)}>
+                      <Button variant="outline" className="w-full text-sm text-secondary border-secondary/30" onClick={openReturnDialog}>
                         <RotateCcw className="h-3.5 w-3.5 mr-1" /> Request Return
                       </Button>
                       <p className="text-[10px] text-charcoal-lighter text-center">
@@ -540,31 +631,74 @@ export default function OrderDetailPage() {
 
       {/* Return Request Dialog */}
       <Dialog open={returnOpen} onOpenChange={setReturnOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
+        <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2"><RotateCcw className="h-5 w-5 text-secondary" /> Request Return</DialogTitle>
-            <DialogDescription>Submit a return request for order {order?.order_number}. Returns must be within 7 days of delivery.</DialogDescription>
+            <DialogDescription>Order {order?.order_number} · returns accepted within {returnWindowDays} days of delivery.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 py-2">
+          <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
+            {/* Item picker — choose which items to return (whole line each) */}
+            <div>
+              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Items to return<span className="text-destructive"> *</span></label>
+              <div className="space-y-2">
+                {returnableItems.map((it) => {
+                  const key = itemKey(it);
+                  const checked = returnSelectedItems.includes(key);
+                  return (
+                    <label key={key} className={cn("flex items-center gap-3 rounded-lg border p-2 cursor-pointer transition-colors", checked ? "border-secondary bg-secondary/5" : "border-border/50 hover:bg-pearl/50")}>
+                      <input type="checkbox" checked={checked} onChange={() => toggleReturnItem(key)} className="accent-secondary h-4 w-4 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-charcoal truncate">{it.product_name}</p>
+                        <p className="text-[11px] text-charcoal-lighter">{it.variant ? `${it.variant} · ` : ""}Qty {it.quantity} · {formatCurrency(it.unit_price * it.quantity)}</p>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Reason (configurable) */}
             <div>
               <label className="block text-sm font-medium text-charcoal-light mb-1.5">Reason<span className="text-destructive"> *</span></label>
               <Select value={returnReason} onValueChange={setReturnReason}>
                 <SelectTrigger><SelectValue placeholder="Select reason..." /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="damaged">Product damaged during delivery</SelectItem>
-                  <SelectItem value="wrong_item">Received wrong item</SelectItem>
-                  <SelectItem value="not_as_described">Product not as described</SelectItem>
-                  <SelectItem value="defective">Product is defective</SelectItem>
-                  <SelectItem value="changed_mind">Changed my mind</SelectItem>
-                  <SelectItem value="other">Other reason</SelectItem>
+                  {effectiveReasons.map((r) => <SelectItem key={r.code} value={r.code}>{r.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <Textarea label="Description (optional)" value={returnDesc} onChange={(e) => setReturnDesc(e.target.value)} placeholder="Please describe the issue..." className="min-h-[80px]" />
+
+            {/* Description with live counter (capped) */}
+            <div>
+              <Textarea
+                label="Description (optional)"
+                value={returnDesc}
+                onChange={(e) => setReturnDesc(e.target.value.slice(0, RETURN_DESC_MAX))}
+                placeholder="Describe the issue (helps us process it faster)..."
+                className="min-h-[80px]"
+                maxLength={RETURN_DESC_MAX}
+              />
+              <p className="text-[10px] text-charcoal-lighter text-right mt-0.5 [font-variant-numeric:tabular-nums]">{returnDesc.length}/{RETURN_DESC_MAX}</p>
+            </div>
+
+            {/* Defect images (max 2) */}
+            <div>
+              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Photos of the issue (optional)</label>
+              <ReviewImageUpload value={returnImages} onChange={setReturnImages} max={2} folder="returns" />
+            </div>
+
+            {/* Refund preview */}
+            {returnSelectedItems.length > 0 && (
+              <div className="flex items-center justify-between rounded-lg bg-pearl/60 px-3 py-2 text-sm">
+                <span className="text-charcoal-lighter">Estimated refund</span>
+                <span className="font-semibold text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(selectedSubtotal)}</span>
+              </div>
+            )}
+            {returnError && <p className="text-xs text-destructive">{returnError}</p>}
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 pt-2 border-t border-border/20">
             <Button variant="outline" onClick={() => setReturnOpen(false)}>Cancel</Button>
-            <Button variant="secondary" className="!text-white" onClick={handleReturn} disabled={returnSubmitting || !returnReason}>
+            <Button variant="secondary" className="!text-white" onClick={handleReturn} disabled={returnSubmitting || returnSelectedItems.length === 0 || !returnReason}>
               {returnSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RotateCcw className="h-4 w-4 mr-1" />}
               Submit Return
             </Button>

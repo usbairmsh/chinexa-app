@@ -5,21 +5,25 @@ import Image from "next/image";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const MAX_IMAGES = 5;
+const DEFAULT_MAX_IMAGES = 5;
 
 interface ReviewImageUploadProps {
   value: string[];
   onChange: (urls: string[]) => void;
   className?: string;
+  /** Max images allowed (default 5). Returns pass max={2}. */
+  max?: number;
+  /** Upload folder (default "reviews"). Returns pass folder="returns". */
+  folder?: string;
 }
 
-/** Multi-image picker for the customer-facing "write a review" form — reuses the same /api/upload contract the admin single-image widget uses, just with folder="reviews" and up to 5 files. */
-export function ReviewImageUpload({ value, onChange, className }: ReviewImageUploadProps) {
+/** Multi-image picker for customer-facing forms — reuses the /api/upload contract. Used by "write a review" (up to 5) and the return form (up to 2). */
+export function ReviewImageUpload({ value, onChange, className, max = DEFAULT_MAX_IMAGES, folder = "reviews" }: ReviewImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const remainingSlots = MAX_IMAGES - value.length;
+  const remainingSlots = max - value.length;
 
   const uploadFiles = async (files: FileList) => {
     const selected = Array.from(files).slice(0, remainingSlots);
@@ -33,7 +37,7 @@ export function ReviewImageUpload({ value, onChange, className }: ReviewImageUpl
         if (file.size > 5 * 1024 * 1024) { setError("Each image must be under 5MB"); continue; }
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("folder", "reviews");
+        formData.append("folder", folder);
         const res = await fetch("/api/upload", { method: "POST", body: formData });
         const data = await res.json();
         if (!res.ok) { setError(data.error || "Failed to upload an image"); continue; }
@@ -78,7 +82,7 @@ export function ReviewImageUpload({ value, onChange, className }: ReviewImageUpl
       </div>
 
       <p className="text-[10px] text-charcoal-lighter">
-        {value.length}/{MAX_IMAGES} photos &middot; PNG, JPG, WebP &middot; Max 5MB each
+        {value.length}/{max} photos &middot; PNG, JPG, WebP &middot; Max 5MB each
       </p>
       {error && <p className="text-xs text-destructive">{error}</p>}
 
