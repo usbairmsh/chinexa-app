@@ -39,8 +39,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     subject,
     html,
     text,
-    // Send AS the mailbox address so replies come back to the same inbox.
-    replyTo: mailbox.address,
+    // Send AS the mailbox the customer wrote to (e.g. support@chinexabd.com),
+    // so the reply's From is that address and their reply threads back here.
+    from: `${mailbox.display_name} <${mailbox.address}>`,
   });
   if (!result.success) {
     return NextResponse.json({ error: result.error || "Could not send reply" }, { status: 502 });

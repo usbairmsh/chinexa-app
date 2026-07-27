@@ -16,6 +16,11 @@ export interface SendEmailInput {
   html: string;
   text?: string;
   replyTo?: string;
+  // Optional sender override, e.g. "ChineXa Support <support@chinexabd.com>".
+  // Falls back to EMAIL_FROM when omitted. The address's DOMAIN must be
+  // verified in Resend — any address on a verified domain is a valid sender,
+  // so per-mailbox from-addresses on one verified domain need no extra setup.
+  from?: string;
 }
 
 export function isEmailConfigured(): boolean {
@@ -24,7 +29,8 @@ export function isEmailConfigured(): boolean {
 
 export async function sendEmail(input: SendEmailInput): Promise<{ success: boolean; error?: string }> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM;
+  // Per-send override wins; otherwise the configured default sender.
+  const from = input.from || process.env.EMAIL_FROM;
 
   if (!apiKey || !from) {
     return { success: false, error: "Email is not configured (missing RESEND_API_KEY/EMAIL_FROM)" };

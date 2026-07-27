@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
   for (let i = 0; i < recipients.length; i += CONCURRENCY) {
     const batch = recipients.slice(i, i + CONCURRENCY);
     const results = await Promise.all(
-      batch.map((to) => sendEmail({ to, subject, html, text: message, replyTo: mailbox.address }))
+      batch.map((to) => sendEmail({ to, subject, html, text: message, from: `${mailbox.display_name} <${mailbox.address}>` }))
     );
     for (const r of results) r.success ? sent++ : failed++;
   }
