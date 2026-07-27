@@ -10,11 +10,15 @@ export async function ensureOrderArchiveColumns() {
   try {
     const cols = await query<RowDataPacket[]>(
       `SELECT column_name AS c FROM information_schema.columns
-       WHERE table_schema = DATABASE() AND table_name = 'orders' AND column_name IN ('is_archived','archived_at')`
+       WHERE table_schema = DATABASE() AND table_name = 'orders' AND column_name IN ('is_archived','archived_at','pre_archive_status')`
     );
     const has = new Set(cols.map((r) => r.c as string));
     if (!has.has("is_archived")) await execute("ALTER TABLE orders ADD COLUMN is_archived BOOLEAN DEFAULT FALSE");
     if (!has.has("archived_at")) await execute("ALTER TABLE orders ADD COLUMN archived_at TIMESTAMP NULL DEFAULT NULL");
+    // Remembers the order's status just before it was archived, so un-archiving
+    // can restore it (and re-apply stock/revenue) instead of leaving it stuck
+    // as 'cancelled'.
+    if (!has.has("pre_archive_status")) await execute("ALTER TABLE orders ADD COLUMN pre_archive_status VARCHAR(30) NULL DEFAULT NULL");
     migrated = true;
   } catch (err) {
     console.error("[ensureOrderArchiveColumns] migration failed:", err);

@@ -155,15 +155,28 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     // archiving inherits that logic's stock-restore/revenue-reversal/coupon-
     // decrement guards for free, and the order genuinely shows as Cancelled
     // to the customer, not a separate "archived" status they've never seen.
-    // Unarchiving does NOT resurrect the original status — once cancelled,
-    // it stays cancelled; only the is_archived flag/tab membership reverts.
-    // Skipped if already in a terminal reversed state (cancelled/not_received/
-    // returned) so re-archiving never double-reverses stock or revenue.
+    // Un-archiving RESTORES the pre-archive status (and re-applies stock/revenue
+    // via the normal status-change flow below), instead of leaving the order
+    // stuck as 'cancelled'. We remember the status at archive time in
+    // pre_archive_status; skipped if already in a terminal reversed state
+    // (cancelled/not_received/returned) so re-archiving never double-reverses.
     const isArchiving = body.is_archived === true;
+    const isUnarchiving = body.is_archived === false;
     const alreadyReversed = ["cancelled", "not_received", "returned"].includes(prevStatus);
     if (isArchiving && !alreadyReversed) {
+      // Remember where it was, then coerce to cancelled (reverses stock/revenue).
+      await execute("UPDATE orders SET pre_archive_status = ? WHERE id = ?", [prevStatus, id]);
       body.status = "cancelled";
       body.note = "Order archived by admin — stock and revenue reversed";
+    }
+    let restoredFromArchive = false;
+    if (isUnarchiving && order.pre_archive_status) {
+      // Route the restore through the normal status-change machinery so its
+      // confirmed/received branches re-deduct stock + re-count revenue via the
+      // stock_deducted/revenue_counted guards (archiving flipped those to FALSE).
+      body.status = order.pre_archive_status as string;
+      body.note = "Order restored from archive";
+      restoredFromArchive = true;
     }
 
     // Status/fulfillment changes (including cancellation) need "handle_orders";
@@ -235,6 +248,30 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
         // Update status
         await conn.execute("UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?", [newStatus, id]);
+
+        // ─── RESTORE FROM ARCHIVE: re-apply the stock/revenue/coupon that
+        // archiving reversed, so the order returns to exactly its prior state.
+        // A status of confirmed-or-later held stock; 'received' also counted
+        // revenue. Guards prevent double-application. Runs here (not the
+        // confirmed/received branches) so restoring to an intermediate status
+        // like processing/shipped still re-deducts stock. ───
+        if (restoredFromArchive) {
+          const holdsStock = ["confirmed", "processing", "shipped", "on_delivery", "received"].includes(newStatus);
+          if (holdsStock && !stockDeducted) {
+            await deductStock(conn, id);
+            await conn.execute("UPDATE orders SET stock_deducted = TRUE WHERE id = ?", [id]);
+          }
+          if (newStatus === "received" && !revenueCounted && order.customer_id) {
+            await conn.execute(
+              "UPDATE customers SET total_spent = total_spent + ?, total_orders = total_orders + 1 WHERE id = ?",
+              [orderTotal, order.customer_id]
+            );
+            await conn.execute("UPDATE orders SET revenue_counted = TRUE WHERE id = ?", [id]);
+          }
+          if (order.coupon_code) {
+            await conn.execute("UPDATE coupons SET used_count = used_count + 1 WHERE code = ?", [order.coupon_code]);
+          }
+        }
 
         // ─── CANCELLED: restore stock + decrement coupon ───
         if (newStatus === "cancelled") {
@@ -475,6 +512,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         `UPDATE orders SET is_archived = ?, archived_at = ${archiving ? "NOW()" : "NULL"} WHERE id = ?`,
         [archiving ? 1 : 0, id]
       );
+      // Clear the remembered status once it's been restored on un-archive.
+      if (restoredFromArchive) await execute("UPDATE orders SET pre_archive_status = NULL WHERE id = ?", [id]);
       await logActivity(archiving ? "Archived order" : "Unarchived order", "order", id, `Order ${order.order_number}`);
     }
 
