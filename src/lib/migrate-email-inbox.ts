@@ -172,6 +172,27 @@ export async function ensureEmailInboxTables() {
       ) ENGINE=InnoDB`
     );
 
+    // Attachments — for both outgoing (staged on a draft/compose, then linked to
+    // the sent message) and incoming (parsed from inbound webhook). Stored on
+    // disk under public/uploads/email; `url` is the API-served path.
+    await execute(
+      `CREATE TABLE IF NOT EXISTS email_attachments (
+        id VARCHAR(50) PRIMARY KEY,
+        message_id VARCHAR(50) NULL,
+        draft_id VARCHAR(50) NULL,
+        compose_token VARCHAR(80) NULL,
+        direction ENUM('inbound','outbound') NOT NULL DEFAULT 'outbound',
+        filename VARCHAR(255) NOT NULL,
+        mime_type VARCHAR(150) NOT NULL DEFAULT 'application/octet-stream',
+        size INT NOT NULL DEFAULT 0,
+        url VARCHAR(500) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_message (message_id),
+        INDEX idx_draft (draft_id),
+        INDEX idx_compose (compose_token)
+      ) ENGINE=InnoDB`
+    );
+
     // Future-proofing hook for adding columns to older deployments.
     await ensureColumn("email_mailboxes", "can_broadcast", "BOOLEAN NOT NULL DEFAULT FALSE");
     // norm_subject drives thread matching (reply vs new email). On DBs created

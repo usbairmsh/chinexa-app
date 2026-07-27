@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { writeFile, mkdir } from "fs/promises";
+import { existsSync } from "fs";
+import path from "path";
 import { ensureEmailInboxTables } from "@/lib/migrate-email-inbox";
-import { getMailboxByAddress, recordInbound } from "@/lib/email-inbox";
+import { getMailboxByAddress, recordInbound, createAttachment } from "@/lib/email-inbox";
 
 export const dynamic = "force-dynamic";
 
@@ -161,8 +164,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, dropped: "no matching mailbox" });
   }
 
+  let inboundMessageId: string;
   try {
-    await recordInbound({
+    const rec = await recordInbound({
       mailbox,
       fromAddress: from.address,
       fromName: from.name,
@@ -172,11 +176,40 @@ export async function POST(req: NextRequest) {
       messageId,
       inReplyTo,
     });
+    inboundMessageId = rec.messageId;
   } catch (err) {
     console.error("[inbound-email] failed to store message:", err);
     // 500 so the provider retries — we don't want to lose real mail on a
     // transient DB error.
     return NextResponse.json({ error: "Could not store message" }, { status: 500 });
+  }
+
+  // Store any attachments the provider included (base64 content). Best-effort —
+  // a failing attachment must not fail the whole message.
+  const rawAttachments = Array.isArray(data.attachments) ? data.attachments : [];
+  for (const att of rawAttachments) {
+    if (!att || typeof att !== "object") continue;
+    const a = att as Record<string, unknown>;
+    const filename = firstString(a.filename, a.name, a.file_name) || "attachment";
+    const contentType = firstString(a.content_type, a.contentType, a.type) || "application/octet-stream";
+    const contentB64 = firstString(a.content, a.data, a.base64);
+    if (!contentB64) continue;
+    try {
+      const buf = Buffer.from(contentB64, "base64");
+      if (buf.length === 0 || buf.length > 15 * 1024 * 1024) continue;
+      const ext = (filename.split(".").pop() || "bin").replace(/[^a-z0-9]/gi, "").slice(0, 8) || "bin";
+      const safe = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}.${ext}`;
+      const dir = path.join(process.cwd(), "public", "uploads", "email");
+      if (!existsSync(dir)) await mkdir(dir, { recursive: true });
+      await writeFile(path.join(dir, safe), buf);
+      await createAttachment({
+        messageId: inboundMessageId, direction: "inbound",
+        filename: filename.replace(/[\r\n"\\]/g, "").slice(0, 255),
+        mimeType: contentType, size: buf.length, url: `/api/uploads/email/${safe}`,
+      });
+    } catch (err) {
+      console.error("[inbound-email] attachment store failed:", err);
+    }
   }
 
   return NextResponse.json({ ok: true });

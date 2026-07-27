@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureEmailInboxTables } from "@/lib/migrate-email-inbox";
-import { listDrafts, createDraft } from "@/lib/email-inbox";
+import { listDrafts, createDraft, linkAttachmentsToDraft } from "@/lib/email-inbox";
 import { requirePermission } from "@/lib/admin-permissions-server";
 import { getVerifiedAdminId } from "@/lib/admin-session";
 
@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const kind = body.kind === "broadcast" ? "broadcast" : "reply";
 
+  // Body is rich HTML from the editor; stored in body_text (MEDIUMTEXT).
   const draft = await createDraft({
     kind,
     mailbox_id: body.mailbox_id || null,
@@ -30,9 +31,13 @@ export async function POST(req: NextRequest) {
     from_address: body.from_address || null,
     to_address: body.to_address || null,
     subject: String(body.subject || "(no subject)"),
-    body_text: typeof body.body === "string" ? body.body : (body.body_text ?? null),
+    body_text: typeof body.body_html === "string" ? body.body_html : (typeof body.body === "string" ? body.body : (body.body_text ?? null)),
     segment: body.segment ?? null,
     created_by: getVerifiedAdminId(req),
   });
+  // Link any staged (compose-token) attachments to this draft.
+  if (typeof body.compose_token === "string" && body.compose_token) {
+    await linkAttachmentsToDraft(body.compose_token, draft.id);
+  }
   return NextResponse.json({ draft }, { status: 201 });
 }

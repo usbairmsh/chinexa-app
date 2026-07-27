@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query } from "@/lib/db";
 import { ensureEmailInboxTables } from "@/lib/migrate-email-inbox";
-import { getMailbox, recordBroadcast } from "@/lib/email-inbox";
+import { getMailbox, recordBroadcast, loadAttachmentsForSend } from "@/lib/email-inbox";
 import { requirePermission } from "@/lib/admin-permissions-server";
 import { getVerifiedAdminId } from "@/lib/admin-session";
 import { sendEmail, isEmailConfigured } from "@/lib/email";
+import { htmlToText, wrapEmailHtml } from "@/lib/email-html";
 
 export const dynamic = "force-dynamic";
 
@@ -27,10 +28,12 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const mailboxId = String(body.mailbox_id || "");
   const subject = String(body.subject || "").trim();
-  const message = String(body.body || "").trim();
+  const bodyHtml = String(body.body_html || body.body || "").trim();
+  const composeToken = typeof body.compose_token === "string" ? body.compose_token : null;
+  const message = htmlToText(bodyHtml);
   const segment = body.segment && typeof body.segment === "object" ? body.segment : { type: "all" };
 
-  if (!subject || !message) return NextResponse.json({ error: "Subject and body are required" }, { status: 400 });
+  if (!subject || !bodyHtml) return NextResponse.json({ error: "Subject and body are required" }, { status: 400 });
 
   const mailbox = await getMailbox(mailboxId);
   if (!mailbox || !mailbox.can_broadcast) {
@@ -53,7 +56,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No customers with an email match that segment" }, { status: 400 });
   }
 
-  const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#2f3b3a;white-space:pre-wrap;">${escapeHtml(message)}</div>`;
+  const html = wrapEmailHtml(bodyHtml);
+  const attachments = await loadAttachmentsForSend(composeToken);
+  const fromLine = `${mailbox.display_name} <${mailbox.address}>`;
 
   // Best-effort, sequential-with-small-concurrency send. Each recipient gets an
   // individual email (no shared To: header) so addresses aren't leaked.
@@ -62,7 +67,7 @@ export async function POST(req: NextRequest) {
   for (let i = 0; i < recipients.length; i += CONCURRENCY) {
     const batch = recipients.slice(i, i + CONCURRENCY);
     const results = await Promise.all(
-      batch.map((to) => sendEmail({ to, subject, html, text: message, from: `${mailbox.display_name} <${mailbox.address}>` }))
+      batch.map((to) => sendEmail({ to, subject, html, text: message, from: fromLine, attachments }))
     );
     for (const r of results) r.success ? sent++ : failed++;
   }
@@ -74,8 +79,4 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ ok: true, recipient_count: recipients.length, sent, failed });
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }

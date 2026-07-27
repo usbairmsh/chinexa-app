@@ -1162,8 +1162,8 @@ function AdminSettingsPageInner() {
               {/* Live preview of exactly what the footer renders as in an email */}
               <div>
                 <p className="text-xs font-medium text-charcoal-lighter mb-1.5">Preview</p>
-                <div className="rounded-xl border border-border/40 bg-[#FDF4F8] p-5 text-center">
-                  <div className="mx-auto max-w-[420px]">
+                <div className="rounded-xl border border-border/40 bg-[#FDF4F8] p-5 text-left">
+                  <div className="max-w-[420px]">
                     <div className="text-[#9A8592] text-xs leading-relaxed whitespace-pre-line">
                       {emailFooter.trim() || "Your footer text will appear here."}
                     </div>

@@ -26,6 +26,9 @@ export interface SendEmailInput {
   // The admin-configured email footer (text + ChineXa logo) is appended to
   // EVERY email by default. Set true to omit it for a specific send.
   skipFooter?: boolean;
+  // File attachments — Resend takes { filename, content } where content is a
+  // base64 string (or Buffer). Callers read files from disk and encode.
+  attachments?: { filename: string; content: string }[];
 }
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
@@ -64,7 +67,7 @@ export function buildFooterHtml(footerText: string): string {
   if (!t) return "";
   const logoUrl = `${SITE_URL}/logo.png`;
   return `
-  <div style="max-width:560px;margin:16px auto 0;padding:16px 16px 24px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <div style="max-width:560px;margin:16px auto 0;padding:16px 16px 24px;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
     <div style="color:#9A8592;font-size:12px;line-height:1.7;white-space:pre-line;">${escapeFooterHtml(t)}</div>
     <div style="margin-top:12px;">
       <a href="${SITE_URL}" style="text-decoration:none;">
@@ -111,6 +114,7 @@ export async function sendEmail(input: SendEmailInput): Promise<{ success: boole
       // Resend requires html or text; provide a plain-text fallback either way.
       text,
       ...(input.replyTo ? { replyTo: input.replyTo } : {}),
+      ...(input.attachments && input.attachments.length ? { attachments: input.attachments } : {}),
     });
     if (error) return { success: false, error: error.message || "Email send failed" };
     return { success: true };

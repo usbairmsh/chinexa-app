@@ -18,7 +18,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     mailbox_id: body.mailbox_id !== undefined ? (body.mailbox_id || null) : undefined,
     to_address: body.to_address !== undefined ? (body.to_address || null) : undefined,
     subject: typeof body.subject === "string" ? body.subject : undefined,
-    body_text: body.body !== undefined ? body.body : (body.body_text !== undefined ? body.body_text : undefined),
+    body_text: body.body_html !== undefined ? body.body_html : (body.body !== undefined ? body.body : (body.body_text !== undefined ? body.body_text : undefined)),
     segment: body.segment !== undefined ? body.segment : undefined,
   });
   return NextResponse.json({ draft: await getDraft(id) });

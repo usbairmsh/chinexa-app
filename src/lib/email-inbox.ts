@@ -1,4 +1,6 @@
 import { type RowDataPacket, type ResultSetHeader } from "mysql2/promise";
+import { readFile } from "fs/promises";
+import path from "path";
 import { query, execute } from "@/lib/db";
 
 // Data-access helpers for the Email Center. Server-only.
@@ -12,6 +14,8 @@ export const newThreadId = () => genId("ethr");
 export const newEmailMsgId = () => genId("emsg");
 export const newBroadcastId = () => genId("ebrd");
 export const newDraftId = () => genId("edft");
+export const newAttachmentId = () => genId("eatt");
+export const newComposeToken = () => genId("cmp");
 
 /** Strips leading Re:/Fwd:/Fw: prefixes and lowercases, so a reply's subject
  *  matches the thread it belongs to and a genuinely different subject doesn't. */
@@ -104,7 +108,7 @@ export async function recordInbound(params: {
   bodyText: string | null;
   messageId: string | null;
   inReplyTo: string | null;
-}): Promise<string> {
+}): Promise<{ threadId: string; messageId: string }> {
   const { mailbox, fromAddress, subject } = params;
   const correspondent = fromAddress.toLowerCase().trim();
   const normSubject = normalizeSubject(subject);
@@ -149,11 +153,12 @@ export async function recordInbound(params: {
     );
   }
 
+  const inboundMsgId = newEmailMsgId();
   await execute(
     `INSERT INTO email_messages (id, thread_id, direction, from_address, to_address, subject, body_html, body_text, message_id, in_reply_to)
      VALUES (?, ?, 'inbound', ?, ?, ?, ?, ?, ?, ?)`,
     [
-      newEmailMsgId(), threadId, correspondent, mailbox.address,
+      inboundMsgId, threadId, correspondent, mailbox.address,
       subject.slice(0, 500) || "(no subject)",
       params.bodyHtml, params.bodyText, params.messageId, params.inReplyTo,
     ]
@@ -168,7 +173,7 @@ export async function recordInbound(params: {
   );
 
   await bumpCounter(mailbox.id, "received");
-  return threadId;
+  return { threadId, messageId: inboundMsgId };
 }
 
 // ─── Persistent counters ───
@@ -190,7 +195,8 @@ export async function resetCounters(mailboxId?: string): Promise<void> {
   }
 }
 
-/** Appends an admin's outbound reply and refreshes thread recency. */
+/** Appends an admin's outbound reply and refreshes thread recency. Returns the
+ *  new message id so attachments can be linked to it. */
 export async function recordOutbound(params: {
   threadId: string;
   mailbox: Mailbox;
@@ -199,12 +205,13 @@ export async function recordOutbound(params: {
   bodyHtml: string | null;
   bodyText: string | null;
   sentBy: string | null;
-}): Promise<void> {
+}): Promise<string> {
+  const messageId = newEmailMsgId();
   await execute(
     `INSERT INTO email_messages (id, thread_id, direction, from_address, to_address, subject, body_html, body_text, sent_by)
      VALUES (?, ?, 'outbound', ?, ?, ?, ?, ?, ?)`,
     [
-      newEmailMsgId(), params.threadId, params.mailbox.address, params.toAddress.toLowerCase().trim(),
+      messageId, params.threadId, params.mailbox.address, params.toAddress.toLowerCase().trim(),
       params.subject.slice(0, 500) || "(no subject)", params.bodyHtml, params.bodyText, params.sentBy,
     ]
   );
@@ -215,6 +222,7 @@ export async function recordOutbound(params: {
     [params.threadId]
   );
   await bumpCounter(params.mailbox.id, "sent");
+  return messageId;
 }
 
 export async function listThreads(mailboxId?: string): Promise<EmailThread[]> {
@@ -444,4 +452,104 @@ export async function recordBroadcast(b: {
   // A broadcast counts toward both the lifetime "broadcast" tally and "sent".
   await bumpCounter(b.mailbox.id, "broadcast", b.sentCount);
   await bumpCounter(b.mailbox.id, "sent", b.sentCount);
+}
+
+// ─── Attachments ───
+export interface EmailAttachment {
+  id: string;
+  message_id: string | null;
+  draft_id: string | null;
+  compose_token: string | null;
+  direction: "inbound" | "outbound";
+  filename: string;
+  mime_type: string;
+  size: number;
+  url: string;
+  created_at: string;
+}
+
+export async function createAttachment(a: {
+  composeToken?: string | null; draftId?: string | null; messageId?: string | null;
+  direction?: "inbound" | "outbound"; filename: string; mimeType: string; size: number; url: string;
+}): Promise<EmailAttachment> {
+  const id = newAttachmentId();
+  await execute(
+    `INSERT INTO email_attachments (id, message_id, draft_id, compose_token, direction, filename, mime_type, size, url)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, a.messageId ?? null, a.draftId ?? null, a.composeToken ?? null, a.direction || "outbound",
+     a.filename.slice(0, 255), a.mimeType.slice(0, 150), a.size, a.url]
+  );
+  return (await getAttachment(id))!;
+}
+
+export async function getAttachment(id: string): Promise<EmailAttachment | null> {
+  const rows = await query<RowDataPacket[]>("SELECT * FROM email_attachments WHERE id = ? LIMIT 1", [id]);
+  return rows.length ? (rows[0] as unknown as EmailAttachment) : null;
+}
+
+export async function deleteAttachment(id: string): Promise<void> {
+  await execute("DELETE FROM email_attachments WHERE id = ?", [id]);
+}
+
+export async function attachmentsForMessage(messageId: string): Promise<EmailAttachment[]> {
+  const rows = await query<RowDataPacket[]>("SELECT * FROM email_attachments WHERE message_id = ? ORDER BY created_at ASC", [messageId]);
+  return rows as unknown as EmailAttachment[];
+}
+
+export async function attachmentsForDraft(draftId: string): Promise<EmailAttachment[]> {
+  const rows = await query<RowDataPacket[]>("SELECT * FROM email_attachments WHERE draft_id = ? ORDER BY created_at ASC", [draftId]);
+  return rows as unknown as EmailAttachment[];
+}
+
+export async function attachmentsForToken(token: string): Promise<EmailAttachment[]> {
+  const rows = await query<RowDataPacket[]>("SELECT * FROM email_attachments WHERE compose_token = ? ORDER BY created_at ASC", [token]);
+  return rows as unknown as EmailAttachment[];
+}
+
+/** Reads staged attachments (by compose token) off disk and encodes them for
+ *  Resend. Skips any file that can't be read. Returns [] for a null/empty token. */
+export async function loadAttachmentsForSend(token: string | null | undefined): Promise<{ filename: string; content: string }[]> {
+  if (!token) return [];
+  const records = await attachmentsForToken(token);
+  const out: { filename: string; content: string }[] = [];
+  for (const a of records) {
+    try {
+      // a.url is "/api/uploads/email/<file>"; map back to the disk path.
+      const rel = a.url.replace(/^\/api\/uploads\//, "");
+      const filePath = path.join(process.cwd(), "public", "uploads", ...rel.split("/"));
+      const buf = await readFile(filePath);
+      out.push({ filename: a.filename, content: buf.toString("base64") });
+    } catch { /* skip unreadable attachment rather than fail the whole send */ }
+  }
+  return out;
+}
+
+/** Same, but for a saved draft's attachments (by draft id). */
+export async function loadDraftAttachmentsForSend(draftId: string): Promise<{ filename: string; content: string }[]> {
+  const records = await attachmentsForDraft(draftId);
+  const out: { filename: string; content: string }[] = [];
+  for (const a of records) {
+    try {
+      const rel = a.url.replace(/^\/api\/uploads\//, "");
+      const filePath = path.join(process.cwd(), "public", "uploads", ...rel.split("/"));
+      const buf = await readFile(filePath);
+      out.push({ filename: a.filename, content: buf.toString("base64") });
+    } catch { /* skip */ }
+  }
+  return out;
+}
+
+/** Reassign staged (compose-token) attachments onto a message once it's sent. */
+export async function linkAttachmentsToMessage(token: string, messageId: string): Promise<void> {
+  await execute("UPDATE email_attachments SET message_id = ?, compose_token = NULL WHERE compose_token = ?", [messageId, token]);
+}
+
+/** Reassign staged attachments onto a draft when it's saved. */
+export async function linkAttachmentsToDraft(token: string, draftId: string): Promise<void> {
+  await execute("UPDATE email_attachments SET draft_id = ?, compose_token = NULL WHERE compose_token = ?", [draftId, token]);
+}
+
+/** When a draft is sent, move its attachments onto the resulting message. */
+export async function linkDraftAttachmentsToMessage(draftId: string, messageId: string): Promise<void> {
+  await execute("UPDATE email_attachments SET message_id = ?, draft_id = NULL WHERE draft_id = ?", [messageId, draftId]);
 }

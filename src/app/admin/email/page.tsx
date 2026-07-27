@@ -3,16 +3,23 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Mail, Send, Loader2, Inbox, ArrowDownLeft, ArrowUpRight, Plus, Trash2,
-  Megaphone, Settings2, RefreshCw, Check, Reply, FileText, Save, RotateCcw,
+  Megaphone, Settings2, RefreshCw, Check, Reply, FileText, Save, RotateCcw, Paperclip,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { AdminButton } from "@/components/admin/shared/admin-button";
+import { RichTextEditor } from "@/components/admin/shared/rich-text-editor";
+import { AttachmentUploader, type StagedAttachment } from "@/components/admin/email/attachment-uploader";
 import { useAdmin } from "@/contexts/admin-context";
+
+// Client-side compose token — groups uploaded attachments before the message
+// or draft exists, so they can be linked to it on send/save.
+function makeComposeToken() {
+  return `cmp-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 interface Mailbox {
   id: string; address: string; display_name: string;
@@ -22,9 +29,11 @@ interface Thread {
   id: string; mailbox_id: string; correspondent: string; correspondent_name: string | null;
   subject: string; status: "open" | "closed"; admin_unread: number; message_count: number; last_message_at: string;
 }
+interface Attachment { id: string; filename: string; mime_type: string; size: number; url: string; direction: string }
 interface Message {
   id: string; direction: "inbound" | "outbound"; from_address: string; to_address: string;
   subject: string; body_html: string | null; body_text: string | null; created_at: string;
+  attachments?: Attachment[];
 }
 interface Draft {
   id: string; kind: "reply" | "broadcast"; mailbox_id: string | null; thread_id: string | null;
@@ -38,9 +47,19 @@ const fmtTime = (s: string) => {
   return isNaN(d.getTime()) ? "" : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 };
 
-function stripHtml(html: string | null): string {
+// Basic sanitizer for rendering email HTML in the thread view. Inbound HTML
+// comes from external senders, so strip script/style/iframe, inline event
+// handlers, and javascript: URLs before injecting. (Admin-only surface; this is
+// defense-in-depth, not a full sanitizer library.)
+function sanitizeEmailHtml(html: string | null): string {
   if (!html) return "";
-  return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim();
+  return html
+    .replace(/<\s*(script|style|iframe|object|embed|link|meta)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, "")
+    .replace(/<\s*(script|style|iframe|object|embed|link|meta)[^>]*\/?>/gi, "")
+    .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
+    .replace(/\son\w+\s*=\s*'[^']*'/gi, "")
+    .replace(/\son\w+\s*=\s*[^\s>]+/gi, "")
+    .replace(/(href|src)\s*=\s*("|')\s*javascript:[^"']*\2/gi, '$1="#"');
 }
 
 // Sentinel for the fixed Drafts inbox in the mailbox rail.
@@ -318,12 +337,24 @@ export default function EmailCenterPage() {
                         </button>
                       )}
                     </div>
-                    {(() => {
-                      const shown = (m.body_text && m.body_text.trim()) || stripHtml(m.body_html);
-                      return shown
-                        ? <div className="whitespace-pre-wrap break-words text-sm text-charcoal">{shown}</div>
-                        : <div className="text-sm italic text-charcoal-lighter">(This message has no readable text content.)</div>;
-                    })()}
+                    {m.body_html && m.body_html.trim()
+                      ? <div className="prose prose-sm max-w-none break-words text-sm text-charcoal [&_img]:max-w-full" dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(m.body_html) }} />
+                      : (m.body_text && m.body_text.trim())
+                        ? <div className="whitespace-pre-wrap break-words text-sm text-charcoal">{m.body_text}</div>
+                        : <div className="text-sm italic text-charcoal-lighter">(This message has no readable text content.)</div>}
+
+                    {/* Attachments */}
+                    {m.attachments && m.attachments.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {m.attachments.map((a) => (
+                          <a key={a.id} href={a.url} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-card px-2.5 py-1 text-[11px] text-charcoal hover:bg-pearl transition-colors">
+                            <Paperclip className="h-3 w-3 text-charcoal-lighter" />
+                            <span className="max-w-[180px] truncate">{a.filename}</span>
+                          </a>
+                        ))}
+                      </div>
+                    )}
                     {/* Per-message timestamp below the body */}
                     <div className="mt-2 text-right text-[10px] text-charcoal-lighter tabular-nums">{fmtTime(m.created_at)}</div>
                   </div>
@@ -390,7 +421,7 @@ function FooterPreview({ footerText }: { footerText: string }) {
   return (
     <div>
       <p className="text-[11px] font-medium text-charcoal-lighter mb-1">Footer (added automatically)</p>
-      <div className="rounded-lg border border-border/40 bg-[#FDF4F8] p-3 text-center opacity-80">
+      <div className="rounded-lg border border-border/40 bg-[#FDF4F8] p-3 text-left opacity-80">
         <div className="text-[#9A8592] text-[11px] leading-relaxed whitespace-pre-line">{footerText.trim() || "No footer configured (Settings → Notifications → Email Footer)."}</div>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.png" alt="ChineXa" className="mt-2 inline-block h-6 w-auto" />
@@ -406,15 +437,20 @@ function ReplyModal({ open, onClose, mailbox, thread, toAddress, footerText, can
 }) {
   const reSubject = thread.subject.toLowerCase().startsWith("re:") ? thread.subject : `Re: ${thread.subject}`;
   const [body, setBody] = useState("");
+  const [token, setToken] = useState("");
+  const [attachments, setAttachments] = useState<StagedAttachment[]>([]);
   const [busy, setBusy] = useState<"send" | "draft" | null>(null);
   const [error, setError] = useState("");
 
-  useEffect(() => { if (open) { setBody(""); setError(""); } }, [open]);
+  useEffect(() => { if (open) { setBody(""); setError(""); setAttachments([]); setToken(makeComposeToken()); } }, [open]);
+
+  const isEmpty = !stripTags(body).trim() && attachments.length === 0;
 
   const send = async () => {
     setBusy("send"); setError("");
     const res = await fetch(`/api/admin-email/threads/${thread.id}/reply`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body: body.trim() }),
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body_html: body, compose_token: token }),
     });
     setBusy(null);
     if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error || "Could not send"); return; }
@@ -425,7 +461,7 @@ function ReplyModal({ open, onClose, mailbox, thread, toAddress, footerText, can
     setBusy("draft"); setError("");
     const res = await fetch("/api/admin-email/drafts", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind: "reply", mailbox_id: mailbox.id, thread_id: thread.id, from_address: mailbox.address, to_address: toAddress, subject: reSubject, body }),
+      body: JSON.stringify({ kind: "reply", mailbox_id: mailbox.id, thread_id: thread.id, from_address: mailbox.address, to_address: toAddress, subject: reSubject, body_html: body, compose_token: token }),
     });
     setBusy(null);
     if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error || "Could not save draft"); return; }
@@ -434,7 +470,7 @@ function ReplyModal({ open, onClose, mailbox, thread, toAddress, footerText, can
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Reply className="h-5 w-5 text-secondary" /> Reply to this mail</DialogTitle>
           <DialogDescription>Your reply is sent from this mailbox; the customer&apos;s reply comes back to the same inbox.</DialogDescription>
@@ -443,19 +479,23 @@ function ReplyModal({ open, onClose, mailbox, thread, toAddress, footerText, can
           <Input label="From" value={`${mailbox.display_name} <${mailbox.address}>`} readOnly disabled />
           <Input label="To" value={toAddress} readOnly disabled />
           <Input label="Subject" value={reSubject} readOnly disabled />
-          <Textarea label="Message" value={body} onChange={(e) => setBody(e.target.value)} rows={7} placeholder="Type your reply…" />
+          <div>
+            <label className="block text-sm font-medium text-charcoal-light mb-1.5">Message</label>
+            <RichTextEditor value={body} onChange={setBody} placeholder="Type your reply…" />
+          </div>
+          {token && <AttachmentUploader composeToken={token} attachments={attachments} onChange={setAttachments} />}
           <FooterPreview footerText={footerText} />
           {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
         <DialogFooter className="gap-2">
           <AdminButton variant="outline" onClick={onClose}>Cancel</AdminButton>
           {canDraft && (
-            <AdminButton variant="outline" onClick={saveDraft} disabled={busy !== null || !body.trim()}>
+            <AdminButton variant="outline" onClick={saveDraft} disabled={busy !== null || isEmpty}>
               {busy === "draft" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />} Save as Draft
             </AdminButton>
           )}
           {canSend && (
-            <AdminButton onClick={send} disabled={busy !== null || !body.trim()}>
+            <AdminButton onClick={send} disabled={busy !== null || isEmpty}>
               {busy === "send" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />} Send
             </AdminButton>
           )}
@@ -463,6 +503,11 @@ function ReplyModal({ open, onClose, mailbox, thread, toAddress, footerText, can
       </DialogContent>
     </Dialog>
   );
+}
+
+// Quick check for "is the editor empty" — the editor can emit "<p></p>".
+function stripTags(html: string): string {
+  return (html || "").replace(/<[^>]+>/g, "").replace(/&nbsp;/gi, " ").trim();
 }
 
 // ─── Drafts list (middle column) ───
@@ -530,11 +575,13 @@ function DraftEditorModal({ draft, mailboxes, footerText, canSend, onClose, onCh
   const [error, setError] = useState("");
   const mailbox = mailboxes.find((m) => m.id === draft.mailbox_id);
 
+  const isEmpty = !stripTags(body).trim();
+
   const save = async () => {
     setBusy("save"); setError("");
     const res = await fetch(`/api/admin-email/drafts/${draft.id}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subject, to_address: to, body }),
+      body: JSON.stringify({ subject, to_address: to, body_html: body }),
     });
     setBusy(null);
     if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error || "Could not save"); return; }
@@ -545,7 +592,7 @@ function DraftEditorModal({ draft, mailboxes, footerText, canSend, onClose, onCh
     setBusy("send"); setError("");
     // Persist edits first, then send.
     await fetch(`/api/admin-email/drafts/${draft.id}`, {
-      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject, to_address: to, body }),
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject, to_address: to, body_html: body }),
     });
     const res = await fetch(`/api/admin-email/drafts/${draft.id}/send`, { method: "POST" });
     setBusy(null);
@@ -556,27 +603,30 @@ function DraftEditorModal({ draft, mailboxes, footerText, canSend, onClose, onCh
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-secondary" /> {draft.kind === "broadcast" ? "Broadcast draft" : "Reply draft"}</DialogTitle>
-          <DialogDescription>Edit and save, or send it now.</DialogDescription>
+          <DialogDescription>Edit and save, or send it now. Attachments saved with this draft are kept.</DialogDescription>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto space-y-3 py-1 pr-1">
           <Input label="From" value={mailbox ? `${mailbox.display_name} <${mailbox.address}>` : "—"} readOnly disabled />
           {draft.kind === "reply" && <Input label="To" value={to} onChange={(e) => setTo(e.target.value)} />}
           {draft.kind === "broadcast" && draft.segment?.type && <Input label="Segment" value={draft.segment.type + (draft.segment.value ? ` ≥ ${draft.segment.value}` : "")} readOnly disabled />}
           <Input label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
-          <Textarea label="Message" value={body} onChange={(e) => setBody(e.target.value)} rows={7} />
+          <div>
+            <label className="block text-sm font-medium text-charcoal-light mb-1.5">Message</label>
+            <RichTextEditor value={body} onChange={setBody} />
+          </div>
           <FooterPreview footerText={footerText} />
           {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
         <DialogFooter className="gap-2">
           <AdminButton variant="outline" onClick={onClose}>Cancel</AdminButton>
-          <AdminButton variant="outline" onClick={save} disabled={busy !== null || !body.trim()}>
+          <AdminButton variant="outline" onClick={save} disabled={busy !== null || isEmpty}>
             {busy === "save" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />} Save
           </AdminButton>
           {canSend && (
-            <AdminButton onClick={send} disabled={busy !== null || !body.trim()}>
+            <AdminButton onClick={send} disabled={busy !== null || isEmpty}>
               {busy === "send" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />} Send now
             </AdminButton>
           )}
@@ -683,44 +733,49 @@ function BroadcastDialog({ open, onClose, mailboxes, footerText, canDraft, onDra
   const [mailboxId, setMailboxId] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [token, setToken] = useState("");
+  const [attachments, setAttachments] = useState<StagedAttachment[]>([]);
   const [segType, setSegType] = useState<"all" | "registered" | "min_spent">("all");
   const [minSpent, setMinSpent] = useState("");
   const [busy, setBusy] = useState<"send" | "draft" | null>(null);
   const [result, setResult] = useState("");
 
   useEffect(() => { if (open && mailboxes.length && !mailboxId) setMailboxId(mailboxes[0].id); }, [open, mailboxes, mailboxId]);
+  useEffect(() => { if (open && !token) setToken(makeComposeToken()); }, [open, token]);
 
   const segment = () => segType === "min_spent" ? { type: "min_spent", value: Number(minSpent) || 0 } : { type: segType };
+  const bodyEmpty = !stripTags(body).trim();
+  const resetCompose = () => { setSubject(""); setBody(""); setAttachments([]); setToken(makeComposeToken()); };
 
   const send = async () => {
     setBusy("send"); setResult("");
     const res = await fetch("/api/admin-email/broadcast", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mailbox_id: mailboxId, subject, body, segment: segment() }),
+      body: JSON.stringify({ mailbox_id: mailboxId, subject, body_html: body, compose_token: token, segment: segment() }),
     });
     const d = await res.json().catch(() => ({}));
     setBusy(null);
     if (!res.ok) { setResult(d.error || "Broadcast failed"); return; }
     setResult(`Sent to ${d.sent}/${d.recipient_count} recipients${d.failed ? ` (${d.failed} failed)` : ""}.`);
-    setSubject(""); setBody("");
+    resetCompose();
   };
 
   const saveDraft = async () => {
     setBusy("draft"); setResult("");
     const res = await fetch("/api/admin-email/drafts", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind: "broadcast", mailbox_id: mailboxId, subject, body, segment: segment() }),
+      body: JSON.stringify({ kind: "broadcast", mailbox_id: mailboxId, subject, body_html: body, compose_token: token, segment: segment() }),
     });
     setBusy(null);
     if (!res.ok) { const d = await res.json().catch(() => ({})); setResult(d.error || "Could not save draft"); return; }
     setResult("Saved to Drafts.");
-    setSubject(""); setBody("");
+    resetCompose();
     onDrafted();
   };
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Megaphone className="h-5 w-5 text-secondary" /> Broadcast email</DialogTitle>
           <DialogDescription>Send a one-way email to a customer segment. Recipients don&apos;t see each other.</DialogDescription>
@@ -750,7 +805,11 @@ function BroadcastDialog({ open, onClose, mailboxes, footerText, canDraft, onDra
               </div>
               {segType === "min_spent" && <Input label="Minimum total spent (৳)" type="number" value={minSpent} onChange={(e) => setMinSpent(e.target.value)} />}
               <Input label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
-              <Textarea label="Message" value={body} onChange={(e) => setBody(e.target.value)} rows={6} />
+              <div>
+                <label className="block text-sm font-medium text-charcoal-light mb-1.5">Message</label>
+                <RichTextEditor value={body} onChange={setBody} placeholder="Write your promotion…" />
+              </div>
+              {token && <AttachmentUploader composeToken={token} attachments={attachments} onChange={setAttachments} />}
               <FooterPreview footerText={footerText} />
               {result && <p className="text-xs text-secondary flex items-center gap-1"><Check className="h-3 w-3" /> {result}</p>}
             </>
@@ -759,12 +818,12 @@ function BroadcastDialog({ open, onClose, mailboxes, footerText, canDraft, onDra
         <DialogFooter className="gap-2">
           <AdminButton variant="outline" onClick={onClose}>Close</AdminButton>
           {mailboxes.length > 0 && canDraft && (
-            <AdminButton variant="outline" onClick={saveDraft} disabled={busy !== null || !subject.trim() || !body.trim() || !mailboxId}>
+            <AdminButton variant="outline" onClick={saveDraft} disabled={busy !== null || !subject.trim() || bodyEmpty || !mailboxId}>
               {busy === "draft" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />} Save as Draft
             </AdminButton>
           )}
           {mailboxes.length > 0 && (
-            <AdminButton onClick={send} disabled={busy !== null || !subject.trim() || !body.trim() || !mailboxId}>
+            <AdminButton onClick={send} disabled={busy !== null || !subject.trim() || bodyEmpty || !mailboxId}>
               {busy === "send" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />} Send broadcast
             </AdminButton>
           )}
