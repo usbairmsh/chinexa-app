@@ -2,7 +2,6 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import Image from "next/image";
 import { Loader2 } from "lucide-react";
 import { useStoreSettings } from "@/hooks/use-store-settings";
 
@@ -28,24 +27,21 @@ interface OrderData {
   redacted?: boolean;
 }
 
-const statusLabels: Record<string, string> = {
-  pending: "Pending", confirmed: "Confirmed", processing: "Processing",
-  shipped: "Shipped", on_delivery: "On Delivery", received: "Received",
-  not_received: "Not Received", returned: "Returned", cancelled: "Cancelled",
-};
+interface InvoiceSettings {
+  tagline: string; tax_reg_no: string; website: string; signature_image: string;
+  bank_account_holder: string; bank_name: string; bank_routing: string;
+  bank_account_no: string; bank_iban: string; bank_swift: string; bank_address: string;
+}
+
+const TEAL = "#159A8C";
+const INK = "#2f3b3a";
 
 function formatDate(date: string) {
-  return new Date(date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  return new Date(date).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" }).replace(/\//g, ".");
 }
 
 function formatCurrency(amount: number) {
   return `৳${Number(amount).toLocaleString("en-BD")}`;
-}
-
-function formatAddress(addr: OrderData["billing_address"]) {
-  if (!addr) return "";
-  const parts = [addr.address_line_1, addr.address_line_2, addr.city, addr.district, addr.division, addr.postal_code].filter(Boolean);
-  return parts.join(", ");
 }
 
 function InvoiceContent() {
@@ -56,9 +52,14 @@ function InvoiceContent() {
   // way the rest of the app does — pass customer_id through so this gets the
   // real address/name instead of a redacted, PII-stripped response.
   const customerId = searchParams.get("customer_id") || "";
-  const { store_name, store_email, store_phone, loaded: settingsLoaded } = useStoreSettings();
+  const { store_name, store_email, store_phone, store_address, loaded: settingsLoaded } = useStoreSettings();
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
+  // Admin-entered invoice fields (bank block, tagline, signature, tax reg) +
+  // the store logo, loaded from settings.
+  const [inv, setInv] = useState<InvoiceSettings | null>(null);
+  const [logo, setLogo] = useState("/logo.png");
+  const [invLoaded, setInvLoaded] = useState(false);
 
   useEffect(() => {
     if (!orderId) { setLoading(false); return; }
@@ -72,16 +73,27 @@ function InvoiceContent() {
       .finally(() => setLoading(false));
   }, [orderId, customerId]);
 
+  useEffect(() => {
+    fetch("/api/settings?keys=invoice,store_logo")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.invoice) setInv(d.invoice);
+        if (d?.store_logo) setLogo(d.store_logo);
+      })
+      .catch(() => {})
+      .finally(() => setInvLoaded(true));
+  }, []);
+
   // Auto-print once loaded — wait on store settings too, so a real phone/email
   // ends up on the printed page rather than the placeholder defaults.
   useEffect(() => {
-    if (order && !loading && settingsLoaded) {
+    if (order && !loading && settingsLoaded && invLoaded) {
       const timer = setTimeout(() => window.print(), 600);
       return () => clearTimeout(timer);
     }
-  }, [order, loading, settingsLoaded]);
+  }, [order, loading, settingsLoaded, invLoaded]);
 
-  if (loading || !settingsLoaded) {
+  if (loading || !settingsLoaded || !invLoaded) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
         <Loader2 style={{ height: 32, width: 32, animation: "spin 1s linear infinite", color: "#999" }} />
@@ -102,181 +114,189 @@ function InvoiceContent() {
     );
   }
 
+  const bill = order.billing_address;
+  const bankRows: [string, string | undefined][] = [
+    ["Account Holder", inv?.bank_account_holder],
+    ["Bank", inv?.bank_name],
+    ["Routing No.", inv?.bank_routing],
+    ["Account No.", inv?.bank_account_no],
+    ["IBAN", inv?.bank_iban],
+    ["SWIFT", inv?.bank_swift],
+  ];
+  const hasBank = bankRows.some(([, v]) => v) || inv?.bank_address;
+
   return (
     <>
       <style>{`
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: #1a1a1a; background: #f5f5f5; }
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: ${INK}; background: #f0f0f0; }
         @media print {
           body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .no-print { display: none !important; }
-          .invoice-wrapper { box-shadow: none !important; margin: 0 !important; max-width: none !important; padding: 20px !important; }
-          @page { size: A4; margin: 12mm 15mm; }
+          .inv-wrap { box-shadow: none !important; margin: 0 !important; max-width: none !important; }
+          @page { size: A4; margin: 10mm; }
         }
-        @media (max-width: 640px) {
-          .invoice-wrapper { padding: 16px !important; margin-top: 56px !important; }
-          .invoice-header { flex-direction: column !important; gap: 16px !important; }
-          .invoice-header > div:last-child { text-align: left !important; }
-          .invoice-header > div:last-child table { margin-left: 0 !important; }
-          .invoice-addresses { grid-template-columns: 1fr !important; gap: 16px !important; }
-          .invoice-toolbar { padding: 8px 12px !important; }
-          .invoice-toolbar span { font-size: 12px !important; }
-          .invoice-toolbar button { padding: 6px 12px !important; font-size: 12px !important; }
-          .invoice-totals { width: 100% !important; }
-          .invoice-logo { height: 60px !important; }
+        @media (max-width: 680px) {
+          .inv-wrap { margin-top: 56px !important; }
+          .inv-pad { padding: 24px !important; }
+          .inv-top { flex-direction: column-reverse !important; gap: 16px !important; align-items: flex-start !important; }
+          .inv-banner { flex-direction: column !important; }
+          .inv-banner > div { border-right: none !important; border-bottom: 1px solid rgba(255,255,255,0.15) !important; }
+          .inv-foot { flex-direction: column !important; gap: 6px !important; }
+          .inv-bank { grid-template-columns: 1fr !important; }
+          .inv-toolbar button { padding: 6px 12px !important; font-size: 12px !important; }
         }
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
 
       {/* Toolbar — hidden in print */}
-      <div className="no-print invoice-toolbar" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 50, background: "#1a1a1a", padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="no-print inv-toolbar" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 50, background: INK, padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>Invoice — {order.order_number}</span>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => window.print()} style={{ padding: "8px 20px", background: "#C0392B", color: "#fff", fontSize: 13, fontWeight: 600, borderRadius: 8, border: "none", cursor: "pointer" }}>
-            Print / Save PDF
-          </button>
-          <button onClick={() => window.close()} style={{ padding: "8px 20px", background: "#444", color: "#fff", fontSize: 13, fontWeight: 600, borderRadius: 8, border: "none", cursor: "pointer" }}>
-            Close
-          </button>
+          <button onClick={() => window.print()} style={{ padding: "8px 20px", background: TEAL, color: "#fff", fontSize: 13, fontWeight: 600, borderRadius: 8, border: "none", cursor: "pointer" }}>Print / Save PDF</button>
+          <button onClick={() => window.close()} style={{ padding: "8px 20px", background: "#555", color: "#fff", fontSize: 13, fontWeight: 600, borderRadius: 8, border: "none", cursor: "pointer" }}>Close</button>
         </div>
       </div>
 
-      {/* Invoice Body */}
-      <div className="invoice-wrapper" style={{ maxWidth: 800, margin: "72px auto 40px", background: "#fff", padding: "40px", boxShadow: "0 2px 20px rgba(0,0,0,0.08)", borderRadius: 8 }}>
+      {/* Invoice sheet */}
+      <div className="inv-wrap" style={{ maxWidth: 800, margin: "72px auto 40px", background: "#fff", boxShadow: "0 2px 24px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", minHeight: 900 }}>
+        <div className="inv-pad" style={{ padding: "44px 48px", flex: 1 }}>
 
-        {/* Header */}
-        <div className="invoice-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, paddingBottom: 20, borderBottom: "2px solid #C0392B" }}>
-          <div>
-            <Image src="/logo.png" alt={store_name} width={320} height={124} className="invoice-logo" style={{ height: 90, width: "auto", marginBottom: 10 }} unoptimized />
-            <div style={{ fontSize: 9, color: "#999", lineHeight: 1.6 }}>
-              Premium Beauty & Lifestyle<br />
-              Dhaka, Bangladesh<br />
-              {store_email} | {store_phone}
+          {/* Top — seller address (left) + logo/tagline (right) */}
+          <div className="inv-top" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, marginBottom: 40 }}>
+            <div style={{ fontSize: 11, color: TEAL, maxWidth: 320, lineHeight: 1.5, paddingTop: 24 }}>
+              {store_name}{store_address ? `, ${store_address}` : ""}
+            </div>
+            <div style={{ textAlign: "center" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={logo} alt={store_name} style={{ height: 72, width: "auto", objectFit: "contain" }} />
+              {inv?.tagline && <div style={{ fontSize: 13, color: TEAL, fontStyle: "italic", marginTop: 2 }}>« {inv.tagline} »</div>}
             </div>
           </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: "#C0392B", marginBottom: 6, letterSpacing: 1 }}>INVOICE</div>
-            <table style={{ marginLeft: "auto", fontSize: 10, color: "#555", borderSpacing: "4px 2px", borderCollapse: "separate" }}>
-              <tbody>
-                <tr>
-                  <td style={{ textAlign: "right", fontWeight: 500, color: "#999", paddingRight: 6 }}>Invoice No:</td>
-                  <td style={{ fontWeight: 700, color: "#1a1a1a", fontSize: 10 }}>{order.order_number}</td>
-                </tr>
-                <tr>
-                  <td style={{ textAlign: "right", fontWeight: 500, color: "#999", paddingRight: 6 }}>Date:</td>
-                  <td>{formatDate(order.created_at)}</td>
-                </tr>
-                <tr>
-                  <td style={{ textAlign: "right", fontWeight: 500, color: "#999", paddingRight: 6 }}>Status:</td>
-                  <td><span style={{ display: "inline-block", padding: "1px 6px", borderRadius: 3, fontSize: 8, fontWeight: 700, background: "#f0f0f0", color: "#555" }}>{statusLabels[order.status] || order.status}</span></td>
-                </tr>
-                <tr>
-                  <td style={{ textAlign: "right", fontWeight: 500, color: "#999", paddingRight: 6 }}>Payment:</td>
-                  <td style={{ textTransform: "capitalize" }}>{order.payment_method}</td>
-                </tr>
-                <tr>
-                  <td style={{ textAlign: "right", fontWeight: 500, color: "#999", paddingRight: 6 }}>Paid:</td>
-                  <td><span style={{ display: "inline-block", padding: "1px 6px", borderRadius: 3, fontSize: 8, fontWeight: 700, background: order.payment_status === "paid" ? "#ecfdf5" : order.payment_status === "refunded" ? "#eef2ff" : "#fffbeb", color: order.payment_status === "paid" ? "#047857" : order.payment_status === "refunded" ? "#4338ca" : "#b45309" }}>{order.payment_status === "paid" ? "Paid" : order.payment_status === "refunded" ? "Refunded" : "Pending"}</span></td>
-                </tr>
-                {order.transaction_id && (
-                  <tr>
-                    <td style={{ textAlign: "right", fontWeight: 500, color: "#999", paddingRight: 6 }}>TXN ID:</td>
-                    <td style={{ fontFamily: "monospace", fontSize: 9 }}>{order.transaction_id}</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
 
-        {/* Bill To / Ship To */}
-        <div className="invoice-addresses" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>
-          <div>
-            <div style={{ fontSize: 8, fontWeight: 800, textTransform: "uppercase", letterSpacing: 2, color: "#bbb", marginBottom: 6 }}>Bill To</div>
-            <div style={{ fontWeight: 600, fontSize: 11, color: "#1a1a1a" }}>{order.billing_address?.name || order.customer_name}</div>
-            <div style={{ fontSize: 10, color: "#666", marginTop: 1 }}>{order.billing_address?.phone || order.customer_phone}</div>
-            {order.billing_address?.email && <div style={{ fontSize: 10, color: "#666" }}>{order.billing_address.email}</div>}
-            <div style={{ fontSize: 9, color: "#999", marginTop: 3 }}>{formatAddress(order.billing_address)}</div>
+          {/* Bill To + meta */}
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 24, marginBottom: 24 }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: INK, marginBottom: 4 }}>BILL TO:</div>
+              <div style={{ fontSize: 11, color: INK, lineHeight: 1.6 }}>
+                <div style={{ fontWeight: 600 }}>{bill?.name || order.customer_name}</div>
+                {(bill?.address_line_1) && <div>{bill.address_line_1}</div>}
+                {bill?.address_line_2 && <div>{bill.address_line_2}</div>}
+                <div>{[bill?.city, bill?.district, bill?.division, bill?.postal_code].filter(Boolean).join(", ")}</div>
+                <div style={{ color: "#7a8584" }}>{bill?.phone || order.customer_phone}</div>
+                {bill?.email && <div style={{ color: "#7a8584" }}>{bill.email}</div>}
+              </div>
+            </div>
+            <div style={{ textAlign: "left", fontSize: 11 }}>
+              <table style={{ borderSpacing: "8px 3px", borderCollapse: "separate" }}>
+                <tbody>
+                  <tr><td style={{ color: INK, fontWeight: 600 }}>Invoice number</td><td style={{ fontWeight: 700, color: INK }}>{order.order_number}</td></tr>
+                  <tr><td style={{ color: INK, fontWeight: 600 }}>Issue date:</td><td style={{ fontWeight: 700, color: INK }}>{formatDate(order.created_at)}</td></tr>
+                  <tr><td style={{ color: INK, fontWeight: 600 }}>Payment method:</td><td style={{ fontWeight: 700, color: INK, textTransform: "capitalize" }}>{order.payment_method}</td></tr>
+                  <tr><td style={{ color: INK, fontWeight: 600 }}>Payment status:</td><td><span style={{ display: "inline-block", padding: "1px 7px", borderRadius: 3, fontSize: 9, fontWeight: 700, background: order.payment_status === "paid" ? "#e6f4ec" : order.payment_status === "refunded" ? "#eef2ff" : "#fff5e6", color: order.payment_status === "paid" ? "#159A5c" : order.payment_status === "refunded" ? "#4338ca" : "#b45309" }}>{order.payment_status === "paid" ? "Paid" : order.payment_status === "refunded" ? "Refunded" : "Pending"}</span></td></tr>
+                  {order.transaction_id && <tr><td style={{ color: INK, fontWeight: 600 }}>Txn ID:</td><td style={{ fontFamily: "monospace", fontSize: 10 }}>{order.transaction_id}</td></tr>}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: 8, fontWeight: 800, textTransform: "uppercase", letterSpacing: 2, color: "#bbb", marginBottom: 6 }}>Ship To</div>
-            <div style={{ fontWeight: 600, fontSize: 11, color: "#1a1a1a" }}>{order.shipping_address?.name || order.customer_name}</div>
-            <div style={{ fontSize: 10, color: "#666", marginTop: 1 }}>{order.shipping_address?.phone || order.customer_phone}</div>
-            <div style={{ fontSize: 9, color: "#999", marginTop: 3 }}>{formatAddress(order.shipping_address)}</div>
-          </div>
-        </div>
 
-        {/* Items Table */}
-        <div style={{ overflowX: "auto", marginBottom: 24 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 480 }}>
-          <thead>
-            <tr style={{ background: "#C0392B" }}>
-              <th style={{ textAlign: "left", padding: "7px 10px", fontSize: 8, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: "#fff", borderRadius: "6px 0 0 0" }}>#</th>
-              <th style={{ textAlign: "left", padding: "7px 10px", fontSize: 8, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: "#fff" }}>Item Description</th>
-              <th style={{ textAlign: "center", padding: "7px 10px", fontSize: 8, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: "#fff" }}>Qty</th>
-              <th style={{ textAlign: "right", padding: "7px 10px", fontSize: 8, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: "#fff" }}>Unit Price</th>
-              <th style={{ textAlign: "right", padding: "7px 10px", fontSize: 8, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: "#fff", borderRadius: "0 6px 0 0" }}>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(order.items || []).map((item, i) => (
-              <tr key={i} style={{ borderBottom: "1px solid #f0f0f0", background: i % 2 === 0 ? "#fafafa" : "#fff" }}>
-                <td style={{ padding: "7px 10px", fontSize: 10, color: "#bbb" }}>{i + 1}</td>
-                <td style={{ padding: "7px 10px" }}>
-                  <div style={{ fontWeight: 600, fontSize: 11, color: "#1a1a1a" }}>{item.product_name}</div>
-                  {item.variant && <div style={{ fontSize: 8, color: "#999", marginTop: 1 }}>{item.variant}</div>}
-                </td>
-                <td style={{ padding: "7px 10px", textAlign: "center", fontSize: 11, color: "#555" }}>{item.quantity}</td>
-                <td style={{ padding: "7px 10px", textAlign: "right", fontSize: 11, color: "#555" }}>{formatCurrency(Number(item.unit_price))}</td>
-                <td style={{ padding: "7px 10px", textAlign: "right", fontSize: 11, fontWeight: 600, color: "#1a1a1a" }}>{formatCurrency(Number(item.total_price))}</td>
+          {/* Teal banner — issue date + total */}
+          <div className="inv-banner" style={{ display: "flex", borderRadius: 4, overflow: "hidden", marginBottom: 24 }}>
+            <div style={{ flex: 1, background: TEAL, color: "#fff", padding: "12px 18px", borderRight: "1px solid rgba(255,255,255,0.2)" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, opacity: 0.85 }}>Issue date</div>
+              <div style={{ fontSize: 18, fontWeight: 700, marginTop: 2 }}>{formatDate(order.created_at)}</div>
+            </div>
+            <div style={{ flex: 1, background: INK, color: "#fff", padding: "12px 18px" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, opacity: 0.85 }}>Total due</div>
+              <div style={{ fontSize: 18, fontWeight: 700, marginTop: 2 }}>{formatCurrency(Number(order.total))}</div>
+            </div>
+          </div>
+
+          {/* Items */}
+          <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 8 }}>
+            <thead>
+              <tr style={{ borderBottom: `2px solid ${TEAL}` }}>
+                <th style={{ textAlign: "left", padding: "8px 4px", fontSize: 11, fontWeight: 700, color: INK }}>Description</th>
+                <th style={{ textAlign: "center", padding: "8px 4px", fontSize: 11, fontWeight: 700, color: INK, width: 70 }}>Qty.</th>
+                <th style={{ textAlign: "right", padding: "8px 4px", fontSize: 11, fontWeight: 700, color: INK, width: 110 }}>Unit price</th>
+                <th style={{ textAlign: "right", padding: "8px 4px", fontSize: 11, fontWeight: 700, color: INK, width: 120 }}>Amount</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
+            </thead>
+            <tbody>
+              {(order.items || []).map((item, i) => (
+                <tr key={i} style={{ borderBottom: "1px solid #eef0ef" }}>
+                  <td style={{ padding: "10px 4px", fontSize: 11, color: TEAL }}>
+                    {item.product_name}{item.variant ? <span style={{ color: "#98a2a1" }}> — {item.variant}</span> : null}
+                  </td>
+                  <td style={{ padding: "10px 4px", textAlign: "center", fontSize: 11, color: INK }}>{item.quantity}</td>
+                  <td style={{ padding: "10px 4px", textAlign: "right", fontSize: 11, color: INK }}>{formatCurrency(Number(item.unit_price))}</td>
+                  <td style={{ padding: "10px 4px", textAlign: "right", fontSize: 11, color: INK }}>{formatCurrency(Number(item.total_price))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-        {/* Totals */}
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 24 }}>
-          <div className="invoice-totals" style={{ width: 240 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 10, color: "#666" }}>
-              <span>Subtotal</span>
-              <span>{formatCurrency(Number(order.subtotal))}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 10, color: "#666" }}>
-              <span>Shipping</span>
-              <span>{Number(order.shipping_cost) === 0 ? "Free" : formatCurrency(Number(order.shipping_cost))}</span>
-            </div>
-            {Number(order.discount) > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 10, color: "#047857" }}>
-                <span>Discount</span>
-                <span>-{formatCurrency(Number(order.discount))}</span>
+          {/* Totals — right aligned, no tax */}
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+            <div style={{ width: 260 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 4px", fontSize: 11, color: TEAL, borderBottom: "1px solid #eef0ef" }}>
+                <span>Subtotal:</span><span>{formatCurrency(Number(order.subtotal))}</span>
               </div>
-            )}
-            {Number(order.tax) > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 10, color: "#666" }}>
-                <span>Tax</span>
-                <span>{formatCurrency(Number(order.tax))}</span>
+              {Number(order.shipping_cost) > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 4px", fontSize: 11, color: TEAL, borderBottom: "1px solid #eef0ef" }}>
+                  <span>Shipping:</span><span>{formatCurrency(Number(order.shipping_cost))}</span>
+                </div>
+              )}
+              {Number(order.discount) > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 4px", fontSize: 11, color: "#159A5c", borderBottom: "1px solid #eef0ef" }}>
+                  <span>Discount:</span><span>-{formatCurrency(Number(order.discount))}</span>
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 4px", fontSize: 15, fontWeight: 800, color: INK }}>
+                <span>Total:</span><span>{formatCurrency(Number(order.total))}</span>
               </div>
-            )}
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", marginTop: 3, borderTop: "2px solid #C0392B", fontWeight: 800, fontSize: 13, color: "#1a1a1a" }}>
-              <span>Total</span>
-              <span>{formatCurrency(Number(order.total))}</span>
             </div>
           </div>
+
+          {/* Signature */}
+          {inv?.signature_image && (
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 24 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={inv.signature_image} alt="Signature" style={{ height: 80, width: "auto", objectFit: "contain", opacity: 0.9 }} />
+            </div>
+          )}
+
+          {order.notes && (
+            <div style={{ marginTop: 24, fontSize: 10, color: "#7a8584" }}>
+              <span style={{ fontWeight: 700, color: INK }}>Notes: </span>{order.notes}
+            </div>
+          )}
         </div>
 
-        {/* Notes */}
-        {order.notes && (
-          <div style={{ marginBottom: 24, padding: 12, background: "#f9f9f9", borderRadius: 6, border: "1px solid #eee" }}>
-            <div style={{ fontSize: 8, fontWeight: 800, textTransform: "uppercase", letterSpacing: 2, color: "#bbb", marginBottom: 3 }}>Notes</div>
-            <div style={{ fontSize: 9, color: "#666" }}>{order.notes}</div>
+        {/* Footer band */}
+        <div style={{ borderTop: `2px solid ${TEAL}`, padding: "16px 48px 28px" }}>
+          {/* Contact row */}
+          <div className="inv-foot" style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8, fontSize: 10, color: INK, paddingBottom: 12 }}>
+            {store_phone && <span>☎ {store_phone}</span>}
+            {(inv?.website) && <span>🌐 {inv.website}</span>}
+            {store_email && <span>✉ {store_email}</span>}
           </div>
-        )}
-
-        {/* Footer */}
-        <div style={{ borderTop: "1px solid #eee", paddingTop: 24, textAlign: "center" }}>
-          <div style={{ fontSize: 10, color: "#999", marginBottom: 3 }}>Thank you for shopping with {store_name}!</div>
-          <div style={{ fontSize: 8, color: "#ccc" }}>This is a computer-generated invoice and does not require a signature.</div>
+          {/* Two-column details */}
+          <div className="inv-bank" style={{ display: "grid", gridTemplateColumns: hasBank ? "1fr 1fr" : "1fr", gap: 20, fontSize: 9.5, color: "#5a6564", lineHeight: 1.7 }}>
+            <div>
+              <div style={{ fontWeight: 700, color: INK }}>{store_name}</div>
+              {store_address && <div>{store_address}</div>}
+              {inv?.tax_reg_no && <div>Tax Reg No.: <b style={{ color: INK }}>{inv.tax_reg_no}</b></div>}
+            </div>
+            {hasBank && (
+              <div>
+                {bankRows.filter(([, v]) => v).map(([label, v]) => (
+                  <div key={label}>{label}: <b style={{ color: INK }}>{v}</b></div>
+                ))}
+                {inv?.bank_address && <div>Bank address: <b style={{ color: INK }}>{inv.bank_address}</b></div>}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </>
