@@ -105,9 +105,13 @@ export async function POST(req: NextRequest) {
   // Resend's email.received webhook often carries only metadata + an email id;
   // the full html/text body must be fetched from the API. If we still have no
   // body but do have an id and an API key, pull the full email.
-  if (!bodyHtml && !bodyText) {
+  const foundBodyInline = !!(bodyHtml || bodyText);
+  if (!foundBodyInline) {
     const emailId = firstString(data.email_id, data.id, (data as Record<string, unknown>).emailId);
     const apiKey = process.env.RESEND_API_KEY;
+    console.error(
+      `[inbound-email] no inline body. top keys=${JSON.stringify(Object.keys(payload))} data keys=${JSON.stringify(Object.keys(data))} emailId=${emailId || "NONE"} hasApiKey=${!!apiKey}`
+    );
     if (emailId && apiKey) {
       try {
         const r = await fetch(`https://api.resend.com/emails/${emailId}`, {
@@ -117,8 +121,9 @@ export async function POST(req: NextRequest) {
           const full = (await r.json()) as Record<string, unknown>;
           bodyHtml = bodyHtml || firstString(full.html, deepFindString(full, ["html", "body_html"]));
           bodyText = bodyText || firstString(full.text, deepFindString(full, ["text", "body_text"]));
+          console.error(`[inbound-email] fetched email ${emailId}; got body=${!!(bodyHtml || bodyText)} fullKeys=${JSON.stringify(Object.keys(full))}`);
         } else {
-          console.error("[inbound-email] Resend email fetch failed:", r.status);
+          console.error("[inbound-email] Resend email fetch failed:", r.status, (await r.text()).slice(0, 300));
         }
       } catch (err) {
         console.error("[inbound-email] Resend email fetch error:", err);
@@ -126,10 +131,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Still nothing — log the FULL payload (truncated) so we can see the exact
-  // shape this provider sends and map the body field precisely.
+  // Still nothing — dump the full payload so we can map the body field exactly.
   if (!bodyHtml && !bodyText) {
-    console.error("[inbound-email] no body found. Payload:", JSON.stringify(payload).slice(0, 4000));
+    console.error("[inbound-email] STILL no body. Full payload:", JSON.stringify(payload).slice(0, 6000));
   }
 
   const headers = (data.headers && typeof data.headers === "object" ? data.headers : {}) as Record<string, unknown>;
