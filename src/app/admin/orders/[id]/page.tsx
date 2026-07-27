@@ -37,7 +37,7 @@ export default function OrderDetailPage() {
   const { can } = useAdmin();
   const canEditOrder = can("orders", "edit");
   const canHandleOrders = can("orders", "handle_orders");
-  const canApproveReturns = can("orders", "approve");
+  const canApproveReturns = can("returns", "view");
 
   const [order, setOrder] = useState<Record<string, unknown> | null>(null);
 
@@ -63,7 +63,6 @@ export default function OrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [note, setNote] = useState("");
   const [returns, setReturns] = useState<Record<string, unknown>[]>([]);
-  const [returnActionLoading, setReturnActionLoading] = useState("");
   const [noteSaved, setNoteSaved] = useState(false);
 
   useEffect(() => {
@@ -86,16 +85,6 @@ export default function OrderDetailPage() {
   const handleStatusUpdate = async (status: string) => {
     await fetch(`/api/orders/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
     setOrder((prev) => prev ? { ...prev, status } : prev);
-  };
-
-  const handleReturnAction = async (returnId: string, action: "approved" | "rejected" | "refunded") => {
-    setReturnActionLoading(returnId);
-    try {
-      await fetch(`/api/returns/${returnId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: action }) });
-      setReturns((prev) => prev.map((r) => r.id === returnId ? { ...r, status: action } : r));
-      if (action === "approved") setOrder((prev) => prev ? { ...prev, status: "returned" } : prev);
-      if (action === "refunded") setOrder((prev) => prev ? { ...prev, payment_status: "refunded" } : prev);
-    } catch {} finally { setReturnActionLoading(""); }
   };
 
   const openEditOrder = () => {
@@ -355,23 +344,11 @@ export default function OrderDetailPage() {
                     <p className="text-xs text-charcoal"><span className="font-medium">Reason:</span> {String(ret.reason).replace("_", " ")}</p>
                     {ret.description ? <p className="text-xs text-charcoal-lighter">{String(ret.description)}</p> : null}
                     <p className="text-xs text-charcoal [font-variant-numeric:tabular-nums]"><span className="font-medium">Refund:</span> {formatCurrency(Number(ret.refund_amount))}</p>
-                    {ret.status === "requested" && canApproveReturns && (
-                      <div className="flex gap-2 pt-1">
-                        <AdminButton size="xs" onClick={() => handleReturnAction(ret.id as string, "approved")} disabled={returnActionLoading === ret.id}>
-                          {returnActionLoading === ret.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />} Approve
-                        </AdminButton>
-                        <AdminButton variant="danger" size="xs" onClick={() => handleReturnAction(ret.id as string, "rejected")} disabled={returnActionLoading === ret.id}>
-                          <XCircle className="h-3 w-3" /> Reject
-                        </AdminButton>
-                      </div>
-                    )}
-                    {ret.status === "approved" && canApproveReturns && (
-                      <AdminButton size="xs" variant="outline" onClick={() => handleReturnAction(ret.id as string, "refunded")} disabled={returnActionLoading === ret.id}>
-                        {returnActionLoading === ret.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CreditCard className="h-3 w-3" />} Mark Refunded
-                      </AdminButton>
-                    )}
                   </div>
                 ))}
+                {canApproveReturns && (
+                  <Link href="/admin/returns" className="block text-xs text-secondary hover:underline pt-1">Manage in Returns &rarr;</Link>
+                )}
               </CardContent>
             </Card>
           )}

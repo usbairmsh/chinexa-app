@@ -7,6 +7,7 @@ import { notifyAdmin } from "@/lib/notify";
 import { ensureReturnColumns } from "@/lib/migrate-returns";
 import { getReturnConfig } from "@/lib/return-config";
 import { checkInstantReturnAbuseRules } from "@/lib/points-deduction-engine";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,11 @@ export async function GET(req: NextRequest) {
     } else if (orderNumber) {
       sql += " WHERE order_number = ?";
       params.push(orderNumber);
+    } else {
+      // No filter = the admin "all returns" list — gate it (the scoped queries
+      // above stay open for the customer/public order-lookup pages).
+      const denied = await requirePermission(req, "returns", "view");
+      if (denied) return denied;
     }
 
     sql += " ORDER BY created_at DESC";

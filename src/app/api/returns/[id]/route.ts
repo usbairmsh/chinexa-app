@@ -61,8 +61,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const customerId = ret.customer_id as string | null;
     const items = parseItems(ret.items);
 
-    // Everything here is the return-adjacent "approve" capability.
-    const denied = await requirePermission(req, "orders", "approve");
+    // Gated by the dedicated Returns permission (approve = manage the lifecycle).
+    const denied = await requirePermission(req, "returns", "approve");
     if (denied) return denied;
 
     const orderRows = await query<RowDataPacket[]>("SELECT * FROM orders WHERE id = ?", [ret.order_id]);
