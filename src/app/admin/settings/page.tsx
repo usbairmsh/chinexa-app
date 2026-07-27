@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   Settings, Store, Truck, CreditCard, Bell, Save, Loader2, Check,
   Plus, Trash2, X, Edit, Globe, FolderTree, ShoppingCart, Award, Users, Search,
-  BookOpen, Megaphone, Mail, MessageSquare, FileText
+  BookOpen, Megaphone, Mail, MessageSquare
 } from "lucide-react";
 import { SOCIAL_PLATFORMS, getPlatform } from "@/lib/social-platforms";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -27,7 +27,7 @@ import { OUR_STORY_ICON_MAP, OUR_STORY_ICON_OPTIONS } from "@/lib/our-story-icon
 import type { InstagramPost } from "@/types/instagram-feed";
 import type { FaqItem } from "@/types/faq";
 
-type Tab = "general" | "store" | "delivery" | "payment" | "notifications" | "invoice";
+type Tab = "general" | "store" | "delivery" | "payment" | "notifications";
 
 const tabList: { id: Tab; label: string; icon: typeof Settings }[] = [
   { id: "general", label: "General", icon: Settings },
@@ -35,28 +35,7 @@ const tabList: { id: Tab; label: string; icon: typeof Settings }[] = [
   { id: "delivery", label: "Delivery", icon: Truck },
   { id: "payment", label: "Payment", icon: CreditCard },
   { id: "notifications", label: "Notifications", icon: Bell },
-  { id: "invoice", label: "Invoice", icon: FileText },
 ];
-
-// All admin-entered invoice fields live under the single `invoice` settings key.
-interface InvoiceSettings {
-  tagline: string;
-  tax_reg_no: string;
-  website: string;
-  signature_image: string;
-  bank_account_holder: string;
-  bank_name: string;
-  bank_routing: string;
-  bank_account_no: string;
-  bank_iban: string;
-  bank_swift: string;
-  bank_address: string;
-}
-const DEFAULT_INVOICE: InvoiceSettings = {
-  tagline: "", tax_reg_no: "", website: "", signature_image: "",
-  bank_account_holder: "", bank_name: "", bank_routing: "", bank_account_no: "",
-  bank_iban: "", bank_swift: "", bank_address: "",
-};
 
 // ── Feature toggles, grouped so Email and SMS each get their own section ──
 interface FeatureToggle { key: string; label: string; desc: string; def: boolean }
@@ -234,11 +213,6 @@ function AdminSettingsPageInner() {
   const [generalSaving, setGeneralSaving] = useState(false);
   const [generalSaved, setGeneralSaved] = useState(false);
 
-  // ═══ INVOICE ═══
-  const [invoice, setInvoice] = useState<InvoiceSettings>(DEFAULT_INVOICE);
-  const [invoiceSaving, setInvoiceSaving] = useState(false);
-  const [invoiceSaved, setInvoiceSaved] = useState(false);
-
   // ═══ STORE ═══
   const [storeLogo, setStoreLogo] = useState("");
   const [ourStory, setOurStory] = useState<OurStoryContent>(DEFAULT_OUR_STORY);
@@ -347,7 +321,7 @@ function AdminSettingsPageInner() {
       if (Array.isArray(emails)) setOrderEmailAdmins(emails.filter((x: unknown): x is string => typeof x === "string").join(", "));
     }).catch(() => {});
 
-    fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,features,store_logo,our_story,instagram_feed,faq_items,social_links,maintenance_mode,delivery_config,payment_methods,notification_settings,invoice")
+    fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,features,store_logo,our_story,instagram_feed,faq_items,social_links,maintenance_mode,delivery_config,payment_methods,notification_settings")
       .then((r) => r.json())
       .then((data) => {
         if (data.store_name) setStoreName(data.store_name);
@@ -356,7 +330,6 @@ function AdminSettingsPageInner() {
         if (data.store_address) setStoreAddress(data.store_address);
         if (data.features) setFeatures((p) => ({ ...p, ...data.features }));
         if (data.store_logo) setStoreLogo(data.store_logo);
-        if (data.invoice) setInvoice((p) => ({ ...p, ...data.invoice }));
         if (data.our_story) setOurStory({ ...DEFAULT_OUR_STORY, ...data.our_story });
         if (data.instagram_feed) {
           setInstagramHandle(data.instagram_feed.handle || "");
@@ -488,9 +461,6 @@ function AdminSettingsPageInner() {
     faq_items: faqItems,
     social_links: socialLinks, maintenance_mode: maintenanceMode,
   }, setStoreSaving, setStoreSaved);
-
-  const saveInvoice = () => saveSettings({ invoice }, setInvoiceSaving, setInvoiceSaved);
-  const setInv = (patch: Partial<InvoiceSettings>) => setInvoice((s) => ({ ...s, ...patch }));
 
   // ─── Our Story helpers ───
   const updateStory = (patch: Partial<OurStoryContent>) => setOurStory((s) => ({ ...s, ...patch }));
@@ -1178,40 +1148,6 @@ function AdminSettingsPageInner() {
         </div>
       )}
 
-      {/* ═══ INVOICE ═══ */}
-      {activeTab === "invoice" && (
-        <div className="space-y-5">
-          <div className="flex justify-end"><SaveBtn saving={invoiceSaving} saved={invoiceSaved} onSave={saveInvoice} /></div>
-          <p className="text-sm text-charcoal-lighter -mt-2">These details appear on every printed invoice. The company name, address, email and phone come from General &amp; the logo from the Store tab.</p>
-
-          <div className="grid lg:grid-cols-2 gap-5">
-            <Card><CardHeader><CardTitle className="text-base">Branding</CardTitle><CardDescription>Shown at the top of the invoice</CardDescription></CardHeader>
-              <CardContent className="space-y-4">
-                <Input label={<FieldLabel label="Tagline" hint="A short line under the company name, e.g. 'Live the journey'." />} value={invoice.tagline} onChange={(e) => setInv({ tagline: e.target.value })} placeholder="Live the journey" />
-                <Input label={<FieldLabel label="Business Tax Reg. No." hint="Your own tax registration number, shown in the invoice footer. Leave blank to hide." />} value={invoice.tax_reg_no} onChange={(e) => setInv({ tax_reg_no: e.target.value })} placeholder="555999777111" />
-                <Input label="Website" value={invoice.website} onChange={(e) => setInv({ website: e.target.value })} placeholder="www.chinexabd.com" />
-                <ImageUpload label="Signature Image" value={invoice.signature_image} onChange={(v) => setInv({ signature_image: v })} aspectRatio="video" folder="general" />
-              </CardContent>
-            </Card>
-
-            <Card><CardHeader><CardTitle className="text-base">Bank / Payment Details</CardTitle><CardDescription>Shown in the invoice footer. Leave any field blank to omit it.</CardDescription></CardHeader>
-              <CardContent className="space-y-4">
-                <Input label="Account Holder" value={invoice.bank_account_holder} onChange={(e) => setInv({ bank_account_holder: e.target.value })} />
-                <Input label="Bank Name" value={invoice.bank_name} onChange={(e) => setInv({ bank_name: e.target.value })} />
-                <div className="grid grid-cols-2 gap-3">
-                  <Input label="Account No." value={invoice.bank_account_no} onChange={(e) => setInv({ bank_account_no: e.target.value })} />
-                  <Input label="Routing No." value={invoice.bank_routing} onChange={(e) => setInv({ bank_routing: e.target.value })} />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Input label="IBAN" value={invoice.bank_iban} onChange={(e) => setInv({ bank_iban: e.target.value })} />
-                  <Input label="SWIFT" value={invoice.bank_swift} onChange={(e) => setInv({ bank_swift: e.target.value })} />
-                </div>
-                <Textarea label="Bank Address" value={invoice.bank_address} onChange={(e) => setInv({ bank_address: e.target.value })} />
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

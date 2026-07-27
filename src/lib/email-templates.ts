@@ -34,13 +34,18 @@ export interface OrderEmailData {
   storeName: string;
 }
 
-// Shared outer shell — header, body slot, footer.
+// Shared outer shell — header, body slot, footer. The header shows the ChineXa
+// logo (absolute URL so email clients can load it); the store name is the alt
+// text so it still reads correctly if a client blocks images.
 function shell(storeName: string, siteUrl: string, bodyHtml: string): string {
+  const logoUrl = `${siteUrl}/logo.png`;
   return `
   <div style="margin:0;padding:0;background:${BRAND.bg};">
     <div style="max-width:560px;margin:0 auto;padding:24px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${BRAND.ink};">
       <div style="text-align:center;padding:8px 0 20px;">
-        <a href="${siteUrl}" style="font-size:24px;font-weight:800;letter-spacing:0.5px;color:${BRAND.ink};text-decoration:none;">${storeName}</a>
+        <a href="${siteUrl}" style="text-decoration:none;">
+          <img src="${logoUrl}" alt="${storeName}" height="48" style="height:48px;width:auto;max-width:220px;display:inline-block;border:0;outline:none;" />
+        </a>
       </div>
       <div style="background:${BRAND.card};border:1px solid ${BRAND.line};border-radius:16px;padding:28px 24px;">
         ${bodyHtml}

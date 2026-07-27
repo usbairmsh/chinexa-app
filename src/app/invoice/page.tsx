@@ -27,12 +27,6 @@ interface OrderData {
   redacted?: boolean;
 }
 
-interface InvoiceSettings {
-  tagline: string; tax_reg_no: string; website: string; signature_image: string;
-  bank_account_holder: string; bank_name: string; bank_routing: string;
-  bank_account_no: string; bank_iban: string; bank_swift: string; bank_address: string;
-}
-
 const TEAL = "#159A8C";
 const INK = "#2f3b3a";
 
@@ -55,9 +49,8 @@ function InvoiceContent() {
   const { store_name, store_email, store_phone, store_address, loaded: settingsLoaded } = useStoreSettings();
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
-  // Admin-entered invoice fields (bank block, tagline, signature, tax reg) +
-  // the store logo, loaded from settings.
-  const [inv, setInv] = useState<InvoiceSettings | null>(null);
+  // Store logo for the invoice header (admin Store-tab logo, else the static
+  // file). No other invoice-specific settings.
   const [logo, setLogo] = useState("/logo.png");
   const [invLoaded, setInvLoaded] = useState(false);
 
@@ -74,12 +67,9 @@ function InvoiceContent() {
   }, [orderId, customerId]);
 
   useEffect(() => {
-    fetch("/api/settings?keys=invoice,store_logo")
+    fetch("/api/settings?key=store_logo")
       .then((r) => r.json())
-      .then((d) => {
-        if (d?.invoice) setInv(d.invoice);
-        if (d?.store_logo) setLogo(d.store_logo);
-      })
+      .then((d) => { if (d?.value) setLogo(d.value); })
       .catch(() => {})
       .finally(() => setInvLoaded(true));
   }, []);
@@ -115,15 +105,6 @@ function InvoiceContent() {
   }
 
   const bill = order.billing_address;
-  const bankRows: [string, string | undefined][] = [
-    ["Account Holder", inv?.bank_account_holder],
-    ["Bank", inv?.bank_name],
-    ["Routing No.", inv?.bank_routing],
-    ["Account No.", inv?.bank_account_no],
-    ["IBAN", inv?.bank_iban],
-    ["SWIFT", inv?.bank_swift],
-  ];
-  const hasBank = bankRows.some(([, v]) => v) || inv?.bank_address;
 
   return (
     <>
@@ -170,7 +151,6 @@ function InvoiceContent() {
             <div style={{ textAlign: "center" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={logo} alt={store_name} style={{ height: 72, width: "auto", objectFit: "contain" }} />
-              {inv?.tagline && <div style={{ fontSize: 13, color: TEAL, fontStyle: "italic", marginTop: 2 }}>« {inv.tagline} »</div>}
             </div>
           </div>
 
@@ -258,14 +238,6 @@ function InvoiceContent() {
             </div>
           </div>
 
-          {/* Signature */}
-          {inv?.signature_image && (
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 24 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={inv.signature_image} alt="Signature" style={{ height: 80, width: "auto", objectFit: "contain", opacity: 0.9 }} />
-            </div>
-          )}
-
           {order.notes && (
             <div style={{ marginTop: 24, fontSize: 10, color: "#7a8584" }}>
               <span style={{ fontWeight: 700, color: INK }}>Notes: </span>{order.notes}
@@ -275,27 +247,13 @@ function InvoiceContent() {
 
         {/* Footer band */}
         <div style={{ borderTop: `2px solid ${TEAL}`, padding: "16px 48px 28px" }}>
-          {/* Contact row */}
           <div className="inv-foot" style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8, fontSize: 10, color: INK, paddingBottom: 12 }}>
             {store_phone && <span>☎ {store_phone}</span>}
-            {(inv?.website) && <span>🌐 {inv.website}</span>}
             {store_email && <span>✉ {store_email}</span>}
           </div>
-          {/* Two-column details */}
-          <div className="inv-bank" style={{ display: "grid", gridTemplateColumns: hasBank ? "1fr 1fr" : "1fr", gap: 20, fontSize: 9.5, color: "#5a6564", lineHeight: 1.7 }}>
-            <div>
-              <div style={{ fontWeight: 700, color: INK }}>{store_name}</div>
-              {store_address && <div>{store_address}</div>}
-              {inv?.tax_reg_no && <div>Tax Reg No.: <b style={{ color: INK }}>{inv.tax_reg_no}</b></div>}
-            </div>
-            {hasBank && (
-              <div>
-                {bankRows.filter(([, v]) => v).map(([label, v]) => (
-                  <div key={label}>{label}: <b style={{ color: INK }}>{v}</b></div>
-                ))}
-                {inv?.bank_address && <div>Bank address: <b style={{ color: INK }}>{inv.bank_address}</b></div>}
-              </div>
-            )}
+          <div style={{ fontSize: 9.5, color: "#5a6564", lineHeight: 1.7 }}>
+            <div style={{ fontWeight: 700, color: INK }}>{store_name}</div>
+            {store_address && <div>{store_address}</div>}
           </div>
         </div>
       </div>
