@@ -41,6 +41,9 @@ export const PERMISSION_SECTIONS: PermissionSectionDef[] = [
   { key: "fraud", label: "Fraud", navSection: "Analytics", actions: ["view"] },
   { key: "activity_log", label: "Activity Log", navSection: "Analytics", actions: ["view"] },
   { key: "support_inbox", label: "Support Inbox", navSection: "Support", actions: ["view", "add", "delete"] },
+  // email_inbox: view = read mailboxes/threads, add = send (reply + broadcast),
+  // edit = configure mailboxes (also gated superadmin server-side), delete = remove threads.
+  { key: "email_inbox", label: "Email Center", navSection: "Support", actions: ["view", "add", "edit", "delete"] },
   { key: "users", label: "Users, Roles & Access", navSection: "System", actions: ["view", "add", "edit", "delete"] },
   { key: "settings", label: "Settings", navSection: "System", actions: ["view", "edit"] },
 ];

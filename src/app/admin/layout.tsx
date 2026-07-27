@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Package, FolderTree, ShoppingCart, RotateCcw, Users, Star,
   Image as ImageIcon, Tag, Gift, FileText, Search, BarChart3,
   DollarSign, AlertTriangle, Activity, UserCog, Settings,
-  Menu, ChevronLeft, LogOut, Bell, Warehouse, Key, User, Loader2, Lock, MessageCircle, Megaphone, ShieldMinus
+  Menu, ChevronLeft, LogOut, Bell, Warehouse, Key, User, Loader2, Lock, MessageCircle, Megaphone, ShieldMinus, Mail
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -75,6 +75,7 @@ const navSections = [
     label: "Support",
     items: [
       { icon: MessageCircle, label: "Support Inbox", href: "/admin/support-inbox", perm: "support_inbox" },
+      { icon: Mail, label: "Email Center", href: "/admin/email", perm: "email_inbox" },
     ],
   },
   {
