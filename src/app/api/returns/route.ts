@@ -6,6 +6,7 @@ import { validate, validationError, publicServerError } from "@/lib/validate";
 import { notifyAdmin } from "@/lib/notify";
 import { ensureReturnColumns } from "@/lib/migrate-returns";
 import { getReturnConfig } from "@/lib/return-config";
+import { checkInstantReturnAbuseRules } from "@/lib/points-deduction-engine";
 
 export const dynamic = "force-dynamic";
 
@@ -155,6 +156,12 @@ export async function POST(req: NextRequest) {
     }
 
     await logActivity("Return requested", "order", id, `Order ${order.order_number}`);
+
+    // Abuse detection at request time — flag suspicious return patterns for the
+    // admin BEFORE they approve (in addition to the on-approve check).
+    if (order.customer_id) {
+      await checkInstantReturnAbuseRules(order.customer_id as string).catch(() => {});
+    }
 
     // Notify admin about the incoming return request
     await notifyAdmin(
