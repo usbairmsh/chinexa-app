@@ -2,12 +2,12 @@
 
 import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
 import Image from "next/image";
-import Cropper, { type Area, type Point } from "react-easy-crop";
-import { Upload, X, Link2, ImagePlus, Loader2, ZoomIn, ZoomOut, Check, Crop } from "lucide-react";
+import { Upload, X, Link2, ImagePlus, Loader2, Check, Crop } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { AdminButton } from "@/components/admin/shared/admin-button";
-import { getCroppedImageBlob } from "@/lib/crop-image";
+import { getCroppedImageBlob, type Area } from "@/lib/crop-image";
+import { ImageCropper } from "@/components/admin/shared/image-cropper";
 import { usePendingUploadRegistration } from "@/components/admin/shared/pending-uploads";
 
 interface ImageUploadProps {
@@ -62,9 +62,9 @@ export function ImageUpload({
   // Crop dialog state.
   const [rawImage, setRawImage] = useState<string | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
-  const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
   const [croppedArea, setCroppedArea] = useState<Area | null>(null);
+  // Crop aspect preset: "" = free-form. Defaults to the field's natural ratio.
+  const [cropAspect, setCropAspect] = useState<number | undefined>(CROP_ASPECT[aspectRatio]);
 
   const aspectClass = { square: "aspect-square", video: "aspect-video", portrait: "aspect-[3/4]" }[aspectRatio];
 
@@ -109,7 +109,7 @@ export function ImageUpload({
     if (!file.type.startsWith("image/")) { setError("Please select an image file"); return; }
     if (file.size > 15 * 1024 * 1024) { setError("File too large. Max 15MB"); return; }
     setError("");
-    setCrop({ x: 0, y: 0 }); setZoom(1); setCroppedArea(null);
+    setCroppedArea(null); setCropAspect(CROP_ASPECT[aspectRatio]);
     const reader = new FileReader();
     reader.onload = () => { setRawImage(reader.result as string); setCropOpen(true); };
     reader.readAsDataURL(file);
@@ -236,19 +236,28 @@ export function ImageUpload({
       <Dialog open={cropOpen} onOpenChange={(o) => { if (!uploading) { setCropOpen(o); if (!o) setRawImage(null); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Crop className="h-4 w-4 text-secondary" /> Adjust image</DialogTitle>
-            <DialogDescription>Drag to reposition, use the slider to zoom, then apply.</DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><Crop className="h-4 w-4 text-secondary" /> Crop image</DialogTitle>
+            <DialogDescription>Drag the box to move it, drag a handle to resize, then apply.</DialogDescription>
           </DialogHeader>
-          {rawImage && (
-            <div className="relative h-72 w-full rounded-xl overflow-hidden bg-charcoal/90">
-              <Cropper image={rawImage} crop={crop} zoom={zoom} aspect={CROP_ASPECT[aspectRatio]}
-                showGrid onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={(_a, px) => setCroppedArea(px)} />
-            </div>
-          )}
-          <div className="flex items-center gap-3 px-1">
-            <ZoomOut className="h-4 w-4 text-charcoal-lighter shrink-0" />
-            <input type="range" min={1} max={3} step={0.05} value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="flex-1 accent-secondary" aria-label="Zoom" />
-            <ZoomIn className="h-4 w-4 text-charcoal-lighter shrink-0" />
+          {rawImage && <ImageCropper src={rawImage} aspect={cropAspect} onChange={setCroppedArea} />}
+          {/* Aspect presets */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] text-charcoal-lighter">Ratio:</span>
+            {([
+              ["Free", undefined],
+              ["Square", 1],
+              ["16:9", 16 / 9],
+              ["4:3", 4 / 3],
+              ["3:4", 3 / 4],
+            ] as const).map(([label, val]) => (
+              <button
+                key={label} type="button" onClick={() => setCropAspect(val)}
+                className={cn("rounded-lg border px-2.5 py-1 text-xs transition-colors",
+                  cropAspect === val ? "border-secondary bg-secondary/10 text-charcoal" : "border-border/50 text-charcoal-lighter hover:bg-pearl")}
+              >
+                {label}
+              </button>
+            ))}
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
           <DialogFooter>

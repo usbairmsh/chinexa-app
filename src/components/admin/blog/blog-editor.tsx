@@ -262,9 +262,10 @@ export function BlogEditor({ value, onChange, placeholder, minHeight = 420, onIm
   const noBlur = (e: React.MouseEvent) => e.preventDefault();
 
   return (
-    <div className="rounded-lg border border-border overflow-hidden focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-0.5 border-b border-border/40 bg-pearl/40 px-2 py-1.5">
+    <div className="rounded-lg border border-border focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20">
+      {/* Toolbar — sticks to the top of the scroll container so it stays
+          reachable while writing a long post. */}
+      <div className="sticky top-0 z-20 flex flex-wrap items-center gap-0.5 rounded-t-lg border-b border-border/40 bg-pearl px-2 py-1.5">
         <button type="button" title="Undo" className={btn} onMouseDown={noBlur} onClick={() => exec("undo")}><Undo2 className="h-4 w-4" /></button>
         <button type="button" title="Redo" className={btn} onMouseDown={noBlur} onClick={() => exec("redo")}><Redo2 className="h-4 w-4" /></button>
         {sep}

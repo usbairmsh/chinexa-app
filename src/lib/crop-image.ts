@@ -1,4 +1,7 @@
-import type { Area } from "react-easy-crop";
+// Crop rectangle in SOURCE-image pixel coordinates. (Matches react-easy-crop's
+// Area shape so both the avatar cropper and the resizable-box cropper feed the
+// same canvas routine.)
+export interface Area { x: number; y: number; width: number; height: number }
 
 /** Loads an image element from an object/data URL — needed before drawing it to canvas. */
 function loadImage(src: string): Promise<HTMLImageElement> {
