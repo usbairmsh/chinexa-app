@@ -42,11 +42,14 @@ const SIZES = [
   { label: "X-Large", value: "1.75em" },
 ];
 
-export function BlogEditor({ value, onChange, placeholder, minHeight = 420 }: {
+export function BlogEditor({ value, onChange, placeholder, minHeight = 420, onImageUploaded }: {
   value: string;
   onChange: (html: string) => void;
   placeholder?: string;
   minHeight?: number;
+  /** Called with each freshly-uploaded inline image URL, so the parent can
+   *  clean up images that never make it into a published/saved post. */
+  onImageUploaded?: (url: string) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const savedRange = useRef<Range | null>(null);
@@ -184,6 +187,8 @@ export function BlogEditor({ value, onChange, placeholder, minHeight = 420 }: {
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { setImageError(d.error || "Upload failed"); return; }
       setImageUrl(absoluteUrl(d.url));
+      if (d.url) onImageUploaded?.(d.url); // track for abandon-cleanup
+
     } catch { setImageError("Upload failed"); }
     finally { setImageUploading(false); if (fileRef.current) fileRef.current.value = ""; }
   };

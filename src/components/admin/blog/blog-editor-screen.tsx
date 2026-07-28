@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { ArrowLeft, Send, Save, Loader2, ChevronDown, ChevronRight, Search, Clock, Eye } from "lucide-react";
+import { ArrowLeft, Send, Save, Loader2, ChevronDown, ChevronRight, Search, Clock, Eye, Pencil } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,6 +45,31 @@ export function BlogEditorScreen({ post }: { post: BlogPost | null }) {
 
   const [busy, setBusy] = useState<"publish" | "draft" | null>(null);
   const [error, setError] = useState("");
+  // Mobile only: which pane is showing (both show side-by-side on lg+).
+  const [mobilePane, setMobilePane] = useState<"editor" | "preview">("editor");
+
+  // Inline images uploaded THIS session. On a successful save we clear it; if
+  // the editor unmounts without saving, any uploaded image not present in the
+  // final content is deleted so abandoned posts don't leave orphaned files.
+  const sessionImages = useRef<string[]>([]);
+  const committed = useRef(false);
+  const latestContent = useRef(content);
+  useEffect(() => { latestContent.current = content; }, [content]);
+
+  useEffect(() => {
+    return () => {
+      if (committed.current || sessionImages.current.length === 0) return;
+      // Only delete images that didn't end up in the (unsaved) content.
+      const html = latestContent.current || "";
+      for (const url of sessionImages.current) {
+        const path = url.replace(/^https?:\/\/[^/]+/, ""); // strip origin → /api/uploads/…
+        if (!html.includes(url) && !html.includes(path)) {
+          fetch(`/api/upload?url=${encodeURIComponent(path)}`, { method: "DELETE" }).catch(() => {});
+        }
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onTitle = (v: string) => { setTitle(v); if (autoSlug) setSlug(slugify(v)); };
 
@@ -75,6 +100,7 @@ export function BlogEditorScreen({ post }: { post: BlogPost | null }) {
         : await fetch("/api/blog", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error || "Could not save"); setBusy(null); return; }
       if (editing) await cleanupReplacedImage(post!.featured_image, featured || null);
+      committed.current = true; // saved → keep the inline images
       router.push("/admin/blog");
     } catch { setError("Network error"); setBusy(null); }
   };
@@ -100,15 +126,31 @@ export function BlogEditorScreen({ post }: { post: BlogPost | null }) {
         </div>
       </div>
 
+      {/* Mobile Editor/Preview toggle (side-by-side on lg+) */}
+      <div className="mt-3 flex rounded-lg bg-pearl/60 p-0.5 lg:hidden">
+        <button
+          type="button" onClick={() => setMobilePane("editor")}
+          className={cn("flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-all", mobilePane === "editor" ? "bg-card text-charcoal shadow-card" : "text-charcoal-lighter")}
+        >
+          <Pencil className="h-3.5 w-3.5" /> Editor
+        </button>
+        <button
+          type="button" onClick={() => setMobilePane("preview")}
+          className={cn("flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-all", mobilePane === "preview" ? "bg-card text-charcoal shadow-card" : "text-charcoal-lighter")}
+        >
+          <Eye className="h-3.5 w-3.5" /> Preview
+        </button>
+      </div>
+
       {/* Split panes */}
       <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden pt-3 lg:grid-cols-2">
         {/* ── Editor ── */}
-        <div className="overflow-y-auto pr-1 space-y-3">
+        <div className={cn("overflow-y-auto pr-1 space-y-3", mobilePane === "preview" && "hidden lg:block")}>
           <Input label="Title" value={title} onChange={(e) => onTitle(e.target.value)} placeholder="Post title" />
           <Input label="Slug" value={slug} onChange={(e) => { setSlug(e.target.value); setAutoSlug(false); }} placeholder="post-url-slug" />
           <div>
             <label className="block text-sm font-medium text-charcoal-light mb-1.5">Content</label>
-            <BlogEditor value={content} onChange={setContent} placeholder="Write your post…" />
+            <BlogEditor value={content} onChange={setContent} placeholder="Write your post…" onImageUploaded={(url) => { sessionImages.current.push(url); }} />
           </div>
           <Textarea label="Excerpt" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} rows={2} placeholder="Short summary shown in listings" />
           <ImageUpload label="Featured image" value={image} onChange={setImage} aspectRatio="video" folder="blog" field="blog_featured_image" />
@@ -142,7 +184,7 @@ export function BlogEditorScreen({ post }: { post: BlogPost | null }) {
         </div>
 
         {/* ── Live preview ── */}
-        <div className="overflow-y-auto rounded-xl border border-border/40 bg-card">
+        <div className={cn("overflow-y-auto rounded-xl border border-border/40 bg-card", mobilePane === "editor" && "hidden lg:block")}>
           <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/30 bg-card/95 px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-charcoal-lighter backdrop-blur">
             <Eye className="h-3.5 w-3.5" /> Live preview
           </div>
