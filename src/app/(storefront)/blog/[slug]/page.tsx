@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -20,6 +20,17 @@ export default function BlogPostPage() {
   const { data: post, isLoading } = useBlogPost(slug);
   const shouldReduceMotion = useReducedMotion();
   const [shared, setShared] = useState(false);
+
+  // Count a view once per browser session per post (a refresh won't re-count).
+  useEffect(() => {
+    if (!slug) return;
+    const key = `blog-viewed-${slug}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
+    } catch { /* private mode — still count, just may re-count */ }
+    fetch(`/api/blog/${encodeURIComponent(slug)}/view`, { method: "POST" }).catch(() => {});
+  }, [slug]);
 
   // Native share sheet where available (mobile), clipboard-copy fallback
   // otherwise (desktop) with a brief "Copied!" confirmation.
