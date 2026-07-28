@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
 import { BlogEditor } from "@/components/admin/blog/blog-editor";
+import { BlogContent } from "@/components/storefront/blog/blog-content";
 import { useFlushUploads, cleanupReplacedImage } from "@/components/admin/shared/pending-uploads";
 import { slugify, formatDateShort } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -211,10 +212,7 @@ export function BlogEditorScreen({ post }: { post: BlogPost | null }) {
             </div>
             <div className="mb-8 h-px w-full bg-border/40" />
             {content ? (
-              <div
-                className="prose sm:prose-lg max-w-none leading-relaxed text-charcoal-light prose-headings:font-heading prose-headings:text-charcoal prose-a:text-secondary [&_img]:rounded-lg [&_table]:w-full [&_td]:border [&_th]:border [&_td]:border-border/40 [&_th]:border-border/40 [&_td]:p-2 [&_th]:p-2"
-                dangerouslySetInnerHTML={{ __html: sanitize(content) }}
-              />
+              <BlogContent html={sanitize(content)} />
             ) : excerpt ? (
               <div className="prose sm:prose-lg max-w-none leading-relaxed text-charcoal-light"><p className="sm:text-lg">{excerpt}</p></div>
             ) : (

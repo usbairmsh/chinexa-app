@@ -680,3 +680,21 @@ img {
   opacity: 0.6;
   pointer-events: none;
 }
+
+/* Product-cards token — shown as a labelled block inside the editor so the
+   author sees where the products section will render (the live blog renderer
+   replaces it with real product cards). */
+.rte-editable [data-product-cards] {
+  display: block;
+  margin: 12px 0;
+  padding: 16px;
+  border: 1px dashed var(--color-secondary);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-secondary) 6%, transparent);
+  text-align: center;
+  color: var(--color-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: default;
+  user-select: none;
+}

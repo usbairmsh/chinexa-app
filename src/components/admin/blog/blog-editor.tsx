@@ -5,8 +5,11 @@ import {
   Bold, Italic, Underline, Strikethrough, Heading1, Heading2, Heading3, Pilcrow,
   List, ListOrdered, Quote, AlignLeft, AlignCenter, AlignRight, Link2, Link2Off,
   Minus, RemoveFormatting, Undo2, Redo2, Code, Baseline, ImagePlus, Loader2,
-  UploadCloud, Trash2, Table as TableIcon, Type,
+  UploadCloud, Trash2, Table as TableIcon, Type, ShoppingBag, Search, X, Check,
 } from "lucide-react";
+import Image from "next/image";
+import { formatCurrency } from "@/lib/utils";
+import type { Product } from "@/types/product";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { AdminButton } from "@/components/admin/shared/admin-button";
@@ -72,6 +75,13 @@ export function BlogEditor({ value, onChange, placeholder, minHeight = 420, onIm
   const [tableOpen, setTableOpen] = useState(false);
   const [tableRows, setTableRows] = useState("3");
   const [tableCols, setTableCols] = useState("3");
+  // Product-cards picker
+  const [productsOpen, setProductsOpen] = useState(false);
+  const [pQuery, setPQuery] = useState("");
+  const [pResults, setPResults] = useState<Product[]>([]);
+  const [pLoading, setPLoading] = useState(false);
+  const [pSelected, setPSelected] = useState<Product[]>([]);
+  const [pCols, setPCols] = useState<2 | 3>(3);
   // Selected inline image
   const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
   const [imgBar, setImgBar] = useState<{ top: number; left: number } | null>(null);
@@ -256,6 +266,40 @@ export function BlogEditor({ value, onChange, placeholder, minHeight = 420, onIm
     setTableOpen(false); emit(); refresh();
   };
 
+  // ── Product cards ──
+  const openProducts = () => { saveSelection(); setPQuery(""); setPResults([]); setPSelected([]); setPCols(3); setProductsOpen(true); };
+  useEffect(() => {
+    if (!productsOpen) return;
+    const q = pQuery.trim();
+    const t = setTimeout(async () => {
+      setPLoading(true);
+      try {
+        const sp = new URLSearchParams({ page_size: "10" });
+        if (q) sp.set("search", q);
+        const res = await fetch(`/api/products?${sp.toString()}`);
+        const d = await res.json();
+        setPResults(Array.isArray(d?.data) ? d.data : []);
+      } catch { setPResults([]); } finally { setPLoading(false); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [productsOpen, pQuery]);
+
+  const toggleProduct = (p: Product) => {
+    setPSelected((prev) => prev.some((x) => x.id === p.id) ? prev.filter((x) => x.id !== p.id) : [...prev, p]);
+  };
+  const insertProductCards = () => {
+    if (pSelected.length === 0) return;
+    const ids = pSelected.map((p) => p.id).join(",");
+    // A self-contained, non-editable token; the blog renderer swaps it for live
+    // product cards. contenteditable=false + inner text keep contentEditable
+    // from collapsing the empty node.
+    const token = `<div data-product-cards="${ids}" data-cols="${pCols}" contenteditable="false">Products section (${pSelected.length})</div><p><br></p>`;
+    restoreSelection();
+    document.execCommand("insertHTML", false, token);
+    setProductsOpen(false);
+    emit(); refresh();
+  };
+
   const btn = "flex h-8 w-8 items-center justify-center rounded-md text-charcoal-lighter transition-colors hover:bg-pearl hover:text-charcoal active:scale-[0.94]";
   const activeCls = "!bg-charcoal !text-white hover:!bg-charcoal";
   const sep = <span className="mx-0.5 h-5 w-px bg-border/50" />;
@@ -326,6 +370,7 @@ export function BlogEditor({ value, onChange, placeholder, minHeight = 420, onIm
         <button type="button" title="Remove link" className={btn} onMouseDown={noBlur} onClick={() => exec("unlink")}><Link2Off className="h-4 w-4" /></button>
         <button type="button" title="Insert image" className={btn} onMouseDown={noBlur} onClick={openImage}><ImagePlus className="h-4 w-4" /></button>
         <button type="button" title="Insert table" className={btn} onMouseDown={noBlur} onClick={() => { saveSelection(); setTableOpen(true); }}><TableIcon className="h-4 w-4" /></button>
+        <button type="button" title="Insert product cards" className={cn(btn, "w-auto px-1.5")} onMouseDown={noBlur} onClick={openProducts}><ShoppingBag className="h-4 w-4" /></button>
         <button type="button" title="Horizontal line" className={btn} onMouseDown={noBlur} onClick={() => exec("insertHorizontalRule")}><Minus className="h-4 w-4" /></button>
         <button type="button" title="Clear formatting" className={btn} onMouseDown={noBlur} onClick={() => exec("removeFormat")}><RemoveFormatting className="h-4 w-4" /></button>
         <button type="button" title={sourceMode ? "Visual" : "HTML"} className={cn(btn, "ml-auto", sourceMode && activeCls)} onMouseDown={noBlur} onClick={() => { clearImageSelection(); if (!sourceMode) emit(); setSourceMode((v) => !v); }}><Code className="h-4 w-4" /></button>
@@ -408,6 +453,70 @@ export function BlogEditor({ value, onChange, placeholder, minHeight = 420, onIm
           <DialogFooter>
             <AdminButton variant="outline" onClick={() => setTableOpen(false)}>Cancel</AdminButton>
             <AdminButton onClick={insertTable}>Insert</AdminButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Product cards picker */}
+      <Dialog open={productsOpen} onOpenChange={setProductsOpen}>
+        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><ShoppingBag className="h-5 w-5 text-secondary" /> Insert product cards</DialogTitle>
+            <DialogDescription>Search and select products to embed as store-style cards.</DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-3 py-1 pr-1">
+            {/* Selected chips */}
+            {pSelected.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {pSelected.map((p) => (
+                  <span key={p.id} className="inline-flex items-center gap-1.5 rounded-full bg-secondary/10 px-2.5 py-1 text-[11px] font-medium text-secondary">
+                    {p.name}
+                    <button type="button" onClick={() => toggleProduct(p)} className="hover:text-destructive"><X className="h-3 w-3" /></button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <Input icon={<Search className="h-4 w-4" />} placeholder="Search products…" value={pQuery} onChange={(e) => setPQuery(e.target.value)} />
+            <div className="max-h-72 space-y-1 overflow-y-auto">
+              {pLoading ? (
+                <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-charcoal-lighter" /></div>
+              ) : pResults.length === 0 ? (
+                <p className="py-6 text-center text-xs text-charcoal-lighter">No products found.</p>
+              ) : (
+                pResults.map((p) => {
+                  const sel = pSelected.some((x) => x.id === p.id);
+                  return (
+                    <button key={p.id} type="button" onClick={() => toggleProduct(p)}
+                      className={cn("flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors", sel ? "bg-secondary/10" : "hover:bg-pearl")}>
+                      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-image-surface">
+                        <Image src={p.images?.[0]?.url || `https://picsum.photos/seed/${p.slug}/80/80`} alt={p.name} fill className="object-cover" sizes="40px" unoptimized={p.images?.[0]?.url?.includes("/uploads/")} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium text-charcoal">{p.name}</p>
+                        <p className="text-[10px] text-charcoal-lighter">{formatCurrency(p.price)}</p>
+                      </div>
+                      {sel && <Check className="h-4 w-4 shrink-0 text-secondary" />}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+            {/* Cards per row */}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-charcoal-lighter">Cards per row:</span>
+              {([2, 3] as const).map((c) => (
+                <button key={c} type="button" onClick={() => setPCols(c)}
+                  className={cn("rounded-lg border px-3 py-1 text-xs transition-colors", pCols === c ? "border-secondary bg-secondary/10 text-charcoal" : "border-border/50 text-charcoal-lighter hover:bg-pearl")}>
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <AdminButton variant="outline" onClick={() => setProductsOpen(false)}>Cancel</AdminButton>
+            <AdminButton onClick={insertProductCards} disabled={pSelected.length === 0}>
+              Insert {pSelected.length > 0 ? `(${pSelected.length})` : ""}
+            </AdminButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
