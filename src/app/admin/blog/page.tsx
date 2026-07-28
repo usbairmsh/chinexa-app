@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Plus, Edit, Trash2, MoreHorizontal, Eye, Calendar, Clock, Loader2, AlertTriangle, FileText } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
@@ -8,46 +9,24 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { ImageUpload } from "@/components/admin/shared/image-upload";
-import { useFlushUploads, cleanupReplacedImage } from "@/components/admin/shared/pending-uploads";
-import { RichTextEditor } from "@/components/admin/shared/rich-text-editor";
 import { SeoStatusChip } from "@/components/admin/shared/seo-status-chip";
 import { blogSeoMissing } from "@/lib/seo-completeness";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { formatDateShort, slugify, collectMissingFields } from "@/lib/utils";
+import { formatDateShort } from "@/lib/utils";
 import type { BlogPost } from "@/types/blog";
 import { useAdmin } from "@/contexts/admin-context";
 
 export default function AdminBlogPage() {
-  const flushUploads = useFlushUploads();
   const { can } = useAdmin();
   const canAddBlog = can("blog", "add");
   const canEditBlog = can("blog", "edit");
   const canDeleteBlog = can("blog", "delete");
+  const router = useRouter();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editPost, setEditPost] = useState<BlogPost | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<BlogPost | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState("");
-
-  // Form
-  const [formTitle, setFormTitle] = useState("");
-  const [formSlug, setFormSlug] = useState("");
-  const [formExcerpt, setFormExcerpt] = useState("");
-  const [formContent, setFormContent] = useState("");
-  const [formImage, setFormImage] = useState("");
-  const [formCategory, setFormCategory] = useState("");
-  const [formTags, setFormTags] = useState("");
-  const [formAuthor, setFormAuthor] = useState("ChineXa Team");
-  const [formReadingTime, setFormReadingTime] = useState("5");
-  const [formPublished, setFormPublished] = useState(false);
-  const [autoSlug, setAutoSlug] = useState(true);
 
   const fetchPosts = async () => {
     try {
@@ -59,72 +38,9 @@ export default function AdminBlogPage() {
 
   useEffect(() => { fetchPosts(); }, []);
 
-  const resetForm = () => {
-    setFormTitle(""); setFormSlug(""); setFormExcerpt(""); setFormContent("");
-    setFormImage(""); setFormCategory(""); setFormTags(""); setFormAuthor("ChineXa Team");
-    setFormReadingTime("5"); setFormPublished(false); setAutoSlug(true); setEditPost(null);
-  };
-
-  const openCreate = () => { resetForm(); setFormError(""); setDialogOpen(true); };
-
-  const openEdit = (post: BlogPost) => {
-    setEditPost(post);
-    setFormTitle(post.title);
-    setFormSlug(post.slug);
-    setFormExcerpt(post.excerpt || "");
-    setFormContent(post.content || "");
-    setFormImage(post.featured_image || "");
-    setFormCategory(post.category || "");
-    setFormTags((post.tags || []).join(", "));
-    setFormAuthor(post.author_name || "ChineXa Team");
-    setFormReadingTime(String(post.reading_time || 5));
-    setFormPublished(post.is_published);
-    setAutoSlug(false);
-    setFormError("");
-    setDialogOpen(true);
-  };
-
-  const handleTitleChange = (val: string) => {
-    setFormTitle(val);
-    if (autoSlug) setFormSlug(slugify(val));
-  };
-
-  const handleSave = async () => {
-    const missing = collectMissingFields([
-      { label: "Title", value: formTitle },
-    ]);
-    if (missing) { setFormError(missing); return; }
-    setFormError("");
-    setSaving(true);
-    try {
-      // Upload any staged (cropped, not-yet-uploaded) images now.
-      const uploaded = await flushUploads();
-      const featuredImage = uploaded.blog_featured_image ?? formImage;
-      const tags = formTags.split(",").map((t) => t.trim()).filter(Boolean);
-      const payload = {
-        title: formTitle.trim(),
-        slug: formSlug.trim() || slugify(formTitle),
-        excerpt: formExcerpt.trim() || null,
-        content: formContent.trim() || null,
-        featured_image: featuredImage || null,
-        category: formCategory.trim() || null,
-        tags,
-        author_name: formAuthor.trim() || "ChineXa Team",
-        reading_time: Number(formReadingTime) || 5,
-        is_published: formPublished,
-      };
-      if (editPost) {
-        await fetch(`/api/blog/${editPost.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-        // The featured image was replaced/cleared → remove the old file from disk.
-        await cleanupReplacedImage(editPost.featured_image, featuredImage || null);
-      } else {
-        await fetch("/api/blog", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      }
-      setDialogOpen(false);
-      resetForm();
-      fetchPosts();
-    } catch {} finally { setSaving(false); }
-  };
+  // Create/edit now happen on the dedicated split-pane editor pages.
+  const openCreate = () => router.push("/admin/blog/new");
+  const openEdit = (post: BlogPost) => router.push(`/admin/blog/edit/${post.id}`);
 
   const handleDelete = async () => {
     if (!deleteDialog) return;
@@ -208,55 +124,6 @@ export default function AdminBlogPage() {
           ))}
         </div>
       )}
-
-      {/* Add/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) { setDialogOpen(false); resetForm(); } }}>
-        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-          <DialogHeader className="shrink-0">
-            <DialogTitle>{editPost ? "Edit Post" : "Create Blog Post"}</DialogTitle>
-            <DialogDescription>{editPost ? "Update blog post" : "Write and publish a new blog post"}</DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-4 py-2 pr-1">
-            <Input label="Title" required placeholder="The Ultimate Guide to..." value={formTitle} onChange={(e) => handleTitleChange(e.target.value)} />
-            <div>
-              <label className="block text-sm font-medium text-charcoal-light mb-1.5">Slug</label>
-              <div className="flex items-center rounded-lg border border-border overflow-hidden focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20">
-                <span className="px-2.5 text-[11px] text-charcoal-lighter bg-pearl border-r border-border h-11 flex items-center shrink-0">/blog/</span>
-                <input className="flex-1 h-11 px-3 text-sm text-charcoal outline-none" value={formSlug} onChange={(e) => { setFormSlug(e.target.value); setAutoSlug(false); }} placeholder="post-slug" />
-              </div>
-            </div>
-            <Textarea label="Excerpt" placeholder="Brief summary for listing pages..." value={formExcerpt} onChange={(e) => setFormExcerpt(e.target.value)} className="min-h-[60px]" />
-            {/* Rich editor writes the same HTML string the old textarea held —
-                existing posts load/save unchanged; only the editing UX changed. */}
-            <RichTextEditor label="Content" placeholder="Write your blog post content here..." value={formContent} onChange={setFormContent} />
-            <ImageUpload label="Featured Image" value={formImage} onChange={setFormImage} aspectRatio="video" placeholder="Upload featured image (1200x675 recommended)" folder="blog" field="blog_featured_image" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input label="Category" placeholder="Skincare, Fashion, Beauty" value={formCategory} onChange={(e) => setFormCategory(e.target.value)} />
-              <Input label="Tags (comma separated)" placeholder="skincare, guide, tips" value={formTags} onChange={(e) => setFormTags(e.target.value)} />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Input label="Author" placeholder="ChineXa Team" value={formAuthor} onChange={(e) => setFormAuthor(e.target.value)} />
-              <Input label="Reading Time (min)" type="number" value={formReadingTime} onChange={(e) => setFormReadingTime(e.target.value)} />
-              <div className="flex items-end pb-1">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <Switch checked={formPublished} onCheckedChange={setFormPublished} />
-                  <span className="text-sm font-medium text-charcoal-light">{formPublished ? "Publish" : "Draft"}</span>
-                </label>
-              </div>
-            </div>
-          </div>
-          {formError && (
-            <p className="shrink-0 text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">{formError}</p>
-          )}
-          <DialogFooter className="shrink-0 pt-2 border-t border-border/20">
-            <AdminButton variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</AdminButton>
-            <AdminButton onClick={handleSave} disabled={saving || !formTitle.trim()}>
-              {saving && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
-              {editPost ? "Save Changes" : formPublished ? "Publish" : "Save Draft"}
-            </AdminButton>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Delete */}
       <Dialog open={!!deleteDialog} onOpenChange={(open) => !open && setDeleteDialog(null)}>

@@ -4,11 +4,13 @@ import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { deleteUploadedFile } from "@/lib/delete-upload";
 import { requirePermission } from "@/lib/admin-permissions-server";
+import { ensureBlogSeoColumns } from "@/lib/migrate-blog-seo";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const denied = await requirePermission(req, "blog", "edit");
     if (denied) return denied;
+    await ensureBlogSeoColumns();
     const { id } = await params;
     const body = await req.json();
     const fields: string[] = [];
@@ -18,6 +20,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       title: "title", slug: "slug", excerpt: "excerpt", content: "content",
       featured_image: "featured_image", category: "category", author_name: "author_name",
       reading_time: "reading_time", seo_title: "seo_title", seo_description: "seo_description",
+      seo_keywords: "seo_keywords",
     })) {
       if (body[k] !== undefined) { fields.push(`${col} = ?`); values.push(body[k]); }
     }

@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/log-activity";
 import { validate, validationError, publicServerError } from "@/lib/validate";
 import { getBlogPostBySlug } from "@/lib/blog";
 import { requirePermission } from "@/lib/admin-permissions-server";
+import { ensureBlogSeoColumns } from "@/lib/migrate-blog-seo";
 
 interface BlogRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -32,6 +33,7 @@ export async function POST(req: NextRequest) {
   try {
     const denied = await requirePermission(req, "blog", "add");
     if (denied) return denied;
+    await ensureBlogSeoColumns();
     const body = await req.json();
     const err = validate([
       { field: "title", value: body.title, rules: ["required", "string", { minLength: 3 }], label: "Blog title" },
@@ -40,8 +42,8 @@ export async function POST(req: NextRequest) {
     const id = `blog-${Date.now()}`;
     const slug = body.slug || body.title.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-");
     await execute(
-      "INSERT INTO blog_posts (id, title, slug, excerpt, content, featured_image, category, tags, author_name, is_published, published_at, reading_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [id, body.title, slug, body.excerpt || null, body.content || null, body.featured_image || null, body.category || null, JSON.stringify(body.tags || []), body.author_name || "ChineXa Team", body.is_published ? 1 : 0, body.is_published ? new Date().toISOString().slice(0, 19).replace("T", " ") : null, body.reading_time || 5]
+      "INSERT INTO blog_posts (id, title, slug, excerpt, content, featured_image, category, tags, author_name, is_published, published_at, reading_time, seo_title, seo_description, seo_keywords) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [id, body.title, slug, body.excerpt || null, body.content || null, body.featured_image || null, body.category || null, JSON.stringify(body.tags || []), body.author_name || "ChineXa Team", body.is_published ? 1 : 0, body.is_published ? new Date().toISOString().slice(0, 19).replace("T", " ") : null, body.reading_time || 5, body.seo_title || null, body.seo_description || null, body.seo_keywords || null]
     );
     await logActivity("Created blog post", "blog", id, body.title);
     return NextResponse.json({ success: true, id, slug }, { status: 201 });

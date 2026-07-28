@@ -15,6 +15,7 @@ export interface BlogPost {
   views: number;
   seo_title?: string;
   seo_description?: string;
+  seo_keywords?: string;
   created_at: string;
   updated_at: string;
 }

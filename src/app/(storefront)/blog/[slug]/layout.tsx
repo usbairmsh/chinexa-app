@@ -5,22 +5,26 @@ import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query
 import { getBlogPostBySlug } from "@/lib/blog";
 import { pageMetadata, getSchemaConfig } from "@/lib/seo";
 import { ArticleJsonLd } from "@/components/seo/json-ld";
+import { ensureBlogSeoColumns } from "@/lib/migrate-blog-seo";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   try {
+    await ensureBlogSeoColumns();
     const [rows] = await pool.execute<RowDataPacket[]>(
-      "SELECT title, excerpt, featured_image, author_name, published_at, updated_at FROM blog_posts WHERE slug = ? AND is_published = 1 LIMIT 1",
+      "SELECT title, excerpt, featured_image, author_name, published_at, updated_at, seo_title, seo_description, seo_keywords FROM blog_posts WHERE slug = ? AND is_published = 1 LIMIT 1",
       [slug]
     );
     if (rows.length === 0) {
       return { title: "Post Not Found", robots: { index: false, follow: true } };
     }
     const post = rows[0];
-    const title = post.title as string;
-    const description = ((post.excerpt as string) || "").slice(0, 160) || `Read "${title}" on the ChineXa beauty blog.`;
+    // Post-level SEO overrides win over the auto-computed title/description.
+    const title = (post.seo_title as string) || (post.title as string);
+    const description = ((post.seo_description as string) || (post.excerpt as string) || "").slice(0, 160) || `Read "${post.title}" on the ChineXa beauty blog.`;
+    const keywords = (post.seo_keywords as string) || "";
     const image = (post.featured_image as string) || `${siteUrl}/logo.png`;
     const fullImage = image.startsWith("http") ? image : `${siteUrl}${image}`;
 
@@ -29,6 +33,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     return pageMetadata(`/blog/${slug}`, {
       title,
       description,
+      // Hidden keywords box → <meta name="keywords">. Not visible on the page.
+      ...(keywords ? { keywords: keywords.split(",").map((k) => k.trim()).filter(Boolean) } : {}),
       alternates: { canonical: `${siteUrl}/blog/${slug}`, languages: { "en-BD": `${siteUrl}/blog/${slug}` } },
       openGraph: {
         title,
