@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Bold, Italic, Underline, Strikethrough, Heading1, Heading2, Heading3, Pilcrow,
   List, ListOrdered, Quote, AlignLeft, AlignCenter, AlignRight, Link2, Link2Off,
-  Minus, RemoveFormatting, Undo2, Redo2, Code, Baseline, ImagePlus, Loader2, UploadCloud,
+  Minus, RemoveFormatting, Undo2, Redo2, Code, Baseline, ImagePlus, Loader2, UploadCloud, Trash2,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -55,6 +55,10 @@ export function EmailEditor({ value, onChange, resetKey = 0, placeholder, minHei
   const [imageUploading, setImageUploading] = useState(false);
   const [imageError, setImageError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  // Currently-selected inline image (clicked in the body) + its floating
+  // toolbar position, for resize/delete.
+  const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
+  const [imgBar, setImgBar] = useState<{ top: number; left: number } | null>(null);
   // Track active formatting so toolbar buttons can highlight.
   const [, force] = useState(0);
   const refresh = useCallback(() => force((n) => n + 1), []);
@@ -64,13 +68,18 @@ export function EmailEditor({ value, onChange, resetKey = 0, placeholder, minHei
   useEffect(() => {
     const el = ref.current;
     if (el && !sourceMode) el.innerHTML = value || "";
+    setSelectedImg(null); setImgBar(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey]);
 
   const emit = () => {
     const el = ref.current;
     if (!el) return;
-    const html = el.innerHTML;
+    // Serialize WITHOUT the transient image-selection outline, so the saved
+    // HTML never carries the teal highlight into the sent email.
+    const clone = el.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll("img").forEach((img) => { img.style.outline = ""; img.style.outlineOffset = ""; if (!img.getAttribute("style")) img.removeAttribute("style"); });
+    const html = clone.innerHTML;
     onChange(html === "<br>" || html === "<div><br></div>" ? "" : html);
   };
 
@@ -206,6 +215,56 @@ export function EmailEditor({ value, onChange, resetKey = 0, placeholder, minHei
     emit(); refresh();
   };
 
+  // ── Inline-image selection / resize / delete ──
+  const positionImgBar = (img: HTMLImageElement) => {
+    const box = ref.current?.getBoundingClientRect();
+    const r = img.getBoundingClientRect();
+    if (!box) return;
+    setImgBar({ top: r.top - box.top, left: r.left - box.left });
+  };
+
+  const selectImage = (img: HTMLImageElement) => {
+    // Clear any previous highlight, mark the new one.
+    ref.current?.querySelectorAll("img").forEach((el) => { el.style.outline = ""; el.style.outlineOffset = ""; });
+    img.style.outline = "2px solid #159A8C";
+    img.style.outlineOffset = "2px";
+    setSelectedImg(img);
+    positionImgBar(img);
+  };
+
+  const clearImageSelection = () => {
+    ref.current?.querySelectorAll("img").forEach((el) => { el.style.outline = ""; el.style.outlineOffset = ""; });
+    setSelectedImg(null);
+    setImgBar(null);
+  };
+
+  const onSurfaceClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === "IMG") {
+      selectImage(target as HTMLImageElement);
+    } else {
+      clearImageSelection();
+    }
+  };
+
+  const resizeSelected = (mode: "full" | "half" | "quarter" | "auto") => {
+    if (!selectedImg) return;
+    selectedImg.style.height = "auto";
+    if (mode === "full") { selectedImg.style.width = "100%"; selectedImg.style.maxWidth = "100%"; }
+    else if (mode === "half") { selectedImg.style.width = "50%"; selectedImg.style.maxWidth = "50%"; }
+    else if (mode === "quarter") { selectedImg.style.width = "25%"; selectedImg.style.maxWidth = "25%"; }
+    else { selectedImg.style.width = "auto"; selectedImg.style.maxWidth = "100%"; }
+    positionImgBar(selectedImg);
+    emit(); refresh();
+  };
+
+  const deleteSelected = () => {
+    if (!selectedImg) return;
+    selectedImg.remove();
+    clearImageSelection();
+    emit(); refresh();
+  };
+
   const btn = "flex h-8 w-8 items-center justify-center rounded-md text-charcoal-lighter transition-colors hover:bg-pearl hover:text-charcoal active:scale-[0.94]";
   // Selected/active tool: dark background, white icon — clearly reads as "on".
   const activeCls = "!bg-charcoal !text-white hover:!bg-charcoal";
@@ -270,7 +329,7 @@ export function EmailEditor({ value, onChange, resetKey = 0, placeholder, minHei
         <button type="button" title="Insert image / GIF" className={btn} onMouseDown={(e) => e.preventDefault()} onClick={openImage}><ImagePlus className="h-4 w-4" /></button>
         <button type="button" title="Horizontal line" className={btn} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("insertHorizontalRule")}><Minus className="h-4 w-4" /></button>
         <button type="button" title="Clear formatting" className={btn} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("removeFormat")}><RemoveFormatting className="h-4 w-4" /></button>
-        <button type="button" title={sourceMode ? "Visual editor" : "Edit HTML"} className={cn(btn, "ml-auto", sourceMode && "bg-charcoal !text-white hover:bg-charcoal")} onMouseDown={(e) => e.preventDefault()} onClick={() => { if (!sourceMode) emit(); setSourceMode((v) => !v); }}><Code className="h-4 w-4" /></button>
+        <button type="button" title={sourceMode ? "Visual editor" : "Edit HTML"} className={cn(btn, "ml-auto", sourceMode && "bg-charcoal !text-white hover:bg-charcoal")} onMouseDown={(e) => e.preventDefault()} onClick={() => { clearImageSelection(); if (!sourceMode) emit(); setSourceMode((v) => !v); }}><Code className="h-4 w-4" /></button>
       </div>
 
       {/* Editing surface */}
@@ -283,21 +342,39 @@ export function EmailEditor({ value, onChange, resetKey = 0, placeholder, minHei
           placeholder="<p>HTML source…</p>"
         />
       ) : (
-        <div
-          ref={ref}
-          contentEditable
-          suppressContentEditableWarning
-          role="textbox"
-          aria-multiline="true"
-          onInput={emit}
-          onBlur={emit}
-          onKeyDown={onKeyDown}
-          onKeyUp={refresh}
-          onMouseUp={refresh}
-          data-placeholder={placeholder || "Write your message…"}
-          className="rte-editable prose prose-sm max-w-none p-3 text-sm text-charcoal outline-none [&_a]:text-secondary [&_a]:underline"
-          style={{ minHeight }}
-        />
+        <div className="relative">
+          <div
+            ref={ref}
+            contentEditable
+            suppressContentEditableWarning
+            role="textbox"
+            aria-multiline="true"
+            onInput={() => { emit(); }}
+            onBlur={emit}
+            onKeyDown={(e) => { clearImageSelection(); onKeyDown(e); }}
+            onKeyUp={refresh}
+            onMouseUp={refresh}
+            onClick={onSurfaceClick}
+            data-placeholder={placeholder || "Write your message…"}
+            className="rte-editable prose prose-sm max-w-none p-3 text-sm text-charcoal outline-none [&_a]:text-secondary [&_a]:underline"
+            style={{ minHeight }}
+          />
+          {/* Floating image toolbar — resize / delete the selected image */}
+          {selectedImg && imgBar && (
+            <div
+              className="absolute z-30 flex items-center gap-0.5 rounded-lg border border-border/50 bg-card px-1 py-0.5 shadow-luxury-hover"
+              style={{ top: Math.max(0, imgBar.top - 38), left: imgBar.left }}
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <button type="button" title="25%" className="rounded px-1.5 py-1 text-[10px] font-medium text-charcoal-lighter hover:bg-pearl hover:text-charcoal" onClick={() => resizeSelected("quarter")}>25%</button>
+              <button type="button" title="50%" className="rounded px-1.5 py-1 text-[10px] font-medium text-charcoal-lighter hover:bg-pearl hover:text-charcoal" onClick={() => resizeSelected("half")}>50%</button>
+              <button type="button" title="Full width" className="rounded px-1.5 py-1 text-[10px] font-medium text-charcoal-lighter hover:bg-pearl hover:text-charcoal" onClick={() => resizeSelected("full")}>100%</button>
+              <button type="button" title="Original size" className="rounded px-1.5 py-1 text-[10px] font-medium text-charcoal-lighter hover:bg-pearl hover:text-charcoal" onClick={() => resizeSelected("auto")}>Auto</button>
+              <span className="mx-0.5 h-4 w-px bg-border/50" />
+              <button type="button" title="Remove image" className="flex items-center rounded px-1.5 py-1 text-charcoal-lighter hover:bg-destructive/10 hover:text-destructive" onClick={deleteSelected}><Trash2 className="h-3.5 w-3.5" /></button>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Link dialog */}
