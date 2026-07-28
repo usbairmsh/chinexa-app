@@ -1,10 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import { Clock, Eye, ArrowLeft, Share2 } from "lucide-react";
+import { Clock, Eye, ArrowLeft, Share2, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
@@ -18,6 +19,27 @@ export default function BlogPostPage() {
   const { slug } = useParams<{ slug: string }>();
   const { data: post, isLoading } = useBlogPost(slug);
   const shouldReduceMotion = useReducedMotion();
+  const [shared, setShared] = useState(false);
+
+  // Native share sheet where available (mobile), clipboard-copy fallback
+  // otherwise (desktop) with a brief "Copied!" confirmation.
+  const handleShare = async () => {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    const title = post?.title || "ChineXa Blog";
+    try {
+      if (typeof navigator !== "undefined" && navigator.share) {
+        await navigator.share({ title, text: post?.excerpt || title, url });
+        return;
+      }
+    } catch {
+      // User dismissed the share sheet, or it failed — fall through to copy.
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+    } catch { /* clipboard blocked — nothing else we can do */ }
+  };
 
   if (isLoading) {
     return (
@@ -123,8 +145,8 @@ export default function BlogPostPage() {
 
           {/* Share */}
           <div className="mt-6 flex items-center gap-3">
-            <Button variant="outline" size="sm">
-              <Share2 className="h-3.5 w-3.5 mr-1" /> Share
+            <Button variant="outline" size="sm" onClick={handleShare}>
+              {shared ? <><Check className="h-3.5 w-3.5 mr-1 text-success" /> Link copied</> : <><Share2 className="h-3.5 w-3.5 mr-1" /> Share</>}
             </Button>
           </div>
         </motion.article>
