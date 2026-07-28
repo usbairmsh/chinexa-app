@@ -85,6 +85,8 @@ export function BlogEditor({ value, onChange, placeholder, minHeight = 420, onIm
   // Selected inline image
   const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
   const [imgBar, setImgBar] = useState<{ top: number; left: number } | null>(null);
+  // When editing an existing products-section block, the node being replaced.
+  const editingCardsNode = useRef<HTMLElement | null>(null);
   const [, force] = useState(0);
   const refresh = useCallback(() => force((n) => n + 1), []);
 
@@ -228,6 +230,9 @@ export function BlogEditor({ value, onChange, placeholder, minHeight = 420, onIm
   };
   const onSurfaceClick = (e: React.MouseEvent) => {
     const t = e.target as HTMLElement;
+    // Click a products-section block → edit it.
+    const cardsNode = t.closest?.("[data-product-cards]") as HTMLElement | null;
+    if (cardsNode && ref.current?.contains(cardsNode)) { clearImageSelection(); editProductCards(cardsNode); return; }
     if (t.tagName === "IMG") selectImage(t as HTMLImageElement); else clearImageSelection();
   };
   const resizeSelected = (w: "25" | "50" | "75" | "100") => {
@@ -267,7 +272,24 @@ export function BlogEditor({ value, onChange, placeholder, minHeight = 420, onIm
   };
 
   // ── Product cards ──
-  const openProducts = () => { saveSelection(); setPQuery(""); setPResults([]); setPSelected([]); setPCols(3); setProductsOpen(true); };
+  const openProducts = () => { saveSelection(); editingCardsNode.current = null; setPQuery(""); setPResults([]); setPSelected([]); setPCols(3); setProductsOpen(true); };
+
+  // Open the picker preloaded from an existing block, to edit it.
+  const editProductCards = async (node: HTMLElement) => {
+    editingCardsNode.current = node;
+    const ids = (node.getAttribute("data-product-cards") || "").split(",").map((s) => s.trim()).filter(Boolean);
+    const cols = node.getAttribute("data-cols") === "2" ? 2 : 3;
+    setPQuery(""); setPResults([]); setPCols(cols); setPSelected([]); setProductsOpen(true);
+    if (ids.length) {
+      try {
+        const res = await fetch(`/api/products?ids=${encodeURIComponent(ids.join(","))}`);
+        const d = await res.json();
+        const found: Product[] = Array.isArray(d?.data) ? d.data : [];
+        // Preserve the stored order.
+        setPSelected(ids.map((id) => found.find((p) => p.id === id)).filter(Boolean) as Product[]);
+      } catch {}
+    }
+  };
   useEffect(() => {
     if (!productsOpen) return;
     const q = pQuery.trim();
@@ -290,12 +312,27 @@ export function BlogEditor({ value, onChange, placeholder, minHeight = 420, onIm
   const insertProductCards = () => {
     if (pSelected.length === 0) return;
     const ids = pSelected.map((p) => p.id).join(",");
-    // A self-contained, non-editable token; the blog renderer swaps it for live
-    // product cards. contenteditable=false + inner text keep contentEditable
-    // from collapsing the empty node.
-    const token = `<div data-product-cards="${ids}" data-cols="${pCols}" contenteditable="false">Products section (${pSelected.length})</div><p><br></p>`;
-    restoreSelection();
-    document.execCommand("insertHTML", false, token);
+    const node = editingCardsNode.current;
+    if (node) {
+      // Editing an existing block → update it in place.
+      node.setAttribute("data-product-cards", ids);
+      node.setAttribute("data-cols", String(pCols));
+      node.textContent = `Products section (${pSelected.length})`;
+      editingCardsNode.current = null;
+    } else {
+      // A self-contained, non-editable token; contenteditable=false + inner
+      // text keep contentEditable from collapsing the node.
+      const token = `<div data-product-cards="${ids}" data-cols="${pCols}" contenteditable="false">Products section (${pSelected.length})</div><p><br></p>`;
+      restoreSelection();
+      document.execCommand("insertHTML", false, token);
+    }
+    setProductsOpen(false);
+    emit(); refresh();
+  };
+
+  const removeProductCards = () => {
+    editingCardsNode.current?.remove();
+    editingCardsNode.current = null;
     setProductsOpen(false);
     emit(); refresh();
   };
@@ -461,7 +498,7 @@ export function BlogEditor({ value, onChange, placeholder, minHeight = 420, onIm
       <Dialog open={productsOpen} onOpenChange={setProductsOpen}>
         <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><ShoppingBag className="h-5 w-5 text-secondary" /> Insert product cards</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><ShoppingBag className="h-5 w-5 text-secondary" /> {editingCardsNode.current ? "Edit products section" : "Insert product cards"}</DialogTitle>
             <DialogDescription>Search and select products to embed as store-style cards.</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto space-y-3 py-1 pr-1">
@@ -512,10 +549,15 @@ export function BlogEditor({ value, onChange, placeholder, minHeight = 420, onIm
               ))}
             </div>
           </div>
-          <DialogFooter>
-            <AdminButton variant="outline" onClick={() => setProductsOpen(false)}>Cancel</AdminButton>
+          <DialogFooter className="gap-2">
+            {editingCardsNode.current && (
+              <AdminButton variant="outline" className="mr-auto !text-destructive" onClick={removeProductCards}>
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> Remove section
+              </AdminButton>
+            )}
+            <AdminButton variant="outline" onClick={() => { editingCardsNode.current = null; setProductsOpen(false); }}>Cancel</AdminButton>
             <AdminButton onClick={insertProductCards} disabled={pSelected.length === 0}>
-              Insert {pSelected.length > 0 ? `(${pSelected.length})` : ""}
+              {editingCardsNode.current ? "Update" : "Insert"} {pSelected.length > 0 ? `(${pSelected.length})` : ""}
             </AdminButton>
           </DialogFooter>
         </DialogContent>
