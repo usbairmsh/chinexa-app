@@ -70,8 +70,8 @@ export function ProductSection({
     <section className="py-8 sm:py-10 lg:py-12">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           className="flex items-end justify-between mb-10"
         >
@@ -94,6 +94,9 @@ export function ProductSection({
       </div>
 
       {isLoading ? (
+        // Reserve the same vertical space the loaded grid will occupy, so the
+        // skeleton→cards swap doesn't shift the page (CLS). Skeleton cell mirrors
+        // the real card: 3/4 image + name + price + button rows.
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className={`grid ${gridCols[cols]} gap-4 lg:gap-6`}>
             {Array.from({ length: cols * (scroll ? 1 : rowCount) }).map((_, i) => (
@@ -101,7 +104,7 @@ export function ProductSection({
                 <Skeleton className="aspect-[3/4] rounded-2xl" />
                 <Skeleton className="h-3 w-20" />
                 <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-9 w-full rounded-full" />
               </div>
             ))}
           </div>

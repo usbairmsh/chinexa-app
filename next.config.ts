@@ -77,6 +77,21 @@ const nextConfig: NextConfig = {
           { key: "Link", value: '</.well-known/api-catalog>; rel="api-catalog", </sitemap.xml>; rel="service-doc"' },
         ],
       },
+      // Long cache lifetimes for immutable-ish static assets (fixes PageSpeed's
+      // "efficient cache lifetimes"). Favicons/logo rarely change; uploaded
+      // media files are content-addressed (unique filenames, never overwritten).
+      {
+        source: "/favicon/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      {
+        source: "/:file(logo\\.png|favicon\\.ico|apple-touch-icon\\.png)",
+        headers: [{ key: "Cache-Control", value: "public, max-age=2592000" }],
+      },
+      {
+        source: "/api/uploads/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=2592000, immutable" }],
+      },
     ];
   },
 };
