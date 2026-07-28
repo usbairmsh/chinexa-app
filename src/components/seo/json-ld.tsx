@@ -1,3 +1,12 @@
+// Canonical social profiles — same accounts linked in the footer. Listed here
+// as schema.org `sameAs` so Google can connect the brand entity to its
+// official social presence (a Knowledge-Panel / brand-SERP signal).
+const SOCIAL_PROFILES = [
+  "https://www.facebook.com/share/1EFvvLRDrC/",
+  "https://www.instagram.com/_chinexa_",
+  "https://youtube.com/@chinexabd",
+];
+
 export function OrganizationJsonLd() {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com";
   const schema = {
@@ -12,7 +21,7 @@ export function OrganizationJsonLd() {
       addressCountry: "BD",
       addressRegion: "Dhaka",
     },
-    sameAs: [],
+    sameAs: SOCIAL_PROFILES,
   };
 
   return (
