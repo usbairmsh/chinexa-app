@@ -89,7 +89,7 @@ export default function MembershipBenefitsPage() {
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14 space-y-8">
         {/* Current membership summary — signed-in customers only */}
         {isAuthenticated && user?.id && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <Card className="rounded-2xl bg-gradient-to-r from-secondary/10 via-primary-light to-coral-light border-0 shadow-card">
               <CardContent className="p-6 sm:p-8">
                 <div className="flex items-center justify-between flex-wrap gap-4">
@@ -131,8 +131,8 @@ export default function MembershipBenefitsPage() {
         {/* Guests — nudge to create an account instead of a personal summary */}
         {!isAuthenticated && (
           <motion.div
-            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0 }}
+            animate={{ opacity: 1 }}
           >
             <Card className="rounded-2xl bg-gradient-to-r from-secondary/10 via-primary-light to-coral-light border-0 shadow-card">
               <CardContent className="p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -165,8 +165,8 @@ export default function MembershipBenefitsPage() {
                   return (
                     <motion.div
                       key={tier.id}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
                       transition={{ delay: i * 0.05 }}
                       whileTap={{ scale: 0.99 }}
                     >

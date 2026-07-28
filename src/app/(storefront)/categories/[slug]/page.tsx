@@ -184,16 +184,16 @@ export default function CategoryPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14 relative z-10">
           <Breadcrumb items={[{ label: displayTitle }]} />
           <motion.h1
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             className="font-heading text-3xl sm:text-4xl lg:text-5xl font-semibold text-charcoal mt-4"
           >
             {displayTitle}
           </motion.h1>
           {category?.description && (
             <motion.p
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               transition={{ delay: 0.1 }}
               className="text-charcoal-lighter mt-3 max-w-2xl"
             >

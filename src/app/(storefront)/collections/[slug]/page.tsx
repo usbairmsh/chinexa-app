@@ -48,15 +48,15 @@ export default function CollectionPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Breadcrumb items={[{ label: meta.title }]} />
           <motion.h1
-            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 15 }}
-            animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0 }}
+            animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1 }}
             className="font-heading text-3xl sm:text-4xl lg:text-5xl font-semibold text-charcoal mt-4"
           >
             {meta.title}
           </motion.h1>
           <motion.p
-            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
-            animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0 }}
+            animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1 }}
             transition={{ delay: 0.1 }}
             className="text-charcoal-lighter mt-3 max-w-2xl"
           >
@@ -92,8 +92,8 @@ export default function CollectionPage() {
 
         {products?.length === 0 && !isLoading && (
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
           >
             <EmptyState

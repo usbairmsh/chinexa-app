@@ -1,14 +1,12 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { faqSections } from "@/data/faq";
 
 
 export default function FaqPage() {
-  const shouldReduceMotion = useReducedMotion();
-
   return (
     <div className="bg-card min-h-screen">
       <div className="bg-hero-gradient py-10 sm:py-14">
@@ -27,8 +25,8 @@ export default function FaqPage() {
         {faqSections.map((section, si) => (
           <motion.div
             key={section.title}
-            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ delay: si * 0.08, duration: 0.3, ease: "easeOut" }}
             className="rounded-2xl border border-border/60 bg-card shadow-card hover:shadow-card-hover transition-shadow duration-300 px-5 sm:px-8 py-6 sm:py-8"

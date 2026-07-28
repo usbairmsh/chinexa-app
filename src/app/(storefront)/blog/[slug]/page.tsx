@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { Clock, Eye, ArrowLeft, Share2, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,6 @@ import { BlogContent } from "@/components/storefront/blog/blog-content";
 export default function BlogPostPage() {
   const { slug } = useParams<{ slug: string }>();
   const { data: post, isLoading } = useBlogPost(slug);
-  const shouldReduceMotion = useReducedMotion();
   const [shared, setShared] = useState(false);
 
   // Count a view once per browser session per post (a refresh won't re-count).
@@ -84,8 +83,8 @@ export default function BlogPostPage() {
         </Link>
 
         <motion.article
-          initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
         >
           {/* Featured Image */}

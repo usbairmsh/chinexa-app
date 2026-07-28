@@ -50,8 +50,8 @@ export default function WishlistPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative">
           <Breadcrumb items={[{ label: "Wishlist" }]} />
           <motion.div
-            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 20 }}
-            animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             className="relative"
           >

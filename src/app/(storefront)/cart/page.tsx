@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, X, Loader2, Tag, Clock } from "lucide-react";
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
@@ -19,7 +19,6 @@ export default function CartPage() {
   const preorderCart = isPreorderCart();
   const storeUser = useAuthStore((s) => s.user);
   const storeAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const shouldReduceMotion = useReducedMotion();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   // Persisted auth store differs from server HTML on hard refresh — gate on
@@ -108,8 +107,8 @@ export default function CartPage() {
                 <motion.div
                   key={item.id}
                   layout
-                  initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 20 }}
-                  animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ delay: i * 0.05 }}
                   className="flex gap-3 sm:gap-6 py-4 sm:py-6 border-b border-border/30"
@@ -190,8 +189,8 @@ export default function CartPage() {
               <div className="mt-5">
                 {couponCode ? (
                   <motion.div
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
                     transition={{ duration: 0.25, ease: "easeOut" }}
                     className="p-3 rounded-xl bg-success/5 border border-success/20"
                   >

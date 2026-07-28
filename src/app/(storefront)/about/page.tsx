@@ -39,8 +39,8 @@ export default function AboutPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Breadcrumb items={[{ label: "About Us" }]} />
           <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             className="font-heading text-4xl sm:text-5xl lg:text-6xl font-bold text-charcoal mt-6"
           >
             Our Story
@@ -96,8 +96,8 @@ export default function AboutPage() {
                 return (
                   <motion.div
                     key={value.title + i}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.1 }}
                     className="group bg-card rounded-2xl p-6 text-center shadow-card hover:shadow-card-hover hover:-translate-y-px transition-all duration-300"
@@ -121,7 +121,7 @@ export default function AboutPage() {
           <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 text-center">
               {content.stats.map((stat, i) => (
-                <motion.div key={stat.label + i} initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
+                <motion.div key={stat.label + i} initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
                   <p className="font-heading text-3xl sm:text-4xl font-bold text-gradient-luxury">{stat.value}</p>
                   <p className="text-sm text-charcoal-lighter mt-1">{stat.label}</p>
                 </motion.div>

@@ -467,8 +467,8 @@ export default function ProductDetailPage() {
 
           {/* ── RIGHT: Product Info (sticky) ── */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ delay: 0.1 }}
             className="lg:col-span-5"
           >
@@ -971,8 +971,8 @@ export default function ProductDetailPage() {
                     {displayedReviews.map((review, reviewIdx) => (
                       <motion.div
                         key={review.id}
-                        initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
+                        initial={{ opacity: shouldReduceMotion ? 1 : 0 }}
+                        animate={{ opacity: 1 }}
                         transition={{ delay: Math.min(reviewIdx, 5) * 0.05 }}
                         className="p-4 rounded-xl border border-border/20 shadow-card"
                       >
@@ -1122,8 +1122,8 @@ export default function ProductDetailPage() {
         {relatedProducts && relatedProducts.length > 0 && (
           <div className="mt-20">
             <motion.div
-              initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
+              initial={{ opacity: shouldReduceMotion ? 1 : 0 }}
+              whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
               className="flex items-center justify-between mb-8"
             >

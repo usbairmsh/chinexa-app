@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { Award, Globe } from "lucide-react";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +25,6 @@ interface Brand {
 export default function BrandsPage() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
-  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
     fetch("/api/brands")
@@ -46,15 +45,15 @@ export default function BrandsPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
           <Breadcrumb items={[{ label: "Brands" }]} />
           <motion.h1
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             className="font-heading text-3xl sm:text-4xl lg:text-5xl font-semibold text-charcoal mt-4"
           >
             Our Brands
           </motion.h1>
           <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ delay: 0.1 }}
             className="text-charcoal-lighter mt-3 max-w-2xl"
           >
@@ -86,8 +85,8 @@ export default function BrandsPage() {
             {brands.map((brand, index) => (
               <motion.div
                 key={brand.id}
-                initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 transition={{ delay: index * 0.05 }}
               >
                 <Link

@@ -214,8 +214,8 @@ function TrackOrderContent() {
         {/* Not Found */}
         {notFound && (
           <motion.div
-            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
           >
             <EmptyState icon={ShoppingBag} title="Order not found" description="No order matched that order number or phone number. Please check it and try again." />
@@ -224,11 +224,11 @@ function TrackOrderContent() {
 
         {/* Result */}
         {order && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             {/* Order Summary */}
             <motion.div
-              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               transition={{ duration: 0.3, ease: "easeOut", delay: 0.05 }}
             >
             <Card>
@@ -269,8 +269,8 @@ function TrackOrderContent() {
 
             {/* Timeline */}
             <motion.div
-              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               transition={{ duration: 0.3, ease: "easeOut", delay: 0.1 }}
             >
             <Card>
@@ -318,8 +318,8 @@ function TrackOrderContent() {
                 {/* Not Received notice */}
                 {order.status === "not_received" && (
                   <motion.div
-                    initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
                     transition={{ duration: 0.3, ease: "easeOut" }}
                     className="mt-4 p-4 rounded-2xl bg-destructive/5 border border-destructive/10"
                   >
@@ -334,8 +334,8 @@ function TrackOrderContent() {
             {/* Shipping Address */}
             {order.shipping_address && (
               <motion.div
-                initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 transition={{ duration: 0.3, ease: "easeOut", delay: 0.15 }}
               >
               <Card>
@@ -358,8 +358,8 @@ function TrackOrderContent() {
 
             {/* Payment Info */}
             <motion.div
-              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               transition={{ duration: 0.3, ease: "easeOut", delay: 0.2 }}
             >
             <Card>

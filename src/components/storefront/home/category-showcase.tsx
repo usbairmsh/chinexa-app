@@ -14,8 +14,8 @@ export function CategoryShowcase() {
     <section className="py-8 sm:py-10 lg:py-12 bg-card">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           className="text-center mb-12"
         >
@@ -41,8 +41,8 @@ export function CategoryShowcase() {
           {mainCategories.map((category, index) => (
             <motion.div
               key={category.id}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
               transition={{ delay: index * 0.1 }}
               className={index === 0 ? "col-span-2 row-span-2" : ""}

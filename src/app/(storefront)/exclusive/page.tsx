@@ -37,8 +37,8 @@ export default function ExclusivePage() {
         <div className="relative z-10 mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-10 py-10 sm:py-14">
           <Breadcrumb items={[{ label: "Exclusive" }]} />
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
             className="mt-4"
           >

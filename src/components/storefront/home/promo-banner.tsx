@@ -46,8 +46,8 @@ export function PromoBannerStrip() {
             const content = (
               <motion.div
                 key={banner.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
                 className="relative rounded-2xl overflow-hidden aspect-[16/7] group"
@@ -111,8 +111,8 @@ export function CategoryBanner() {
     <section className="py-4">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           className="relative rounded-2xl overflow-hidden aspect-[16/9] sm:aspect-[21/7] group"
         >
