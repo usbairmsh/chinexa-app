@@ -213,7 +213,7 @@ export function HomeClient() {
           homepage always has exactly one top-level heading with the core BD
           intent terms. sr-only so it doesn't alter the visual design. */}
       <h1 className="sr-only">
-        ChineXa — Buy Original Skincare, Bags, Jewellery, Perfumes &amp; Shoes Online in Bangladesh
+        ChineXa — Original Korean Skincare &amp; Beauty in Bangladesh
       </h1>
       {visibleSections.map(renderSection)}
       {/* Client-only, personalized — rendered unconditionally at the end rather

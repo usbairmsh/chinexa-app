@@ -24,7 +24,7 @@ interface DiscoveredPage {
 //   products/[slug]/layout.tsx, categories/[slug]/layout.tsx,
 //   brands/[slug]/layout.tsx, blog/[slug]/layout.tsx, and the static layouts.
 const STATIC_PAGES: DiscoveredPage[] = [
-  { path: "/", label: "Core", default_title: "ChineXa — Premium Beauty, Skincare & Lifestyle Store in Bangladesh", default_description: "Shop authentic Korean skincare, luxury bags, exquisite jewelry, fine perfumes & imported beauty products in Bangladesh." },
+  { path: "/", label: "Core", default_title: "ChineXa — Korean Skincare & Beauty Store Bangladesh", default_description: "Shop authentic Korean skincare, luxury bags, jewelry, perfumes & imported beauty in Bangladesh. Genuine products, cash on delivery & fast nationwide shipping." },
   { path: "/products", label: "Core", default_title: "Shop All Products — Premium Beauty & Lifestyle", default_description: "Browse our complete collection of authentic Korean skincare, luxury bags, exquisite jewelry, fine perfumes & imported beauty products." },
   { path: "/about", label: "Core", default_title: "About ChineXa — Our Story & Mission", default_description: "Learn about ChineXa, Bangladesh's premium beauty & lifestyle destination." },
   { path: "/blog", label: "Core", default_title: "Beauty Blog — Tips, Guides & Trends", default_description: "Expert beauty tips, Korean skincare guides, product reviews & trending looks." },

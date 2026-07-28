@@ -53,7 +53,7 @@ export function CategoryShowcase() {
               >
                 <Image
                   src={category.image || `https://picsum.photos/seed/cat-${category.slug}/600/750`}
-                  alt={category.name}
+                  alt={category.name || "Product category"}
                   fill
                   priority={index === 0}
                   fetchPriority={index === 0 ? "high" : undefined}

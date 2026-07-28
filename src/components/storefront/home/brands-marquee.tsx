@@ -82,7 +82,7 @@ export function BrandsMarquee() {
                 <div className="h-14 flex items-center justify-center">
                   <Image
                     src={brand.logo}
-                    alt={brand.name}
+                    alt={brand.name || "Brand logo"}
                     width={120}
                     height={56}
                     className="object-contain max-h-14"

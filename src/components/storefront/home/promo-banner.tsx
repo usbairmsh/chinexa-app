@@ -54,7 +54,7 @@ export function PromoBannerStrip() {
               >
                 <Image
                   src={banner.image}
-                  alt={banner.title}
+                  alt={banner.title || "Promotional banner"}
                   fill
                   className="object-cover transition-transform duration-700 group-hover:scale-105"
                   style={{ objectPosition: `${crop.x}% ${crop.y}%`, transform: `scale(${crop.zoom})`, transformOrigin: `${crop.x}% ${crop.y}%` }}
@@ -118,7 +118,7 @@ export function CategoryBanner() {
         >
           <Image
             src={banner.image}
-            alt={banner.title}
+            alt={banner.title || "Promotional banner"}
             fill
             className="object-cover transition-transform duration-700 group-hover:scale-105"
             style={{ objectPosition: `${crop.x}% ${crop.y}%`, transform: `scale(${crop.zoom})`, transformOrigin: `${crop.x}% ${crop.y}%` }}
@@ -187,7 +187,7 @@ export function PopupBanner() {
         <div className="relative aspect-[4/3]">
           <Image
             src={banner.image}
-            alt={banner.title}
+            alt={banner.title || "Promotional banner"}
             fill
             className="object-cover"
             style={{ objectPosition: `${crop.x}% ${crop.y}%`, transform: `scale(${crop.zoom})`, transformOrigin: `${crop.x}% ${crop.y}%` }}

@@ -30,9 +30,12 @@ export const viewport: Viewport = {
   ],
 };
 
-const DEFAULT_TITLE = "ChineXa — Premium Beauty, Skincare & Lifestyle Store in Bangladesh";
+// Kept ≤60 chars so search engines don't truncate it. Leads with the strongest
+// keywords (Korean skincare / beauty / Bangladesh).
+const DEFAULT_TITLE = "ChineXa — Korean Skincare & Beauty Store Bangladesh";
+// Kept within Google's 120–160 char display window.
 const DEFAULT_DESCRIPTION =
-  "Shop authentic Korean skincare, luxury bags, exquisite jewelry, fine perfumes & imported beauty products in Bangladesh. Free delivery on orders over ৳3,000. Genuine products with cash on delivery.";
+  "Shop authentic Korean skincare, luxury bags, jewelry, perfumes & imported beauty in Bangladesh. Genuine products, cash on delivery & fast nationwide shipping.";
 
 export async function generateMetadata(): Promise<Metadata> {
   // Pull admin-managed SEO overrides + verification codes (best-effort; fall

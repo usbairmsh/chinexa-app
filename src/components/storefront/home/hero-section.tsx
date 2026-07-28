@@ -206,7 +206,7 @@ export function HeroSection() {
         >
           <Image
             src={slide.image}
-            alt={slide.title}
+            alt={slide.title || "ChineXa promotion"}
             fill
             className="object-cover"
             style={(() => {
