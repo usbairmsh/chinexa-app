@@ -72,7 +72,7 @@ function CardGrid({ ids, cols }: { ids: string[]; cols: number }) {
 export function BlogContent({ html }: { html: string }) {
   const blocks = useMemo(() => splitContent(html || ""), [html]);
   return (
-    <div className="prose sm:prose-lg max-w-none leading-relaxed text-charcoal-light prose-headings:font-heading prose-headings:text-charcoal prose-a:text-secondary [&_table]:w-full [&_table]:table-fixed [&_table]:border-collapse [&_td]:border [&_th]:border [&_td]:border-border/50 [&_th]:border-border/50 [&_td]:p-2 [&_th]:p-2 [&_td]:align-top [&_th]:text-left">
+    <div className="prose sm:prose-lg max-w-none leading-relaxed text-charcoal-light prose-headings:font-heading prose-headings:text-charcoal prose-a:text-secondary [&_table]:w-full [&_table]:table-fixed [&_table]:border-collapse [&_td]:border [&_th]:border [&_td]:border-border/50 [&_th]:border-border/50 [&_td]:p-2 [&_th]:p-2 [&_td]:align-top [&_th]:text-left [&_td]:break-words [&_th]:break-words [&_td]:text-sm [&_th]:text-sm">
       {blocks.map((b, i) =>
         b.type === "html"
           ? <div key={i} dangerouslySetInnerHTML={{ __html: b.html || "" }} />

@@ -256,12 +256,14 @@ export function BlogEditor({ value, onChange, placeholder, minHeight = 420, onIm
   const insertTable = () => {
     const rows = Math.min(20, Math.max(1, Number(tableRows) || 3));
     const cols = Math.min(10, Math.max(1, Number(tableCols) || 3));
-    let html = `<table style="width:100%;border-collapse:collapse;margin:16px 0;" border="1"><tbody>`;
+    // width:100% + table-layout:fixed keeps the table fitted to the page (no
+    // horizontal scroll) on both mobile and desktop; cells wrap their text.
+    let html = `<table style="width:100%;table-layout:fixed;border-collapse:collapse;margin:16px 0;"><tbody>`;
     for (let r = 0; r < rows; r++) {
       html += "<tr>";
       for (let c = 0; c < cols; c++) {
         const tag = r === 0 ? "th" : "td";
-        html += `<${tag} style="border:1px solid #d8c9d4;padding:8px;text-align:left;">${r === 0 ? "Heading" : "&nbsp;"}</${tag}>`;
+        html += `<${tag} style="border:1px solid #d8c9d4;padding:8px;text-align:left;word-break:break-word;overflow-wrap:break-word;">${r === 0 ? "Heading" : "&nbsp;"}</${tag}>`;
       }
       html += "</tr>";
     }
@@ -422,7 +424,7 @@ export function BlogEditor({ value, onChange, placeholder, minHeight = 420, onIm
             ref={ref} contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true"
             onInput={emit} onBlur={emit} onKeyDown={onKeyDown} onKeyUp={refresh} onMouseUp={refresh} onClick={onSurfaceClick}
             data-placeholder={placeholder || "Write your post…"}
-            className="rte-editable prose prose-sm sm:prose-base max-w-none p-4 text-charcoal outline-none [&_a]:text-secondary [&_a]:underline [&_table]:border-collapse [&_td]:border [&_th]:border [&_td]:border-border/40 [&_th]:border-border/40 [&_td]:p-2 [&_th]:p-2"
+            className="rte-editable prose prose-sm sm:prose-base max-w-none p-4 text-charcoal outline-none [&_a]:text-secondary [&_a]:underline [&_table]:w-full [&_table]:table-fixed [&_table]:border-collapse [&_td]:border [&_th]:border [&_td]:border-border/40 [&_th]:border-border/40 [&_td]:p-2 [&_th]:p-2 [&_td]:break-words [&_th]:break-words"
             style={{ minHeight }}
           />
           {selectedImg && imgBar && (
