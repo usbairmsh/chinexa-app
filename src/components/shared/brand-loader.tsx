@@ -1,23 +1,17 @@
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 /**
- * ChineXa brand loader — a small heart-leaf tree (echoing the logo) whose
- * blossom-leaves gently detach and drift down, in the logo's crimson→pink
- * palette. Pure SVG + CSS keyframes: no framer-motion, so it stays lightweight
- * and can render before the heavy client bundle loads.
- *
- * Colors are taken straight from the brand tokens:
- *   trunk   #6E2A43   (--color-trunk)
- *   deep    #97395A   (--color-primary-700)  — inner canopy hearts
- *   mid     #BC4A72   (--color-primary-600)
- *   bright  #D9668F   (--color-primary-500)
- *   soft    #F2AFC9   (--color-primary-300)  — outer / falling petals
+ * ChineXa brand loader — the logo's own heart-leaf tree (cropped from the logo,
+ * so it's pixel-identical) with a few blossom leaves gently detaching and
+ * drifting down in the logo's crimson→pink palette. Pure <img> + CSS keyframes:
+ * no framer-motion, so it stays lightweight and renders before the heavy client
+ * bundle loads.
  */
 
 interface BrandLoaderProps {
-  /** Diameter of the tree mark in px. Falling leaves scale with it. */
+  /** Width of the tree mark in px. Falling leaves scale with it. */
   size?: number;
-  className?: string;
   /** Optional caption under the mark. Pass "" to hide. */
   label?: string;
 }
@@ -34,34 +28,23 @@ function HeartLeaf({ fill, className, style }: { fill: string; className?: strin
   );
 }
 
-export function BrandLoader({ size = 84, label = "Loading" }: BrandLoaderProps) {
+export function BrandLoader({ size = 132, label = "Loading" }: BrandLoaderProps) {
+  // The cropped mark is 265×205 → keep that aspect ratio.
+  const h = Math.round(size * (205 / 265));
   return (
     <div className="flex flex-col items-center gap-4" role="status" aria-live="polite">
-      <div className="relative" style={{ width: size, height: size * 1.15 }}>
-        {/* The tree mark */}
-        <svg viewBox="0 0 120 140" className="h-full w-full" aria-hidden="true">
-          {/* Trunk + branches */}
-          <path
-            d="M60 138 C58 120 58 108 59 96 M59 96 C50 88 44 80 40 70 M59 96 C70 86 76 78 82 66 M60 96 C60 84 61 74 62 62 M62 62 C56 56 50 52 46 46 M62 62 C70 56 76 50 80 44"
-            fill="none"
-            stroke="var(--color-trunk, #6E2A43)"
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          {/* Canopy of heart leaves — clustered, gradient from deep to soft */}
-          {CANOPY.map((leaf, i) => (
-            <g key={i} style={{ transformOrigin: `${leaf.x}px ${leaf.y}px` }} className="chx-leaf-breathe" data-d={i % 3}>
-              <path
-                transform={`translate(${leaf.x - 7} ${leaf.y - 7}) scale(${leaf.s})`}
-                fill={leaf.c}
-                d="M12 21s-7.5-4.9-9.9-9.3C.7 8.9 2.2 5.5 5.4 5.1c1.9-.2 3.6.9 4.6 2.4l2 3 2-3c1-1.5 2.7-2.6 4.6-2.4 3.2.4 4.7 3.8 3.3 6.6C19.5 16.1 12 21 12 21z"
-              />
-            </g>
-          ))}
-        </svg>
+      <div className="relative" style={{ width: size, height: h }}>
+        {/* The logo's actual tree — gently "breathes" so it feels alive. */}
+        <Image
+          src="/tree-mark.png"
+          alt="ChineXa"
+          width={265}
+          height={205}
+          priority
+          className="chx-tree h-full w-full object-contain"
+        />
 
-        {/* Falling leaves — absolutely positioned, drifting down past the trunk */}
+        {/* Falling leaves — detach from the canopy and drift down past the trunk. */}
         {FALLING.map((f, i) => (
           <HeartLeaf
             key={i}
@@ -71,7 +54,7 @@ export function BrandLoader({ size = 84, label = "Loading" }: BrandLoaderProps) 
               width: f.w,
               height: f.w,
               left: `${f.left}%`,
-              top: -4,
+              top: `${f.top}%`,
               animationDelay: `${f.delay}s`,
               animationDuration: `${f.dur}s`,
             }}
@@ -104,29 +87,11 @@ export function BrandLoaderScreen({ className, label }: { className?: string; la
   );
 }
 
-// Canopy leaf positions (x,y in the 120×140 viewBox), scale, and color.
-// Deep crimson at the core, softening to pink at the edges — mirrors the logo.
-const CANOPY = [
-  { x: 60, y: 40, s: 0.9, c: "#97395A" },
-  { x: 46, y: 44, s: 0.8, c: "#BC4A72" },
-  { x: 74, y: 44, s: 0.8, c: "#BC4A72" },
-  { x: 40, y: 56, s: 0.75, c: "#D9668F" },
-  { x: 80, y: 54, s: 0.8, c: "#BC4A72" },
-  { x: 54, y: 30, s: 0.7, c: "#D9668F" },
-  { x: 68, y: 30, s: 0.75, c: "#97395A" },
-  { x: 34, y: 46, s: 0.65, c: "#F2AFC9" },
-  { x: 86, y: 46, s: 0.7, c: "#F2AFC9" },
-  { x: 50, y: 52, s: 0.85, c: "#97395A" },
-  { x: 70, y: 52, s: 0.8, c: "#BC4A72" },
-  { x: 60, y: 58, s: 0.7, c: "#D9668F" },
-  { x: 44, y: 34, s: 0.6, c: "#F2AFC9" },
-  { x: 78, y: 36, s: 0.65, c: "#D9668F" },
-];
-
-// Falling petals: horizontal position (%), size, timing.
+// Falling petals: start points near the canopy (% of the mark box), size, timing.
+// Colors sampled from the logo — deep crimson, mid red, soft pink.
 const FALLING = [
-  { left: 30, w: 12, c: "#D9668F", delay: 0, dur: 2.6 },
-  { left: 52, w: 10, c: "#BC4A72", delay: 0.9, dur: 3.0 },
-  { left: 66, w: 13, c: "#F2AFC9", delay: 1.6, dur: 2.8 },
-  { left: 44, w: 9, c: "#97395A", delay: 2.2, dur: 3.2 },
+  { left: 34, top: 30, w: 13, c: "#C0143C", delay: 0, dur: 2.8 },
+  { left: 55, top: 24, w: 11, c: "#7E1533", delay: 0.9, dur: 3.1 },
+  { left: 66, top: 34, w: 14, c: "#F3A9BE", delay: 1.7, dur: 2.9 },
+  { left: 46, top: 20, w: 10, c: "#D93A5B", delay: 2.3, dur: 3.3 },
 ];

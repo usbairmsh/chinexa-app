@@ -422,27 +422,25 @@
   .chx-reveal { opacity: 1; transition: none; }
 }
 
-/* Canopy leaves gently pulse/sway so the tree feels alive while waiting. */
-@keyframes chx-leaf-breathe {
-  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.92; }
-  50%      { transform: scale(1.06) rotate(-2deg); opacity: 1; }
+/* The whole tree gently breathes/sways so it feels alive while waiting. */
+@keyframes chx-tree {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50%      { transform: scale(1.03) rotate(-1deg); }
 }
-.chx-leaf-breathe {
-  animation: chx-leaf-breathe 2.4s ease-in-out infinite;
+.chx-tree {
+  transform-origin: 50% 90%; /* pivot near the trunk base */
+  animation: chx-tree 3s ease-in-out infinite;
 }
-/* Stagger the sway so leaves don't all breathe in lockstep. */
-.chx-leaf-breathe[data-d="1"] { animation-delay: 0.5s; }
-.chx-leaf-breathe[data-d="2"] { animation-delay: 1.0s; }
 
 /* A leaf detaches from the canopy and drifts down past the trunk,
-   swaying side to side and tumbling as it falls, then fades at the base. */
+   swaying side to side and tumbling as it falls, then fades near the base. */
 @keyframes chx-leaf-fall {
   0%   { transform: translate(0, 0) rotate(0deg); opacity: 0; }
-  10%  { opacity: 1; }
-  35%  { transform: translate(-9px, 42px) rotate(-40deg); }
-  60%  { transform: translate(7px, 78px) rotate(30deg); }
-  85%  { transform: translate(-4px, 112px) rotate(-20deg); opacity: 1; }
-  100% { transform: translate(2px, 132px) rotate(10deg); opacity: 0; }
+  12%  { opacity: 1; }
+  35%  { transform: translate(-10px, 55px) rotate(-45deg); }
+  60%  { transform: translate(8px, 100px) rotate(35deg); }
+  85%  { transform: translate(-5px, 140px) rotate(-20deg); opacity: 1; }
+  100% { transform: translate(3px, 168px) rotate(12deg); opacity: 0; }
 }
 .chx-leaf-fall {
   animation-name: chx-leaf-fall;
@@ -464,7 +462,7 @@
 
 /* Respect reduced-motion: hold the tree still, no falling/sway. */
 @media (prefers-reduced-motion: reduce) {
-  .chx-leaf-breathe,
+  .chx-tree,
   .chx-leaf-fall,
   .chx-dots::after {
     animation: none;
