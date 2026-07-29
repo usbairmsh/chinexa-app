@@ -212,8 +212,10 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
             </div>
           </div>
 
-          {/* Info */}
-          <div className="space-y-0.5 sm:space-y-1 px-0.5">
+          {/* Info — fixed min-height so cards (and the loading skeleton) are all
+              the same height regardless of optional rows (rating/strike price),
+              which keeps the homepage sections from shifting when they load. */}
+          <div className="space-y-0.5 sm:space-y-1 px-0.5 min-h-[76px] sm:min-h-[86px]">
             {/* Show the subcategory (more specific); fall back to the category
                 when a product has no subcategory. */}
             <p className="text-[10px] sm:text-xs text-charcoal-lighter uppercase tracking-wider truncate">

@@ -100,11 +100,16 @@ export function ProductSection({
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className={`grid ${gridCols[cols]} gap-4 lg:gap-6`}>
             {Array.from({ length: cols * (scroll ? 1 : rowCount) }).map((_, i) => (
-              <div key={i} className="space-y-3">
+              // Structure mirrors ProductCard exactly (image + fixed-height info
+              // + mobile action row) so the skeleton→card swap causes no CLS.
+              <div key={i}>
                 <Skeleton className="aspect-[3/4] rounded-2xl" />
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-9 w-full rounded-full" />
+                <div className="space-y-1.5 px-0.5 pt-2 min-h-[76px] sm:min-h-[86px]">
+                  <Skeleton className="h-2.5 w-16" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+                <Skeleton className="mt-2 h-9 sm:h-10 w-full rounded-full lg:hidden" />
               </div>
             ))}
           </div>
