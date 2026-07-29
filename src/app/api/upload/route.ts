@@ -3,8 +3,26 @@ import { writeFile, mkdir, unlink } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import crypto from "crypto";
+import sharp from "sharp";
 import { publicServerError } from "@/lib/validate";
 import { getVerifiedAdminId } from "@/lib/admin-session";
+
+// Compress + convert uploaded images to WebP so nothing oversized is ever
+// stored. Resizes to a sane max width (no product/banner photo needs more) and
+// re-encodes at ~80% quality — visually identical, typically 60-85% smaller.
+// Animated GIFs are left untouched (WebP conversion would flatten the
+// animation), and SVGs are never accepted here at all.
+const MAX_DIMENSION = 1600;
+const WEBP_QUALITY = 80;
+
+async function compressToWebp(input: Buffer): Promise<Buffer> {
+  const out = await sharp(input)
+    .rotate() // honor EXIF orientation before stripping metadata
+    .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: "inside", withoutEnlargement: true })
+    .webp({ quality: WEBP_QUALITY })
+    .toBuffer();
+  return Buffer.from(out);
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -38,10 +56,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid file type. Allowed: JPG, PNG, WebP, GIF, AVIF" }, { status: 400 });
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json({ error: "File too large. Max 5MB" }, { status: 400 });
+    // Accept larger sources (a phone photo is 5-15MB) — we compress it down to
+    // a fraction below anyway. GIFs stay GIF; everything else becomes WebP.
+    if (file.size > 20 * 1024 * 1024) {
+      return NextResponse.json({ error: "File too large. Max 20MB" }, { status: 400 });
     }
+    const isGif = ext === "gif";
+    const outExt = isGif ? "gif" : "webp";
 
     // Sanitize folder name — only allow alphanumeric, dash, underscore
     const safeFolder = folder.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 30) || "general";
@@ -49,11 +70,11 @@ export async function POST(req: NextRequest) {
     let fileName: string;
 
     if (productId && imageIndex) {
-      fileName = `${productId}_${imageIndex}_${uniqueId}.${ext}`;
+      fileName = `${productId}_${imageIndex}_${uniqueId}.${outExt}`;
     } else if (productId) {
-      fileName = `${productId}_${uniqueId}.${ext}`;
+      fileName = `${productId}_${uniqueId}.${outExt}`;
     } else {
-      fileName = `${Date.now()}_${uniqueId}.${ext}`;
+      fileName = `${Date.now()}_${uniqueId}.${outExt}`;
     }
 
     // Ensure upload directory exists
@@ -62,11 +83,20 @@ export async function POST(req: NextRequest) {
       await mkdir(uploadDir, { recursive: true });
     }
 
-    // Write file to disk
     const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const original = Buffer.from(bytes);
+    // Compress non-GIFs to WebP; GIFs are written as-is to preserve animation.
+    let output: Buffer = original;
+    if (!isGif) {
+      try {
+        output = await compressToWebp(original);
+      } catch {
+        // If compression fails (corrupt/unsupported), fall back to the original.
+        output = original;
+      }
+    }
     const filePath = path.join(uploadDir, fileName);
-    await writeFile(filePath, buffer);
+    await writeFile(filePath, output);
 
     // Return the API-served URL path
     const url = `/api/uploads/${safeFolder}/${fileName}`;
@@ -75,8 +105,8 @@ export async function POST(req: NextRequest) {
       success: true,
       url,
       fileName,
-      size: file.size,
-      type: file.type,
+      size: output.length,
+      type: isGif ? "image/gif" : "image/webp",
     }, { status: 201 });
   } catch (error: unknown) {
     return publicServerError("POST /api/upload", error);
