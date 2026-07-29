@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { HeroSection } from "@/components/storefront/home/hero-section";
-import { CategoryShowcase } from "@/components/storefront/home/category-showcase";
+import { CategoryShowcaseServer } from "@/components/storefront/home/category-showcase-server";
 import { ProductSection, clampRows, clampColumns } from "@/components/storefront/home/product-section";
+import { useCategories } from "@/hooks/queries/use-categories";
 import { RecentlyViewedSection } from "@/components/storefront/recently-viewed-section";
 import { BrandStory } from "@/components/storefront/home/brand-story";
 import { TrustBadges } from "@/components/storefront/home/trust-badges";
@@ -119,13 +120,17 @@ export function HomeClient() {
   const { data: bestsellers, isLoading: loadingBest } = useBestsellers(bestLayout.limit);
   const { data: trending, isLoading: loadingTrending } = useTrendingProducts(trendLayout.limit);
   const { data: preorders, isLoading: loadingPreorder } = usePreorderProducts(preorderLayout.limit);
+  // Categories come from the SSR-hydrated cache (prefetched in page.tsx), so the
+  // grid renders on the first paint. Rendered via the framer-free server
+  // component so the LCP image isn't gated on framer-motion booting.
+  const { data: categoriesData } = useCategories();
 
   const renderSection = (section: SectionConfig) => {
     switch (section.type) {
       case "hero":
         return <HeroSection key={section.id} />;
       case "categories":
-        return <CategoryShowcase key={section.id} />;
+        return <CategoryShowcaseServer key={section.id} categories={categoriesData || []} />;
       case "new_arrivals":
         return (
           <ProductSection

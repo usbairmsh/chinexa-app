@@ -1,52 +1,32 @@
-"use client";
-
 import Link from "next/link";
 import Image from "next/image";
-import { motion } from "framer-motion";
-import { useCategories } from "@/hooks/queries/use-categories";
 import { ArrowRight } from "lucide-react";
+import type { Category } from "@/types/category";
 
-export function CategoryShowcase() {
-  const { data: categories, isLoading } = useCategories();
-  const mainCategories = categories?.filter((c) => !c.parent_id).slice(0, 7) || [];
+// SERVER-rendered category grid — the homepage LCP element. Rendered as HTML in
+// the initial response (no client hooks / framer-motion) so the browser can
+// paint the "Shop by Category" heading and the first category image immediately
+// instead of waiting for the JS bundle to boot. The interactive hover (zoom,
+// arrow slide) is pure CSS via the `group` class, so no client JS is needed.
+export function CategoryShowcaseServer({ categories }: { categories: Category[] }) {
+  const mainCategories = (categories || []).filter((c) => !c.parent_id).slice(0, 7);
+  if (mainCategories.length === 0) return null;
 
   return (
     <section className="py-8 sm:py-10 lg:py-12 bg-card">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          className="text-center mb-12"
-        >
+        <div className="text-center mb-12">
           <h2 className="font-heading text-3xl sm:text-4xl font-semibold text-charcoal mb-3">
             Shop by Category
           </h2>
           <p className="text-charcoal-lighter max-w-md mx-auto">
             Discover our curated collections crafted for the modern woman
           </p>
-        </motion.div>
+        </div>
 
-        {isLoading && mainCategories.length === 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className={`rounded-2xl skeleton-shimmer aspect-[4/5] ${i === 0 ? "col-span-2 row-span-2" : ""}`}
-              />
-            ))}
-          </div>
-        ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
           {mainCategories.map((category, index) => (
-            <motion.div
-              key={category.id}
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.1 }}
-              className={index === 0 ? "col-span-2 row-span-2" : ""}
-            >
+            <div key={category.id} className={index === 0 ? "col-span-2 row-span-2" : ""}>
               <Link
                 href={`/categories/${category.slug}`}
                 className="group relative block overflow-hidden rounded-2xl bg-pearl aspect-[4/5] img-zoom"
@@ -71,10 +51,9 @@ export function CategoryShowcase() {
                   </div>
                 </div>
               </Link>
-            </motion.div>
+            </div>
           ))}
         </div>
-        )}
       </div>
     </section>
   );
