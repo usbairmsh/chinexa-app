@@ -54,6 +54,18 @@ export default async function HomePage() {
     return Array.isArray(data?.data) ? data.data : [];
   };
 
+  // Server-fetch the Homepage Builder config too, so the very first paint uses
+  // the admin's real section order/visibility. Previously this loaded in a
+  // client useEffect AFTER mount, so the whole homepage re-ordered post-paint —
+  // a large layout shift (CLS). Fetching it here ships the correct layout in
+  // the initial HTML. Cached 60s like the other homepage data.
+  const homepageConfig = await fetch(`${internalUrl}/api/settings?key=homepage_config`, {
+    next: { revalidate: 60 },
+  })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => d?.value ?? null)
+    .catch(() => null);
+
   await Promise.all([
     queryClient.prefetchQuery({
       queryKey: ["banners", "hero"],
@@ -80,7 +92,7 @@ export default async function HomePage() {
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <HomeClient />
+      <HomeClient initialConfig={homepageConfig} />
     </HydrationBoundary>
   );
 }

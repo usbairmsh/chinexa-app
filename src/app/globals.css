@@ -407,6 +407,72 @@
 }
 
 /* ============================================
+   ChineXa brand loader — heart-leaf tree with
+   drifting, dropping blossom leaves (logo motif).
+   ============================================ */
+
+/* Soft fade-in for the loader overlay (replaces framer-motion here). */
+.animate-fade-in { animation: fade-in 0.2s ease-out; }
+
+/* CSS-only scroll reveal used by <Reveal /> — opacity-only fade (matches the
+   site-wide fade-only decision), no JS animation library. */
+.chx-reveal { opacity: 0; transition: opacity 0.5s ease-out; }
+.chx-reveal.is-visible { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .chx-reveal { opacity: 1; transition: none; }
+}
+
+/* Canopy leaves gently pulse/sway so the tree feels alive while waiting. */
+@keyframes chx-leaf-breathe {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.92; }
+  50%      { transform: scale(1.06) rotate(-2deg); opacity: 1; }
+}
+.chx-leaf-breathe {
+  animation: chx-leaf-breathe 2.4s ease-in-out infinite;
+}
+/* Stagger the sway so leaves don't all breathe in lockstep. */
+.chx-leaf-breathe[data-d="1"] { animation-delay: 0.5s; }
+.chx-leaf-breathe[data-d="2"] { animation-delay: 1.0s; }
+
+/* A leaf detaches from the canopy and drifts down past the trunk,
+   swaying side to side and tumbling as it falls, then fades at the base. */
+@keyframes chx-leaf-fall {
+  0%   { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  10%  { opacity: 1; }
+  35%  { transform: translate(-9px, 42px) rotate(-40deg); }
+  60%  { transform: translate(7px, 78px) rotate(30deg); }
+  85%  { transform: translate(-4px, 112px) rotate(-20deg); opacity: 1; }
+  100% { transform: translate(2px, 132px) rotate(10deg); opacity: 0; }
+}
+.chx-leaf-fall {
+  animation-name: chx-leaf-fall;
+  animation-timing-function: ease-in;
+  animation-iteration-count: infinite;
+}
+
+/* Animated "…" after the Loading label. */
+@keyframes chx-dots {
+  0%   { content: ""; }
+  25%  { content: "."; }
+  50%  { content: ".."; }
+  75%, 100% { content: "..."; }
+}
+.chx-dots::after {
+  content: "";
+  animation: chx-dots 1.4s steps(1, end) infinite;
+}
+
+/* Respect reduced-motion: hold the tree still, no falling/sway. */
+@media (prefers-reduced-motion: reduce) {
+  .chx-leaf-breathe,
+  .chx-leaf-fall,
+  .chx-dots::after {
+    animation: none;
+  }
+  .chx-leaf-fall { opacity: 0; }
+}
+
+/* ============================================
    Base Styles
    ============================================ */
 

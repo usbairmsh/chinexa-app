@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { Reveal } from "@/components/shared/reveal";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/storefront/product/product-card";
@@ -69,12 +69,7 @@ export function ProductSection({
   return (
     <section className="py-8 sm:py-10 lg:py-12">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          className="flex items-end justify-between mb-10"
-        >
+        <Reveal className="flex items-end justify-between mb-10">
           <div>
             <h2 className="font-heading text-2xl sm:text-3xl lg:text-4xl font-semibold text-charcoal mb-1">
               {title}
@@ -90,7 +85,7 @@ export function ProductSection({
               </Button>
             </Link>
           )}
-        </motion.div>
+        </Reveal>
       </div>
 
       {isLoading ? (

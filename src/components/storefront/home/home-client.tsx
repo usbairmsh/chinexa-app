@@ -65,17 +65,21 @@ const defaultSections: SectionConfig[] = [
   { id: "s15", type: "popup_banner", title: "", subtitle: "", visible: true, order: 15 },
 ];
 
-export function HomeClient() {
-  const [config, setConfig] = useState<HomepageConfig | null>(null);
+export function HomeClient({ initialConfig = null }: { initialConfig?: HomepageConfig | null }) {
+  // Seed from the server-fetched config so the very first paint already has the
+  // admin's real section order — no post-mount reorder (which caused CLS).
+  const [config, setConfig] = useState<HomepageConfig | null>(initialConfig);
 
   useEffect(() => {
+    // Already have the config from the server — skip the redundant client fetch.
+    if (initialConfig) return;
     fetch("/api/settings?key=homepage_config")
       .then((r) => r.json())
       .then((data) => {
         if (data?.value) setConfig(data.value);
       })
       .catch(() => {});
-  }, []);
+  }, [initialConfig]);
 
   // Merge saved config with defaults so new section types (e.g. brands) appear
   const sections = (() => {

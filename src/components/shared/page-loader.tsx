@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { BrandLoader } from "@/components/shared/brand-loader";
 
 export function PageLoader() {
   const pathname = usePathname();
@@ -65,35 +64,16 @@ export function PageLoader() {
     return () => clearTimeout(timeout);
   }, [loading]);
 
-  return (
-    <AnimatePresence>
-      {loading && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[9999] flex items-center justify-center"
-        >
-          {/* Blurred backdrop */}
-          <div className="absolute inset-0 bg-white/60 backdrop-blur-sm" />
+  if (!loading) return null;
 
-          {/* Loader */}
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.8, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="relative flex flex-col items-center gap-3"
-          >
-            <div className="relative">
-              <div className="h-12 w-12 rounded-full border-[3px] border-pearl" />
-              <div className="absolute inset-0 h-12 w-12 rounded-full border-[3px] border-secondary border-t-transparent animate-spin" />
-            </div>
-            <p className="text-sm font-medium text-charcoal-lighter tracking-wide animate-pulse">Loading...</p>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center animate-fade-in">
+      {/* Blurred backdrop */}
+      <div className="absolute inset-0 bg-white/70 backdrop-blur-sm" />
+      {/* ChineXa heart-leaf tree loader */}
+      <div className="relative">
+        <BrandLoader />
+      </div>
+    </div>
   );
 }
