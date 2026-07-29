@@ -33,8 +33,20 @@ export function CartWishlistSync() {
     }
     if (restoredForRef.current === userId) return;
     restoredForRef.current = userId;
-    useWishlistStore.getState().loadServer(userId);
-    useCartStore.getState().loadServer(userId);
+
+    // Fresh sign-in this session already restored (with a guest-merge) inside
+    // login(). Skip the reload-adopt for that user so the two don't race — but
+    // consume the marker so a later real reload of the same account still runs.
+    const auth = useAuthStore.getState();
+    if (auth.justRestoredUserId === userId) {
+      useAuthStore.setState({ justRestoredUserId: null });
+      return;
+    }
+
+    // Page reload while already authenticated: adopt the server cart/wishlist
+    // as-is (merge = false) — never re-merge on reload, that doubled quantities.
+    useWishlistStore.getState().loadServer(userId, false);
+    useCartStore.getState().loadServer(userId, false);
   }, [userId]);
 
   // Debounce-save the cart whenever its items/coupon change, but only while

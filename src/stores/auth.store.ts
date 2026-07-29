@@ -10,6 +10,10 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  /** Set for the id of a user whose cart/wishlist login() has just restored
+   *  (via a guest-merge). Lets CartWishlistSync skip its own reload-adopt for
+   *  that user so the two don't race on a fresh sign-in. Not persisted. */
+  justRestoredUserId: string | null;
 
   login: (session: Session) => void;
   logout: () => void;
@@ -22,22 +26,28 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
+      justRestoredUserId: null,
 
       login: (session) => {
+        const customerId = session.user?.id ?? null;
         set({
           user: session.user,
           token: session.token,
           isAuthenticated: true,
+          // Mark this user as restored-by-login so the sync component skips its
+          // reload-adopt for them (prevents a race that could drop a guest merge).
+          justRestoredUserId: customerId,
         });
         // Restore this account's server-saved cart & wishlist, merging in any
         // items added while signed out. Makes both follow the account across
         // devices and survive logout (logout clears local; this brings it back).
         // Best-effort — failures leave the local state intact.
-        const customerId = session.user?.id;
         if (customerId) {
           try {
-            useWishlistStore.getState().loadServer(customerId);
-            useCartStore.getState().loadServer(customerId);
+            // merge = true: this is a fresh sign-in, so combine any guest
+            // cart/wishlist with the account's server-saved one (once).
+            useWishlistStore.getState().loadServer(customerId, true);
+            useCartStore.getState().loadServer(customerId, true);
           } catch { /* stores not ready */ }
         }
       },
@@ -47,6 +57,7 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           token: null,
           isAuthenticated: false,
+          justRestoredUserId: null,
         });
         // Clear the browser-persisted cart & wishlist on logout so the next
         // (or a shared-device) user never inherits the previous account's items.
@@ -65,6 +76,14 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "chinexa-auth",
+      // Persist only the identity fields. justRestoredUserId is a transient,
+      // in-session-only marker — persisting it would make a page reload look
+      // like a fresh login and skip the reload-adopt it needs.
+      partialize: (state) => ({
+        user: state.user,
+        token: state.token,
+        isAuthenticated: state.isAuthenticated,
+      }),
     }
   )
 );

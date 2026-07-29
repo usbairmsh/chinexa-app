@@ -19,12 +19,18 @@ interface WishlistState {
    */
   syncServer: (productId: string, added: boolean, customerId?: string | null) => Promise<{ outOfStock: boolean }>;
   /**
-   * On login: pull the customer's server-side wishlist and MERGE any local
-   * (guest) items into it — union of both, then push any local-only items up to
-   * the server so nothing is lost. Makes the wishlist follow the account across
-   * devices / survive logout. No-op without a customerId.
+   * Load the customer's server-side wishlist.
+   *
+   * - merge = true (fresh LOGIN only): union any local guest items into the
+   *   server wishlist and push local-only items up, so a guest wishlist isn't
+   *   lost on sign-in. Runs once per sign-in.
+   * - merge = false (page RELOAD, already authenticated): ADOPT the server
+   *   wishlist as-is. Merging on every reload would resurrect items removed on
+   *   another device (the stale local copy would re-add them), so replace.
+   *
+   * No-op without a customerId.
    */
-  loadServer: (customerId: string) => Promise<void>;
+  loadServer: (customerId: string, merge?: boolean) => Promise<void>;
 }
 
 export const useWishlistStore = create<WishlistState>()(
@@ -76,7 +82,7 @@ export const useWishlistStore = create<WishlistState>()(
         }
       },
 
-      loadServer: async (customerId) => {
+      loadServer: async (customerId, merge = false) => {
         if (!customerId) return;
         try {
           const localBefore = get().items;
@@ -84,12 +90,31 @@ export const useWishlistStore = create<WishlistState>()(
           if (!res.ok) return;
           const rows = (await res.json()) as { product_id: string }[];
           const serverIds = Array.isArray(rows) ? rows.map((r) => r.product_id) : [];
-          // Union: keep everything the account has on the server PLUS anything the
-          // user added as a guest before logging in.
+
+          if (!merge) {
+            // RELOAD path: server is authoritative. Adopt it as-is so items
+            // removed on another device stay removed (a union would resurrect
+            // them from the stale local copy). Exception: if the server is empty
+            // but we have local guest items, keep + upload them so they persist.
+            if (serverIds.length === 0 && localBefore.length > 0) {
+              set({ items: localBefore });
+              for (const productId of localBefore) {
+                fetch("/api/wishlist", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ customer_id: customerId, product_id: productId }),
+                }).catch(() => {});
+              }
+            } else {
+              set({ items: serverIds });
+            }
+            return;
+          }
+
+          // LOGIN path: union server + local guest items, then push local-only
+          // items up so a guest wishlist isn't lost on sign-in.
           const merged = Array.from(new Set([...serverIds, ...localBefore]));
           set({ items: merged });
-          // Push any local-only (guest) items up to the server so they persist
-          // for next time / other devices. Best-effort, fire-and-forget.
           const localOnly = localBefore.filter((id) => !serverIds.includes(id));
           for (const productId of localOnly) {
             fetch("/api/wishlist", {

@@ -45,12 +45,19 @@ interface CartState {
   refreshOffers: (customerId?: string | null) => Promise<void>;
 
   /**
-   * On login: pull the customer's server-saved cart and MERGE the local (guest)
-   * cart into it — so a cart added while signed out isn't lost, and a cart saved
-   * on another device comes back. Then persists the merged result to the server.
+   * Load the customer's server-saved cart.
+   *
+   * - merge = true (fresh LOGIN only): union the local guest cart into the
+   *   server cart, summing shared lines, so a cart built while signed out isn't
+   *   lost. Runs exactly once per sign-in.
+   * - merge = false (page RELOAD, already authenticated): ADOPT the server cart
+   *   as-is. The local persisted copy is just a stale mirror of the same cart,
+   *   so replacing (not merging) is correct — merging on every reload would
+   *   double the quantities each time.
+   *
    * No-op without a customerId. Respects the pre-order/in-stock separation rule.
    */
-  loadServer: (customerId: string) => Promise<void>;
+  loadServer: (customerId: string, merge?: boolean) => Promise<void>;
   /** Persist the current cart to the server for a logged-in customer (whole-cart
    *  upsert). Called debounced on cart changes and no-ops without a customerId. */
   saveServer: (customerId?: string | null) => Promise<void>;
@@ -142,7 +149,7 @@ export const useCartStore = create<CartState>()(
 
       removeCoupon: () => set({ couponCode: null, couponDiscount: 0, couponType: null, couponValue: 0, couponMaxDiscount: null }),
 
-      loadServer: async (customerId) => {
+      loadServer: async (customerId, merge = false) => {
         if (!customerId) return;
         try {
           const localItems = get().items;
@@ -150,41 +157,61 @@ export const useCartStore = create<CartState>()(
           if (!res.ok) return;
           const data = await res.json();
           const serverItems: CartItem[] = Array.isArray(data?.items) ? data.items : [];
-
-          // Merge server + local by (product_id, variant_id): sum quantities for
-          // lines present in both, keep the union otherwise. Re-id every line so
-          // ids stay unique/local.
           const keyOf = (i: CartItem) => `${i.product_id}::${i.variant_id || ""}`;
-          const byKey = new Map<string, CartItem>();
-          for (const it of serverItems) byKey.set(keyOf(it), { ...it });
-          for (const it of localItems) {
-            const k = keyOf(it);
-            const existing = byKey.get(k);
-            if (existing) {
-              existing.quantity = it.isPreorder
-                ? existing.quantity + it.quantity
-                : Math.min(existing.quantity + it.quantity, it.stock || existing.stock || existing.quantity + it.quantity);
+
+          let result: CartItem[];
+          let changed = merge; // whether the server needs a follow-up save
+
+          if (!merge) {
+            // RELOAD path: the server cart is authoritative. Adopt it as-is —
+            // do NOT combine with the local mirror (that would double quantities
+            // every refresh). If the server has no saved cart yet but we have a
+            // local one, keep local and push it up so it isn't lost.
+            if (serverItems.length === 0 && localItems.length > 0) {
+              result = localItems;
+              changed = true;
             } else {
-              byKey.set(k, { ...it });
+              result = serverItems.map((i) => ({ ...i }));
             }
+          } else {
+            // LOGIN path: union server + local guest cart by (product, variant),
+            // summing shared lines so a guest cart isn't lost on sign-in.
+            const byKey = new Map<string, CartItem>();
+            for (const it of serverItems) byKey.set(keyOf(it), { ...it });
+            for (const it of localItems) {
+              const k = keyOf(it);
+              const existing = byKey.get(k);
+              if (existing) {
+                existing.quantity = it.isPreorder
+                  ? existing.quantity + it.quantity
+                  : Math.min(existing.quantity + it.quantity, it.stock || existing.stock || existing.quantity + it.quantity);
+              } else {
+                byKey.set(k, { ...it });
+              }
+            }
+            result = Array.from(byKey.values());
           }
-          let merged = Array.from(byKey.values());
 
           // Enforce the pre-order / in-stock separation: a cart can't mix both.
-          // If the merge produced a mix, prefer in-stock lines (the common case)
-          // and drop pre-order lines rather than silently blocking checkout.
-          const hasPre = merged.some((i) => i.isPreorder);
-          const hasStock = merged.some((i) => !i.isPreorder);
-          if (hasPre && hasStock) merged = merged.filter((i) => !i.isPreorder);
+          // If the result is mixed, prefer in-stock lines (the common case).
+          const hasPre = result.some((i) => i.isPreorder);
+          const hasStock = result.some((i) => !i.isPreorder);
+          if (hasPre && hasStock) {
+            result = result.filter((i) => !i.isPreorder);
+            changed = true;
+          }
 
-          merged = merged.map((i, idx) => ({ ...i, id: `cart-${Date.now()}-${idx}` }));
+          // Re-id every line so ids stay unique/local.
+          result = result.map((i, idx) => ({ ...i, id: `cart-${idx}-${i.product_id}` }));
           const couponCode = typeof data?.coupon_code === "string" ? data.coupon_code : get().couponCode;
-          set({ items: merged, couponCode: couponCode ?? get().couponCode });
+          set({ items: result, couponCode: couponCode ?? get().couponCode });
 
-          // Persist the merged result so the server reflects the union too.
-          await get().saveServer(customerId);
+          // Only write back when we actually changed the server's copy (a login
+          // merge, or a local-only cart we just uploaded). A plain reload that
+          // simply adopted the server cart writes nothing.
+          if (changed) await get().saveServer(customerId);
         } catch {
-          // Network error — keep the local cart; retry on next login.
+          // Network error — keep the local cart; retry next time.
         }
       },
 
