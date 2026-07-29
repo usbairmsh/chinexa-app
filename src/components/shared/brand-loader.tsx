@@ -57,6 +57,7 @@ export function BrandLoader({ size = 132, label = "Loading" }: BrandLoaderProps)
               top: `${f.top}%`,
               animationDelay: `${f.delay}s`,
               animationDuration: `${f.dur}s`,
+              ["--drift" as string]: `${f.drift}px`,
             }}
           />
         ))}
@@ -87,11 +88,20 @@ export function BrandLoaderScreen({ className, label }: { className?: string; la
   );
 }
 
-// Falling petals: start points near the canopy (% of the mark box), size, timing.
-// Colors sampled from the logo — deep crimson, mid red, soft pink.
+// Falling petals: start points spread across the whole canopy (% of the mark
+// box), varied size/timing so several leaves are always mid-air at once from
+// random-looking positions. Colors sampled from the logo — deep crimson, mid
+// red, bright pink, soft blossom. Short, staggered delays + a couple that drift
+// a little sideways keep the fall looking natural rather than in lockstep.
 const FALLING = [
-  { left: 34, top: 30, w: 13, c: "#C0143C", delay: 0, dur: 2.8 },
-  { left: 55, top: 24, w: 11, c: "#7E1533", delay: 0.9, dur: 3.1 },
-  { left: 66, top: 34, w: 14, c: "#F3A9BE", delay: 1.7, dur: 2.9 },
-  { left: 46, top: 20, w: 10, c: "#D93A5B", delay: 2.3, dur: 3.3 },
+  { left: 20, top: 34, w: 13, c: "#C0143C", delay: 0.0, dur: 2.7, drift: -14 },
+  { left: 33, top: 22, w: 10, c: "#7E1533", delay: 0.5, dur: 3.2, drift: 6 },
+  { left: 41, top: 40, w: 14, c: "#F3A9BE", delay: 1.1, dur: 2.9, drift: -8 },
+  { left: 50, top: 18, w: 11, c: "#D93A5B", delay: 0.3, dur: 3.4, drift: 12 },
+  { left: 58, top: 33, w: 12, c: "#C0143C", delay: 1.6, dur: 2.6, drift: -10 },
+  { left: 66, top: 26, w: 9, c: "#7E1533", delay: 0.8, dur: 3.1, drift: 4 },
+  { left: 74, top: 38, w: 14, c: "#F3A9BE", delay: 2.0, dur: 2.8, drift: -6 },
+  { left: 82, top: 30, w: 11, c: "#D93A5B", delay: 1.3, dur: 3.5, drift: 10 },
+  { left: 28, top: 44, w: 12, c: "#D93A5B", delay: 2.4, dur: 3.0, drift: -12 },
+  { left: 90, top: 42, w: 10, c: "#C0143C", delay: 1.9, dur: 3.3, drift: 8 },
 ];

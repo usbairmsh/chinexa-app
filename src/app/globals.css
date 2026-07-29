@@ -433,14 +433,15 @@
 }
 
 /* A leaf detaches from the canopy and drifts down past the trunk,
-   swaying side to side and tumbling as it falls, then fades near the base. */
+   swaying side to side and tumbling as it falls, then fades near the base.
+   --drift (per leaf) sets its overall sideways travel so each falls its own way. */
 @keyframes chx-leaf-fall {
   0%   { transform: translate(0, 0) rotate(0deg); opacity: 0; }
   12%  { opacity: 1; }
-  35%  { transform: translate(-10px, 55px) rotate(-45deg); }
-  60%  { transform: translate(8px, 100px) rotate(35deg); }
-  85%  { transform: translate(-5px, 140px) rotate(-20deg); opacity: 1; }
-  100% { transform: translate(3px, 168px) rotate(12deg); opacity: 0; }
+  35%  { transform: translate(calc(var(--drift, 0px) * 0.6 - 6px), 55px) rotate(-45deg); }
+  60%  { transform: translate(calc(var(--drift, 0px) + 6px), 100px) rotate(35deg); }
+  85%  { transform: translate(calc(var(--drift, 0px) - 4px), 140px) rotate(-20deg); opacity: 1; }
+  100% { transform: translate(var(--drift, 0px), 168px) rotate(12deg); opacity: 0; }
 }
 .chx-leaf-fall {
   animation-name: chx-leaf-fall;
