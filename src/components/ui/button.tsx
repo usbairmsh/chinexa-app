@@ -32,7 +32,7 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive !text-white hover:bg-destructive/90 hover:shadow-[0_8px_24px_rgba(239,68,68,0.28)] hover:-translate-y-px",
         gold:
-          "bg-gold !text-white hover:bg-gold-light hover:shadow-[0_8px_24px_rgba(224,185,108,0.35)] hover:-translate-y-px",
+          "bg-gold !text-charcoal hover:bg-gold-light hover:shadow-[0_8px_24px_rgba(224,185,108,0.35)] hover:-translate-y-px",
       },
       size: {
         default: "h-10 px-6 py-2.5 text-[13px]",

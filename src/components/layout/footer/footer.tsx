@@ -88,9 +88,11 @@ export function Footer() {
           {/* Link Columns */}
           {Object.values(FOOTER_LINKS).map((section) => (
             <motion.div variants={item} key={section.title}>
-              <h4 className="font-heading text-sm font-semibold text-charcoal mb-4 tracking-wide">
+              {/* h3 (not h4) so the page heading order stays sequential
+                  (h1 → h2 sections → h3 footer) with no skipped level. */}
+              <h3 className="font-heading text-sm font-semibold text-charcoal mb-4 tracking-wide">
                 {section.title}
-              </h4>
+              </h3>
               <ul className="space-y-2.5">
                 {section.links.map((link) => (
                   <li key={link.label}>

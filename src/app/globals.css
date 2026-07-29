@@ -72,7 +72,9 @@
 
   --color-charcoal: #3A2438;
   --color-charcoal-light: #5C4058;
-  --color-charcoal-lighter: #8A7590;
+  /* Darkened from #8A7590 (~3.7:1 on white — failed WCAG AA) to ~5.1:1 so
+     muted text/descriptions are readable while staying clearly secondary. */
+  --color-charcoal-lighter: #6E5A75;
 
   --color-trunk: #6E2A43;
   --color-trunk-light: #97395A;
