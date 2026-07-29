@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { ensureCartTable } from "@/lib/migrate-cart";
-import { publicServerError, validationError } from "@/lib/validate";
+import { publicServerError } from "@/lib/validate";
 
 // Account-scoped cart persistence for LOGGED-IN customers, so a cart follows
 // them across devices and survives logout (localStorage is cleared on logout;
@@ -26,13 +26,17 @@ export async function GET(req: NextRequest) {
       "SELECT items, coupon_code FROM customer_carts WHERE customer_id = ? LIMIT 1",
       [customerId]
     );
-    if (rows.length === 0) return json({ items: [], coupon_code: null });
+    // has_saved distinguishes "this customer has NEVER saved a cart" (no row —
+    // treat a local guest cart as authoritative) from "saved an EMPTY cart"
+    // (row exists with []  — an intentional clear that must stick across devices,
+    // never be resurrected from a stale local copy).
+    if (rows.length === 0) return json({ items: [], coupon_code: null, has_saved: false });
     // items is stored as JSON; mysql2 may return it already-parsed or as a string.
     let items = rows[0].items;
     if (typeof items === "string") {
       try { items = JSON.parse(items); } catch { items = []; }
     }
-    return json({ items: Array.isArray(items) ? items : [], coupon_code: rows[0].coupon_code ?? null });
+    return json({ items: Array.isArray(items) ? items : [], coupon_code: rows[0].coupon_code ?? null, has_saved: true });
   } catch (error: unknown) {
     return publicServerError("GET /api/cart", error);
   }
@@ -46,7 +50,7 @@ export async function PUT(req: NextRequest) {
     await ensureCartTable();
     const body = await req.json();
     const customerId = body.customer_id as string | undefined;
-    if (!customerId) return validationError("customer_id is required");
+    if (!customerId) return json({ error: "customer_id is required" }, 400);
     const items = Array.isArray(body.items) ? body.items : [];
     const couponCode = typeof body.coupon_code === "string" ? body.coupon_code : null;
     await execute(
@@ -66,7 +70,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await ensureCartTable();
     const customerId = req.nextUrl.searchParams.get("customer_id");
-    if (!customerId) return validationError("customer_id is required");
+    if (!customerId) return json({ error: "customer_id is required" }, 400);
     await execute("DELETE FROM customer_carts WHERE customer_id = ?", [customerId]);
     return json({ success: true });
   } catch (error: unknown) {

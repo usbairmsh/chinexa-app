@@ -44,6 +44,10 @@ export const useAuthStore = create<AuthState>()(
         // Best-effort — failures leave the local state intact.
         if (customerId) {
           try {
+            // Mark the active customer FIRST so loadServer/saveServer guards
+            // accept this account's syncs (and reject stale ones after logout).
+            useCartStore.getState().setActiveCustomer(customerId);
+            useWishlistStore.getState().setActiveCustomer(customerId);
             // merge = true: this is a fresh sign-in, so combine any guest
             // cart/wishlist with the account's server-saved one (once).
             useWishlistStore.getState().loadServer(customerId, true);
@@ -64,6 +68,11 @@ export const useAuthStore = create<AuthState>()(
         // Done in the store itself so EVERY logout path clears them, not just
         // the header button.
         try {
+          // Clear the active-customer marker FIRST so any in-flight/debounced
+          // save or load for the old account is rejected by the store guards
+          // (prevents an empty-cart PUT wiping the server copy after logout).
+          useCartStore.getState().setActiveCustomer(null);
+          useWishlistStore.getState().setActiveCustomer(null);
           useCartStore.getState().clearCart();
           useWishlistStore.getState().clearWishlist();
         } catch { /* stores not ready — nothing to clear */ }

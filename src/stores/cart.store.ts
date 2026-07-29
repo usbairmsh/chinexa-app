@@ -19,6 +19,11 @@ interface OfferLine {
 
 interface CartState {
   items: CartItem[];
+  /** The customer this store is currently synced to (null = guest/logged out).
+   *  Late/async server responses and debounced saves check this so a stale
+   *  reply or save for a signed-out/switched account is never applied. Not
+   *  persisted — re-established from auth on each session. */
+  activeCustomerId: string | null;
   couponCode: string | null;
   couponDiscount: number;
   couponType: "percentage" | "fixed" | null;
@@ -61,6 +66,8 @@ interface CartState {
   /** Persist the current cart to the server for a logged-in customer (whole-cart
    *  upsert). Called debounced on cart changes and no-ops without a customerId. */
   saveServer: (customerId?: string | null) => Promise<void>;
+  /** Set/clear the customer this store syncs for (called on login/logout). */
+  setActiveCustomer: (customerId: string | null) => void;
 
   getSubtotal: () => number;
   getShipping: () => number;
@@ -75,6 +82,7 @@ export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
+      activeCustomerId: null,
       couponCode: null,
       couponDiscount: 0,
       couponType: null,
@@ -83,6 +91,8 @@ export const useCartStore = create<CartState>()(
       offerDiscount: 0,
       appliedOffers: [],
       offerLines: [],
+
+      setActiveCustomer: (customerId) => set({ activeCustomerId: customerId }),
 
       addItem: (item) => {
         const state = get();
@@ -153,32 +163,50 @@ export const useCartStore = create<CartState>()(
         if (!customerId) return;
         try {
           const localItems = get().items;
-          const res = await fetch(`/api/cart?customer_id=${encodeURIComponent(customerId)}`);
+          const res = await fetch(`/api/cart?customer_id=${encodeURIComponent(customerId)}`, { cache: "no-store" });
           if (!res.ok) return;
           const data = await res.json();
-          const serverItems: CartItem[] = Array.isArray(data?.items) ? data.items : [];
+          // Guard: if the active customer changed while this fetch was in flight
+          // (logout, or switched account), discard the response — never write a
+          // stale/other account's cart into state.
+          if (get().activeCustomerId !== customerId) return;
+
+          // Sanitize server lines: coerce quantity/stock to safe numbers so a
+          // malformed persisted line can never poison totals with NaN.
+          const sanitize = (i: CartItem): CartItem => {
+            const q = Number(i.quantity);
+            const s = Number(i.stock);
+            return {
+              ...i,
+              quantity: Number.isFinite(q) && q > 0 ? Math.floor(q) : 1,
+              stock: Number.isFinite(s) && s > 0 ? Math.floor(s) : 9999,
+            };
+          };
+          const serverItems: CartItem[] = (Array.isArray(data?.items) ? data.items : []).map(sanitize);
+          const hasSaved = !!data?.has_saved;
           const keyOf = (i: CartItem) => `${i.product_id}::${i.variant_id || ""}`;
 
           let result: CartItem[];
           let changed = merge; // whether the server needs a follow-up save
 
           if (!merge) {
-            // RELOAD path: the server cart is authoritative. Adopt it as-is —
-            // do NOT combine with the local mirror (that would double quantities
-            // every refresh). If the server has no saved cart yet but we have a
-            // local one, keep local and push it up so it isn't lost.
-            if (serverItems.length === 0 && localItems.length > 0) {
-              result = localItems;
+            // RELOAD path: the server cart is authoritative. Adopt it as-is — do
+            // NOT combine with the local mirror (that would double quantities
+            // every refresh). Only fall back to local when the customer has NEVER
+            // saved a cart (has_saved=false): an intentionally EMPTIED cart
+            // (has_saved=true, []) must stick, not resurrect from stale local.
+            if (!hasSaved && localItems.length > 0) {
+              result = localItems.map(sanitize);
               changed = true;
             } else {
-              result = serverItems.map((i) => ({ ...i }));
+              result = serverItems;
             }
           } else {
             // LOGIN path: union server + local guest cart by (product, variant),
             // summing shared lines so a guest cart isn't lost on sign-in.
             const byKey = new Map<string, CartItem>();
             for (const it of serverItems) byKey.set(keyOf(it), { ...it });
-            for (const it of localItems) {
+            for (const it of localItems.map(sanitize)) {
               const k = keyOf(it);
               const existing = byKey.get(k);
               if (existing) {
@@ -217,6 +245,10 @@ export const useCartStore = create<CartState>()(
 
       saveServer: async (customerId) => {
         if (!customerId) return;
+        // Guard (Critical): only ever persist for the CURRENTLY active customer.
+        // A debounced save can fire after logout/switch with a stale captured id;
+        // without this it could PUT an empty/old cart and wipe the real one.
+        if (get().activeCustomerId !== customerId) return;
         try {
           await fetch("/api/cart", {
             method: "PUT",

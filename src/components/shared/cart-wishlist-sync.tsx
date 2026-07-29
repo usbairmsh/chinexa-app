@@ -34,6 +34,10 @@ export function CartWishlistSync() {
     if (restoredForRef.current === userId) return;
     restoredForRef.current = userId;
 
+    // Mark the active customer so the store guards accept this session's syncs.
+    useCartStore.getState().setActiveCustomer(userId);
+    useWishlistStore.getState().setActiveCustomer(userId);
+
     // Fresh sign-in this session already restored (with a guest-merge) inside
     // login(). Skip the reload-adopt for that user so the two don't race — but
     // consume the marker so a later real reload of the same account still runs.
