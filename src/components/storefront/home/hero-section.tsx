@@ -224,6 +224,8 @@ export function HeroSection() {
               }
             })()}
             priority
+            fetchPriority="high"
+            quality={65}
             sizes="100vw"
           />
           {/* Overlay — per-banner toggle, opacity, and blur */}
