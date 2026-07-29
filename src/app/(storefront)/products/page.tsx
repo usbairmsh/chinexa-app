@@ -175,21 +175,14 @@ export default function ProductsPage() {
       <div className="bg-hero-gradient py-8 sm:py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Breadcrumb items={[{ label: "All Products" }]} />
-          <motion.h1
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="font-heading text-3xl sm:text-4xl font-semibold text-charcoal mt-4"
-          >
+          {/* Heading renders immediately (no load fade) — it's the above-fold
+              text and shouldn't wait on framer-motion. */}
+          <h1 className="font-heading text-3xl sm:text-4xl font-semibold text-charcoal mt-4">
             All Products
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.05 }}
-            className="text-charcoal-lighter mt-2"
-          >
+          </h1>
+          <p className="text-charcoal-lighter mt-2">
             {data?.total || 0} products to explore
-          </motion.p>
+          </p>
         </div>
       </div>
 

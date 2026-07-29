@@ -350,12 +350,9 @@ export default function ProductDetailPage() {
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-10 pb-16">
         <div className="grid lg:grid-cols-12 gap-6 lg:gap-14">
 
-          {/* ── LEFT: Gallery ── */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="lg:col-span-7 flex flex-col-reverse sm:flex-row gap-4"
-          >
+          {/* ── LEFT: Gallery ── (no load fade: this holds the LCP image, so it
+              must paint immediately, not wait for framer-motion to boot) */}
+          <div className="lg:col-span-7 flex flex-col-reverse sm:flex-row gap-4">
             {/* Thumbnails — vertical on desktop */}
             {product.images.length > 1 && (
               <div className="flex sm:flex-col gap-2.5 overflow-x-auto sm:overflow-y-auto sm:w-[72px] shrink-0 pb-1 sm:pb-0 sm:max-h-[600px]">
@@ -381,9 +378,12 @@ export default function ProductDetailPage() {
               className="relative flex-1 aspect-[3/4] sm:aspect-auto sm:min-h-[500px] lg:min-h-[600px] rounded-2xl overflow-hidden bg-image-surface group cursor-zoom-in"
               onClick={() => setLightboxOpen(true)}
             >
-              <AnimatePresence mode="wait">
+              <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={selectedImage}
+                  // initial=false on AnimatePresence → the FIRST image (the LCP
+                  // element) renders visible immediately instead of fading in
+                  // once framer-motion boots. Switching images still crossfades.
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -463,15 +463,10 @@ export default function ProductDetailPage() {
                 ))}
               </div>
             </div>
-          </motion.div>
+          </div>
 
-          {/* ── RIGHT: Product Info (sticky) ── */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }}
-            className="lg:col-span-5"
-          >
+          {/* ── RIGHT: Product Info (sticky) ── (no load fade: above-fold) */}
+          <div className="lg:col-span-5">
             <div className="lg:sticky lg:top-24 space-y-5">
               {/* Category + Title + Price */}
               <div>
@@ -834,7 +829,7 @@ export default function ProductDetailPage() {
               {/* Trust Promises — loaded from settings */}
               <StorefrontTrustBadges badgeIds={product.trust_badges || []} />
             </div>
-          </motion.div>
+          </div>
         </div>
 
         {/* ═══════ PRODUCT DETAILS ACCORDION ═══════ */}

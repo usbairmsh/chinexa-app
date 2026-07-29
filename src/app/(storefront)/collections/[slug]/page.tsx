@@ -47,21 +47,13 @@ export default function CollectionPage() {
       <div className="bg-hero-gradient py-10 sm:py-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Breadcrumb items={[{ label: meta.title }]} />
-          <motion.h1
-            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0 }}
-            animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1 }}
-            className="font-heading text-3xl sm:text-4xl lg:text-5xl font-semibold text-charcoal mt-4"
-          >
+          {/* Heading/description render immediately (no load fade) — above-fold. */}
+          <h1 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-semibold text-charcoal mt-4">
             {meta.title}
-          </motion.h1>
-          <motion.p
-            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0 }}
-            animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1 }}
-            transition={{ delay: 0.1 }}
-            className="text-charcoal-lighter mt-3 max-w-2xl"
-          >
+          </h1>
+          <p className="text-charcoal-lighter mt-3 max-w-2xl">
             {meta.description}
-          </motion.p>
+          </p>
         </div>
       </div>
 
