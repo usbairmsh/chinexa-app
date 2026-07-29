@@ -21,12 +21,18 @@ import sharp from "sharp";
 const CWD = typeof process.cwd === "function" ? process.cwd() : path.resolve(".");
 const ROOT = path.join(CWD, "public", "uploads");
 const ARGV = Array.isArray(process.argv) ? process.argv : [];
-const APPLY = ARGV.includes("--apply");
-// --delete-originals: don't keep the .orig backup (irreversible). Only used
-// once the compressed images are confirmed to serve correctly.
-const DELETE_ORIG = ARGV.includes("--delete-originals");
+const ENV = (typeof process !== "undefined" && process.env) ? process.env : {};
+// Accept flags via CLI args OR env vars (APPLY=1, DELETE_ORIG=1) — some
+// container/node setups don't populate process.argv, so env is the reliable
+// fallback. Any truthy value ("1", "true", "yes") enables it.
+const truthy = (v) => v === "1" || v === "true" || v === "yes";
+const APPLY = ARGV.includes("--apply") || truthy(ENV.APPLY);
+// --delete-originals / DELETE_ORIG=1: don't keep the .orig backup
+// (irreversible). Only use once compressed images are confirmed to serve OK.
+const DELETE_ORIG = ARGV.includes("--delete-originals") || truthy(ENV.DELETE_ORIG);
 const MAX = 1600;
 const Q = 80;
+console.log(`Flags: APPLY=${APPLY} DELETE_ORIGINALS=${DELETE_ORIG} (argv had: ${ARGV.slice(2).join(" ") || "none"})`);
 
 let scanned = 0, changed = 0, before = 0, after = 0, skipped = 0;
 
