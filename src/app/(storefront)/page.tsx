@@ -38,10 +38,22 @@ const internalUrl = `http://127.0.0.1:${process.env.PORT || 3000}`;
 export default async function HomePage() {
   const queryClient = new QueryClient();
 
-  // Cache these for 60s instead of re-querying the DB on every homepage hit
-  // (was cache: "no-store"). Hero banners and categories change rarely, so a
-  // ≤60s-stale copy is fine and cuts the server's per-request DB work — the
-  // main driver of the homepage's slow first-byte time.
+  // Server-prefetch the above-the-fold sections so their data ships in the
+  // initial HTML and renders on first paint — instead of the browser booting
+  // React, THEN firing these fetches, THEN waiting (which is why the product
+  // rows lagged behind the categories). Cached 60s (banners/categories/product
+  // rows change rarely) to also cut per-request DB work.
+  //
+  // The product query keys + the returned (unwrapped) array must match what the
+  // hooks in use-products.ts expect, so the client reuses this cache instead of
+  // refetching. limit=8 is the default (rows 2 × cols 4).
+  const products = (q: string) => async () => {
+    const res = await fetch(`${internalUrl}/api/products?${q}&limit=8`, { next: { revalidate: 60 } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data?.data) ? data.data : [];
+  };
+
   await Promise.all([
     queryClient.prefetchQuery({
       queryKey: ["banners", "hero"],
@@ -60,6 +72,10 @@ export default async function HomePage() {
         return Array.isArray(data) ? data : [];
       },
     }),
+    // Product rows — keys/params mirror useNewArrivals/useBestsellers/useTrending.
+    queryClient.prefetchQuery({ queryKey: ["products", "new-arrivals", 8], queryFn: products("badges=new&sort_by=newest") }),
+    queryClient.prefetchQuery({ queryKey: ["products", "bestsellers", 8], queryFn: products("badges=bestseller") }),
+    queryClient.prefetchQuery({ queryKey: ["products", "trending", 8], queryFn: products("badges=trending") }),
   ]);
 
   return (
