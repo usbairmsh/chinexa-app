@@ -2,13 +2,29 @@ services:
   db:
     image: mysql:8.0
     restart: unless-stopped
+    # Performance tuning: a larger InnoDB buffer pool keeps hot data/indexes in
+    # RAM instead of reading disk on every query (the single biggest MySQL
+    # speed lever). Size it to ~50-60% of the RAM you can give the DB — bump to
+    # 1G/2G if the VPS has room. redo log + I/O capacity raised for write
+    # bursts (orders, stock updates).
+    command: >-
+      --innodb-buffer-pool-size=512M
+      --innodb-log-file-size=128M
+      --innodb-flush-log-at-trx-commit=2
+      --innodb-io-capacity=1000
+      --max-connections=100
+      --skip-name-resolve
     env_file:
       - .env.production
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME}
+    # Bind MySQL to localhost only — it was published to 0.0.0.0:3306 (the whole
+    # internet), which is a security risk and a resource drain from bots probing
+    # it. The app reaches it over the internal Docker network ("db") regardless;
+    # for a remote DB client, use an SSH tunnel to 127.0.0.1:3306.
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
