@@ -180,36 +180,8 @@ export default function RootLayout({
         ` }} />
       </head>
       <body className="min-h-full flex flex-col font-body text-charcoal bg-background">
-        {/* Initial splash screen — covers everything until content is ready.
-            Background uses the theme token so it matches light/dark (the
-            no-flash script above has already set .dark by the time this
-            paints). */}
-        <div id="initial-loader" style={{
-          position: "fixed", inset: 0, zIndex: 99999,
-          display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "16px",
-          background: "var(--color-background)",
-        }}>
-          {/* Tiny (3.5KB) 128px palette icon for the splash — the full 192px
-              favicon was 60KB on the critical path. */}
-          <img src="/favicon/loader-icon.png" alt="" width="64" height="64" style={{ borderRadius: "16px" }} />
-          <div style={{ width: 40, height: 40, border: "3px solid #f0e6e3", borderTop: "3px solid #C0392B", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-          {/* CSS-only failsafe: if React discards the server DOM after a hydration
-              mismatch, the re-created loader div's inline script never re-executes.
-              This animation ALWAYS hides the loader — it survives re-renders. */}
-          <style dangerouslySetInnerHTML={{ __html: `@keyframes spin{to{transform:rotate(360deg)}} #initial-loader.fade-out{opacity:0;pointer-events:none;transition:opacity 0.4s ease} @keyframes loaderKill{to{opacity:0;visibility:hidden;pointer-events:none}} #initial-loader{animation:loaderKill .4s ease 3.5s forwards}` }} />
-        </div>
-        <script dangerouslySetInnerHTML={{ __html: `
-          (function(){
-            var loader=document.getElementById('initial-loader');
-            if(!loader)return;
-            function hide(){loader.classList.add('fade-out');setTimeout(function(){loader.style.display='none'},400)}
-            var hidden=false;
-            function tryHide(){if(hidden)return;var hero=document.querySelector('[class*="hero"],main img,[class*="swiper"]');if(hero||document.readyState==='complete'){hidden=true;setTimeout(hide,200)}}
-            window.addEventListener('load',function(){setTimeout(tryHide,100)});
-            var check=setInterval(tryHide,300);
-            setTimeout(function(){clearInterval(check);tryHide();if(!hidden){hidden=true;hide()}},4000);
-          })();
-        `}} />
+        {/* Splash loader removed — pages now paint their real content as it
+            arrives instead of hiding everything behind a spinner first. */}
         <Providers>{children}</Providers>
         <RouteScrollReset />
         <ServiceWorkerRegister />
