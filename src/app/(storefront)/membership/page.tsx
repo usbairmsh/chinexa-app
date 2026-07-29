@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { Loader2, Crown, Check, Star, Sparkles } from "lucide-react";
+import { Crown, Check, Star, Sparkles } from "lucide-react";
+import { BrandLoader } from "@/components/shared/brand-loader";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -152,7 +153,7 @@ export default function MembershipBenefitsPage() {
             <h3 className="font-heading text-lg sm:text-xl font-semibold text-charcoal mb-5">Membership Levels</h3>
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-charcoal-lighter" />
+                <BrandLoader label="Loading" size={96} />
               </div>
             ) : tiers.length === 0 ? (
               <EmptyState icon={Crown} title="No membership tiers yet" description="Membership levels and their perks will show up here once configured." />

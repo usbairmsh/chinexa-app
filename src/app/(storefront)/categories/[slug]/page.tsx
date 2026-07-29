@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ProductCard } from "@/components/storefront/product/product-card";
+import { BrandLoader } from "@/components/shared/brand-loader";
 import { useProductsByCategory, useProducts } from "@/hooks/queries/use-products";
 import { useCategory } from "@/hooks/queries/use-categories";
 import type { ProductListParams } from "@/types/product";
@@ -295,13 +296,7 @@ export default function CategoryPage() {
               </div>
             ) : isFetching ? (
               <div className="flex items-center justify-center py-20">
-                <div className="flex flex-col items-center gap-3">
-                  <div className="relative">
-                    <div className="h-10 w-10 rounded-full border-[3px] border-pearl" />
-                    <div className="absolute inset-0 h-10 w-10 rounded-full border-[3px] border-secondary border-t-transparent animate-spin" />
-                  </div>
-                  <p className="text-sm text-charcoal-lighter">Loading products...</p>
-                </div>
+                <BrandLoader label="Loading products" size={110} />
               </div>
             ) : !data?.data?.length ? (
               <EmptyState

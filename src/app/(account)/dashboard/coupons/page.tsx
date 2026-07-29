@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Tag, Gift, Loader2, Globe, Users, FolderTree, ShoppingCart, Copy, Check, Calendar, Wallet, Award } from "lucide-react";
+import { Tag, Gift, Globe, Users, FolderTree, ShoppingCart, Copy, Check, Calendar, Wallet, Award } from "lucide-react";
+import { BrandLoader } from "@/components/shared/brand-loader";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -89,7 +90,7 @@ export default function CouponsOffersPage() {
   if (!mounted || loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-6 w-6 animate-spin text-charcoal-lighter" />
+        <BrandLoader label="Loading" size={96} />
       </div>
     );
   }

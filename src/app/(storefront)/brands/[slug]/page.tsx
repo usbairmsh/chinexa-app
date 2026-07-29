@@ -15,6 +15,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ProductCard } from "@/components/storefront/product/product-card";
+import { BrandLoader } from "@/components/shared/brand-loader";
 import { useProducts } from "@/hooks/queries/use-products";
 import { useBrand } from "@/hooks/queries/use-brands";
 import type { ProductListParams } from "@/types/product";
@@ -265,13 +266,7 @@ export default function BrandPage() {
               </div>
             ) : isFetching ? (
               <div className="flex items-center justify-center py-20">
-                <div className="flex flex-col items-center gap-3">
-                  <div className="relative">
-                    <div className="h-10 w-10 rounded-full border-[3px] border-pearl" />
-                    <div className="absolute inset-0 h-10 w-10 rounded-full border-[3px] border-secondary border-t-transparent animate-spin" />
-                  </div>
-                  <p className="text-sm text-charcoal-lighter">Loading products...</p>
-                </div>
+                <BrandLoader label="Loading products" size={110} />
               </div>
             ) : !data?.data?.length ? (
               <EmptyState

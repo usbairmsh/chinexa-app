@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
 import { Star, Loader2, Package, MessageSquareText } from "lucide-react";
+import { BrandLoader } from "@/components/shared/brand-loader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -94,7 +95,7 @@ export default function MyReviewsPage() {
   };
 
   if (!mounted || loading) {
-    return <div className="flex items-center justify-center py-24"><Loader2 className="h-6 w-6 text-secondary animate-spin" /></div>;
+    return <div className="flex items-center justify-center py-24"><BrandLoader label="Loading reviews" size={96} /></div>;
   }
 
   return (

@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Star, ArrowLeft, Loader2, TrendingUp, TrendingDown, Gift, ShoppingBag, RotateCcw, Settings, Tag } from "lucide-react";
+import { Star, ArrowLeft, TrendingUp, TrendingDown, Gift, ShoppingBag, RotateCcw, Settings, Tag } from "lucide-react";
+import { BrandLoader } from "@/components/shared/brand-loader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -118,7 +119,7 @@ export default function PointsHistoryPage() {
           <h3 className="text-sm font-semibold text-charcoal mb-3">Points History</h3>
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-charcoal-lighter" />
+              <BrandLoader label="Loading" size={96} />
             </div>
           ) : history.length === 0 ? (
             <EmptyState icon={Star} title="No points activity yet" description="Points you earn from orders and bonuses will show up here." />

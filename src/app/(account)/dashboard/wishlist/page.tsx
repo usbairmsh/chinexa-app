@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Heart, Loader2 } from "lucide-react";
+import { Heart } from "lucide-react";
+import { BrandLoader } from "@/components/shared/brand-loader";
 import { motion } from "framer-motion";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ProductCard } from "@/components/storefront/product/product-card";
@@ -54,7 +55,7 @@ export default function AccountWishlistPage() {
           animate={{ opacity: 1 }}
           className="flex items-center justify-center py-16"
         >
-          <Loader2 className="h-6 w-6 animate-spin text-charcoal-lighter" />
+          <BrandLoader label="Loading wishlist" size={96} />
         </motion.div>
       ) : products.length === 0 ? (
         <EmptyState
