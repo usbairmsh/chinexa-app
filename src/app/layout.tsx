@@ -189,7 +189,9 @@ export default function RootLayout({
           display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "16px",
           background: "var(--color-background)",
         }}>
-          <img src="/favicon/android-chrome-192x192.png" alt="" width="64" height="64" style={{ borderRadius: "16px" }} />
+          {/* Tiny (3.5KB) 128px palette icon for the splash — the full 192px
+              favicon was 60KB on the critical path. */}
+          <img src="/favicon/loader-icon.png" alt="" width="64" height="64" style={{ borderRadius: "16px" }} />
           <div style={{ width: 40, height: 40, border: "3px solid #f0e6e3", borderTop: "3px solid #C0392B", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
           {/* CSS-only failsafe: if React discards the server DOM after a hydration
               mismatch, the re-created loader div's inline script never re-executes.
