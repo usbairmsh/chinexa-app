@@ -38,11 +38,15 @@ const internalUrl = `http://127.0.0.1:${process.env.PORT || 3000}`;
 export default async function HomePage() {
   const queryClient = new QueryClient();
 
+  // Cache these for 60s instead of re-querying the DB on every homepage hit
+  // (was cache: "no-store"). Hero banners and categories change rarely, so a
+  // ≤60s-stale copy is fine and cuts the server's per-request DB work — the
+  // main driver of the homepage's slow first-byte time.
   await Promise.all([
     queryClient.prefetchQuery({
       queryKey: ["banners", "hero"],
       queryFn: async () => {
-        const res = await fetch(`${internalUrl}/api/banners?position=hero`, { cache: "no-store" });
+        const res = await fetch(`${internalUrl}/api/banners?position=hero`, { next: { revalidate: 60 } });
         if (!res.ok) return [];
         return res.json();
       },
@@ -50,7 +54,7 @@ export default async function HomePage() {
     queryClient.prefetchQuery({
       queryKey: ["categories"],
       queryFn: async () => {
-        const res = await fetch(`${internalUrl}/api/categories`, { cache: "no-store" });
+        const res = await fetch(`${internalUrl}/api/categories`, { next: { revalidate: 60 } });
         if (!res.ok) return [];
         const data = await res.json();
         return Array.isArray(data) ? data : [];
