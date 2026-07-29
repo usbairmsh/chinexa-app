@@ -8,6 +8,7 @@ import { BackInStockToast } from "@/components/storefront/wishlist/back-in-stock
 import { ScrollToTop } from "@/components/shared/scroll-to-top";
 import { PageViewTracker } from "@/components/shared/page-view-tracker";
 import { PageLoader } from "@/components/shared/page-loader";
+import { CartWishlistSync } from "@/components/shared/cart-wishlist-sync";
 import { OrganizationJsonLd, WebsiteJsonLd, LocalBusinessJsonLd } from "@/components/seo/json-ld";
 import { getSchemaConfig } from "@/lib/seo";
 import pool from "@/lib/db";
@@ -90,6 +91,7 @@ export default async function StorefrontLayout({
       <BackInStockToast />
       <ScrollToTop />
       <PageViewTracker />
+      <CartWishlistSync />
     </>
   );
 }

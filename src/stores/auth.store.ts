@@ -23,12 +23,24 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
 
-      login: (session) =>
+      login: (session) => {
         set({
           user: session.user,
           token: session.token,
           isAuthenticated: true,
-        }),
+        });
+        // Restore this account's server-saved cart & wishlist, merging in any
+        // items added while signed out. Makes both follow the account across
+        // devices and survive logout (logout clears local; this brings it back).
+        // Best-effort — failures leave the local state intact.
+        const customerId = session.user?.id;
+        if (customerId) {
+          try {
+            useWishlistStore.getState().loadServer(customerId);
+            useCartStore.getState().loadServer(customerId);
+          } catch { /* stores not ready */ }
+        }
+      },
 
       logout: () => {
         set({

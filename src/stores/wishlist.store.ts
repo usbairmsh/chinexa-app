@@ -18,6 +18,13 @@ interface WishlistState {
    * can show the "we'll notify you" popup.
    */
   syncServer: (productId: string, added: boolean, customerId?: string | null) => Promise<{ outOfStock: boolean }>;
+  /**
+   * On login: pull the customer's server-side wishlist and MERGE any local
+   * (guest) items into it — union of both, then push any local-only items up to
+   * the server so nothing is lost. Makes the wishlist follow the account across
+   * devices / survive logout. No-op without a customerId.
+   */
+  loadServer: (customerId: string) => Promise<void>;
 }
 
 export const useWishlistStore = create<WishlistState>()(
@@ -66,6 +73,33 @@ export const useWishlistStore = create<WishlistState>()(
           }
         } catch {
           return { outOfStock: false };
+        }
+      },
+
+      loadServer: async (customerId) => {
+        if (!customerId) return;
+        try {
+          const localBefore = get().items;
+          const res = await fetch(`/api/wishlist?customer_id=${encodeURIComponent(customerId)}`);
+          if (!res.ok) return;
+          const rows = (await res.json()) as { product_id: string }[];
+          const serverIds = Array.isArray(rows) ? rows.map((r) => r.product_id) : [];
+          // Union: keep everything the account has on the server PLUS anything the
+          // user added as a guest before logging in.
+          const merged = Array.from(new Set([...serverIds, ...localBefore]));
+          set({ items: merged });
+          // Push any local-only (guest) items up to the server so they persist
+          // for next time / other devices. Best-effort, fire-and-forget.
+          const localOnly = localBefore.filter((id) => !serverIds.includes(id));
+          for (const productId of localOnly) {
+            fetch("/api/wishlist", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ customer_id: customerId, product_id: productId }),
+            }).catch(() => {});
+          }
+        } catch {
+          // Network error — keep whatever's local; try again on next login.
         }
       },
     }),

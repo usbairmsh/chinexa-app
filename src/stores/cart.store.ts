@@ -44,6 +44,17 @@ interface CartState {
   /** Re-evaluate active admin offers against the current cart (server-authoritative). */
   refreshOffers: (customerId?: string | null) => Promise<void>;
 
+  /**
+   * On login: pull the customer's server-saved cart and MERGE the local (guest)
+   * cart into it — so a cart added while signed out isn't lost, and a cart saved
+   * on another device comes back. Then persists the merged result to the server.
+   * No-op without a customerId. Respects the pre-order/in-stock separation rule.
+   */
+  loadServer: (customerId: string) => Promise<void>;
+  /** Persist the current cart to the server for a logged-in customer (whole-cart
+   *  upsert). Called debounced on cart changes and no-ops without a customerId. */
+  saveServer: (customerId?: string | null) => Promise<void>;
+
   getSubtotal: () => number;
   getShipping: () => number;
   getDiscount: () => number;
@@ -130,6 +141,69 @@ export const useCartStore = create<CartState>()(
         }),
 
       removeCoupon: () => set({ couponCode: null, couponDiscount: 0, couponType: null, couponValue: 0, couponMaxDiscount: null }),
+
+      loadServer: async (customerId) => {
+        if (!customerId) return;
+        try {
+          const localItems = get().items;
+          const res = await fetch(`/api/cart?customer_id=${encodeURIComponent(customerId)}`);
+          if (!res.ok) return;
+          const data = await res.json();
+          const serverItems: CartItem[] = Array.isArray(data?.items) ? data.items : [];
+
+          // Merge server + local by (product_id, variant_id): sum quantities for
+          // lines present in both, keep the union otherwise. Re-id every line so
+          // ids stay unique/local.
+          const keyOf = (i: CartItem) => `${i.product_id}::${i.variant_id || ""}`;
+          const byKey = new Map<string, CartItem>();
+          for (const it of serverItems) byKey.set(keyOf(it), { ...it });
+          for (const it of localItems) {
+            const k = keyOf(it);
+            const existing = byKey.get(k);
+            if (existing) {
+              existing.quantity = it.isPreorder
+                ? existing.quantity + it.quantity
+                : Math.min(existing.quantity + it.quantity, it.stock || existing.stock || existing.quantity + it.quantity);
+            } else {
+              byKey.set(k, { ...it });
+            }
+          }
+          let merged = Array.from(byKey.values());
+
+          // Enforce the pre-order / in-stock separation: a cart can't mix both.
+          // If the merge produced a mix, prefer in-stock lines (the common case)
+          // and drop pre-order lines rather than silently blocking checkout.
+          const hasPre = merged.some((i) => i.isPreorder);
+          const hasStock = merged.some((i) => !i.isPreorder);
+          if (hasPre && hasStock) merged = merged.filter((i) => !i.isPreorder);
+
+          merged = merged.map((i, idx) => ({ ...i, id: `cart-${Date.now()}-${idx}` }));
+          const couponCode = typeof data?.coupon_code === "string" ? data.coupon_code : get().couponCode;
+          set({ items: merged, couponCode: couponCode ?? get().couponCode });
+
+          // Persist the merged result so the server reflects the union too.
+          await get().saveServer(customerId);
+        } catch {
+          // Network error — keep the local cart; retry on next login.
+        }
+      },
+
+      saveServer: async (customerId) => {
+        if (!customerId) return;
+        try {
+          await fetch("/api/cart", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              customer_id: customerId,
+              items: get().items,
+              coupon_code: get().couponCode,
+            }),
+          });
+        } catch {
+          // Best-effort; the local persist still holds the cart meanwhile.
+        }
+      },
 
       refreshOffers: async (customerId) => {
         const items = get().items;
