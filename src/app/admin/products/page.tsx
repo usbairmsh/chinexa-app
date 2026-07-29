@@ -206,11 +206,18 @@ export default function AdminProductsPage() {
             <span className="text-xs text-charcoal-light">{product.created_at ? formatDateShort(product.created_at) : "—"}</span>
           </td>
 
-          {/* Wishlist demand (customers waiting for a restock) */}
+          {/* Wishlist — total customers who have this product wishlisted
+              (in stock OR out of stock). The gold heart flags out-of-stock
+              restock demand specifically. */}
           <td className="px-4 py-3 hidden xl:table-cell">
-            {product.oos_wishlist_count && product.oos_wishlist_count > 0 ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-secondary/10 px-2 py-0.5 text-[11px] font-semibold text-secondary [font-variant-numeric:tabular-nums]" title="Customers wishlisted this while it was out of stock — they'll be notified on restock">
-                <Heart className="h-3 w-3" /> {product.oos_wishlist_count}
+            {product.wishlist_count && product.wishlist_count > 0 ? (
+              <span
+                className="inline-flex items-center gap-1 rounded-full bg-secondary/10 px-2 py-0.5 text-[11px] font-semibold text-secondary [font-variant-numeric:tabular-nums]"
+                title={product.oos_wishlist_count && product.oos_wishlist_count > 0
+                  ? `${product.wishlist_count} in wishlists — ${product.oos_wishlist_count} waiting for restock`
+                  : `${product.wishlist_count} customers have this in their wishlist`}
+              >
+                <Heart className={cn("h-3 w-3", product.oos_wishlist_count && product.oos_wishlist_count > 0 && "fill-gold text-gold")} /> {product.wishlist_count}
               </span>
             ) : (
               <span className="text-xs text-charcoal-lighter">—</span>

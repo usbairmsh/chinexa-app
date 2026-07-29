@@ -51,6 +51,8 @@ export interface Product {
   last_restocked_at?: string;
   /** How many customers wishlisted this product while it was out of stock (demand signal). */
   oos_wishlist_count?: number;
+  /** Total customers who have this product in their wishlist (any stock state). */
+  wishlist_count?: number;
   is_active: boolean;
   is_featured: boolean;
   average_rating: number;

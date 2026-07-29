@@ -195,8 +195,9 @@ export async function getProductsList(searchParams: URLSearchParams): Promise<Pa
   // Exclusive listing. GREATEST over created_at and last_restocked_at so a
   // restock bumps an old product to the top.
   else if (sortBy === "restocked") orderBy = "ORDER BY GREATEST(p.created_at, COALESCE(p.last_restocked_at, p.created_at)) DESC";
-  // Admin: sort by out-of-stock wishlist demand (highest first).
-  else if (sortBy === "wishlist_desc") orderBy = "ORDER BY p.oos_wishlist_count DESC, p.created_at DESC";
+  // Admin: sort by total wishlist demand (highest first) — live count of all
+  // customers who have the product wishlisted.
+  else if (sortBy === "wishlist_desc") orderBy = "ORDER BY (SELECT COUNT(*) FROM customer_wishlists cw2 WHERE cw2.product_id = p.id) DESC, p.created_at DESC";
   else if (sortBy === "date_added") orderBy = "ORDER BY p.created_at DESC";
   else if (relevanceSelect && sortBy === "featured") orderBy = "ORDER BY relevance DESC, p.is_featured DESC";
 
@@ -213,7 +214,12 @@ export async function getProductsList(searchParams: URLSearchParams): Promise<Pa
       params
     ),
     query<RowDataPacket[]>(
-      `SELECT p.*${relevanceSelect} FROM products p ${where} ${orderBy} LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+      // wishlist_count: live count of customers who have this product in their
+      // wishlist (any stock state) — so the admin column is always accurate and
+      // never drifts, unlike the denormalized oos_wishlist_count counter.
+      `SELECT p.*${relevanceSelect},
+              (SELECT COUNT(*) FROM customer_wishlists cw WHERE cw.product_id = p.id) AS wishlist_count
+       FROM products p ${where} ${orderBy} LIMIT ${safeLimit} OFFSET ${safeOffset}`,
       [...relevanceParams, ...params]
     ),
   ]);
@@ -259,6 +265,7 @@ export async function getProductsList(searchParams: URLSearchParams): Promise<Pa
     preorder_release_date: row.preorder_release_date ? String(row.preorder_release_date).slice(0, 10) : undefined,
     last_restocked_at: row.last_restocked_at || undefined,
     oos_wishlist_count: Number(row.oos_wishlist_count) || 0,
+    wishlist_count: Number(row.wishlist_count) || 0,
     average_rating: Number(row.average_rating), review_count: row.review_count,
     country_of_origin: row.country_of_origin || undefined, weight: row.weight || undefined,
     ingredients: row.ingredients || undefined, how_to_use: row.how_to_use || undefined,
