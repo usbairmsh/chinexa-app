@@ -5,7 +5,8 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   ShoppingBag, Heart, MapPin, Star, Package, Truck,
-  CheckCircle2, Clock, ArrowRight, Gift, Loader2, Crown, MessageCircle
+  CheckCircle2, Clock, ArrowRight, Gift, Loader2, Crown, MessageCircle,
+  XCircle, RotateCcw
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,8 +21,12 @@ import { useWishlistStore } from "@/stores/wishlist.store";
 import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
 import { resolveTierColorStyle } from "@/lib/tier-color";
 
-// Customer-friendly labels
+// Customer-friendly labels. Must cover EVERY value of the orders.status enum,
+// otherwise an unmapped status falls back to "Order Placed" and shows the wrong
+// state (e.g. a cancelled/returned/pre-order order looked "pending" here). Keep
+// in sync with the orders list page's statusConfig.
 const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
+  preorder: { label: "Pre-order — Reserved", color: "text-secondary bg-secondary/10", icon: Clock },
   pending: { label: "Order Placed", color: "text-warning bg-warning/10", icon: Clock },
   confirmed: { label: "Confirmed", color: "text-blue-500 bg-blue-50", icon: CheckCircle2 },
   processing: { label: "Processing", color: "text-secondary bg-secondary/10", icon: Package },
@@ -29,6 +34,10 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
   on_delivery: { label: "Out for Delivery", color: "text-indigo-500 bg-indigo-50", icon: Truck },
   received: { label: "Delivered", color: "text-success bg-success/10", icon: CheckCircle2 },
   not_received: { label: "Delivery Failed", color: "text-destructive bg-destructive/10", icon: Clock },
+  // Archiving an order sets its status to 'cancelled'; a processed return sets
+  // 'returned'. Without these the dashboard fell back to "Order Placed".
+  cancelled: { label: "Cancelled", color: "text-destructive bg-destructive/10", icon: XCircle },
+  returned: { label: "Returned", color: "text-orange-500 bg-orange-50", icon: RotateCcw },
 };
 
 interface OrderData {
