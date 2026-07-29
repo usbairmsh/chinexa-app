@@ -113,7 +113,7 @@ export function Header() {
 
   const handleLogout = () => {
     setAccountMenuOpen(false);
-    logout();
+    logout(); // also clears cart + wishlist (handled in the auth store)
     router.push("/");
   };
 
