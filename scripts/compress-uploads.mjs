@@ -22,6 +22,9 @@ const CWD = typeof process.cwd === "function" ? process.cwd() : path.resolve("."
 const ROOT = path.join(CWD, "public", "uploads");
 const ARGV = Array.isArray(process.argv) ? process.argv : [];
 const APPLY = ARGV.includes("--apply");
+// --delete-originals: don't keep the .orig backup (irreversible). Only used
+// once the compressed images are confirmed to serve correctly.
+const DELETE_ORIG = ARGV.includes("--delete-originals");
 const MAX = 1600;
 const Q = 80;
 
@@ -60,6 +63,10 @@ async function process(file, ext) {
       .resize({ width: MAX, height: MAX, fit: "inside", withoutEnlargement: true })
       .webp({ quality: Q })
       .toBuffer();
+    // Verify the output is a valid, decodable image before trusting it — never
+    // replace a good original with corrupt bytes.
+    const check = await sharp(out).metadata();
+    if (!check.width || !check.height) throw new Error("invalid output");
   } catch { skipped++; return; }
 
   before += size0;
@@ -72,8 +79,14 @@ async function process(file, ext) {
   console.log(`${APPLY ? "✔" : "•"} ${path.relative(ROOT, file)}  ${(size0/1024).toFixed(0)}KB → ${(out.length/1024).toFixed(0)}KB  (-${pct}%)`);
 
   if (APPLY) {
-    if (!existsSync(file + ".orig")) await rename(file, file + ".orig").catch(() => {});
-    await writeFile(file, out);
+    if (DELETE_ORIG) {
+      // Overwrite in place, no backup (irreversible). The verified WebP bytes
+      // replace the original; the uploads route serves by content sniffing.
+      await writeFile(file, out);
+    } else {
+      if (!existsSync(file + ".orig")) await rename(file, file + ".orig").catch(() => {});
+      await writeFile(file, out);
+    }
   }
 }
 
