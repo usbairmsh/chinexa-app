@@ -52,7 +52,20 @@ export async function GET() {
           created_at: c.created_at,
         })),
     }));
-    return NextResponse.json(parents);
+    // The category tree is fully public + identical for every visitor and
+    // changes rarely, but it's fetched by the header/footer on nearly every
+    // page load. Let the CDN (Cloudflare) cache it so those hits are served
+    // from the edge instead of hitting the DB each time. s-maxage caches at
+    // the shared/edge cache for 1h; stale-while-revalidate serves the stale
+    // copy instantly for up to a day while a fresh one is fetched in the
+    // background — so an admin edit propagates on its own within the hour
+    // (or purge the cache to see it immediately). SAFE only because this
+    // response contains NO per-user data.
+    return NextResponse.json(parents, {
+      headers: {
+        "Cache-Control": "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400",
+      },
+    });
   } catch (error: unknown) {
     return publicServerError("GET /api/categories", error);
   }
