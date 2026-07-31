@@ -7,7 +7,30 @@ import { Phone } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useCountdown } from "@/hooks/use-countdown";
 import { useStoreSettings } from "@/hooks/use-store-settings";
-import { DEFAULT_ANNOUNCEMENT_CONFIG, type Announcement, type AnnouncementConfig } from "@/types/announcement";
+import { DEFAULT_ANNOUNCEMENT_CONFIG, type Announcement, type AnnouncementConfig, type AnnouncementType } from "@/types/announcement";
+import { cn } from "@/lib/utils";
+
+// Per-type look: a vivid gradient bar + font treatment so each announcement is
+// eye-catching and instantly recognizable to customers. Mirrors the admin
+// preview themes on /admin/announcements.
+const BAR_THEME: Record<AnnouncementType, { bar: string; text: string; font: string; link: string }> = {
+  text: {
+    bar: "bg-gradient-to-r from-secondary via-secondary-dark to-secondary",
+    text: "text-white", font: "tracking-[0.04em]", link: "hover:text-white/80",
+  },
+  countdown: {
+    bar: "bg-gradient-to-r from-rose-600 via-red-500 to-orange-500",
+    text: "text-white", font: "font-heading font-bold uppercase tracking-[0.12em]", link: "hover:text-white/80",
+  },
+  free_shipping: {
+    bar: "bg-gradient-to-r from-emerald-600 via-green-500 to-teal-500",
+    text: "text-white", font: "font-heading font-semibold tracking-[0.04em]", link: "hover:text-white/80",
+  },
+  social_proof: {
+    bar: "bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-400",
+    text: "text-charcoal", font: "font-heading font-semibold tracking-[0.04em]", link: "hover:text-charcoal/70",
+  },
+};
 
 function CountdownClock({ value }: { value: { days: number; hours: number; minutes: number; seconds: number } }) {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -73,12 +96,18 @@ export function AnnouncementBar() {
   if (!config || activeItems.length === 0) return null;
 
   const current = activeItems[index % activeItems.length];
-  const messageClass = "text-[10px] sm:text-[11px] text-charcoal-light text-center tracking-[0.03em] truncate px-2 sm:px-0 hover:text-secondary transition-colors";
+  const theme = BAR_THEME[current.type];
+  const messageClass = cn(
+    "text-[11px] sm:text-xs text-center truncate px-2 sm:px-0 transition-colors",
+    theme.text, theme.font, current.link && theme.link
+  );
+  // Muted version of the theme text for the side utility links.
+  const sideClass = cn("transition-colors", theme.text === "text-white" ? "text-white/75 hover:text-white" : "text-charcoal/70 hover:text-charcoal");
 
   return (
-    <div className="bg-primary-light border-b border-border/20">
-      <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10 flex items-center justify-between h-8">
-        <span className="text-[11px] text-charcoal-lighter hidden sm:flex items-center gap-1.5">
+    <div className={cn("border-b border-black/5 transition-colors duration-500", theme.bar)}>
+      <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10 flex items-center justify-between h-9">
+        <span className={cn("text-[11px] hidden sm:flex items-center gap-1.5", theme.text === "text-white" ? "text-white/75" : "text-charcoal/70")}>
           {phone && (
             <>
               <Phone className="h-3 w-3" /> {phone}
@@ -109,9 +138,9 @@ export function AnnouncementBar() {
           </AnimatePresence>
         </div>
 
-        <div className="hidden sm:flex items-center gap-4 text-[11px] text-charcoal-lighter">
-          <Link href="/track-order" className="hover:text-secondary transition-colors">Track Order</Link>
-          <Link href="/faq" className="hover:text-secondary transition-colors">FAQ</Link>
+        <div className="hidden sm:flex items-center gap-4 text-[11px]">
+          <Link href="/track-order" className={sideClass}>Track Order</Link>
+          <Link href="/faq" className={sideClass}>FAQ</Link>
         </div>
       </div>
     </div>

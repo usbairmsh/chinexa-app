@@ -20,12 +20,43 @@ import {
 } from "@/types/announcement";
 import { useAdmin } from "@/contexts/admin-context";
 
-const TYPE_META: Record<AnnouncementType, { label: string; description: string; icon: typeof Type }> = {
-  text: { label: "Text / Info", description: "A simple message, e.g. a shipping policy or a store note", icon: Type },
-  countdown: { label: "Countdown / Sale", description: "A live countdown to a sale deadline", icon: Timer },
-  free_shipping: { label: "Free Shipping", description: "Message tied to your real free-delivery threshold", icon: Truck },
-  social_proof: { label: "Social Proof", description: "e.g. a rating or customer count", icon: Star },
+const TYPE_META: Record<AnnouncementType, {
+  label: string; description: string; icon: typeof Type;
+  /** Vivid gradient + text styling for the customer-facing preview strip, so
+   *  each announcement type is instantly recognizable and eye-catching. */
+  preview: string; text: string; font: string;
+}> = {
+  text: {
+    label: "Text / Info", description: "A simple message, e.g. a shipping policy or a store note", icon: Type,
+    preview: "bg-gradient-to-r from-secondary via-secondary-dark to-secondary text-white",
+    text: "text-white", font: "font-body tracking-wide",
+  },
+  countdown: {
+    label: "Countdown / Sale", description: "A live countdown to a sale deadline", icon: Timer,
+    preview: "bg-gradient-to-r from-rose-600 via-red-500 to-orange-500 text-white",
+    text: "text-white", font: "font-heading font-bold uppercase tracking-[0.15em]",
+  },
+  free_shipping: {
+    label: "Free Shipping", description: "Message tied to your real free-delivery threshold", icon: Truck,
+    preview: "bg-gradient-to-r from-emerald-600 via-green-500 to-teal-500 text-white",
+    text: "text-white", font: "font-heading font-semibold tracking-wide",
+  },
+  social_proof: {
+    label: "Social Proof", description: "e.g. a rating or customer count", icon: Star,
+    preview: "bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-400 text-charcoal",
+    text: "text-charcoal", font: "font-heading font-semibold tracking-wide",
+  },
 };
+
+/** Customer-facing text a given announcement would render as (for the preview). */
+function previewText(item: Announcement): string {
+  switch (item.type) {
+    case "text": return item.message || "Your announcement message";
+    case "social_proof": return item.message || "⭐ 4.9/5 from 2,000+ happy customers";
+    case "free_shipping": return (item.messageTemplate || "Free shipping on orders over {threshold}!").replace("{threshold}", "৳3,000");
+    case "countdown": return `${item.label || "SALE ENDS IN"} · 02 : 14 : 36 : 09`;
+  }
+}
 
 function makeDefault(type: AnnouncementType): Announcement {
   const base = { id: randomId(), enabled: true };
@@ -202,10 +233,10 @@ export default function AdminAnnouncementsPage() {
                 transition={{ delay: i * 0.05 }}
                 className="mb-4 last:mb-0"
               >
-                <Card>
+                <Card className={cn("overflow-hidden", !item.enabled && "opacity-70")}>
                   <CardHeader className="flex-row items-center justify-between space-y-0">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-light shrink-0"><Icon className="h-4 w-4 text-secondary" /></div>
+                      <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg shrink-0", meta.preview)}><Icon className="h-4 w-4" /></div>
                       <div>
                         <CardTitle className="text-sm">{meta.label}</CardTitle>
                         <CardDescription className="text-xs">{meta.description}</CardDescription>
@@ -226,6 +257,17 @@ export default function AdminAnnouncementsPage() {
                       )}
                     </div>
                   </CardHeader>
+
+                  {/* Eye-catching customer preview — how this announcement looks in
+                      the storefront top bar, with the type's own colors + font. */}
+                  <div className="px-6 -mt-1 mb-1">
+                    <p className="text-[9px] uppercase tracking-wider text-charcoal-lighter font-semibold mb-1.5">Preview</p>
+                    <div className={cn("rounded-xl px-4 py-2.5 flex items-center justify-center gap-2 shadow-sm", meta.preview)}>
+                      <Icon className={cn("h-4 w-4 shrink-0", meta.text)} />
+                      <span className={cn("text-sm text-center", meta.text, meta.font)}>{previewText(item)}</span>
+                    </div>
+                  </div>
+
                   <CardContent className="space-y-3">
                     <AnnouncementEditor item={item} onChange={(patch) => updateItem(item.id, patch)} />
                     <div className="flex items-center gap-1.5 text-xs text-charcoal-lighter">
