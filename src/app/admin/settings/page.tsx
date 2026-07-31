@@ -300,6 +300,12 @@ function AdminSettingsPageInner() {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [storeSaving, setStoreSaving] = useState(false);
   const [storeSaved, setStoreSaved] = useState(false);
+  // Store tab: per-section edit modals.
+  const [brandingDialog, setBrandingDialog] = useState(false);
+  const [ourStoryDialog, setOurStoryDialog] = useState(false);
+  const [instagramDialog, setInstagramDialog] = useState(false);
+  const [faqDialog, setFaqDialog] = useState(false);
+  const [maintenanceDialog, setMaintenanceDialog] = useState(false);
 
   // ═══ DELIVERY ═══
   const delivery = useDeliveryStore();
@@ -314,6 +320,8 @@ function AdminSettingsPageInner() {
   const [editZoneId, setEditZoneId] = useState<string | null>(null);
   const [deliverySaving, setDeliverySaving] = useState(false);
   const [deliverySaved, setDeliverySaved] = useState(false);
+  const [freeDeliveryDialog, setFreeDeliveryDialog] = useState(false);
+  const [expressDialog, setExpressDialog] = useState(false);
 
   // Free delivery rules — applicability-scoped the same way as offers/coupons.
   // One rule for standard delivery, one for express, each independently on/off.
@@ -687,12 +695,6 @@ function AdminSettingsPageInner() {
     setOrderEmailDialog(true);
   };
 
-  const SaveBtn = ({ saving, saved, onSave }: { saving: boolean; saved: boolean; onSave: () => void }) => (
-    <AdminButton onClick={onSave} disabled={saving} className={cn(saved && "!bg-success hover:!bg-success")}>
-      {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : saved ? <Check className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
-      {saved ? "Saved!" : saving ? "Saving..." : "Save Changes"}
-    </AdminButton>
-  );
 
   if (loading) return <div className="flex items-center justify-center py-24"><Loader2 className="h-8 w-8 text-secondary animate-spin" /></div>;
 
@@ -764,49 +766,38 @@ function AdminSettingsPageInner() {
       {/* ═══ STORE ═══ */}
       {activeTab === "store" && (
         <div className="space-y-5">
-          <div className="flex justify-end"><SaveBtn saving={storeSaving} saved={storeSaved} onSave={saveStoreSettings} /></div>
           <div className="grid lg:grid-cols-2 gap-5">
-            <Card><CardHeader><CardTitle className="text-base">Branding</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <ImageUpload label="Store Logo" value={storeLogo} onChange={setStoreLogo} aspectRatio="square" folder="general" field="store_logo" />
-              </CardContent>
-            </Card>
+            {/* Branding — read-only summary */}
+            <SectionCard title="Branding" onEdit={() => setBrandingDialog(true)}>
+              <div className="flex items-center gap-3">
+                {storeLogo ? <img src={storeLogo} alt="Store logo" className="h-14 w-14 rounded-lg object-contain border border-border/30 bg-white" /> : <span className="text-sm text-charcoal-lighter italic">No logo set</span>}
+                <span className="text-xs text-charcoal-lighter">Store logo</span>
+              </div>
+            </SectionCard>
+
             <div className="space-y-5">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">Social Links</CardTitle>
-                    <AdminButton size="xs" onClick={() => setAddSocialOpen(true)}><Plus className="h-3 w-3" /> Add</AdminButton>
+              {/* Social Links — read-only summary (edit via its own add/remove modal) */}
+              <SectionCard title="Social Links" onEdit={() => setAddSocialOpen(true)} canEdit={false}>
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap gap-1.5">
+                    {socialLinks.length === 0 ? <span className="text-xs text-charcoal-lighter italic">None added</span> : socialLinks.map((link, i) => {
+                      const platform = getPlatform(link.platform);
+                      return (
+                        <span key={i} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-pearl text-[11px] text-charcoal">
+                          <span className="flex h-4 w-4 items-center justify-center rounded-full shrink-0 text-white text-[8px]" style={{ backgroundColor: platform?.color || "#666" }}>{platform?.name?.[0] || link.platform[0]?.toUpperCase()}</span>
+                          {platform?.name || link.platform}
+                          <button onClick={() => { setSocialLinks((prev) => prev.filter((_, idx) => idx !== i)); saveStoreSettings(); }} className="hover:text-destructive"><X className="h-2.5 w-2.5" /></button>
+                        </span>
+                      );
+                    })}
                   </div>
-                </CardHeader>
-                <CardContent>
-                  {socialLinks.length === 0 && <p className="text-xs text-charcoal-lighter text-center py-3">No social links added</p>}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {socialLinks.map((link, i) => {
-                    const platform = getPlatform(link.platform);
-                    return (
-                      <div key={i} className="relative p-3 rounded-lg border border-border/30 bg-pearl/20 space-y-2">
-                        <button onClick={() => setSocialLinks((prev) => prev.filter((_, idx) => idx !== i))} className="absolute top-2 right-2 p-0.5 text-charcoal-lighter/40 hover:text-destructive transition-colors active:scale-[0.96]">
-                          <X className="h-3 w-3" />
-                        </button>
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full shrink-0" style={{ backgroundColor: platform?.color || "#666" }}>
-                            {platform ? platform.whiteIcon : <span className="text-white text-xs">{link.platform[0]?.toUpperCase()}</span>}
-                          </div>
-                          <span className="text-xs font-medium text-charcoal">{platform?.name || link.platform}</span>
-                        </div>
-                        <Input
-                          value={link.url}
-                          onChange={(e) => setSocialLinks((prev) => prev.map((l, idx) => idx === i ? { ...l, url: e.target.value } : l))}
-                          placeholder={platform?.placeholder || "URL"}
-                          className="text-xs h-9"
-                        />
-                      </div>
-                    );
-                  })}
-                  </div>
-                </CardContent>
-              </Card>
+                  <AdminButton size="xs" variant="outline" onClick={() => setAddSocialOpen(true)} className="shrink-0 ml-2"><Plus className="h-3 w-3" /> Add</AdminButton>
+                </div>
+                {socialLinks.some((l) => !l.url) && <p className="text-[11px] text-warning">Some links have no URL — Edit to set them.</p>}
+                {socialLinks.length > 0 && (
+                  <AdminButton size="xs" variant="ghost" onClick={() => setBrandingDialog(true)} className="mt-1"><Edit className="h-3 w-3 mr-1" /> Edit URLs</AdminButton>
+                )}
+              </SectionCard>
 
               {/* Add Social Link Dialog */}
               <Dialog open={addSocialOpen} onOpenChange={setAddSocialOpen}>
@@ -845,18 +836,22 @@ function AdminSettingsPageInner() {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
-              <Card><CardContent className="p-5"><div className="flex items-center justify-between"><p className="text-sm font-medium text-charcoal"><FieldLabel label="Maintenance Mode" hint="Takes the storefront offline for all customers." /></p><Switch checked={maintenanceMode} onCheckedChange={setMaintenanceMode} /></div></CardContent></Card>
+              <SectionCard title="Maintenance Mode" description="Takes the storefront offline for all customers." onEdit={() => setMaintenanceDialog(true)}>
+                <ToggleRow label="Maintenance mode" on={maintenanceMode} />
+              </SectionCard>
               <Card><CardContent className="p-5"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-charcoal">Announcements</p><p className="text-[10px] text-charcoal-lighter">The top bar shown on every storefront page is now managed on its own page</p></div><Link href="/admin/announcements"><AdminButton variant="outline" size="sm"><Megaphone className="h-3.5 w-3.5" /> Open Announcements</AdminButton></Link></div></CardContent></Card>
             </div>
           </div>
 
-          {/* Our Story — powers the homepage "Our Story" section and the /about page */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><BookOpen className="h-4 w-4 text-secondary" /> Our Story</CardTitle>
-              <CardDescription>Shown on the homepage &ldquo;Our Story&rdquo; section and the full /about page</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
+          {/* Our Story — read-only summary; edit opens a modal with the full form */}
+          <SectionCard title="Our Story" description="Shown on the homepage 'Our Story' section and the full /about page" icon={BookOpen} onEdit={() => setOurStoryDialog(true)}>
+            <Row label="Heading" value={ourStory.heading} />
+            <Row label="Paragraphs" value={`${ourStory.paragraphs.length}`} />
+            <Row label="Values" value={`${ourStory.values.length}`} />
+            <Row label="Stats" value={`${ourStory.stats.length}`} />
+          </SectionCard>
+
+          <SectionEditDialog open={ourStoryDialog} title="Our Story" saving={storeSaving} saved={storeSaved} maxWidth="max-w-2xl" onClose={() => setOurStoryDialog(false)} onSave={async () => { await saveStoreSettings(); setOurStoryDialog(false); }}>
               <div className="grid sm:grid-cols-2 gap-4">
                 <Input label="Eyebrow" value={ourStory.eyebrow} onChange={(e) => updateStory({ eyebrow: e.target.value })} placeholder="Who We Are" />
                 <Input label="Heading" value={ourStory.heading} onChange={(e) => updateStory({ heading: e.target.value })} placeholder="Beauty that speaks to your soul" />
@@ -936,16 +931,15 @@ function AdminSettingsPageInner() {
                 </div>
                 <AdminButton size="xs" variant="outline" className="mt-2" onClick={addStat}><Plus className="h-3 w-3" /> Add Stat</AdminButton>
               </div>
-            </CardContent>
-          </Card>
+          </SectionEditDialog>
 
-          {/* Instagram Feed — powers the homepage "Follow Our Journey" section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Instagram Feed</CardTitle>
-              <CardDescription>Shown on the homepage &ldquo;Follow Our Journey&rdquo; section — hidden entirely if no posts are added</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          {/* Instagram Feed — read-only summary; edit opens the full form modal */}
+          <SectionCard title="Instagram Feed" description="Shown on the homepage 'Follow Our Journey' section — hidden if no posts" onEdit={() => setInstagramDialog(true)}>
+            <Row label="Handle" value={instagramHandle} />
+            <Row label="Posts" value={`${instagramPosts.length}`} />
+          </SectionCard>
+
+          <SectionEditDialog open={instagramDialog} title="Instagram Feed" saving={storeSaving} saved={storeSaved} maxWidth="max-w-2xl" onClose={() => setInstagramDialog(false)} onSave={async () => { await saveStoreSettings(); setInstagramDialog(false); }}>
               <Input label="Instagram Handle" value={instagramHandle} onChange={(e) => setInstagramHandle(e.target.value)} placeholder="@chinexa.bd" />
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -965,16 +959,14 @@ function AdminSettingsPageInner() {
                   {instagramPosts.length === 0 && <p className="text-xs text-charcoal-lighter text-center py-3 sm:col-span-2 lg:col-span-3">No posts yet — the homepage section stays hidden until you add at least one.</p>}
                 </div>
               </div>
-            </CardContent>
-          </Card>
+          </SectionEditDialog>
 
-          {/* FAQ — powers the homepage FAQ section (visibility/order controlled in Homepage Builder) */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">FAQ</CardTitle>
-              <CardDescription>Shown on the homepage FAQ section — hidden entirely if no questions are added</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          {/* FAQ — read-only summary; edit opens the full form modal */}
+          <SectionCard title="FAQ" description="Shown on the homepage FAQ section — hidden if no questions" onEdit={() => setFaqDialog(true)}>
+            <Row label="Questions" value={`${faqItems.length}`} />
+          </SectionCard>
+
+          <SectionEditDialog open={faqDialog} title="FAQ" saving={storeSaving} saved={storeSaved} maxWidth="max-w-2xl" onClose={() => setFaqDialog(false)} onSave={async () => { await saveStoreSettings(); setFaqDialog(false); }}>
               <div className="flex items-center justify-end">
                 <AdminButton size="xs" variant="outline" onClick={addFaqItem}><Plus className="h-3 w-3" /> Add Question</AdminButton>
               </div>
@@ -992,72 +984,114 @@ function AdminSettingsPageInner() {
                 ))}
                 {faqItems.length === 0 && <p className="text-xs text-charcoal-lighter text-center py-3">No questions yet — the homepage FAQ section stays hidden until you add at least one.</p>}
               </div>
-            </CardContent>
-          </Card>
+          </SectionEditDialog>
+
+          {/* Branding modal (logo + social link URLs) */}
+          <SectionEditDialog open={brandingDialog} title="Branding & Social" saving={storeSaving} saved={storeSaved} onClose={() => setBrandingDialog(false)} onSave={async () => { await saveStoreSettings(); setBrandingDialog(false); }}>
+            <ImageUpload label="Store Logo" value={storeLogo} onChange={setStoreLogo} aspectRatio="square" folder="general" field="store_logo" />
+            {socialLinks.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-border/20">
+                <label className="text-sm font-medium text-charcoal-light">Social Link URLs</label>
+                {socialLinks.map((link, i) => {
+                  const platform = getPlatform(link.platform);
+                  return (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full shrink-0 text-white text-[10px]" style={{ backgroundColor: platform?.color || "#666" }}>{platform?.name?.[0] || link.platform[0]?.toUpperCase()}</span>
+                      <Input value={link.url} onChange={(e) => setSocialLinks((prev) => prev.map((l, idx) => idx === i ? { ...l, url: e.target.value } : l))} placeholder={platform?.placeholder || "URL"} className="text-xs h-9 flex-1" />
+                      <button onClick={() => setSocialLinks((prev) => prev.filter((_, idx) => idx !== i))} className="p-1 text-charcoal-lighter/50 hover:text-destructive"><X className="h-3.5 w-3.5" /></button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </SectionEditDialog>
+
+          {/* Maintenance mode modal */}
+          <SectionEditDialog open={maintenanceDialog} title="Maintenance Mode" saving={storeSaving} saved={storeSaved} onClose={() => setMaintenanceDialog(false)} onSave={async () => { await saveStoreSettings(); setMaintenanceDialog(false); }}>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-charcoal"><FieldLabel label="Maintenance Mode" hint="Takes the storefront offline for all customers." /></p>
+              <Switch checked={maintenanceMode} onCheckedChange={setMaintenanceMode} />
+            </div>
+          </SectionEditDialog>
         </div>
       )}
 
       {/* ═══ DELIVERY ═══ */}
       {activeTab === "delivery" && mounted && (
         <div className="space-y-5">
-          <div className="flex justify-end"><SaveBtn saving={deliverySaving} saved={deliverySaved} onSave={saveDelivery} /></div>
           <div className="grid lg:grid-cols-2 gap-5">
-            <Card><CardHeader><CardTitle className="text-base">Free Delivery</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-3"><Switch checked={delivery.freeDeliveryEnabled} onCheckedChange={delivery.setFreeDelivery} /><span className="text-sm text-charcoal-lighter">{delivery.freeDeliveryEnabled ? "Enabled" : "Disabled"}</span></div>
-                {delivery.freeDeliveryEnabled && <Input label="Min Order (৳)" type="number" value={thresholdInput} onChange={(e) => setThresholdInput(e.target.value)} />}
-                <Separator />
-                <div className="flex items-center gap-3">
-                  <Switch checked={standardRuleActive} onCheckedChange={setStandardRuleActive} />
-                  <span className="text-sm text-charcoal-lighter">Also free for specific customers/products/etc.</span>
-                </div>
-                {standardRuleActive && (
-                  <DeliveryApplicabilityPicker
-                    applicability={standardApplicability}
-                    onApplicabilityChange={(v) => { setStandardApplicability(v); setStandardSelectedIds([]); setRuleSearchQuery(""); setRuleSearchResults([]); }}
-                    selectedIds={standardSelectedIds}
-                    onToggleSelected={(item) => setStandardSelectedIds((prev) => prev.some((s) => s.id === item.id) ? prev.filter((s) => s.id !== item.id) : [...prev, item])}
-                    onRemoveSelected={(id) => setStandardSelectedIds((prev) => prev.filter((s) => s.id !== id))}
-                    options={getDeliveryRuleOptions(standardApplicability)}
-                    searchQuery={ruleSearchQuery}
-                    onSearch={(q) => handleRuleSearch(standardApplicability, q)}
-                    searchResults={ruleSearchResults}
-                    searchLoading={ruleSearchLoading}
-                  />
-                )}
-              </CardContent>
-            </Card>
-            <Card><CardHeader><CardTitle className="text-base">Express Delivery</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-3"><Switch checked={delivery.expressEnabled} onCheckedChange={delivery.setExpressEnabled} /><span className="text-sm text-charcoal-lighter">{delivery.expressEnabled ? "Enabled" : "Disabled"}</span></div>
-                {delivery.expressEnabled && (
-                  <>
-                    <Input label="Express Charge (৳)" type="number" value={expressChargeInput} onChange={(e) => setExpressChargeInput(e.target.value)} />
-                    <Input label={<FieldLabel label="Available Division" hint="Express delivery is only offered within this division; other areas use standard zone shipping." />} value={delivery.expressDivision} onChange={(e) => delivery.setExpressDivision(e.target.value)} placeholder="Dhaka" />
-                  </>
-                )}
-                <Separator />
-                <div className="flex items-center gap-3">
-                  <Switch checked={expressRuleActive} onCheckedChange={setExpressRuleActive} />
-                  <span className="text-sm text-charcoal-lighter">Free express for specific customers/products/etc.</span>
-                </div>
-                {expressRuleActive && (
-                  <DeliveryApplicabilityPicker
-                    applicability={expressApplicability}
-                    onApplicabilityChange={(v) => { setExpressApplicability(v); setExpressSelectedIds([]); setRuleSearchQuery(""); setRuleSearchResults([]); }}
-                    selectedIds={expressSelectedIds}
-                    onToggleSelected={(item) => setExpressSelectedIds((prev) => prev.some((s) => s.id === item.id) ? prev.filter((s) => s.id !== item.id) : [...prev, item])}
-                    onRemoveSelected={(id) => setExpressSelectedIds((prev) => prev.filter((s) => s.id !== id))}
-                    options={getDeliveryRuleOptions(expressApplicability)}
-                    searchQuery={ruleSearchQuery}
-                    onSearch={(q) => handleRuleSearch(expressApplicability, q)}
-                    searchResults={ruleSearchResults}
-                    searchLoading={ruleSearchLoading}
-                  />
-                )}
-              </CardContent>
-            </Card>
+            {/* Free Delivery — read-only summary */}
+            <SectionCard title="Free Delivery" onEdit={() => setFreeDeliveryDialog(true)}>
+              <ToggleRow label="Free delivery" on={delivery.freeDeliveryEnabled} />
+              {delivery.freeDeliveryEnabled && <Row label="Min order" value={thresholdInput ? `৳${thresholdInput}` : ""} />}
+              <ToggleRow label="Also free for specific customers/products" on={standardRuleActive} />
+              {standardRuleActive && <Row label="Applies to" value={`${standardApplicability}${standardSelectedIds.length ? ` · ${standardSelectedIds.length} selected` : ""}`} />}
+            </SectionCard>
+
+            {/* Express Delivery — read-only summary */}
+            <SectionCard title="Express Delivery" onEdit={() => setExpressDialog(true)}>
+              <ToggleRow label="Express delivery" on={delivery.expressEnabled} />
+              {delivery.expressEnabled && <Row label="Charge" value={expressChargeInput ? `৳${expressChargeInput}` : ""} />}
+              {delivery.expressEnabled && <Row label="Division" value={delivery.expressDivision} />}
+              <ToggleRow label="Free express for specific customers/products" on={expressRuleActive} />
+              {expressRuleActive && <Row label="Applies to" value={`${expressApplicability}${expressSelectedIds.length ? ` · ${expressSelectedIds.length} selected` : ""}`} />}
+            </SectionCard>
           </div>
+
+          {/* Free Delivery modal */}
+          <SectionEditDialog open={freeDeliveryDialog} title="Free Delivery" saving={deliverySaving} saved={deliverySaved} onClose={() => setFreeDeliveryDialog(false)} onSave={async () => { await saveDelivery(); setFreeDeliveryDialog(false); }}>
+            <div className="flex items-center gap-3"><Switch checked={delivery.freeDeliveryEnabled} onCheckedChange={delivery.setFreeDelivery} /><span className="text-sm text-charcoal-lighter">{delivery.freeDeliveryEnabled ? "Enabled" : "Disabled"}</span></div>
+            {delivery.freeDeliveryEnabled && <Input label="Min Order (৳)" type="number" value={thresholdInput} onChange={(e) => setThresholdInput(e.target.value)} />}
+            <Separator />
+            <div className="flex items-center gap-3">
+              <Switch checked={standardRuleActive} onCheckedChange={setStandardRuleActive} />
+              <span className="text-sm text-charcoal-lighter">Also free for specific customers/products/etc.</span>
+            </div>
+            {standardRuleActive && (
+              <DeliveryApplicabilityPicker
+                applicability={standardApplicability}
+                onApplicabilityChange={(v) => { setStandardApplicability(v); setStandardSelectedIds([]); setRuleSearchQuery(""); setRuleSearchResults([]); }}
+                selectedIds={standardSelectedIds}
+                onToggleSelected={(item) => setStandardSelectedIds((prev) => prev.some((s) => s.id === item.id) ? prev.filter((s) => s.id !== item.id) : [...prev, item])}
+                onRemoveSelected={(id) => setStandardSelectedIds((prev) => prev.filter((s) => s.id !== id))}
+                options={getDeliveryRuleOptions(standardApplicability)}
+                searchQuery={ruleSearchQuery}
+                onSearch={(q) => handleRuleSearch(standardApplicability, q)}
+                searchResults={ruleSearchResults}
+                searchLoading={ruleSearchLoading}
+              />
+            )}
+          </SectionEditDialog>
+
+          {/* Express Delivery modal */}
+          <SectionEditDialog open={expressDialog} title="Express Delivery" saving={deliverySaving} saved={deliverySaved} onClose={() => setExpressDialog(false)} onSave={async () => { await saveDelivery(); setExpressDialog(false); }}>
+            <div className="flex items-center gap-3"><Switch checked={delivery.expressEnabled} onCheckedChange={delivery.setExpressEnabled} /><span className="text-sm text-charcoal-lighter">{delivery.expressEnabled ? "Enabled" : "Disabled"}</span></div>
+            {delivery.expressEnabled && (
+              <>
+                <Input label="Express Charge (৳)" type="number" value={expressChargeInput} onChange={(e) => setExpressChargeInput(e.target.value)} />
+                <Input label={<FieldLabel label="Available Division" hint="Express delivery is only offered within this division; other areas use standard zone shipping." />} value={delivery.expressDivision} onChange={(e) => delivery.setExpressDivision(e.target.value)} placeholder="Dhaka" />
+              </>
+            )}
+            <Separator />
+            <div className="flex items-center gap-3">
+              <Switch checked={expressRuleActive} onCheckedChange={setExpressRuleActive} />
+              <span className="text-sm text-charcoal-lighter">Free express for specific customers/products/etc.</span>
+            </div>
+            {expressRuleActive && (
+              <DeliveryApplicabilityPicker
+                applicability={expressApplicability}
+                onApplicabilityChange={(v) => { setExpressApplicability(v); setExpressSelectedIds([]); setRuleSearchQuery(""); setRuleSearchResults([]); }}
+                selectedIds={expressSelectedIds}
+                onToggleSelected={(item) => setExpressSelectedIds((prev) => prev.some((s) => s.id === item.id) ? prev.filter((s) => s.id !== item.id) : [...prev, item])}
+                onRemoveSelected={(id) => setExpressSelectedIds((prev) => prev.filter((s) => s.id !== id))}
+                options={getDeliveryRuleOptions(expressApplicability)}
+                searchQuery={ruleSearchQuery}
+                onSearch={(q) => handleRuleSearch(expressApplicability, q)}
+                searchResults={ruleSearchResults}
+                searchLoading={ruleSearchLoading}
+              />
+            )}
+          </SectionEditDialog>
 
           <Card><CardHeader><div className="flex items-center justify-between"><CardTitle className="text-base">Delivery Zones</CardTitle><AdminButton size="xs" onClick={() => { setEditZoneId(null); setZoneName(""); setZoneAreas(""); setZoneCharge(""); setZoneDays(""); setZoneDialog(true); }}><Plus className="h-3 w-3" /> Add</AdminButton></div></CardHeader>
             <CardContent className="space-y-2">
