@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   ShieldMinus, Clock, Hourglass, TrendingDown, Crown, RotateCcw,
-  Plus, Trash2, Save, Loader2, Check, PlayCircle, History, ChevronDown, Zap,
+  Plus, Trash2, Save, Loader2, PlayCircle, History, Zap, Pencil,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { FieldLabel } from "@/components/admin/shared/field-label";
 import { cn, randomId, collectMissingFields } from "@/lib/utils";
@@ -43,8 +44,6 @@ const TYPE_META: Record<DeductionRuleType, { label: string; description: string;
 function validateRule(rule: DeductionRule): string[] {
   const errors: string[] = [];
 
-  // Missing-field checks — collected into one combined message instead of
-  // reporting only the first blank field.
   const missingFields: { label: string; value: unknown }[] = [
     { label: "Rule Name", value: rule.name },
   ];
@@ -82,7 +81,6 @@ function validateRule(rule: DeductionRule): string[] {
   const missing = collectMissingFields(missingFields);
   if (missing) errors.push(missing);
 
-  // Value-constraint checks (already present and non-zero, but out of range) — kept separate.
   if (rule.advancedEnabled) {
     if (!Number.isFinite(rule.repeatIntervalDays) || rule.repeatIntervalDays < 0) errors.push("Repeat interval must be zero or a positive number of days.");
   }
@@ -144,30 +142,44 @@ function isInstant(rule: DeductionRule): boolean {
   return (rule.type === "tier_based" || rule.type === "return_abuse") && rule.instant;
 }
 
-function RuleEditor({ rule, tiers, onChange, canEdit }: { rule: DeductionRule; tiers: Tier[]; onChange: (patch: Partial<DeductionRule>) => void; canEdit: boolean }) {
+/** Concise one-line summary of a rule's condition for the read-only list. */
+function ruleSummary(rule: DeductionRule, tiers: Tier[]): string {
+  switch (rule.type) {
+    case "inactivity": return `No order in ${rule.inactiveDays} days → deduct ${rule.deductionAmount} pts`;
+    case "points_expiry": return `Expire points older than ${rule.expiryDays} days`;
+    case "low_spend": return `Under ৳${rule.minSpendThreshold} in ${rule.windowDays} days → deduct ${rule.deductionAmount} pts`;
+    case "tier_based": {
+      const names = rule.tierIds.map((id) => tiers.find((t) => t.id === id)?.name || id).join(", ") || "no tiers";
+      return `Tiers: ${names} → deduct ${rule.deductionAmount} pts`;
+    }
+    case "return_abuse": return `≥${rule.minOrders} orders & ${rule.returnRateThresholdPct}% returned → deduct ${rule.deductionAmount} pts`;
+  }
+}
+
+function RuleEditor({ rule, tiers, onChange }: { rule: DeductionRule; tiers: Tier[]; onChange: (patch: Partial<DeductionRule>) => void }) {
   const p = (patch: Partial<DeductionRule>) => onChange(patch);
   const meta = TYPE_META[rule.type];
 
   return (
     <div className="space-y-4">
-      <Input label="Rule Name" value={rule.name} onChange={(e) => p({ name: e.target.value })} placeholder="e.g. Inactive 90+ days" disabled={!canEdit} required />
+      <Input label="Rule Name" value={rule.name} onChange={(e) => p({ name: e.target.value })} placeholder="e.g. Inactive 90+ days" required />
 
       {rule.type === "inactivity" && (
         <div className="grid sm:grid-cols-2 gap-3">
-          <NumField label="Inactive For" hint="Days since their last order (or since signup if they never ordered)." value={rule.inactiveDays} onChange={(v) => p({ inactiveDays: v } as Partial<DeductionRule>)} suffix="days since last order" disabled={!canEdit} required />
-          <NumField label="Deduct" hint="Points taken from a matching customer." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" disabled={!canEdit} required />
+          <NumField label="Inactive For" hint="Days since their last order (or since signup if they never ordered)." value={rule.inactiveDays} onChange={(v) => p({ inactiveDays: v } as Partial<DeductionRule>)} suffix="days since last order" required />
+          <NumField label="Deduct" hint="Points taken from a matching customer." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" required />
         </div>
       )}
 
       {rule.type === "points_expiry" && (
-        <NumField label="Expire Points Older Than" hint="Age at which earned points become eligible to expire. The amount expired is always computed live — whatever qualifies, capped at the customer's current balance." value={rule.expiryDays} onChange={(v) => p({ expiryDays: v } as Partial<DeductionRule>)} suffix="days" disabled={!canEdit} required />
+        <NumField label="Expire Points Older Than" hint="Age at which earned points become eligible to expire. The amount expired is always computed live — whatever qualifies, capped at the customer's current balance." value={rule.expiryDays} onChange={(v) => p({ expiryDays: v } as Partial<DeductionRule>)} suffix="days" required />
       )}
 
       {rule.type === "low_spend" && (
         <div className="grid sm:grid-cols-3 gap-3">
-          <NumField label="Spend Window" hint="Rolling period their spend is measured over." value={rule.windowDays} onChange={(v) => p({ windowDays: v } as Partial<DeductionRule>)} suffix="days" disabled={!canEdit} required />
-          <NumField label="Minimum Spend" hint="Threshold below which the rule applies." value={rule.minSpendThreshold} onChange={(v) => p({ minSpendThreshold: v } as Partial<DeductionRule>)} suffix="৳ in window" disabled={!canEdit} required />
-          <NumField label="Deduct" hint="Points taken from a matching customer." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" disabled={!canEdit} required />
+          <NumField label="Spend Window" hint="Rolling period their spend is measured over." value={rule.windowDays} onChange={(v) => p({ windowDays: v } as Partial<DeductionRule>)} suffix="days" required />
+          <NumField label="Minimum Spend" hint="Threshold below which the rule applies." value={rule.minSpendThreshold} onChange={(v) => p({ minSpendThreshold: v } as Partial<DeductionRule>)} suffix="৳ in window" required />
+          <NumField label="Deduct" hint="Points taken from a matching customer." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" required />
         </div>
       )}
 
@@ -184,9 +196,8 @@ function RuleEditor({ rule, tiers, onChange, canEdit }: { rule: DeductionRule; t
                   <button
                     key={t.id}
                     type="button"
-                    disabled={!canEdit}
                     onClick={() => p({ tierIds: selected ? rule.tierIds.filter((id) => id !== t.id) : [...rule.tierIds, t.id] } as Partial<DeductionRule>)}
-                    className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-all active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100", selected ? "border-secondary bg-secondary/10 text-secondary" : "border-border/30 text-charcoal-lighter")}
+                    className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-all active:scale-[0.96]", selected ? "border-secondary bg-secondary/10 text-secondary" : "border-border/30 text-charcoal-lighter")}
                   >
                     {t.name}
                   </button>
@@ -195,15 +206,15 @@ function RuleEditor({ rule, tiers, onChange, canEdit }: { rule: DeductionRule; t
               {tiers.length === 0 && <p className="text-xs text-charcoal-lighter">No membership tiers found.</p>}
             </div>
           </div>
-          <NumField label="Deduct" hint="Points taken from a matching customer." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" disabled={!canEdit} required />
+          <NumField label="Deduct" hint="Points taken from a matching customer." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" required />
         </div>
       )}
 
       {rule.type === "return_abuse" && (
         <div className="grid sm:grid-cols-2 gap-3">
-          <NumField label="Minimum Orders" hint="Rule only applies once a customer has at least this many orders." value={rule.minOrders} onChange={(v) => p({ minOrders: v } as Partial<DeductionRule>)} suffix="before this rule can apply" disabled={!canEdit} required />
-          <NumField label="Return Rate Threshold" hint="Percentage of orders returned that triggers this rule." value={rule.returnRateThresholdPct} onChange={(v) => p({ returnRateThresholdPct: v } as Partial<DeductionRule>)} suffix="% of orders returned" disabled={!canEdit} required />
-          <NumField label="Deduct" hint="Points taken from a matching customer." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" disabled={!canEdit} required />
+          <NumField label="Minimum Orders" hint="Rule only applies once a customer has at least this many orders." value={rule.minOrders} onChange={(v) => p({ minOrders: v } as Partial<DeductionRule>)} suffix="before this rule can apply" required />
+          <NumField label="Return Rate Threshold" hint="Percentage of orders returned that triggers this rule." value={rule.returnRateThresholdPct} onChange={(v) => p({ returnRateThresholdPct: v } as Partial<DeductionRule>)} suffix="% of orders returned" required />
+          <NumField label="Deduct" hint="Points taken from a matching customer." value={rule.deductionAmount} onChange={(v) => p({ deductionAmount: v } as Partial<DeductionRule>)} suffix="points" required />
         </div>
       )}
 
@@ -219,7 +230,7 @@ function RuleEditor({ rule, tiers, onChange, canEdit }: { rule: DeductionRule; t
               }
             />
           </p>
-          <Switch checked={rule.instant} onCheckedChange={(v) => p({ instant: v } as Partial<DeductionRule>)} disabled={!canEdit} />
+          <Switch checked={rule.instant} onCheckedChange={(v) => p({ instant: v } as Partial<DeductionRule>)} />
         </div>
       )}
       {!meta.instantEligible && (
@@ -230,7 +241,7 @@ function RuleEditor({ rule, tiers, onChange, canEdit }: { rule: DeductionRule; t
 
       <div className="pt-2 border-t border-border/30 space-y-3">
         <label className="flex items-center gap-2 cursor-pointer select-none">
-          <Checkbox checked={rule.advancedEnabled} onCheckedChange={(v) => p({ advancedEnabled: v === true } as Partial<DeductionRule>)} disabled={!canEdit} />
+          <Checkbox checked={rule.advancedEnabled} onCheckedChange={(v) => p({ advancedEnabled: v === true } as Partial<DeductionRule>)} />
           <span className="text-sm font-medium text-charcoal">
             <FieldLabel label="Advanced settings" hint="Set a custom repeat cooldown and notification just for this rule. Left unchecked, it uses the default cooldown (30 days) and a generic notification." />
           </span>
@@ -245,7 +256,6 @@ function RuleEditor({ rule, tiers, onChange, canEdit }: { rule: DeductionRule; t
                 value={rule.repeatIntervalDays}
                 onChange={(v) => p({ repeatIntervalDays: Math.max(0, v) } as Partial<DeductionRule>)}
                 suffix="days between deductions for the same customer"
-                disabled={!canEdit}
                 required
               />
             )}
@@ -253,7 +263,6 @@ function RuleEditor({ rule, tiers, onChange, canEdit }: { rule: DeductionRule; t
               label={<FieldLabel label="Notification Title" hint="Headline the customer sees when this rule deducts their points." required />}
               value={rule.notificationTitle}
               onChange={(e) => p({ notificationTitle: e.target.value } as Partial<DeductionRule>)}
-              disabled={!canEdit}
               required
             />
             <Textarea
@@ -261,7 +270,6 @@ function RuleEditor({ rule, tiers, onChange, canEdit }: { rule: DeductionRule; t
               value={rule.notificationMessage}
               onChange={(e) => p({ notificationMessage: e.target.value } as Partial<DeductionRule>)}
               className="min-h-[60px]"
-              disabled={!canEdit}
               required
             />
           </div>
@@ -280,18 +288,22 @@ export default function AdminPointsDeductionRulesPage() {
   const [config, setConfig] = useState<DeductionEngineConfig>(DEFAULT_DEDUCTION_ENGINE_CONFIG);
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [running, setRunning] = useState(false);
   const [runResult, setRunResult] = useState<string>("");
-  const [addType, setAddType] = useState<DeductionRuleType>("inactivity");
   const [saveError, setSaveError] = useState<string>("");
   const [loadError, setLoadError] = useState<string>("");
-  const [ruleErrors, setRuleErrors] = useState<Record<string, string[]>>({});
-  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const [lastRun, setLastRun] = useState<LastRun | null>(null);
 
-  const fetchData = () => {
+  // Modal state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [addType, setAddType] = useState<DeductionRuleType>("inactivity");
+  const [draft, setDraft] = useState<DeductionRule | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null); // null = creating
+  const [modalErrors, setModalErrors] = useState<string[]>([]);
+  const [modalSaving, setModalSaving] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  const fetchData = useCallback(() => {
     setLoading(true);
     setLoadError("");
     Promise.all([
@@ -299,9 +311,6 @@ export default function AdminPointsDeductionRulesPage() {
       fetch("/api/membership/tiers").then((r) => r.json()).catch(() => []),
     ])
       .then(([data, tiersData]) => {
-        // A load failure (e.g. a schema mismatch on the server) must never be
-        // treated as "no rules configured" — that would blank the list on
-        // screen even though the saved config is still intact in the database.
         if (data?.error) {
           setLoadError(`Couldn't load rules: ${data.error}`);
           return;
@@ -311,76 +320,72 @@ export default function AdminPointsDeductionRulesPage() {
         if (Array.isArray(tiersData)) setTiers(tiersData.map((t: { id: string; name: string }) => ({ id: t.id, name: t.name })));
       })
       .finally(() => setLoading(false));
-  };
+  }, []);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  const addItem = () => {
-    setConfig((c) => ({ ...c, items: [...c.items, makeDefault(addType)] }));
-  };
-
-  const toggleCollapsed = (id: string) => {
-    setCollapsedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-
-  const updateItem = (id: string, patch: Partial<DeductionRule>) => {
-    setConfig((c) => ({ ...c, items: c.items.map((i) => (i.id === id ? ({ ...i, ...patch } as DeductionRule) : i)) }));
-    setRuleErrors((prev) => {
-      if (!prev[id]) return prev;
-      const { [id]: _removed, ...rest } = prev;
-      void _removed;
-      return rest;
-    });
-  };
-
-  const removeItem = (id: string) => {
-    setConfig((c) => ({ ...c, items: c.items.filter((i) => i.id !== id) }));
-    setRuleErrors((prev) => {
-      if (!prev[id]) return prev;
-      const { [id]: _removed, ...rest } = prev;
-      void _removed;
-      return rest;
-    });
-  };
-
-  const handleSave = async () => {
+  /** Persist a new items array to the server. Returns true on success. */
+  const persist = async (items: DeductionRule[]): Promise<boolean> => {
     setSaveError("");
-
-    const errorsByRule: Record<string, string[]> = {};
-    let hasErrors = false;
-    for (const rule of config.items) {
-      const errors = validateRule(rule);
-      if (errors.length > 0) { errorsByRule[rule.id] = errors; hasErrors = true; }
-    }
-    setRuleErrors(errorsByRule);
-    if (hasErrors) {
-      setSaveError("Fix the highlighted fields before saving.");
-      setCollapsedIds((prev) => {
-        const next = new Set(prev);
-        for (const id of Object.keys(errorsByRule)) next.delete(id);
-        return next;
-      });
-      return;
-    }
-
-    setSaving(true);
+    const next = { ...config, items };
     try {
       const res = await fetch("/api/admin/points-deduction", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config),
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Save failed");
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
+      setConfig(next);
+      return true;
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Save failed — please try again.");
-    } finally { setSaving(false); }
+      return false;
+    }
+  };
+
+  const openCreate = () => {
+    setEditingId(null);
+    setDraft(makeDefault(addType));
+    setModalErrors([]);
+    setDialogOpen(true);
+  };
+
+  // Re-seed the draft when the add-type changes while creating.
+  useEffect(() => {
+    if (dialogOpen && editingId === null) setDraft(makeDefault(addType));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addType]);
+
+  const openEdit = (rule: DeductionRule) => {
+    setEditingId(rule.id);
+    setDraft({ ...rule });
+    setModalErrors([]);
+    setDialogOpen(true);
+  };
+
+  const saveDraft = async () => {
+    if (!draft) return;
+    const errors = validateRule(draft);
+    if (errors.length) { setModalErrors(errors); return; }
+    setModalSaving(true);
+    const items = editingId
+      ? config.items.map((i) => (i.id === editingId ? draft : i))
+      : [...config.items, draft];
+    const ok = await persist(items);
+    setModalSaving(false);
+    if (ok) setDialogOpen(false);
+    else setModalErrors([saveError || "Save failed — please try again."]);
+  };
+
+  const toggleEnabled = async (rule: DeductionRule) => {
+    setTogglingId(rule.id);
+    await persist(config.items.map((i) => (i.id === rule.id ? { ...i, enabled: !i.enabled } : i)));
+    setTogglingId(null);
+  };
+
+  const removeRule = async (rule: DeductionRule) => {
+    if (!confirm(`Delete the rule "${rule.name || TYPE_META[rule.type].label}"? This cannot be undone.`)) return;
+    await persist(config.items.filter((i) => i.id !== rule.id));
   };
 
   const handleRunNow = async () => {
@@ -409,7 +414,7 @@ export default function AdminPointsDeductionRulesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-charcoal flex items-center gap-2">
             <ShieldMinus className="h-5 w-5 text-secondary" /> Points Deduction Rules
@@ -428,11 +433,8 @@ export default function AdminPointsDeductionRulesPage() {
               {running ? "Running..." : "Run Now"}
             </AdminButton>
           )}
-          {canEdit && (
-            <AdminButton onClick={handleSave} disabled={saving} className={cn(saved && "!bg-success hover:!bg-success")}>
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : saved ? <Check className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
-              {saved ? "Saved!" : saving ? "Saving..." : "Save Changes"}
-            </AdminButton>
+          {canAdd && (
+            <AdminButton onClick={openCreate}><Plus className="h-3.5 w-3.5" /> New Rule</AdminButton>
           )}
         </div>
       </div>
@@ -440,7 +442,7 @@ export default function AdminPointsDeductionRulesPage() {
       {loadError && (
         <Card className="border-destructive/30"><CardContent className="py-3 text-sm text-destructive">{loadError} Your saved rules are safe — this is a display error, not data loss. Try refreshing; contact support if it persists.</CardContent></Card>
       )}
-      {saveError && (
+      {saveError && !dialogOpen && (
         <Card className="border-destructive/30"><CardContent className="py-3 text-sm text-destructive">{saveError}</CardContent></Card>
       )}
       {runResult && (
@@ -448,9 +450,7 @@ export default function AdminPointsDeductionRulesPage() {
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Last Run</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle className="text-base">Last Run</CardTitle></CardHeader>
         <CardContent>
           {!lastRun ? (
             <p className="text-sm text-charcoal-lighter">
@@ -469,79 +469,106 @@ export default function AdminPointsDeductionRulesPage() {
         </CardContent>
       </Card>
 
-      {canAdd && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">Add Rule</CardTitle></CardHeader>
-          <CardContent className="flex items-center gap-3">
-            <Select value={addType} onValueChange={(v) => setAddType(v as DeductionRuleType)}>
-              <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {(Object.keys(TYPE_META) as DeductionRuleType[]).map((t) => (
-                  <SelectItem key={t} value={t}>{TYPE_META[t].label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <AdminButton variant="outline" onClick={addItem}><Plus className="h-3.5 w-3.5" /> Add</AdminButton>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="space-y-4">
-        {config.items.length === 0 && (
+      {/* Read-only rules list — edit / on-off / delete per row */}
+      <div className="space-y-3">
+        {config.items.length === 0 ? (
           <Card>
             <CardContent>
               <EmptyState
                 icon={ShieldMinus}
                 title="No rules yet"
                 description="Nothing will be deducted until you add and enable at least one rule."
+                actionLabel={canAdd ? "New Rule" : undefined}
+                onAction={canAdd ? openCreate : undefined}
               />
             </CardContent>
           </Card>
-        )}
-
-        {config.items.map((item) => {
-          const meta = TYPE_META[item.type];
-          const Icon = meta.icon;
-          const errors = ruleErrors[item.id] || [];
-          const collapsed = collapsedIds.has(item.id);
-          const isInstant = (item.type === "tier_based" || item.type === "return_abuse") && item.instant;
-          return (
-            <Card key={item.id} className={cn(errors.length > 0 && "border-destructive/40")}>
-              <CardHeader className="flex-row items-center justify-between space-y-0">
-                <button type="button" onClick={() => toggleCollapsed(item.id)} className="flex items-center gap-3 min-w-0 text-left flex-1 active:scale-[0.99] transition-transform">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-light shrink-0"><Icon className="h-4 w-4 text-secondary" /></div>
-                  <div className="min-w-0">
-                    <CardTitle className="text-sm flex items-center gap-1.5">
-                      {item.name || meta.label}
-                      {isInstant && <Badge className="text-[10px] bg-secondary/10 text-secondary gap-0.5"><Zap className="h-2.5 w-2.5" /> Instant</Badge>}
-                    </CardTitle>
-                    <CardDescription className="text-xs">{meta.description}</CardDescription>
-                  </div>
-                  <ChevronDown className={cn("h-4 w-4 text-charcoal-lighter shrink-0 ml-auto transition-transform duration-200", collapsed && "-rotate-90")} />
-                </button>
-                <div className="flex items-center gap-1 shrink-0 pl-2">
-                  <Switch checked={item.enabled} onCheckedChange={(v) => updateItem(item.id, { enabled: v })} disabled={!canEdit} />
-                  {canDelete && (
-                    <button onClick={() => removeItem(item.id)} className="p-1.5 rounded-md text-charcoal-lighter/50 hover:text-destructive hover:bg-destructive/5 transition-colors active:scale-[0.96]">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-              </CardHeader>
-              {!collapsed && (
-                <CardContent className="space-y-3">
-                  {errors.length > 0 && (
-                    <div className="p-2.5 rounded-lg bg-destructive/5 border border-destructive/20 space-y-0.5">
-                      {errors.map((e, i) => <p key={i} className="text-xs text-destructive">{e}</p>)}
+        ) : (
+          config.items.map((item) => {
+            const meta = TYPE_META[item.type];
+            const Icon = meta.icon;
+            const instant = (item.type === "tier_based" || item.type === "return_abuse") && item.instant;
+            return (
+              <Card key={item.id} className={cn(!item.enabled && "opacity-70")}>
+                <CardContent className="flex items-center gap-4 py-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-light shrink-0"><Icon className="h-4.5 w-4.5 text-secondary" /></div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-semibold text-charcoal truncate">{item.name || meta.label}</p>
+                      <Badge className="text-[10px] bg-pearl text-charcoal-lighter">{meta.label}</Badge>
+                      {instant && <Badge className="text-[10px] bg-secondary/10 text-secondary gap-0.5"><Zap className="h-2.5 w-2.5" /> Instant</Badge>}
+                      {!item.enabled && <Badge className="text-[10px] bg-charcoal-lighter/10 text-charcoal-lighter">Off</Badge>}
                     </div>
-                  )}
-                  <RuleEditor rule={item} tiers={tiers} onChange={(patch) => updateItem(item.id, patch)} canEdit={canEdit} />
+                    <p className="text-xs text-charcoal-lighter mt-0.5 truncate">{ruleSummary(item, tiers)}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {canEdit && (
+                      togglingId === item.id
+                        ? <Loader2 className="h-4 w-4 animate-spin text-charcoal-lighter mr-1" />
+                        : <Switch checked={item.enabled} onCheckedChange={() => toggleEnabled(item)} />
+                    )}
+                    {canEdit && (
+                      <button onClick={() => openEdit(item)} className="p-1.5 rounded-md text-charcoal-lighter hover:text-secondary hover:bg-secondary/5 transition-colors active:scale-[0.96]" title="Edit">
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button onClick={() => removeRule(item)} className="p-1.5 rounded-md text-charcoal-lighter/60 hover:text-destructive hover:bg-destructive/5 transition-colors active:scale-[0.96]" title="Delete">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </CardContent>
-              )}
-            </Card>
-          );
-        })}
+              </Card>
+            );
+          })
+        )}
       </div>
+
+      {/* Create / Edit modal */}
+      <Dialog open={dialogOpen} onOpenChange={(o) => { if (!o && !modalSaving) setDialogOpen(false); }}>
+        <DialogContent className="w-[95vw] max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldMinus className="h-5 w-5 text-secondary" /> {editingId ? "Edit Rule" : "New Rule"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingId ? "Update this deduction rule's condition and notification." : "Choose a rule type and set its condition. It saves immediately."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto pr-1 space-y-4 py-1">
+            {editingId === null && (
+              <div>
+                <label className="block text-sm font-medium text-charcoal-light mb-1.5"><FieldLabel label="Rule Type" /></label>
+                <Select value={addType} onValueChange={(v) => setAddType(v as DeductionRuleType)}>
+                  <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(TYPE_META) as DeductionRuleType[]).map((t) => (
+                      <SelectItem key={t} value={t}>{TYPE_META[t].label} — {TYPE_META[t].description}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {draft && <RuleEditor rule={draft} tiers={tiers} onChange={(patch) => { setDraft((d) => (d ? ({ ...d, ...patch } as DeductionRule) : d)); if (modalErrors.length) setModalErrors([]); }} />}
+
+            {modalErrors.length > 0 && (
+              <div className="p-2.5 rounded-lg bg-destructive/5 border border-destructive/20 space-y-0.5">
+                {modalErrors.map((e, i) => <p key={i} className="text-xs text-destructive">{e}</p>)}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <AdminButton variant="outline" onClick={() => setDialogOpen(false)} disabled={modalSaving}>Cancel</AdminButton>
+            <AdminButton onClick={saveDraft} disabled={modalSaving}>
+              {modalSaving ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Saving...</> : <><Save className="h-3.5 w-3.5 mr-1" /> {editingId ? "Save Changes" : "Create Rule"}</>}
+            </AdminButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
