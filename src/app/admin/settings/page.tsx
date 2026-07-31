@@ -75,6 +75,72 @@ function renderFeatureToggle(
   );
 }
 
+/** Read-only summary card with a single Edit button that opens a section modal.
+ *  Used across Settings so the landing is view-only and edits happen in modals. */
+function SectionCard({ title, description, icon: Icon, canEdit = true, onEdit, children }: {
+  title: string; description?: string; icon?: React.ComponentType<{ className?: string }>;
+  canEdit?: boolean; onEdit: () => void; children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-luxury border border-border/40 bg-card shadow-card">
+      <div className="flex items-start justify-between gap-3 p-4 sm:p-5 border-b border-border/20">
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold text-charcoal flex items-center gap-2">
+            {Icon && <Icon className="h-4 w-4 text-secondary" />} {title}
+          </h3>
+          {description && <p className="text-xs text-charcoal-lighter mt-0.5">{description}</p>}
+        </div>
+        {canEdit && (
+          <AdminButton variant="outline" size="sm" onClick={onEdit} className="shrink-0"><Edit className="h-3.5 w-3.5 mr-1" /> Edit</AdminButton>
+        )}
+      </div>
+      <div className="p-4 sm:p-5 space-y-2.5">{children}</div>
+    </div>
+  );
+}
+
+/** Modal that holds a settings section's edit form + a Save button inside it.
+ *  Save runs the section's async save handler (which persists to the server). */
+function SectionEditDialog({ open, title, saving, saved, onClose, onSave, children, maxWidth = "max-w-lg" }: {
+  open: boolean; title: string; saving?: boolean; saved?: boolean;
+  onClose: () => void; onSave: () => void | Promise<void>; children: React.ReactNode; maxWidth?: string;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o && !saving) onClose(); }}>
+      <DialogContent className={cn("w-[95vw] max-h-[90vh] flex flex-col overflow-hidden", maxWidth)}>
+        <DialogHeader className="shrink-0"><DialogTitle>Edit {title}</DialogTitle></DialogHeader>
+        <div className="flex-1 overflow-y-auto space-y-4 py-1 pr-1">{children}</div>
+        <DialogFooter className="shrink-0 pt-2">
+          <AdminButton variant="outline" onClick={onClose} disabled={saving}>Cancel</AdminButton>
+          <AdminButton onClick={onSave} disabled={saving} className={cn(saved && "!bg-success hover:!bg-success")}>
+            {saving ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Saving...</> : saved ? <><Check className="h-3.5 w-3.5 mr-1" /> Saved!</> : <><Save className="h-3.5 w-3.5 mr-1" /> Save</>}
+          </AdminButton>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** One read-only "label: value" row for a SectionCard summary. */
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-4 text-sm">
+      <span className="text-charcoal-lighter shrink-0">{label}</span>
+      <span className="text-charcoal font-medium text-right min-w-0 break-words">{value || <span className="text-charcoal-lighter italic font-normal">Not set</span>}</span>
+    </div>
+  );
+}
+
+/** A read-only on/off row for a feature/toggle summary. */
+function ToggleRow({ label, on }: { label: string; on: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-4 text-sm">
+      <span className="text-charcoal">{label}</span>
+      <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0", on ? "bg-success/10 text-success" : "bg-charcoal-lighter/10 text-charcoal-lighter")}>{on ? "On" : "Off"}</span>
+    </div>
+  );
+}
+
 interface ApplicableItem { id: string; name: string; extra?: string }
 
 /** Applicability picker shared by the free standard/express delivery rules — same model as offers/coupons. */
@@ -213,6 +279,11 @@ function AdminSettingsPageInner() {
   });
   const [generalSaving, setGeneralSaving] = useState(false);
   const [generalSaved, setGeneralSaved] = useState(false);
+  // Per-section edit modals (view-only landing; Edit opens a modal that saves).
+  const [storeInfoDialog, setStoreInfoDialog] = useState(false);
+  const [featuresDialog, setFeaturesDialog] = useState(false);
+  const [emailFeatDialog, setEmailFeatDialog] = useState(false);
+  const [smsFeatDialog, setSmsFeatDialog] = useState(false);
 
   // ═══ STORE ═══
   const [storeLogo, setStoreLogo] = useState("");
@@ -271,6 +342,9 @@ function AdminSettingsPageInner() {
   const [paymentSaving, setPaymentSaving] = useState(false);
   const [paymentSaved, setPaymentSaved] = useState(false);
   const [newPaymentName, setNewPaymentName] = useState("");
+  // Payment: add + per-method edit modals (view-only list).
+  const [addPaymentDialog, setAddPaymentDialog] = useState(false);
+  const [editPaymentId, setEditPaymentId] = useState<string | null>(null);
 
   // ═══ NOTIFICATIONS ═══
   const [notifications, setNotifications] = useState<Record<string, boolean>>({
@@ -304,6 +378,10 @@ function AdminSettingsPageInner() {
   const [emailFooter, setEmailFooter] = useState("");
   const [emailFooterSaving, setEmailFooterSaving] = useState(false);
   const [emailFooterSaved, setEmailFooterSaved] = useState(false);
+  // Notifications tab: per-section edit modals.
+  const [orderSmsDialog, setOrderSmsDialog] = useState(false);
+  const [emailFooterDialog, setEmailFooterDialog] = useState(false);
+  const [notifDialog, setNotifDialog] = useState<null | "Order Notifications" | "Returns & Alerts">(null);
 
   const fetchSmsBalance = async () => {
     setSmsBalanceLoading(true);
@@ -635,39 +713,51 @@ function AdminSettingsPageInner() {
       {/* ═══ GENERAL ═══ */}
       {activeTab === "general" && (
         <div className="space-y-5">
-          <div className="flex justify-end"><SaveBtn saving={generalSaving} saved={generalSaved} onSave={saveGeneral} /></div>
           <div className="grid lg:grid-cols-2 gap-5">
-            <Card><CardHeader><CardTitle className="text-base">Store Information</CardTitle><CardDescription>Basic contact details</CardDescription></CardHeader>
-              <CardContent className="space-y-4">
-                <Input label="Store Name" value={storeName} onChange={(e) => setStoreName(e.target.value)} />
-                <Input label="Contact Email" value={storeEmail} onChange={(e) => setStoreEmail(e.target.value)} type="email" />
-                <Input label="Contact Phone" value={storePhone} onChange={(e) => setStorePhone(e.target.value)} />
-                <Textarea label="Store Address" value={storeAddress} onChange={(e) => setStoreAddress(e.target.value)} />
-                <Input label="Currency" value="BDT (৳)" disabled />
-              </CardContent>
-            </Card>
-            <Card><CardHeader><CardTitle className="text-base">Features</CardTitle><CardDescription>Toggle store features</CardDescription></CardHeader>
-              <CardContent className="space-y-4">
-                {GENERAL_FEATURES.map((f) => renderFeatureToggle(f, features, setFeatures))}
-              </CardContent>
-            </Card>
+            <SectionCard title="Store Information" description="Basic contact details" onEdit={() => setStoreInfoDialog(true)}>
+              <Row label="Store Name" value={storeName} />
+              <Row label="Contact Email" value={storeEmail} />
+              <Row label="Contact Phone" value={storePhone} />
+              <Row label="Store Address" value={storeAddress} />
+              <Row label="Currency" value="BDT (৳)" />
+            </SectionCard>
+            <SectionCard title="Features" description="Toggle store features" onEdit={() => setFeaturesDialog(true)}>
+              {GENERAL_FEATURES.map((f) => <ToggleRow key={f.key} label={f.label} on={features[f.key] ?? f.def} />)}
+            </SectionCard>
           </div>
 
-          {/* Messaging toggles — Email and SMS kept in their own sections */}
           <div className="grid lg:grid-cols-2 gap-5">
-            <Card>
-              <CardHeader><CardTitle className="text-base flex items-center gap-2"><Mail className="h-4 w-4 text-secondary" /> Email Notifications</CardTitle><CardDescription>Order + verification emails (needs RESEND_API_KEY / EMAIL_FROM configured)</CardDescription></CardHeader>
-              <CardContent className="space-y-4">
-                {EMAIL_FEATURES.map((f) => renderFeatureToggle(f, features, setFeatures))}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader><CardTitle className="text-base flex items-center gap-2"><MessageSquare className="h-4 w-4 text-secondary" /> SMS Notifications</CardTitle><CardDescription>Order + verification SMS (needs SMS gateway credit)</CardDescription></CardHeader>
-              <CardContent className="space-y-4">
-                {SMS_FEATURES.map((f) => renderFeatureToggle(f, features, setFeatures))}
-              </CardContent>
-            </Card>
+            <SectionCard title="Email Notifications" description="Order + verification emails (needs RESEND_API_KEY / EMAIL_FROM)" icon={Mail} onEdit={() => setEmailFeatDialog(true)}>
+              {EMAIL_FEATURES.map((f) => <ToggleRow key={f.key} label={f.label} on={features[f.key] ?? f.def} />)}
+            </SectionCard>
+            <SectionCard title="SMS Notifications" description="Order + verification SMS (needs SMS gateway credit)" icon={MessageSquare} onEdit={() => setSmsFeatDialog(true)}>
+              {SMS_FEATURES.map((f) => <ToggleRow key={f.key} label={f.label} on={features[f.key] ?? f.def} />)}
+            </SectionCard>
           </div>
+
+          {/* Store Information modal */}
+          <SectionEditDialog open={storeInfoDialog} title="Store Information" saving={generalSaving} saved={generalSaved} onClose={() => setStoreInfoDialog(false)} onSave={async () => { await saveGeneral(); setStoreInfoDialog(false); }}>
+            <Input label="Store Name" value={storeName} onChange={(e) => setStoreName(e.target.value)} />
+            <Input label="Contact Email" value={storeEmail} onChange={(e) => setStoreEmail(e.target.value)} type="email" />
+            <Input label="Contact Phone" value={storePhone} onChange={(e) => setStorePhone(e.target.value)} />
+            <Textarea label="Store Address" value={storeAddress} onChange={(e) => setStoreAddress(e.target.value)} />
+            <Input label="Currency" value="BDT (৳)" disabled />
+          </SectionEditDialog>
+
+          {/* Features modal */}
+          <SectionEditDialog open={featuresDialog} title="Features" saving={generalSaving} saved={generalSaved} onClose={() => setFeaturesDialog(false)} onSave={async () => { await saveGeneral(); setFeaturesDialog(false); }}>
+            {GENERAL_FEATURES.map((f) => renderFeatureToggle(f, features, setFeatures))}
+          </SectionEditDialog>
+
+          {/* Email notifications modal */}
+          <SectionEditDialog open={emailFeatDialog} title="Email Notifications" saving={generalSaving} saved={generalSaved} onClose={() => setEmailFeatDialog(false)} onSave={async () => { await saveGeneral(); setEmailFeatDialog(false); }}>
+            {EMAIL_FEATURES.map((f) => renderFeatureToggle(f, features, setFeatures))}
+          </SectionEditDialog>
+
+          {/* SMS notifications modal */}
+          <SectionEditDialog open={smsFeatDialog} title="SMS Notifications" saving={generalSaving} saved={generalSaved} onClose={() => setSmsFeatDialog(false)} onSave={async () => { await saveGeneral(); setSmsFeatDialog(false); }}>
+            {SMS_FEATURES.map((f) => renderFeatureToggle(f, features, setFeatures))}
+          </SectionEditDialog>
         </div>
       )}
 
@@ -1023,203 +1113,169 @@ function AdminSettingsPageInner() {
       )}
 
       {/* ═══ PAYMENT ═══ */}
-      {activeTab === "payment" && (
+      {activeTab === "payment" && (() => {
+        const editingMethod = paymentMethods.find((pm) => pm.id === editPaymentId) || null;
+        const patchMethod = (id: string, patch: Partial<PaymentMethod>) =>
+          setPaymentMethods((p) => p.map((pm) => pm.id === id ? { ...pm, ...patch } : pm));
+        return (
         <div className="space-y-5">
-          <div className="flex justify-end"><SaveBtn saving={paymentSaving} saved={paymentSaved} onSave={savePayment} /></div>
-
-          <Card>
-            <CardContent className="pt-5 flex flex-col sm:flex-row gap-3">
-              <div className="flex-1">
-                <Input
-                  label="New payment method name"
-                  required
-                  value={newPaymentName}
-                  onChange={(e) => setNewPaymentName(e.target.value)}
-                  placeholder="e.g. Upay, SSLCommerz"
-                />
-              </div>
-              <div className="flex items-end">
-                <AdminButton
-                  type="button"
-                  disabled={!newPaymentName.trim()}
-                  onClick={() => {
-                    const name = newPaymentName.trim();
-                    if (!name) return;
-                    setPaymentMethods((p) => [...p, { id: randomId(), name, enabled: true, account_number: "", instructions: "", qr_image: "", icon: "", input_type: "transaction_id" }]);
-                    setNewPaymentName("");
-                  }}
-                  className="gap-1.5"
-                >
-                  <Plus className="h-4 w-4" /> Add payment method
-                </AdminButton>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="flex justify-end">
+            <AdminButton onClick={() => setAddPaymentDialog(true)}><Plus className="h-3.5 w-3.5 mr-1" /> Add Payment Method</AdminButton>
+          </div>
 
           <div className="grid lg:grid-cols-2 gap-5">
             {paymentMethods.map((m) => (
-              <Card key={m.id} className={cn(!m.enabled && "opacity-60")}>
-                <CardHeader>
-                  <div className="flex items-center justify-between gap-2">
-                    <CardTitle className="text-base flex items-center gap-2 min-w-0">
-                      <CreditCard className="h-4 w-4 text-secondary shrink-0" />
-                      <Input
-                        value={m.name}
-                        onChange={(e) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, name: e.target.value } : pm))}
-                        className="!h-8 text-sm font-semibold"
-                      />
-                    </CardTitle>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <Switch checked={m.enabled} onCheckedChange={(v) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, enabled: v } : pm))} />
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethods((p) => p.filter((pm) => pm.id !== m.id))}
-                        className="flex items-center justify-center h-8 w-8 rounded-full text-charcoal-lighter hover:text-destructive hover:bg-destructive/10 transition-colors active:scale-[0.96]"
-                        aria-label={`Remove ${m.name}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+              <SectionCard key={m.id} title={m.name} icon={CreditCard} onEdit={() => setEditPaymentId(m.id)}>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-charcoal-lighter">Status</span>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={m.enabled} onCheckedChange={(v) => { patchMethod(m.id, { enabled: v }); savePayment(); }} />
+                    <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full", m.enabled ? "bg-success/10 text-success" : "bg-charcoal-lighter/10 text-charcoal-lighter")}>{m.enabled ? "On" : "Off"}</span>
                   </div>
-                </CardHeader>
-                {m.enabled && (
-                  <CardContent className="space-y-3">
-                    <ImageUpload
-                      label={<FieldLabel label="Payment icon" hint="Shown in the footer's We Accept section." />}
-                      value={m.icon}
-                      onChange={(url) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, icon: url } : pm))}
-                      aspectRatio="square"
-                      folder="payment-icons"
-                      field={`payment_icon_${m.id}`}
-                    />
-                    {m.id !== "COD" && (
-                      <>
-                        <Input label="Account / Phone" value={m.account_number} onChange={(e) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, account_number: e.target.value } : pm))} placeholder="01XXXXXXXXX" />
-                        <div>
-                          <label className="block text-sm font-medium text-charcoal-light mb-1.5">Customer confirms payment with</label>
-                          <Select value={m.input_type} onValueChange={(v) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, input_type: v as PaymentMethod["input_type"] } : pm))}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="transaction_id">Transaction ID</SelectItem>
-                              <SelectItem value="phone_number">Last 4 digit of Phone/Account No.</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <Textarea label="Instructions" value={m.instructions} onChange={(e) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, instructions: e.target.value } : pm))} placeholder="How should customers pay with this method?" className="min-h-[80px]" />
-                        <ImageUpload
-                          label="QR Code (optional)"
-                          value={m.qr_image}
-                          onChange={(url) => setPaymentMethods((p) => p.map((pm) => pm.id === m.id ? { ...pm, qr_image: url } : pm))}
-                          aspectRatio="square"
-                          folder="payment-qr"
-                          field={`payment_qr_${m.id}`}
-                        />
-                      </>
-                    )}
-                  </CardContent>
-                )}
-              </Card>
+                </div>
+                {m.id !== "COD" && <Row label="Account / Phone" value={m.account_number} />}
+                {m.id !== "COD" && <Row label="Confirms with" value={m.input_type === "phone_number" ? "Last 4 digits" : "Transaction ID"} />}
+                <div className="flex items-center gap-3 pt-1">
+                  {m.icon ? <img src={m.icon} alt="" className="h-8 w-8 rounded object-contain border border-border/30" /> : <span className="text-xs text-charcoal-lighter italic">No icon</span>}
+                  {m.id !== "COD" && (m.qr_image ? <span className="text-[11px] text-success">QR set</span> : <span className="text-[11px] text-charcoal-lighter">No QR</span>)}
+                  <button type="button" onClick={() => { if (confirm(`Remove ${m.name}?`)) { setPaymentMethods((p) => p.filter((pm) => pm.id !== m.id)); savePayment(); } }} className="ml-auto flex items-center justify-center h-7 w-7 rounded-full text-charcoal-lighter/60 hover:text-destructive hover:bg-destructive/10 transition-colors" aria-label={`Remove ${m.name}`}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </SectionCard>
             ))}
           </div>
+
+          {/* Add payment method modal */}
+          <SectionEditDialog open={addPaymentDialog} title="Payment Method" saving={paymentSaving} onClose={() => { setAddPaymentDialog(false); setNewPaymentName(""); }} onSave={async () => {
+            const name = newPaymentName.trim();
+            if (!name) return;
+            setPaymentMethods((p) => [...p, { id: randomId(), name, enabled: true, account_number: "", instructions: "", qr_image: "", icon: "", input_type: "transaction_id" }]);
+            setNewPaymentName("");
+            await savePayment();
+            setAddPaymentDialog(false);
+          }}>
+            <Input label="Payment method name" required value={newPaymentName} onChange={(e) => setNewPaymentName(e.target.value)} placeholder="e.g. Upay, SSLCommerz" />
+            <p className="text-xs text-charcoal-lighter">You can add its account number, icon, QR and instructions after creating it (via Edit).</p>
+          </SectionEditDialog>
+
+          {/* Edit payment method modal */}
+          <SectionEditDialog open={!!editingMethod} title={editingMethod?.name || "Payment Method"} saving={paymentSaving} saved={paymentSaved} onClose={() => setEditPaymentId(null)} onSave={async () => { await savePayment(); setEditPaymentId(null); }}>
+            {editingMethod && (
+              <>
+                <Input label="Name" value={editingMethod.name} onChange={(e) => patchMethod(editingMethod.id, { name: e.target.value })} className="text-sm font-semibold" />
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-charcoal">Enabled</p>
+                  <Switch checked={editingMethod.enabled} onCheckedChange={(v) => patchMethod(editingMethod.id, { enabled: v })} />
+                </div>
+                <ImageUpload
+                  label={<FieldLabel label="Payment icon" hint="Shown in the footer's We Accept section." />}
+                  value={editingMethod.icon}
+                  onChange={(url) => patchMethod(editingMethod.id, { icon: url })}
+                  aspectRatio="square" folder="payment-icons" field={`payment_icon_${editingMethod.id}`}
+                />
+                {editingMethod.id !== "COD" && (
+                  <>
+                    <Input label="Account / Phone" value={editingMethod.account_number} onChange={(e) => patchMethod(editingMethod.id, { account_number: e.target.value })} placeholder="01XXXXXXXXX" />
+                    <div>
+                      <label className="block text-sm font-medium text-charcoal-light mb-1.5">Customer confirms payment with</label>
+                      <Select value={editingMethod.input_type} onValueChange={(v) => patchMethod(editingMethod.id, { input_type: v as PaymentMethod["input_type"] })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="transaction_id">Transaction ID</SelectItem>
+                          <SelectItem value="phone_number">Last 4 digit of Phone/Account No.</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Textarea label="Instructions" value={editingMethod.instructions} onChange={(e) => patchMethod(editingMethod.id, { instructions: e.target.value })} placeholder="How should customers pay with this method?" className="min-h-[80px]" />
+                    <ImageUpload
+                      label="QR Code (optional)"
+                      value={editingMethod.qr_image}
+                      onChange={(url) => patchMethod(editingMethod.id, { qr_image: url })}
+                      aspectRatio="square" folder="payment-qr" field={`payment_qr_${editingMethod.id}`}
+                    />
+                  </>
+                )}
+              </>
+            )}
+          </SectionEditDialog>
         </div>
-      )}
+        );
+      })()}
 
       {/* ═══ NOTIFICATIONS ═══ */}
-      {activeTab === "notifications" && (
+      {activeTab === "notifications" && (() => {
+        const NOTIF_SECTIONS = [
+          { title: "Order Notifications" as const, items: [{ key: "order_placed", label: "Order Placed", desc: "Notify when a new order comes in" }, { key: "order_confirmed", label: "Confirmed", desc: "Notify when an admin confirms an order" }, { key: "order_shipped", label: "Shipped", desc: "Notify on shipping status updates" }, { key: "order_delivered", label: "Delivered", desc: "Notify when a delivery is completed" }, { key: "order_cancelled", label: "Cancelled", desc: "Notify on order cancellations" }] },
+          { title: "Returns & Alerts" as const, items: [{ key: "return_requested", label: "Return Requested", desc: "Notify when a customer requests a return" }, { key: "return_approved", label: "Return Processed", desc: "Notify when a return is approved or rejected" }, { key: "low_stock_alert", label: "Low Stock", desc: "Notify when stock falls below the minimum" }, { key: "new_review", label: "New Review", desc: "Notify when a customer posts a review" }, { key: "new_customer", label: "New Customer", desc: "Notify on new customer registrations" }, { key: "points_earned", label: "Points Earned", desc: "Notify when a customer earns loyalty points" }, { key: "promo_offers", label: "Promotions", desc: "Marketing and promotional notifications" }] },
+        ];
+        const smsRecipientNames = adminPhones.filter((a) => orderSmsAdminIds.includes(a.id)).map((a) => a.name);
+        return (
         <div className="space-y-5">
-          <div className="flex justify-end"><SaveBtn saving={notifSaving} saved={notifSaved} onSave={saveNotifications} /></div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><Bell className="h-4 w-4 text-secondary" /> SMS Gateway</CardTitle>
-              <CardDescription>BulkSMSBD account balance</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  {smsBalance !== null && !smsBalanceError ? (
-                    <p className="text-2xl font-semibold text-charcoal [font-variant-numeric:tabular-nums]">{smsBalance.toLocaleString()} <span className="text-sm font-normal text-charcoal-lighter">SMS credits</span></p>
-                  ) : smsBalanceError ? (
-                    <p className="text-sm text-destructive">{smsBalanceError}</p>
-                  ) : (
-                    <p className="text-sm text-charcoal-lighter">{smsBalanceLoading ? "Checking balance..." : "Balance not checked yet"}</p>
-                  )}
-                </div>
-                <AdminButton variant="outline" size="sm" onClick={fetchSmsBalance} disabled={smsBalanceLoading}>
-                  {smsBalanceLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} {smsBalanceLoading ? "Checking..." : "Check Balance"}
-                </AdminButton>
+          {/* SMS Gateway — read-only balance check (no editable settings) */}
+          <SectionCard title="SMS Gateway" description="BulkSMSBD account balance" icon={Bell} canEdit={false} onEdit={() => {}}>
+            <div className="flex items-center justify-between">
+              <div>
+                {smsBalance !== null && !smsBalanceError ? (
+                  <p className="text-2xl font-semibold text-charcoal [font-variant-numeric:tabular-nums]">{smsBalance.toLocaleString()} <span className="text-sm font-normal text-charcoal-lighter">SMS credits</span></p>
+                ) : smsBalanceError ? (
+                  <p className="text-sm text-destructive">{smsBalanceError}</p>
+                ) : (
+                  <p className="text-sm text-charcoal-lighter">{smsBalanceLoading ? "Checking balance..." : "Balance not checked yet"}</p>
+                )}
               </div>
-            </CardContent>
-          </Card>
+              <AdminButton variant="outline" size="sm" onClick={fetchSmsBalance} disabled={smsBalanceLoading}>
+                {smsBalanceLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} {smsBalanceLoading ? "Checking..." : "Check Balance"}
+              </AdminButton>
+            </div>
+          </SectionCard>
 
-          {/* Order SMS recipients — which admin number(s) get the new-order SMS.
-              Only fires when the "Order SMS Notifications" feature is on. */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><Bell className="h-4 w-4 text-secondary" /> Order SMS Recipients</CardTitle>
-              <CardDescription>
-                {features.order_sms_admin
-                  ? "Choose which admin number(s) receive an SMS on every new order (with the customer's name, tier & phone). Turn “Order SMS — Admin” on/off under General → Features."
-                  : "“Order SMS — Admin” is currently OFF (General → Features). Turn it on to send order SMS to admins. You can still pick recipients here."}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {adminPhones.length === 0 ? (
-                <p className="text-sm text-charcoal-lighter">
-                  No admin accounts have a phone number. Add a phone number to an admin under <strong>Users, Roles &amp; Access</strong> to select them here.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {adminPhones.map((a) => (
-                    <label key={a.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/50 px-3 py-2 cursor-pointer hover:bg-pearl/50 transition-colors">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-charcoal truncate">{a.name}</p>
-                        <p className="text-xs text-charcoal-lighter [font-variant-numeric:tabular-nums]">{a.phone}</p>
-                      </div>
-                      <Switch checked={orderSmsAdminIds.includes(a.id)} onCheckedChange={() => toggleOrderSmsAdmin(a.id)} />
-                    </label>
-                  ))}
-                  <div className="flex items-center justify-between pt-1">
-                    <p className="text-[11px] text-charcoal-lighter">{orderSmsAdminIds.length} recipient{orderSmsAdminIds.length === 1 ? "" : "s"} selected</p>
-                    <SaveBtn saving={orderSmsSaving} saved={orderSmsSaved} onSave={saveOrderSmsRecipients} />
+          {/* Order SMS Recipients */}
+          <SectionCard title="Order SMS Recipients" description="Admin number(s) that get an SMS on every new order." icon={Bell} onEdit={() => setOrderSmsDialog(true)}>
+            <Row label="Recipients" value={smsRecipientNames.length ? smsRecipientNames.join(", ") : ""} />
+          </SectionCard>
+
+          {/* Order Email Recipients */}
+          <SectionCard title="Order Email Recipients" description="Admin email(s) that get an alert on every new order." icon={Bell} onEdit={openOrderEmailDialog}>
+            <Row label="Recipients" value={orderEmailAdmins.trim()} />
+          </SectionCard>
+
+          {/* Email Footer */}
+          <SectionCard title="Email Footer" description="Shown at the bottom of every email, above the fixed ChineXa logo." icon={Mail} onEdit={() => setEmailFooterDialog(true)}>
+            <div className="rounded-lg border border-border/40 bg-[#FDF4F8] p-3 text-xs text-[#9A8592] whitespace-pre-line leading-relaxed">
+              {emailFooter.trim() || <span className="italic">No footer text set</span>}
+            </div>
+          </SectionCard>
+
+          {/* Notification toggle sections */}
+          <div className="grid lg:grid-cols-2 gap-5">
+            {NOTIF_SECTIONS.map((s) => (
+              <SectionCard key={s.title} title={s.title} icon={Bell} onEdit={() => setNotifDialog(s.title)}>
+                {s.items.map((item) => <ToggleRow key={item.key} label={item.label} on={notifications[item.key] ?? true} />)}
+              </SectionCard>
+            ))}
+          </div>
+
+          {/* ── Modals ── */}
+
+          {/* Order SMS recipients modal */}
+          <SectionEditDialog open={orderSmsDialog} title="Order SMS Recipients" saving={orderSmsSaving} saved={orderSmsSaved} onClose={() => setOrderSmsDialog(false)} onSave={async () => { await saveOrderSmsRecipients(); setOrderSmsDialog(false); }}>
+            {adminPhones.length === 0 ? (
+              <p className="text-sm text-charcoal-lighter">No admin accounts have a phone number. Add a phone number to an admin under <strong>Users, Roles &amp; Access</strong> to select them here.</p>
+            ) : (
+              adminPhones.map((a) => (
+                <label key={a.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/50 px-3 py-2 cursor-pointer hover:bg-pearl/50 transition-colors">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-charcoal truncate">{a.name}</p>
+                    <p className="text-xs text-charcoal-lighter [font-variant-numeric:tabular-nums]">{a.phone}</p>
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  <Switch checked={orderSmsAdminIds.includes(a.id)} onCheckedChange={() => toggleOrderSmsAdmin(a.id)} />
+                </label>
+              ))
+            )}
+          </SectionEditDialog>
 
-          {/* Order Email Recipients — free-text admin emails for new-order alerts */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><Bell className="h-4 w-4 text-secondary" /> Order Email Recipients</CardTitle>
-              <CardDescription>
-                {features.order_email_admin
-                  ? "Admin email(s) that receive an alert on every new order. Separate multiple with commas. Turn “Order Email — Admin” on/off under General → Features. Requires email to be configured on the server (RESEND_API_KEY / EMAIL_FROM)."
-                  : "“Order Email — Admin” is currently OFF (General → Features). Turn it on to email admins on new orders. You can still set recipients here."}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {/* Current recipient(s) shown read-only; edit via the modal. */}
-              <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-pearl/40 px-3 py-2.5">
-                <div className="min-w-0">
-                  <p className="text-[11px] uppercase tracking-wide text-charcoal-lighter">Current recipient{orderEmailAdmins.includes(",") ? "s" : ""}</p>
-                  {orderEmailAdmins.trim() ? (
-                    <p className="truncate text-sm font-medium text-charcoal">{orderEmailAdmins}</p>
-                  ) : (
-                    <p className="text-sm text-charcoal-lighter italic">No recipients set</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {orderEmailSaved && <span className="text-xs font-medium text-success flex items-center gap-1"><Check className="h-3.5 w-3.5" /> Saved</span>}
-                  <AdminButton variant="outline" size="sm" onClick={openOrderEmailDialog}>
-                    <Edit className="h-3.5 w-3.5 mr-1" /> Edit
-                  </AdminButton>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Edit Order Email Recipients modal */}
+          {/* Order Email recipients modal (custom validation/error handling) */}
           <Dialog open={orderEmailDialog} onOpenChange={(o) => { if (!o) setOrderEmailDialog(false); }}>
             <DialogContent className="w-[95vw] max-w-md">
               <DialogHeader>
@@ -1227,13 +1283,7 @@ function AdminSettingsPageInner() {
                 <DialogDescription>Admin email address(es) that receive an alert on every new order. Separate multiple with commas.</DialogDescription>
               </DialogHeader>
               <div className="space-y-3 py-1">
-                <Input
-                  label="Admin emails"
-                  value={orderEmailDraft}
-                  onChange={(e) => { setOrderEmailDraft(e.target.value); if (orderEmailError) setOrderEmailError(""); }}
-                  placeholder="ops@chinexabd.com, owner@chinexabd.com"
-                  autoFocus
-                />
+                <Input label="Admin emails" value={orderEmailDraft} onChange={(e) => { setOrderEmailDraft(e.target.value); if (orderEmailError) setOrderEmailError(""); }} placeholder="ops@chinexabd.com, owner@chinexabd.com" autoFocus />
                 {orderEmailError && <p className="text-xs text-destructive">{orderEmailError}</p>}
               </div>
               <DialogFooter>
@@ -1245,64 +1295,34 @@ function AdminSettingsPageInner() {
             </DialogContent>
           </Dialog>
 
-          {/* Email Footer — plain text appended to EVERY email (order
-              notifications, OTP, Email Center replies, broadcasts) above the
-              fixed ChineXa logo. */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><Mail className="h-4 w-4 text-secondary" /> Email Footer</CardTitle>
-              <CardDescription>
-                Shown at the bottom of every email (order notifications, verification codes, Email Center replies and broadcasts). The ChineXa logo is added automatically below your text.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Textarea
-                label="Footer text"
-                value={emailFooter}
-                onChange={(e) => setEmailFooter(e.target.value)}
-                rows={4}
-                placeholder={"ChineXa — Premium Beauty & Lifestyle\nHouse 12, Road 5, Dhaka · support@chinexabd.com · +880 1XXX-XXXXXX"}
-              />
-
-              {/* Live preview of exactly what the footer renders as in an email */}
-              <div>
-                <p className="text-xs font-medium text-charcoal-lighter mb-1.5">Preview</p>
-                <div className="rounded-xl border border-border/40 bg-[#FDF4F8] p-5 text-left">
-                  <div className="max-w-[420px]">
-                    <div className="text-[#9A8592] text-xs leading-relaxed whitespace-pre-line">
-                      {emailFooter.trim() || "Your footer text will appear here."}
-                    </div>
-                    <div className="mt-3">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src="/logo.png" alt="ChineXa" className="inline-block h-8 w-auto" />
-                    </div>
-                  </div>
+          {/* Email footer modal */}
+          <SectionEditDialog open={emailFooterDialog} title="Email Footer" saving={emailFooterSaving} saved={emailFooterSaved} onClose={() => setEmailFooterDialog(false)} onSave={async () => { await saveEmailFooter(); setEmailFooterDialog(false); }}>
+            <Textarea label="Footer text" value={emailFooter} onChange={(e) => setEmailFooter(e.target.value)} rows={4} placeholder={"ChineXa — Premium Beauty & Lifestyle\nHouse 12, Road 5, Dhaka · support@chinexabd.com · +880 1XXX-XXXXXX"} />
+            <div>
+              <p className="text-xs font-medium text-charcoal-lighter mb-1.5">Preview</p>
+              <div className="rounded-xl border border-border/40 bg-[#FDF4F8] p-5 text-left">
+                <div className="max-w-[420px]">
+                  <div className="text-[#9A8592] text-xs leading-relaxed whitespace-pre-line">{emailFooter.trim() || "Your footer text will appear here."}</div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <div className="mt-3"><img src="/logo.png" alt="ChineXa" className="inline-block h-8 w-auto" /></div>
                 </div>
-                <p className="text-[11px] text-charcoal-lighter mt-1.5">The logo is fixed and always shown beneath your text.</p>
               </div>
+              <p className="text-[11px] text-charcoal-lighter mt-1.5">The logo is fixed and always shown beneath your text.</p>
+            </div>
+          </SectionEditDialog>
 
-              <div className="flex items-center justify-end">
-                <SaveBtn saving={emailFooterSaving} saved={emailFooterSaved} onSave={saveEmailFooter} />
+          {/* Notification toggles modal */}
+          <SectionEditDialog open={notifDialog !== null} title={notifDialog || "Notifications"} saving={notifSaving} saved={notifSaved} onClose={() => setNotifDialog(null)} onSave={async () => { await saveNotifications(); setNotifDialog(null); }}>
+            {NOTIF_SECTIONS.find((s) => s.title === notifDialog)?.items.map((item) => (
+              <div key={item.key} className="flex items-center justify-between">
+                <p className="text-sm font-medium text-charcoal"><FieldLabel label={item.label} hint={item.desc} /></p>
+                <Switch checked={notifications[item.key] ?? true} onCheckedChange={() => setNotifications((p) => ({ ...p, [item.key]: !p[item.key] }))} />
               </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid lg:grid-cols-2 gap-5">
-            {[
-              { title: "Order Notifications", items: [{ key: "order_placed", label: "Order Placed", desc: "Notify when a new order comes in" }, { key: "order_confirmed", label: "Confirmed", desc: "Notify when an admin confirms an order" }, { key: "order_shipped", label: "Shipped", desc: "Notify on shipping status updates" }, { key: "order_delivered", label: "Delivered", desc: "Notify when a delivery is completed" }, { key: "order_cancelled", label: "Cancelled", desc: "Notify on order cancellations" }] },
-              { title: "Returns & Alerts", items: [{ key: "return_requested", label: "Return Requested", desc: "Notify when a customer requests a return" }, { key: "return_approved", label: "Return Processed", desc: "Notify when a return is approved or rejected" }, { key: "low_stock_alert", label: "Low Stock", desc: "Notify when stock falls below the minimum" }, { key: "new_review", label: "New Review", desc: "Notify when a customer posts a review" }, { key: "new_customer", label: "New Customer", desc: "Notify on new customer registrations" }, { key: "points_earned", label: "Points Earned", desc: "Notify when a customer earns loyalty points" }, { key: "promo_offers", label: "Promotions", desc: "Marketing and promotional notifications" }] },
-            ].map((s) => (
-              <Card key={s.title}><CardHeader><CardTitle className="text-base flex items-center gap-2"><Bell className="h-4 w-4 text-secondary" /> {s.title}</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  {s.items.map((item) => (
-                    <div key={item.key} className="flex items-center justify-between"><p className="text-sm font-medium text-charcoal"><FieldLabel label={item.label} hint={item.desc} /></p><Switch checked={notifications[item.key] ?? true} onCheckedChange={() => setNotifications((p) => ({ ...p, [item.key]: !p[item.key] }))} /></div>
-                  ))}
-                </CardContent>
-              </Card>
             ))}
-          </div>
+          </SectionEditDialog>
         </div>
-      )}
+        );
+      })()}
 
     </div>
   );
