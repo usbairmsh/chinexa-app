@@ -47,6 +47,24 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// DELETE /api/notifications/send?id=xxx — remove a broadcast from the sent
+// history. This only deletes the history record; notifications already
+// delivered to customers are untouched.
+export async function DELETE(req: NextRequest) {
+  try {
+    const denied = await requirePermission(req, "customers", "add");
+    if (denied) return denied;
+    await ensureBroadcastTable();
+    const id = req.nextUrl.searchParams.get("id");
+    if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
+    await execute("DELETE FROM notification_broadcasts WHERE id = ?", [id]);
+    await logActivity("Deleted notification history", "notification", id);
+    return NextResponse.json({ success: true });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Error" }, { status: 500 });
+  }
+}
+
 // POST /api/notifications/send — admin push notification
 // Body: { title, message, type?, link?, audience: "all" | "tiers" | "customers", tier_ids?: string[], customer_ids?: string[] }
 export async function POST(req: NextRequest) {
