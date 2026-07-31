@@ -301,6 +301,67 @@ export async function getThread(id: string): Promise<EmailThread | null> {
   return rows.length ? (rows[0] as unknown as EmailThread) : null;
 }
 
+/**
+ * Filtered/searched thread list for the inbox filter bar.
+ * - scope: mailbox ids the caller may see ("all" = every mailbox).
+ * - mailboxId: restrict to a single mailbox (already access-checked by caller).
+ * - direction: "sent" (has an outbound msg), "received" (has an inbound msg), "all".
+ * - q: matches subject / body text / correspondent / from_address (LIKE — robust
+ *   across engines; the FULLTEXT index just speeds the subject/body scan).
+ * - from/to: last_message_at date range (inclusive; `to` extended to end-of-day).
+ */
+export async function searchThreads(opts: {
+  scope: string[] | "all";
+  mailboxId?: string;
+  direction?: "sent" | "received" | "all";
+  q?: string;
+  from?: string;
+  to?: string;
+}): Promise<EmailThread[]> {
+  const where: string[] = [];
+  const params: (string | number)[] = [];
+
+  // Mailbox scoping.
+  if (opts.mailboxId) {
+    where.push("t.mailbox_id = ?");
+    params.push(opts.mailboxId);
+  } else if (opts.scope !== "all") {
+    if (opts.scope.length === 0) return [];
+    where.push(`t.mailbox_id IN (${opts.scope.map(() => "?").join(",")})`);
+    params.push(...opts.scope);
+  }
+
+  // Direction: existence of a message of that direction in the thread.
+  if (opts.direction === "sent" || opts.direction === "received") {
+    const dir = opts.direction === "sent" ? "outbound" : "inbound";
+    where.push(`EXISTS (SELECT 1 FROM email_messages m WHERE m.thread_id = t.id AND m.direction = ?)`);
+    params.push(dir);
+  }
+
+  // Date range on last activity.
+  if (opts.from) { where.push("t.last_message_at >= ?"); params.push(opts.from); }
+  if (opts.to) { where.push("t.last_message_at <= ?"); params.push(`${opts.to} 23:59:59`); }
+
+  // Free-text search across subject, correspondent, and any message body/subject/from.
+  const q = (opts.q || "").trim();
+  if (q) {
+    const like = `%${q.replace(/[%_\\]/g, (m) => `\\${m}`)}%`;
+    where.push(`(
+      t.subject LIKE ? OR t.correspondent LIKE ? OR t.correspondent_name LIKE ?
+      OR EXISTS (SELECT 1 FROM email_messages m2 WHERE m2.thread_id = t.id AND (
+        m2.subject LIKE ? OR m2.body_text LIKE ? OR m2.from_address LIKE ? OR m2.to_address LIKE ?
+      ))
+    )`);
+    params.push(like, like, like, like, like, like, like);
+  }
+
+  const sql = `SELECT t.* FROM email_threads t
+    ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+    ORDER BY t.last_message_at DESC LIMIT 200`;
+  const rows = await query<RowDataPacket[]>(sql, params);
+  return rows as unknown as EmailThread[];
+}
+
 export async function getThreadMessages(threadId: string): Promise<EmailMessage[]> {
   const rows = await query<RowDataPacket[]>(
     "SELECT * FROM email_messages WHERE thread_id = ? ORDER BY created_at ASC",

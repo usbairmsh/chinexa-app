@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Mail, Send, Loader2, Inbox, ArrowDownLeft, ArrowUpRight, Plus, Trash2,
-  Megaphone, Settings2, RefreshCw, Check, Reply, FileText, Save, RotateCcw, Paperclip, X,
+  Megaphone, Settings2, RefreshCw, Check, Reply, FileText, Save, RotateCcw, Paperclip, X, Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -106,6 +106,15 @@ export default function EmailCenterPage() {
   const [replyModal, setReplyModal] = useState(false);
   const [editingDraft, setEditingDraft] = useState<Draft | null>(null);
 
+  // Inbox filter/search bar
+  const [filterDir, setFilterDir] = useState<"all" | "sent" | "received">("all");
+  const [filterQ, setFilterQ] = useState("");
+  const [filterFrom, setFilterFrom] = useState("");
+  const [filterTo, setFilterTo] = useState("");
+  const [searchResults, setSearchResults] = useState<Thread[] | null>(null); // null = filters inactive, use `threads`
+  const [searching, setSearching] = useState(false);
+  const filtersActive = filterDir !== "all" || filterQ.trim() !== "" || filterFrom !== "" || filterTo !== "";
+
   const load = useCallback(async () => {
     const mid = selected && selected !== DRAFTS ? selected : "";
     const [dashRes, footerRes] = await Promise.all([
@@ -143,6 +152,32 @@ export default function EmailCenterPage() {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { if (selected === DRAFTS) loadDrafts(); }, [selected, loadDrafts]);
+
+  // Debounced search: hit /search whenever any filter is active, else clear back
+  // to the normal thread list. Scoped to the selected mailbox when one is picked.
+  useEffect(() => {
+    if (selected === DRAFTS) { setSearchResults(null); return; }
+    if (!filtersActive) { setSearchResults(null); return; }
+    const mid = selected && selected !== DRAFTS ? selected : "";
+    setSearching(true);
+    const t = setTimeout(async () => {
+      const params = new URLSearchParams();
+      if (filterDir !== "all") params.set("direction", filterDir);
+      if (filterQ.trim()) params.set("q", filterQ.trim());
+      if (filterFrom) params.set("from", filterFrom);
+      if (filterTo) params.set("to", filterTo);
+      if (mid) params.set("mailbox_id", mid);
+      try {
+        const res = await fetch(`/api/admin-email/search?${params.toString()}`, { cache: "no-store" });
+        if (res.ok) { const d = await res.json(); setSearchResults(Array.isArray(d.threads) ? d.threads : []); }
+      } catch { /* keep previous */ } finally { setSearching(false); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [filterDir, filterQ, filterFrom, filterTo, selected, filtersActive]);
+
+  // The list actually shown: search results when filtering, else the loaded threads.
+  const shownThreads = filtersActive && searchResults !== null ? searchResults : threads;
+  const clearFilters = () => { setFilterDir("all"); setFilterQ(""); setFilterFrom(""); setFilterTo(""); setSearchResults(null); };
 
   const openThread = async (t: Thread) => {
     setActiveThread(t);
@@ -274,14 +309,46 @@ export default function EmailCenterPage() {
           <DraftsList drafts={drafts} mailboxes={mailboxes} canSend={canSend} onEdit={(d) => setEditingDraft(d)} onChanged={() => { loadDrafts(); load(); }} />
         ) : (
           <div className="rounded-xl border border-border/40 bg-card overflow-hidden">
+            {/* Filter / search bar */}
+            <div className="border-b border-border/30 px-2.5 py-2 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 flex-1 rounded-lg border border-border bg-pearl/30 px-2">
+                  <Search className="h-3.5 w-3.5 text-charcoal-lighter shrink-0" />
+                  <input
+                    value={filterQ}
+                    onChange={(e) => setFilterQ(e.target.value)}
+                    placeholder="Search subject, sender, body…"
+                    className="w-full bg-transparent py-1.5 text-xs outline-none placeholder:text-charcoal-lighter/60"
+                  />
+                  {searching && <Loader2 className="h-3 w-3 animate-spin text-charcoal-lighter shrink-0" />}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Sent / Received / All segmented toggle */}
+                <div className="inline-flex rounded-lg border border-border/60 overflow-hidden text-[11px]">
+                  {(["all", "received", "sent"] as const).map((d) => (
+                    <button key={d} onClick={() => setFilterDir(d)}
+                      className={cn("px-2.5 py-1 capitalize transition-colors", filterDir === d ? "bg-secondary text-white" : "text-charcoal-lighter hover:bg-pearl")}>
+                      {d}
+                    </button>
+                  ))}
+                </div>
+                <input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="rounded-lg border border-border/60 bg-card px-2 py-1 text-[11px] text-charcoal-light outline-none" title="From date" />
+                <span className="text-[11px] text-charcoal-lighter">–</span>
+                <input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="rounded-lg border border-border/60 bg-card px-2 py-1 text-[11px] text-charcoal-light outline-none" title="To date" />
+                {filtersActive && (
+                  <button onClick={clearFilters} className="text-[11px] text-charcoal-lighter hover:text-destructive inline-flex items-center gap-0.5"><X className="h-3 w-3" /> Clear</button>
+                )}
+              </div>
+            </div>
             <div className="border-b border-border/30 px-3 py-2 text-xs font-medium text-charcoal-lighter flex items-center justify-between">
-              <span>{threads.length} conversation{threads.length === 1 ? "" : "s"}</span>
+              <span>{shownThreads.length} conversation{shownThreads.length === 1 ? "" : "s"}{filtersActive ? " (filtered)" : ""}</span>
               <span className="tabular-nums">{counts.unread > 0 ? `${counts.unread} unread` : ""}</span>
             </div>
             <div className="max-h-[60vh] overflow-y-auto divide-y divide-border/20">
               {loading && <div className="p-6 text-center"><Loader2 className="h-5 w-5 animate-spin mx-auto text-charcoal-lighter" /></div>}
-              {!loading && threads.length === 0 && <p className="p-6 text-center text-sm text-charcoal-lighter">No emails yet.</p>}
-              {threads.map((t) => (
+              {!loading && shownThreads.length === 0 && <p className="p-6 text-center text-sm text-charcoal-lighter">{filtersActive ? "No emails match your filters." : "No emails yet."}</p>}
+              {shownThreads.map((t) => (
                 <button
                   key={t.id}
                   onClick={() => openThread(t)}
