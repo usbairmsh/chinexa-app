@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureEmailInboxTables } from "@/lib/migrate-email-inbox";
 import { updateMailbox, deleteMailbox, getMailbox } from "@/lib/email-inbox";
-import { requireSuperadmin } from "@/lib/admin-permissions-server";
+import { requirePermission } from "@/lib/admin-permissions-server";
 
 export const dynamic = "force-dynamic";
 
 // PUT — edit a mailbox's name / active / capability flags. Superadmin-only.
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const denied = await requireSuperadmin(req);
+  const denied = await requirePermission(req, "email_inbox", "manage_mailboxes");
   if (denied) return denied;
   await ensureEmailInboxTables();
   const { id } = await params;
@@ -26,7 +26,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 // DELETE — remove a mailbox (cascades its threads/messages). Superadmin-only.
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const denied = await requireSuperadmin(req);
+  const denied = await requirePermission(req, "email_inbox", "manage_mailboxes");
   if (denied) return denied;
   await ensureEmailInboxTables();
   const { id } = await params;

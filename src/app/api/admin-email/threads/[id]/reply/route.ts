@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureEmailInboxTables } from "@/lib/migrate-email-inbox";
 import { getThread, getMailbox, recordOutbound, loadAttachmentsForSend, linkAttachmentsToMessage } from "@/lib/email-inbox";
-import { requirePermission } from "@/lib/admin-permissions-server";
+import { requirePermission, requireMailboxAccess } from "@/lib/admin-permissions-server";
 import { getVerifiedAdminId } from "@/lib/admin-session";
 import { sendEmail, isEmailConfigured } from "@/lib/email";
 import { htmlToText, wrapEmailHtml } from "@/lib/email-html";
@@ -23,6 +23,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const thread = await getThread(id);
   if (!thread) return NextResponse.json({ error: "Thread not found" }, { status: 404 });
+  const noAccess = await requireMailboxAccess(req, thread.mailbox_id, "add");
+  if (noAccess) return noAccess;
   const mailbox = await getMailbox(thread.mailbox_id);
   if (!mailbox || !mailbox.can_send) {
     return NextResponse.json({ error: "This mailbox cannot send replies" }, { status: 400 });

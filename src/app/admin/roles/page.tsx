@@ -28,6 +28,7 @@ interface AdminRole {
 const ACTION_LABELS: Record<PermissionAction, string> = {
   view: "View", add: "Add", edit: "Edit", delete: "Delete",
   handle_orders: "Handle Orders", approve: "Approve/Reject", draft: "Drafts",
+  broadcast: "Broadcast", manage_mailboxes: "Manage Mailboxes",
 };
 
 function getCookie(name: string): string {

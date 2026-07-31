@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, MoreHorizontal, Shield, Key, Loader2, AlertTriangle, Lock, UserCog, ShieldCheck, Pencil, ShieldMinus } from "lucide-react";
+import { Plus, Trash2, MoreHorizontal, Shield, Key, Loader2, AlertTriangle, Lock, UserCog, ShieldCheck, Pencil, ShieldMinus, Mail } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { getInitials, formatDateShort, cn, collectMissingFields } from "@/lib/utils";
 import { ALL_PERMISSIONS } from "../layout";
-import { normalizePermissions, hasFullAccess, SYSTEM_ADMIN_ROLE, type PermissionAction, type PermissionsMap } from "@/lib/admin-permissions";
+import { normalizePermissions, hasFullAccess, SYSTEM_ADMIN_ROLE, MAILBOX_SCOPE_KEY, getMailboxScope, mailboxScopeUnset, type PermissionAction, type PermissionsMap } from "@/lib/admin-permissions";
 import { useAdmin } from "@/contexts/admin-context";
 
 type AdminRoleValue = "system_admin" | "superadmin" | "admin";
@@ -36,6 +36,7 @@ interface AdminUser {
 const ACTION_LABELS: Record<PermissionAction, string> = {
   view: "View", add: "Add", edit: "Edit", delete: "Delete",
   handle_orders: "Handle Orders", approve: "Approve/Reject", draft: "Drafts",
+  broadcast: "Broadcast", manage_mailboxes: "Manage Mailboxes",
 };
 
 // Explains what each checkbox actually grants — shown as a "?" tooltip next
@@ -49,6 +50,8 @@ const ACTION_HINTS: Record<PermissionAction, string> = {
   handle_orders: "Change order status (shipped, delivered, cancelled) and approve/refund returns — without granting full order editing.",
   approve: "Approve or reject submissions (e.g. customer reviews, return requests) without granting delete or full edit access.",
   draft: "Access the Email Center Drafts inbox — save, edit, and delete draft replies and broadcasts. Actually sending a draft still requires the Add (send) permission.",
+  broadcast: "Send segment broadcasts (no-reply mass emails) from a broadcast-enabled mailbox in the Email Center.",
+  manage_mailboxes: "Create, edit, and delete mailboxes in the Email Center (which addresses the store sends/receives from).",
 };
 
 interface AdminRole {
@@ -121,6 +124,16 @@ export default function AdminUsersPage() {
 
   // Access edit
   const [editPerms, setEditPerms] = useState<PermissionsMap>({});
+
+  // All mailboxes (for the per-admin Email Center mailbox-access picker).
+  const [allMailboxes, setAllMailboxes] = useState<{ id: string; address: string; display_name: string }[]>([]);
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    fetch("/api/admin-email/mailboxes?all=1", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { mailboxes: [] }))
+      .then((d) => { if (Array.isArray(d?.mailboxes)) setAllMailboxes(d.mailboxes); })
+      .catch(() => {});
+  }, [isSuperAdmin]);
 
   const fetchAdmins = async () => {
     try {
@@ -294,33 +307,78 @@ export default function AdminUsersPage() {
 
   if (loading) return <div className="flex items-center justify-center py-24"><Loader2 className="h-8 w-8 text-secondary animate-spin" /></div>;
 
-  const renderPermGrid = (perms: PermissionsMap, setPerms: React.Dispatch<React.SetStateAction<PermissionsMap>>) => (
+  // Toggle a mailbox id in a perms map's reserved __mailboxes scope list. For a
+  // legacy admin whose scope was never set (grandfathered to all), the first
+  // toggle materializes the scope from ALL existing mailboxes, then applies the
+  // change — so unchecking one box means "all except this one", not "only none".
+  const toggleMailbox = (setPerms: React.Dispatch<React.SetStateAction<PermissionsMap>>, mailboxId: string, on: boolean) => {
+    setPerms((prev) => {
+      const base = mailboxScopeUnset(prev) ? allMailboxes.map((m) => m.id) : getMailboxScope(prev);
+      const next = on ? Array.from(new Set([...base, mailboxId])) : base.filter((x) => x !== mailboxId);
+      return { ...prev, [MAILBOX_SCOPE_KEY]: next } as PermissionsMap;
+    });
+  };
+
+  const renderPermGrid = (perms: PermissionsMap, setPerms: React.Dispatch<React.SetStateAction<PermissionsMap>>) => {
+    const emailGranted = (perms.email_inbox || []).length > 0;
+    // Legacy admins (scope never set) are grandfathered to ALL mailboxes — show
+    // every box checked so saving preserves that access unless narrowed.
+    const legacyAll = mailboxScopeUnset(perms);
+    const scope = getMailboxScope(perms);
+    const boxChecked = (id: string) => legacyAll || scope.includes(id);
+    return (
     <div className="space-y-4 p-3 rounded-lg border border-border/30 bg-pearl/20">
       {Object.entries(permsBySection).map(([navSection, sections]) => (
         <div key={navSection}>
           <p className="text-[10px] font-bold uppercase tracking-wider text-charcoal-lighter mb-1.5">{navSection}</p>
           <div className="space-y-1.5">
             {sections.map((section) => (
-              <div key={section.key} className="flex items-center justify-between gap-2 flex-wrap py-0.5">
-                <span className="text-sm text-charcoal">{section.label}</span>
-                <div className="flex items-center gap-3">
-                  {section.actions.map((action) => (
-                    <label key={action} className="flex items-center gap-1.5 cursor-pointer text-xs text-charcoal-light">
-                      <Checkbox
-                        checked={(perms[section.key] || []).includes(action)}
-                        onCheckedChange={(v) => toggleAction(setPerms, section.key, action, !!v)}
-                      />
-                      <FieldLabel label={ACTION_LABELS[action]} hint={ACTION_HINTS[action]} />
-                    </label>
-                  ))}
+              <div key={section.key}>
+                <div className="flex items-center justify-between gap-2 flex-wrap py-0.5">
+                  <span className="text-sm text-charcoal">{section.label}</span>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {section.actions.map((action) => (
+                      <label key={action} className="flex items-center gap-1.5 cursor-pointer text-xs text-charcoal-light">
+                        <Checkbox
+                          checked={(perms[section.key] || []).includes(action)}
+                          onCheckedChange={(v) => toggleAction(setPerms, section.key, action, !!v)}
+                        />
+                        <FieldLabel label={ACTION_LABELS[action]} hint={ACTION_HINTS[action]} />
+                      </label>
+                    ))}
+                  </div>
                 </div>
+
+                {/* Per-mailbox access — only for Email Center, only once granted */}
+                {section.key === "email_inbox" && emailGranted && (
+                  <div className="mt-2 ml-1 rounded-lg border border-border/40 bg-card p-2.5">
+                    <p className="text-[11px] font-semibold text-charcoal mb-1.5 flex items-center gap-1.5">
+                      <Mail className="h-3 w-3 text-secondary" /> Mailbox Access
+                      <span className="font-normal text-charcoal-lighter">— which mailboxes this admin can use</span>
+                    </p>
+                    {allMailboxes.length === 0 ? (
+                      <p className="text-[11px] text-charcoal-lighter">No mailboxes configured yet.</p>
+                    ) : (
+                      <div className="grid sm:grid-cols-2 gap-1">
+                        {allMailboxes.map((m) => (
+                          <label key={m.id} className="flex items-center gap-1.5 cursor-pointer text-xs text-charcoal-light">
+                            <Checkbox checked={boxChecked(m.id)} onCheckedChange={(v) => toggleMailbox(setPerms, m.id, !!v)} />
+                            <span className="truncate">{m.address}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    {!legacyAll && scope.length === 0 && <p className="text-[11px] text-warning mt-1.5">No mailboxes selected — this admin won&apos;t see any email.</p>}
+                  </div>
+                )}
               </div>
             ))}
           </div>
         </div>
       ))}
     </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-6">

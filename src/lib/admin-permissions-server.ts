@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, parseDbJson } from "@/lib/db";
-import { normalizePermissions, canDo, hasFullAccess, type PermissionAction, type PermissionsMap } from "@/lib/admin-permissions";
+import { normalizePermissions, canDo, hasFullAccess, canAccessMailbox, getMailboxScope, mailboxScopeUnset, type PermissionAction, type PermissionsMap } from "@/lib/admin-permissions";
 import { getVerifiedAdminId } from "@/lib/admin-session";
 
 interface RequesterInfo {
@@ -55,6 +55,44 @@ export async function requireSuperadmin(req: NextRequest): Promise<NextResponse 
   if (!requester) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!hasFullAccess(requester.role)) {
     return NextResponse.json({ error: "Only a super admin can do this" }, { status: 403 });
+  }
+  return null;
+}
+
+/**
+ * The set of mailbox ids the caller may access in the Email Center.
+ * Returns "all" for full-access roles (no filtering), otherwise the admin's
+ * per-mailbox scope list (may be empty → no access to any mailbox).
+ * Returns null when the caller isn't an authenticated admin.
+ */
+export async function scopedMailboxIds(req: NextRequest): Promise<string[] | "all" | null> {
+  const requester = await getRequester(req);
+  if (!requester) return null;
+  if (hasFullAccess(requester.role)) return "all";
+  // Legacy admins whose scope was never set keep access to all mailboxes until
+  // a superadmin narrows it (no lockout on deploy).
+  if (mailboxScopeUnset(requester.permissions)) return "all";
+  return getMailboxScope(requester.permissions);
+}
+
+/**
+ * Guard for a specific mailbox: the caller must both hold the email_inbox
+ * `action` AND be scoped to `mailboxId`. Returns a NextResponse to short-circuit
+ * (401/403/404), or null when allowed. Uses 404 for out-of-scope mailboxes so
+ * their existence isn't leaked to an unauthorized admin.
+ */
+export async function requireMailboxAccess(
+  req: NextRequest,
+  mailboxId: string,
+  action: PermissionAction
+): Promise<NextResponse | null> {
+  const requester = await getRequester(req);
+  if (!requester) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canDo(requester.role, requester.permissions, "email_inbox", action)) {
+    return NextResponse.json({ error: "You don't have permission to do this" }, { status: 403 });
+  }
+  if (!canAccessMailbox(requester.role, requester.permissions, mailboxId)) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   return null;
 }

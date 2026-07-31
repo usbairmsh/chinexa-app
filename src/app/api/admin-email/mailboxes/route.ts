@@ -1,25 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureEmailInboxTables } from "@/lib/migrate-email-inbox";
 import { listMailboxes, createMailbox, getMailboxByAddress } from "@/lib/email-inbox";
-import { requirePermission, requireSuperadmin } from "@/lib/admin-permissions-server";
+import { requirePermission, scopedMailboxIds, getRequester } from "@/lib/admin-permissions-server";
+import { hasFullAccess } from "@/lib/admin-permissions";
 
 export const dynamic = "force-dynamic";
 
-// GET — list configured mailboxes (any admin with email_inbox view).
+// GET — list mailboxes. Scoped to the caller's permitted mailboxes, EXCEPT a
+// superadmin may pass ?all=1 to get every mailbox (needed by the Users UI to
+// configure per-admin mailbox access).
 export async function GET(req: NextRequest) {
   const denied = await requirePermission(req, "email_inbox", "view");
   if (denied) return denied;
   await ensureEmailInboxTables();
+  const wantAll = req.nextUrl.searchParams.get("all") === "1";
+  const requester = await getRequester(req);
+  const scope = wantAll && requester && hasFullAccess(requester.role)
+    ? "all"
+    : ((await scopedMailboxIds(req)) ?? []);
   return NextResponse.json(
-    { mailboxes: await listMailboxes() },
+    { mailboxes: await listMailboxes(scope) },
     { headers: { "Cache-Control": "no-store, must-revalidate" } }
   );
 }
 
-// POST — add a receiving/sending mailbox. Superadmin-only (configuring which
-// addresses the store answers is an owner-level action).
+// POST — add a receiving/sending mailbox. Requires email_inbox manage_mailboxes
+// (superadmin always qualifies via full-access).
 export async function POST(req: NextRequest) {
-  const denied = await requireSuperadmin(req);
+  const denied = await requirePermission(req, "email_inbox", "manage_mailboxes");
   if (denied) return denied;
   await ensureEmailInboxTables();
 

@@ -3,7 +3,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query } from "@/lib/db";
 import { ensureEmailInboxTables } from "@/lib/migrate-email-inbox";
 import { getMailbox, recordBroadcast, loadAttachmentsForSend } from "@/lib/email-inbox";
-import { requirePermission } from "@/lib/admin-permissions-server";
+import { requirePermission, requireMailboxAccess } from "@/lib/admin-permissions-server";
 import { getVerifiedAdminId } from "@/lib/admin-session";
 import { sendEmail, isEmailConfigured } from "@/lib/email";
 import { htmlToText, wrapEmailHtml } from "@/lib/email-html";
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 //   { type: "registered" }                   — account_type = 'registered'
 //   { type: "min_spent", value: <number> }   — total_spent >= value
 export async function POST(req: NextRequest) {
-  const denied = await requirePermission(req, "email_inbox", "add");
+  const denied = await requirePermission(req, "email_inbox", "broadcast");
   if (denied) return denied;
   await ensureEmailInboxTables();
 
@@ -27,6 +27,9 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const mailboxId = String(body.mailbox_id || "");
+  // Must also have access to the chosen mailbox.
+  const noAccess = await requireMailboxAccess(req, mailboxId, "broadcast");
+  if (noAccess) return noAccess;
   const subject = String(body.subject || "").trim();
   const bodyHtml = String(body.body_html || body.body || "").trim();
   const composeToken = typeof body.compose_token === "string" ? body.compose_token : null;

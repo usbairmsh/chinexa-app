@@ -65,11 +65,15 @@ export interface EmailMessage {
   created_at: string;
 }
 
-export async function listMailboxes(): Promise<Mailbox[]> {
+/** List mailboxes, optionally restricted to a scope of ids ("all" = no filter). */
+export async function listMailboxes(scope?: string[] | "all"): Promise<Mailbox[]> {
   const rows = await query<RowDataPacket[]>(
     "SELECT * FROM email_mailboxes ORDER BY created_at ASC"
   );
-  return rows.map(toMailbox);
+  const all = rows.map(toMailbox);
+  if (!scope || scope === "all") return all;
+  const set = new Set(scope);
+  return all.filter((m) => set.has(m.id));
 }
 
 export async function getMailboxByAddress(address: string): Promise<Mailbox | null> {
@@ -225,15 +229,32 @@ export async function recordOutbound(params: {
   return messageId;
 }
 
-export async function listThreads(mailboxId?: string): Promise<EmailThread[]> {
-  const rows = mailboxId
-    ? await query<RowDataPacket[]>(
-        "SELECT * FROM email_threads WHERE mailbox_id = ? ORDER BY last_message_at DESC LIMIT 200",
-        [mailboxId]
-      )
-    : await query<RowDataPacket[]>(
-        "SELECT * FROM email_threads ORDER BY last_message_at DESC LIMIT 200"
-      );
+/**
+ * List threads. When `mailboxId` is given, that single mailbox (caller must have
+ * already checked access). Otherwise restrict to `scope` mailbox ids ("all" =
+ * every mailbox; [] = none). This is how a scoped admin's "All mailboxes" view
+ * only shows their permitted mailboxes.
+ */
+export async function listThreads(mailboxId?: string, scope?: string[] | "all"): Promise<EmailThread[]> {
+  if (mailboxId) {
+    const rows = await query<RowDataPacket[]>(
+      "SELECT * FROM email_threads WHERE mailbox_id = ? ORDER BY last_message_at DESC LIMIT 200",
+      [mailboxId]
+    );
+    return rows as unknown as EmailThread[];
+  }
+  if (scope === "all" || scope === undefined) {
+    const rows = await query<RowDataPacket[]>(
+      "SELECT * FROM email_threads ORDER BY last_message_at DESC LIMIT 200"
+    );
+    return rows as unknown as EmailThread[];
+  }
+  if (scope.length === 0) return [];
+  const placeholders = scope.map(() => "?").join(",");
+  const rows = await query<RowDataPacket[]>(
+    `SELECT * FROM email_threads WHERE mailbox_id IN (${placeholders}) ORDER BY last_message_at DESC LIMIT 200`,
+    scope
+  );
   return rows as unknown as EmailThread[];
 }
 
@@ -267,6 +288,15 @@ export async function deleteThread(threadId: string): Promise<void> {
  * If it was the thread's last message, the (now empty) thread is removed too.
  * Returns the thread id it belonged to (or null if the message didn't exist).
  */
+/** The mailbox id that owns the thread a given message belongs to (or null). */
+export async function getMessageMailboxId(messageId: string): Promise<string | null> {
+  const rows = await query<RowDataPacket[]>(
+    `SELECT t.mailbox_id FROM email_messages m JOIN email_threads t ON t.id = m.thread_id WHERE m.id = ? LIMIT 1`,
+    [messageId]
+  );
+  return rows.length ? (rows[0].mailbox_id as string) : null;
+}
+
 export async function deleteMessage(messageId: string): Promise<{ threadId: string; threadDeleted: boolean } | null> {
   const rows = await query<RowDataPacket[]>(
     "SELECT thread_id FROM email_messages WHERE id = ? LIMIT 1",
@@ -301,15 +331,25 @@ export async function deleteMessage(messageId: string): Promise<{ threadId: stri
  * a live count from open threads (a state, not a tally). When mailboxId is
  * given the counters are scoped to that mailbox, else summed store-wide.
  */
-export async function emailCounts(mailboxId?: string): Promise<{ sent: number; received: number; broadcast: number; total: number; unread: number }> {
-  const p = mailboxId ? [mailboxId] : [];
+export async function emailCounts(mailboxId?: string, scope?: string[] | "all"): Promise<{ sent: number; received: number; broadcast: number; total: number; unread: number }> {
+  // Build a WHERE fragment: a single mailbox, or a scope of ids, or store-wide.
+  let where = "";
+  let p: string[] = [];
+  if (mailboxId) {
+    where = "WHERE mailbox_id = ?";
+    p = [mailboxId];
+  } else if (scope && scope !== "all") {
+    if (scope.length === 0) return { sent: 0, received: 0, broadcast: 0, total: 0, unread: 0 };
+    where = `WHERE mailbox_id IN (${scope.map(() => "?").join(",")})`;
+    p = scope;
+  }
   const cRows = await query<RowDataPacket[]>(
     `SELECT COALESCE(SUM(sent),0) AS sent, COALESCE(SUM(received),0) AS received, COALESCE(SUM(broadcast),0) AS broadcast
-     FROM email_counters ${mailboxId ? "WHERE mailbox_id = ?" : ""}`,
+     FROM email_counters ${where}`,
     p
   );
   const unreadRows = await query<RowDataPacket[]>(
-    `SELECT COALESCE(SUM(admin_unread),0) AS unread FROM email_threads ${mailboxId ? "WHERE mailbox_id = ?" : ""}`,
+    `SELECT COALESCE(SUM(admin_unread),0) AS unread FROM email_threads ${where}`,
     p
   );
   const sent = Number(cRows[0]?.sent) || 0;
