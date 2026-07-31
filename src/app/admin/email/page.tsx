@@ -78,7 +78,7 @@ function sanitizeEmailHtml(html: string | null): string {
 const DRAFTS = "__drafts__";
 
 export default function EmailCenterPage() {
-  const { can, role } = useAdmin();
+  const { can, role, adminId } = useAdmin();
   const isSuper = role === "superadmin" || role === "system_admin";
   const canSend = can("email_inbox", "add");
   const canDraft = can("email_inbox", "draft");
@@ -124,7 +124,13 @@ export default function EmailCenterPage() {
       if (typeof f?.value === "string") setFooterText(f.value);
     }
     setLoading(false);
-  }, [selected]);
+    // adminId is in the deps so this re-runs once the admin context finishes
+    // loading (it starts empty and fills in from an async whoami fetch). Without
+    // it, the first load() fired before the admin was ready and its mailbox list
+    // never rendered — the list only appeared after clicking a mailbox happened
+    // to change `selected` and re-trigger load(). Keying on adminId fixes the
+    // initial page load / refresh.
+  }, [selected, adminId]);
 
   const loadDrafts = useCallback(async () => {
     if (!canDraft) return;
