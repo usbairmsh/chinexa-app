@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Mail, Send, Loader2, Inbox, ArrowDownLeft, ArrowUpRight, Plus, Trash2,
-  Megaphone, Settings2, RefreshCw, Check, Reply, FileText, Save, RotateCcw, Paperclip, X, Search,
+  Megaphone, Settings2, RefreshCw, Check, Reply, FileText, Save, RotateCcw, Paperclip, X, Search, Forward,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { EmailEditor } from "@/components/admin/email/email-editor";
@@ -105,6 +106,9 @@ export default function EmailCenterPage() {
   const [composeDialog, setComposeDialog] = useState(false);
   const [replyModal, setReplyModal] = useState(false);
   const [editingDraft, setEditingDraft] = useState<Draft | null>(null);
+  // Forward modal — forwards the whole thread, or a specific message when set.
+  const [forwardOpen, setForwardOpen] = useState(false);
+  const [forwardMessageId, setForwardMessageId] = useState<string | null>(null);
 
   // Inbox filter/search bar
   const [filterDir, setFilterDir] = useState<"all" | "sent" | "received">("all");
@@ -400,6 +404,9 @@ export default function EmailCenterPage() {
                     {canSend && threadMailbox?.can_send && (
                       <AdminButton size="sm" onClick={() => setReplyModal(true)}><Reply className="h-3.5 w-3.5 mr-1" /> Reply</AdminButton>
                     )}
+                    {canSend && threadMailbox?.can_send && (
+                      <AdminButton variant="outline" size="sm" onClick={() => { setForwardMessageId(null); setForwardOpen(true); }}><Forward className="h-3.5 w-3.5 mr-1" /> Forward</AdminButton>
+                    )}
                     {canDelete && (
                       <button onClick={() => deleteThread(activeThread)} className="flex items-center gap-1 text-xs text-charcoal-lighter hover:text-destructive transition-colors" title="Delete the entire thread and all its messages">
                         <Trash2 className="h-4 w-4" /> <span className="hidden sm:inline">Delete thread</span>
@@ -418,15 +425,23 @@ export default function EmailCenterPage() {
                       {m.direction === "outbound"
                         ? <><ArrowUpRight className="h-3 w-3 text-secondary" /><span className="text-secondary">Sent</span><span className="text-charcoal-lighter">· {m.from_address} → {m.to_address}</span></>
                         : <><ArrowDownLeft className="h-3 w-3 text-emerald-600" /><span className="text-emerald-700">Received</span><span className="text-charcoal-lighter">· from {m.from_address}</span></>}
-                      {canDelete && (
-                        <button
-                          onClick={() => deleteMessage(m)}
-                          className="ml-auto text-charcoal-lighter opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-                          title="Delete this message"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
+                      <div className="ml-auto flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        {canSend && threadMailbox?.can_send && (
+                          <button onClick={() => setReplyModal(true)} className="text-charcoal-lighter hover:text-secondary" title="Reply">
+                            <Reply className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        {canSend && threadMailbox?.can_send && (
+                          <button onClick={() => { setForwardMessageId(m.id); setForwardOpen(true); }} className="text-charcoal-lighter hover:text-secondary" title="Forward this message">
+                            <Forward className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button onClick={() => deleteMessage(m)} className="text-charcoal-lighter hover:text-destructive" title="Delete this message">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                     {m.body_html && m.body_html.trim()
                       ? <div className="prose prose-sm max-w-none break-words text-sm text-charcoal [&_img]:max-w-full" dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(m.body_html) }} />
@@ -486,6 +501,7 @@ export default function EmailCenterPage() {
 
       {(isSuper || canManageMailboxes) && <MailboxDialog open={mailboxDialog} onClose={() => setMailboxDialog(false)} mailboxes={mailboxes} onChanged={load} />}
       {canSend && <ComposeDialog open={composeDialog} onClose={() => setComposeDialog(false)} mailboxes={mailboxes} footerText={footerText} onSent={() => { load(); }} />}
+      {canSend && <ForwardDialog open={forwardOpen} onClose={() => setForwardOpen(false)} thread={activeThread} messageId={forwardMessageId} mailbox={threadMailbox} footerText={footerText} onSent={() => { load(); if (activeThread) openThread(activeThread); }} />}
       {canBroadcast && <BroadcastDialog open={broadcastDialog} onClose={() => setBroadcastDialog(false)} mailboxes={mailboxes.filter((m) => m.can_broadcast)} footerText={footerText} canDraft={canDraft} onDrafted={() => { loadDrafts(); load(); }} />}
     </div>
   );
@@ -1072,6 +1088,71 @@ function ComposeDialog({ open, onClose, mailboxes, footerText, onSent }: {
               {busy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />} Send
             </AdminButton>
           )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Forward a thread / a specific message to new recipients ───
+function ForwardDialog({ open, onClose, thread, messageId, mailbox, footerText, onSent }: {
+  open: boolean; onClose: () => void; thread: Thread | null; messageId: string | null;
+  mailbox: Mailbox | null; footerText: string; onSent: () => void;
+}) {
+  const [to, setTo] = useState<string[]>([]);
+  const [cc, setCc] = useState<string[]>([]);
+  const [bcc, setBcc] = useState<string[]>([]);
+  const [showCcBcc, setShowCcBcc] = useState(false);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => { if (open) { setTo([]); setCc([]); setBcc([]); setNote(""); setShowCcBcc(false); setError(""); } }, [open]);
+
+  const send = async () => {
+    if (!thread) return;
+    setBusy(true); setError("");
+    const res = await fetch(`/api/admin-email/threads/${thread.id}/forward`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to, cc, bcc, note, message_id: messageId }),
+    });
+    const d = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setError(d.error || "Forward failed"); return; }
+    onSent();
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Forward className="h-5 w-5 text-secondary" /> Forward</DialogTitle>
+          <DialogDescription>Forward {messageId ? "this message" : "this conversation"} to new recipients{mailbox ? ` from ${mailbox.address}` : ""}.</DialogDescription>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto space-y-3 py-1 pr-1">
+          <RecipientInput label="To" value={to} onChange={setTo} placeholder="Enter recipient emails…" />
+          {!showCcBcc ? (
+            <button type="button" onClick={() => setShowCcBcc(true)} className="text-xs text-secondary hover:underline">+ Add CC / BCC</button>
+          ) : (
+            <>
+              <RecipientInput label="CC" value={cc} onChange={setCc} />
+              <RecipientInput label="BCC" value={bcc} onChange={setBcc} />
+            </>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-charcoal-light mb-1.5">Note (optional)</label>
+            <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a note above the forwarded message…" className="min-h-[70px]" />
+          </div>
+          <p className="text-[11px] text-charcoal-lighter">The original message is quoted below your note automatically.</p>
+          <FooterPreview footerText={footerText} />
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <DialogFooter>
+          <AdminButton variant="outline" onClick={onClose} disabled={busy}>Cancel</AdminButton>
+          <AdminButton onClick={send} disabled={busy || to.length === 0}>
+            {busy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Forward className="h-3.5 w-3.5 mr-1" />} Forward
+          </AdminButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
