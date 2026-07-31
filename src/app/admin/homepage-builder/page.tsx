@@ -3,13 +3,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { GripVertical, ChevronDown, ChevronUp, Save, Loader2, Check, RotateCcw, ExternalLink } from "lucide-react";
+import { GripVertical, ChevronDown, ChevronUp, Save, Loader2, Check, RotateCcw, ExternalLink, Plus, Edit, Trash2, Shield } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { TRUST_ICON_PACK, getIconById } from "@/lib/trust-badges";
 import { cn } from "@/lib/utils";
 // Single source of truth for layout bounds — the storefront ProductSection
 // clamps with the same values, so admin input limits can't drift from what
@@ -35,9 +37,17 @@ interface SectionConfig {
 }
 
 interface TrustBadge {
+  /** Icon id from TRUST_ICON_PACK (falls back to a default per-position icon on
+   *  the storefront when missing, for configs saved before icons existed). */
+  icon?: string;
   title: string;
   description: string;
 }
+
+// Homepage shows exactly this many trust-badge cards (a 4-up row).
+const MAX_TRUST_BADGES = 4;
+const TB_TITLE_MAX = 25;
+const TB_DESC_MAX = 40;
 
 interface HomepageConfig {
   sections: SectionConfig[];
@@ -63,10 +73,10 @@ const defaultSections: SectionConfig[] = [
 ];
 
 const defaultTrustBadges: TrustBadge[] = [
-  { title: "100% Authentic", description: "Every product is genuine and verified" },
-  { title: "Free Shipping", description: "On orders above ৳3,000" },
-  { title: "Easy Returns", description: "7-day hassle-free return policy" },
-  { title: "24/7 Support", description: "We're here whenever you need us" },
+  { icon: "ShieldCheck", title: "100% Authentic", description: "Every product is genuine and verified" },
+  { icon: "Truck", title: "Free Shipping", description: "On orders above ৳3,000" },
+  { icon: "RotateCcw", title: "Easy Returns", description: "7-day hassle-free return policy" },
+  { icon: "Headphones", title: "24/7 Support", description: "We're here whenever you need us" },
 ];
 
 export default function AdminHomepageBuilder() {
@@ -76,6 +86,13 @@ export default function AdminHomepageBuilder() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Trust-badge add/edit modal
+  const [tbDialogOpen, setTbDialogOpen] = useState(false);
+  const [tbEditIndex, setTbEditIndex] = useState<number | null>(null);
+  const [tbIcon, setTbIcon] = useState("Shield");
+  const [tbTitle, setTbTitle] = useState("");
+  const [tbDesc, setTbDesc] = useState("");
 
   // Load from DB
   useEffect(() => {
@@ -143,8 +160,29 @@ export default function AdminHomepageBuilder() {
     setSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   };
 
-  const updateBadge = (index: number, field: "title" | "description", value: string) => {
-    setTrustBadges((prev) => prev.map((b, i) => i === index ? { ...b, [field]: value } : b));
+  const openBadgeCreate = () => {
+    setTbEditIndex(null); setTbIcon("Shield"); setTbTitle(""); setTbDesc(""); setTbDialogOpen(true);
+  };
+  const openBadgeEdit = (index: number) => {
+    const b = trustBadges[index];
+    setTbEditIndex(index);
+    setTbIcon(b.icon || "Shield");
+    setTbTitle(b.title);
+    setTbDesc(b.description);
+    setTbDialogOpen(true);
+  };
+  const saveBadge = () => {
+    if (!tbTitle.trim()) return;
+    const badge: TrustBadge = { icon: tbIcon, title: tbTitle.trim().slice(0, TB_TITLE_MAX), description: tbDesc.trim().slice(0, TB_DESC_MAX) };
+    setTrustBadges((prev) => {
+      if (tbEditIndex !== null) return prev.map((b, i) => (i === tbEditIndex ? badge : b));
+      if (prev.length >= MAX_TRUST_BADGES) return prev; // guard (button also disabled)
+      return [...prev, badge];
+    });
+    setTbDialogOpen(false);
+  };
+  const deleteBadge = (index: number) => {
+    setTrustBadges((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSave = async () => {
@@ -207,30 +245,94 @@ export default function AdminHomepageBuilder() {
         </div>
       </div>
 
-      {/* Trust Badges Config */}
+      {/* Trust Badges Config — icon + title + description cards, max 4 */}
       <Card>
         <CardContent className="p-4 sm:p-5">
-          <h3 className="text-sm font-semibold text-charcoal mb-3">Trust Badges</h3>
-          <div className="grid sm:grid-cols-2 gap-3">
-            {trustBadges.map((badge, i) => (
-              <div key={i} className="p-3 rounded-luxury bg-pearl/40 border border-border/20 space-y-2">
-                <Input
-                  value={badge.title}
-                  onChange={(e) => updateBadge(i, "title", e.target.value)}
-                  className="text-xs font-semibold"
-                  placeholder="Badge title"
-                />
-                <Input
-                  value={badge.description}
-                  onChange={(e) => updateBadge(i, "description", e.target.value)}
-                  className="text-[11px] text-charcoal-light"
-                  placeholder="Badge description"
-                />
-              </div>
-            ))}
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="text-sm font-semibold text-charcoal">Trust Badges</h3>
+              <p className="text-[11px] text-charcoal-lighter">The 4-up row shown on the homepage. Up to {MAX_TRUST_BADGES}.</p>
+            </div>
+            <AdminButton
+              variant="outline"
+              size="sm"
+              onClick={openBadgeCreate}
+              disabled={trustBadges.length >= MAX_TRUST_BADGES}
+              title={trustBadges.length >= MAX_TRUST_BADGES ? `Maximum ${MAX_TRUST_BADGES} badges` : "Add a badge"}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" /> Add Badge
+            </AdminButton>
           </div>
+
+          {trustBadges.length === 0 ? (
+            <div className="text-center py-8 text-sm text-charcoal-lighter">
+              No trust badges. <button onClick={openBadgeCreate} className="text-secondary hover:underline">Add one</button> to show the trust row on the homepage.
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {trustBadges.map((badge, i) => {
+                const Icon = getIconById(badge.icon || "Shield");
+                return (
+                  <div key={i} className="p-4 rounded-luxury bg-pearl/40 border border-border/20 flex flex-col items-center text-center">
+                    <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-primary-light mb-2.5">
+                      <Icon className="h-5 w-5 text-secondary" />
+                    </div>
+                    <p className="text-xs font-semibold text-charcoal line-clamp-1">{badge.title || <span className="text-charcoal-lighter italic">Untitled</span>}</p>
+                    <p className="text-[10px] text-charcoal-lighter line-clamp-2 mt-0.5">{badge.description}</p>
+                    <div className="flex justify-center gap-1 mt-3 pt-2.5 border-t border-border/20 w-full">
+                      <AdminButton variant="ghost" size="xs" onClick={() => openBadgeEdit(i)}><Edit className="h-3 w-3" /> Edit</AdminButton>
+                      <AdminButton variant="ghost" size="xs" onClick={() => deleteBadge(i)} className="text-destructive/70 hover:!text-destructive hover:bg-destructive/10"><Trash2 className="h-3 w-3" /></AdminButton>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Trust badge add/edit modal (icon picker) */}
+      <Dialog open={tbDialogOpen} onOpenChange={(o) => { if (!o) setTbDialogOpen(false); }}>
+        <DialogContent className="w-[95vw] max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-secondary" /> {tbEditIndex !== null ? "Edit Trust Badge" : "Add Trust Badge"}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
+            <div>
+              <label className="block text-sm font-medium text-charcoal-light mb-2">Select Icon</label>
+              <div className="grid grid-cols-6 sm:grid-cols-8 gap-1.5 max-h-40 overflow-y-auto p-1">
+                {TRUST_ICON_PACK.map((item) => (
+                  <button key={item.id} type="button" onClick={() => setTbIcon(item.id)} title={item.name}
+                    className={cn("flex items-center justify-center h-9 w-9 sm:h-10 sm:w-10 rounded-lg border transition-all active:scale-[0.96]",
+                      tbIcon === item.id ? "border-secondary bg-secondary/10 text-secondary scale-110" : "border-border/30 text-charcoal-lighter hover:border-secondary/40 hover:text-secondary")}>
+                    <item.icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Input label={`Title (max ${TB_TITLE_MAX} chars)`} value={tbTitle} onChange={(e) => setTbTitle(e.target.value.slice(0, TB_TITLE_MAX))} placeholder="e.g., 100% Authentic" maxLength={TB_TITLE_MAX} />
+              <p className={cn("text-[10px] mt-0.5 text-right", tbTitle.length >= TB_TITLE_MAX ? "text-destructive" : "text-charcoal-lighter")}>{tbTitle.length}/{TB_TITLE_MAX}</p>
+            </div>
+            <div>
+              <Input label={`Description (max ${TB_DESC_MAX} chars)`} value={tbDesc} onChange={(e) => setTbDesc(e.target.value.slice(0, TB_DESC_MAX))} placeholder="e.g., Every product is genuine" maxLength={TB_DESC_MAX} />
+              <p className={cn("text-[10px] mt-0.5 text-right", tbDesc.length >= TB_DESC_MAX ? "text-destructive" : "text-charcoal-lighter")}>{tbDesc.length}/{TB_DESC_MAX}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-pearl/60 flex flex-col items-center text-center">
+              <p className="text-[9px] text-charcoal-lighter uppercase tracking-wider font-semibold mb-2">Preview</p>
+              {(() => { const Icon = getIconById(tbIcon); return <Icon className="h-6 w-6 text-secondary mb-1.5" />; })()}
+              <span className="text-[11px] font-semibold text-charcoal">{tbTitle || "Badge Title"}</span>
+              <span className="text-[9px] text-charcoal-lighter">{tbDesc || "Badge description"}</span>
+            </div>
+          </div>
+          <DialogFooter className="shrink-0 pt-3">
+            <AdminButton variant="outline" size="sm" onClick={() => setTbDialogOpen(false)}>Cancel</AdminButton>
+            <AdminButton size="sm" onClick={saveBadge} disabled={!tbTitle.trim()}>
+              {tbEditIndex !== null ? <><Check className="h-3 w-3" /> Update</> : <><Plus className="h-3 w-3" /> Add Badge</>}
+            </AdminButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Sections */}
       <div className="space-y-2">

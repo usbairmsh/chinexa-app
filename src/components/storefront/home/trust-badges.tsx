@@ -2,11 +2,13 @@
 
 import { motion } from "framer-motion";
 import { Shield, Truck, RotateCcw, Headphones } from "lucide-react";
+import { getIconById } from "@/lib/trust-badges";
 
-const icons = [Shield, Truck, RotateCcw, Headphones];
+// Fallback icons by position for configs saved before per-badge icons existed.
+const fallbackIcons = [Shield, Truck, RotateCcw, Headphones];
 
 interface TrustBadgesProps {
-  badges?: { title: string; description: string }[];
+  badges?: { icon?: string; title: string; description: string }[];
 }
 
 export function TrustBadges({ badges }: TrustBadgesProps) {
@@ -20,7 +22,8 @@ export function TrustBadges({ badges }: TrustBadgesProps) {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
           {items.map((badge, index) => {
-            const Icon = icons[index % icons.length];
+            // Admin-chosen icon when present; otherwise the position-based default.
+            const Icon = badge.icon ? getIconById(badge.icon) : fallbackIcons[index % fallbackIcons.length];
             return (
               <motion.div
                 key={index}
