@@ -106,7 +106,9 @@ export default function EmailCenterPage() {
   const load = useCallback(async () => {
     const mid = selected && selected !== DRAFTS ? selected : "";
     const [dashRes, footerRes] = await Promise.all([
-      fetch(`/api/admin-email${mid ? `?mailbox_id=${mid}` : ""}`),
+      // no-store: this list must always reflect the DB — a browser-cached copy
+      // made a newly-created mailbox look missing (it was saved, just not shown).
+      fetch(`/api/admin-email${mid ? `?mailbox_id=${mid}` : ""}`, { cache: "no-store" }),
       fetch("/api/settings?key=email_footer"),
     ]);
     if (dashRes.ok) {

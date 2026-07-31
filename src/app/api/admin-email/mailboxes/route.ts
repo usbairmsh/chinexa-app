@@ -10,7 +10,10 @@ export async function GET(req: NextRequest) {
   const denied = await requirePermission(req, "email_inbox", "view");
   if (denied) return denied;
   await ensureEmailInboxTables();
-  return NextResponse.json({ mailboxes: await listMailboxes() });
+  return NextResponse.json(
+    { mailboxes: await listMailboxes() },
+    { headers: { "Cache-Control": "no-store, must-revalidate" } }
+  );
 }
 
 // POST — add a receiving/sending mailbox. Superadmin-only (configuring which

@@ -33,5 +33,12 @@ export async function GET(req: NextRequest) {
     draftCount = (await listDrafts()).length;
   }
 
-  return NextResponse.json({ mailboxes, threads, counts, totals, draft_count: draftCount });
+  // Admin-only, always-fresh data. force-dynamic stops Next's server cache, but
+  // without no-store the BROWSER caches this GET and replays a stale mailbox/
+  // thread list — so a newly-created mailbox appeared "missing" even though it
+  // was saved (re-adding it reported "already configured"). no-store fixes that.
+  return NextResponse.json(
+    { mailboxes, threads, counts, totals, draft_count: draftCount },
+    { headers: { "Cache-Control": "no-store, must-revalidate" } }
+  );
 }
