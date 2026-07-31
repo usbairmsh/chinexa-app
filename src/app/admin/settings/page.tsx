@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
@@ -295,6 +295,10 @@ function AdminSettingsPageInner() {
   const [orderEmailAdmins, setOrderEmailAdmins] = useState("");
   const [orderEmailSaving, setOrderEmailSaving] = useState(false);
   const [orderEmailSaved, setOrderEmailSaved] = useState(false);
+  // Edit-in-modal state for the order-email recipients.
+  const [orderEmailDialog, setOrderEmailDialog] = useState(false);
+  const [orderEmailDraft, setOrderEmailDraft] = useState("");
+  const [orderEmailError, setOrderEmailError] = useState("");
   // Email footer — plain text shown at the bottom of EVERY email, above the
   // fixed ChineXa logo.
   const [emailFooter, setEmailFooter] = useState("");
@@ -564,9 +568,45 @@ function AdminSettingsPageInner() {
   const saveOrderSmsRecipients = () => saveSettings({ order_sms: { admin_ids: orderSmsAdminIds } }, setOrderSmsSaving, setOrderSmsSaved);
   const saveEmailFooter = () => saveSettings({ email_footer: emailFooter }, setEmailFooterSaving, setEmailFooterSaved);
   const toggleOrderSmsAdmin = (id: string) => setOrderSmsAdminIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-  const saveOrderEmailRecipients = () => {
-    const emails = orderEmailAdmins.split(",").map((e) => e.trim()).filter((e) => e.includes("@"));
-    saveSettings({ order_email: { admin_emails: emails } }, setOrderEmailSaving, setOrderEmailSaved);
+  // Save the recipients edited in the modal. Unlike saveSettings (which
+  // swallows errors), this surfaces a real success/failure so the setting can't
+  // silently fail to store — it PUTs, verifies res.ok, updates the displayed
+  // value only on success, and keeps the modal open with an error otherwise.
+  const saveOrderEmailRecipients = async () => {
+    const emails = orderEmailDraft.split(",").map((e) => e.trim()).filter(Boolean);
+    const invalid = emails.filter((e) => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e));
+    if (invalid.length) {
+      setOrderEmailError(`Invalid email${invalid.length > 1 ? "s" : ""}: ${invalid.join(", ")}`);
+      return;
+    }
+    setOrderEmailSaving(true);
+    setOrderEmailError("");
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "order_email", value: { admin_emails: emails } }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setOrderEmailError(d.error || (res.status === 403 ? "You don't have permission to change this." : "Could not save. Please try again."));
+        return;
+      }
+      setOrderEmailAdmins(emails.join(", "));
+      setOrderEmailSaved(true);
+      setTimeout(() => setOrderEmailSaved(false), 3000);
+      setOrderEmailDialog(false);
+    } catch {
+      setOrderEmailError("Network error. Please try again.");
+    } finally {
+      setOrderEmailSaving(false);
+    }
+  };
+
+  const openOrderEmailDialog = () => {
+    setOrderEmailDraft(orderEmailAdmins);
+    setOrderEmailError("");
+    setOrderEmailDialog(true);
   };
 
   const SaveBtn = ({ saving, saved, onSave }: { saving: boolean; saved: boolean; onSave: () => void }) => (
@@ -1159,17 +1199,51 @@ function AdminSettingsPageInner() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Input
-                label="Admin emails"
-                value={orderEmailAdmins}
-                onChange={(e) => setOrderEmailAdmins(e.target.value)}
-                placeholder="ops@chinexabd.com, owner@chinexabd.com"
-              />
-              <div className="flex items-center justify-end">
-                <SaveBtn saving={orderEmailSaving} saved={orderEmailSaved} onSave={saveOrderEmailRecipients} />
+              {/* Current recipient(s) shown read-only; edit via the modal. */}
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-pearl/40 px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-[11px] uppercase tracking-wide text-charcoal-lighter">Current recipient{orderEmailAdmins.includes(",") ? "s" : ""}</p>
+                  {orderEmailAdmins.trim() ? (
+                    <p className="truncate text-sm font-medium text-charcoal">{orderEmailAdmins}</p>
+                  ) : (
+                    <p className="text-sm text-charcoal-lighter italic">No recipients set</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {orderEmailSaved && <span className="text-xs font-medium text-success flex items-center gap-1"><Check className="h-3.5 w-3.5" /> Saved</span>}
+                  <AdminButton variant="outline" size="sm" onClick={openOrderEmailDialog}>
+                    <Edit className="h-3.5 w-3.5 mr-1" /> Edit
+                  </AdminButton>
+                </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* Edit Order Email Recipients modal */}
+          <Dialog open={orderEmailDialog} onOpenChange={(o) => { if (!o) setOrderEmailDialog(false); }}>
+            <DialogContent className="w-[95vw] max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2"><Bell className="h-5 w-5 text-secondary" /> Order Email Recipients</DialogTitle>
+                <DialogDescription>Admin email address(es) that receive an alert on every new order. Separate multiple with commas.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3 py-1">
+                <Input
+                  label="Admin emails"
+                  value={orderEmailDraft}
+                  onChange={(e) => { setOrderEmailDraft(e.target.value); if (orderEmailError) setOrderEmailError(""); }}
+                  placeholder="ops@chinexabd.com, owner@chinexabd.com"
+                  autoFocus
+                />
+                {orderEmailError && <p className="text-xs text-destructive">{orderEmailError}</p>}
+              </div>
+              <DialogFooter>
+                <AdminButton variant="outline" onClick={() => setOrderEmailDialog(false)} disabled={orderEmailSaving}>Cancel</AdminButton>
+                <AdminButton onClick={saveOrderEmailRecipients} disabled={orderEmailSaving}>
+                  {orderEmailSaving ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Saving...</> : <><Save className="h-3.5 w-3.5 mr-1" /> Save</>}
+                </AdminButton>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Email Footer — plain text appended to EVERY email (order
               notifications, OTP, Email Center replies, broadcasts) above the
