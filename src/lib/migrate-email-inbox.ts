@@ -216,6 +216,27 @@ export async function ensureEmailInboxTables() {
       }
     }
 
+    // CC/BCC on outbound messages (compose + forward), and which side started a
+    // thread (admin-initiated 'outbound' vs a customer's 'inbound').
+    await ensureColumn("email_messages", "cc_address", "VARCHAR(1000) NULL");
+    await ensureColumn("email_messages", "bcc_address", "VARCHAR(1000) NULL");
+    await ensureColumn("email_threads", "initiated_by", "ENUM('inbound','outbound') NOT NULL DEFAULT 'inbound'");
+
+    // FULLTEXT index for body/subject search. Best-effort — some engines/older
+    // MySQL can't add it (or it already exists); the search route falls back to
+    // LIKE, so a failure here is non-fatal.
+    try {
+      const ftRows = await query<RowDataPacket[]>(
+        `SELECT COUNT(*) AS c FROM information_schema.statistics
+         WHERE table_schema = DATABASE() AND table_name = 'email_messages' AND index_name = 'ft_msg_search'`
+      );
+      if (Number(ftRows[0]?.c) === 0) {
+        await execute("ALTER TABLE email_messages ADD FULLTEXT INDEX ft_msg_search (subject, body_text)");
+      }
+    } catch (ftErr) {
+      console.warn("[ensureEmailInboxTables] FULLTEXT index not added (search falls back to LIKE):", ftErr instanceof Error ? ftErr.message : ftErr);
+    }
+
     ensured = true;
   } catch (err) {
     console.error("[ensureEmailInboxTables] migration failed:", err);

@@ -18,6 +18,10 @@ export interface SendEmailInput {
   html: string;
   text?: string;
   replyTo?: string;
+  /** Carbon-copy recipients (visible to all). */
+  cc?: string[];
+  /** Blind carbon-copy recipients (hidden from other recipients). */
+  bcc?: string[];
   // Optional sender override, e.g. "ChineXa Support <support@chinexabd.com>".
   // Falls back to EMAIL_FROM when omitted. The address's DOMAIN must be
   // verified in Resend — any address on a verified domain is a valid sender,
@@ -114,6 +118,8 @@ export async function sendEmail(input: SendEmailInput): Promise<{ success: boole
       // Resend requires html or text; provide a plain-text fallback either way.
       text,
       ...(input.replyTo ? { replyTo: input.replyTo } : {}),
+      ...(input.cc && input.cc.length ? { cc: input.cc } : {}),
+      ...(input.bcc && input.bcc.length ? { bcc: input.bcc } : {}),
       ...(input.attachments && input.attachments.length ? { attachments: input.attachments } : {}),
     });
     if (error) return { success: false, error: error.message || "Email send failed" };

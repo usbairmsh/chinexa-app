@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Mail, Send, Loader2, Inbox, ArrowDownLeft, ArrowUpRight, Plus, Trash2,
-  Megaphone, Settings2, RefreshCw, Check, Reply, FileText, Save, RotateCcw, Paperclip,
+  Megaphone, Settings2, RefreshCw, Check, Reply, FileText, Save, RotateCcw, Paperclip, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -83,6 +83,8 @@ export default function EmailCenterPage() {
   const canSend = can("email_inbox", "add");
   const canDraft = can("email_inbox", "draft");
   const canDelete = can("email_inbox", "delete");
+  const canBroadcast = can("email_inbox", "broadcast");
+  const canManageMailboxes = can("email_inbox", "manage_mailboxes");
 
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
   const [selected, setSelected] = useState<string>(""); // "" = all, mailbox id, or DRAFTS
@@ -100,6 +102,7 @@ export default function EmailCenterPage() {
 
   const [mailboxDialog, setMailboxDialog] = useState(false);
   const [broadcastDialog, setBroadcastDialog] = useState(false);
+  const [composeDialog, setComposeDialog] = useState(false);
   const [replyModal, setReplyModal] = useState(false);
   const [editingDraft, setEditingDraft] = useState<Draft | null>(null);
 
@@ -206,8 +209,9 @@ export default function EmailCenterPage() {
         </div>
         <div className="flex items-center gap-2">
           <AdminButton variant="outline" size="sm" onClick={() => { load(); loadDrafts(); }}><RefreshCw className="h-3.5 w-3.5 mr-1" /> Refresh</AdminButton>
-          {canSend && <AdminButton variant="outline" size="sm" onClick={() => setBroadcastDialog(true)}><Megaphone className="h-3.5 w-3.5 mr-1" /> Broadcast</AdminButton>}
-          {isSuper && <AdminButton size="sm" onClick={() => setMailboxDialog(true)}><Settings2 className="h-3.5 w-3.5 mr-1" /> Mailboxes</AdminButton>}
+          {canSend && <AdminButton variant="outline" size="sm" onClick={() => setComposeDialog(true)}><Send className="h-3.5 w-3.5 mr-1" /> New Email</AdminButton>}
+          {canBroadcast && <AdminButton variant="outline" size="sm" onClick={() => setBroadcastDialog(true)}><Megaphone className="h-3.5 w-3.5 mr-1" /> Broadcast</AdminButton>}
+          {(isSuper || canManageMailboxes) && <AdminButton size="sm" onClick={() => setMailboxDialog(true)}><Settings2 className="h-3.5 w-3.5 mr-1" /> Mailboxes</AdminButton>}
         </div>
       </div>
 
@@ -413,8 +417,9 @@ export default function EmailCenterPage() {
         />
       )}
 
-      {isSuper && <MailboxDialog open={mailboxDialog} onClose={() => setMailboxDialog(false)} mailboxes={mailboxes} onChanged={load} />}
-      {canSend && <BroadcastDialog open={broadcastDialog} onClose={() => setBroadcastDialog(false)} mailboxes={mailboxes.filter((m) => m.can_broadcast)} footerText={footerText} canDraft={canDraft} onDrafted={() => { loadDrafts(); load(); }} />}
+      {(isSuper || canManageMailboxes) && <MailboxDialog open={mailboxDialog} onClose={() => setMailboxDialog(false)} mailboxes={mailboxes} onChanged={load} />}
+      {canSend && <ComposeDialog open={composeDialog} onClose={() => setComposeDialog(false)} mailboxes={mailboxes} footerText={footerText} onSent={() => { load(); }} />}
+      {canBroadcast && <BroadcastDialog open={broadcastDialog} onClose={() => setBroadcastDialog(false)} mailboxes={mailboxes.filter((m) => m.can_broadcast)} footerText={footerText} canDraft={canDraft} onDrafted={() => { loadDrafts(); load(); }} />}
     </div>
   );
 }
@@ -865,6 +870,139 @@ function BroadcastDialog({ open, onClose, mailboxes, footerText, canDraft, onDra
           {mailboxes.length > 0 && (
             <AdminButton onClick={send} disabled={busy !== null || !subject.trim() || bodyEmpty || !mailboxId}>
               {busy === "send" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />} Send broadcast
+            </AdminButton>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Multi-recipient chip input (To / CC / BCC) ───
+function RecipientInput({ label, value, onChange, placeholder }: {
+  label: string; value: string[]; onChange: (next: string[]) => void; placeholder?: string;
+}) {
+  const [draft, setDraft] = useState("");
+  const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+  const commit = () => {
+    const parts = draft.split(/[,;\s]+/).map((x) => x.trim().toLowerCase()).filter(Boolean);
+    if (parts.length) onChange(Array.from(new Set([...value, ...parts])));
+    setDraft("");
+  };
+  return (
+    <div>
+      <label className="block text-sm font-medium text-charcoal-light mb-1.5">{label}</label>
+      <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-card px-2 py-1.5 min-h-[40px]">
+        {value.map((email) => (
+          <span key={email} className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium", EMAIL_RE.test(email) ? "bg-secondary/10 text-secondary" : "bg-destructive/10 text-destructive")}>
+            {email}
+            <button type="button" onClick={() => onChange(value.filter((e) => e !== email))} className="hover:opacity-70"><X className="h-3 w-3" /></button>
+          </span>
+        ))}
+        <input
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === "," || e.key === ";") { e.preventDefault(); commit(); } else if (e.key === "Backspace" && !draft && value.length) { onChange(value.slice(0, -1)); } }}
+          onBlur={commit}
+          onPaste={(e) => { const t = e.clipboardData.getData("text"); if (/[,;\s]/.test(t)) { e.preventDefault(); setDraft((d) => d + t); setTimeout(commit, 0); } }}
+          placeholder={value.length === 0 ? (placeholder || "name@example.com") : ""}
+          className="flex-1 min-w-[140px] bg-transparent text-sm outline-none py-0.5 placeholder:text-charcoal-lighter/50"
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Compose a 1-to-1 / official email (multi-recipient, CC/BCC) ───
+function ComposeDialog({ open, onClose, mailboxes, footerText, onSent }: {
+  open: boolean; onClose: () => void; mailboxes: Mailbox[]; footerText: string; onSent: () => void;
+}) {
+  const sendable = mailboxes.filter((m) => m.can_send);
+  const [mailboxId, setMailboxId] = useState("");
+  const [to, setTo] = useState<string[]>([]);
+  const [cc, setCc] = useState<string[]>([]);
+  const [bcc, setBcc] = useState<string[]>([]);
+  const [showCcBcc, setShowCcBcc] = useState(false);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [token, setToken] = useState("");
+  const [resetKey, setResetKey] = useState(0);
+  const [attachments, setAttachments] = useState<StagedAttachment[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState("");
+  const [error, setError] = useState("");
+  const committedTokens = useRef<Set<string>>(new Set());
+
+  useEffect(() => { if (open && sendable.length && !mailboxId) setMailboxId(sendable[0].id); }, [open, sendable, mailboxId]);
+  useEffect(() => { if (open && !token) setToken(makeComposeToken()); }, [open, token]);
+
+  const bodyEmpty = !stripTags(body).trim();
+  const resetCompose = () => { setSubject(""); setBody(""); setTo([]); setCc([]); setBcc([]); setAttachments([]); setToken(makeComposeToken()); setResetKey((k) => k + 1); };
+  const handleClose = () => { if (token && !committedTokens.current.has(token)) discardCompose(token); onClose(); };
+
+  const send = async () => {
+    setBusy(true); setResult(""); setError("");
+    const res = await fetch("/api/admin-email/compose", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mailbox_id: mailboxId, to, cc, bcc, subject, body_html: body, compose_token: token }),
+    });
+    const d = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setError(d.error || "Send failed"); return; }
+    committedTokens.current.add(token);
+    setResult(`Sent to ${d.sent} recipient${d.sent !== 1 ? "s" : ""}${d.failed ? ` (${d.failed} failed)` : ""}.`);
+    resetCompose();
+    onSent();
+  };
+
+  const canSend = !busy && !!mailboxId && to.length > 0 && !!subject.trim() && !bodyEmpty;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Send className="h-5 w-5 text-secondary" /> New email</DialogTitle>
+          <DialogDescription>Send a 1-to-1 or official email. It opens a thread in the inbox so replies come back here.</DialogDescription>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto space-y-3 py-1 pr-1">
+          {sendable.length === 0 ? (
+            <p className="text-sm text-charcoal-lighter">You don&apos;t have a send-enabled mailbox. Ask a superadmin to grant you a mailbox with sending enabled.</p>
+          ) : (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-charcoal-light mb-1.5">Send from</label>
+                <Select value={mailboxId} onValueChange={setMailboxId}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{sendable.map((m) => <SelectItem key={m.id} value={m.id}>{m.display_name} ({m.address})</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <RecipientInput label="To" value={to} onChange={setTo} placeholder="Enter recipient emails…" />
+              {!showCcBcc ? (
+                <button type="button" onClick={() => setShowCcBcc(true)} className="text-xs text-secondary hover:underline">+ Add CC / BCC</button>
+              ) : (
+                <>
+                  <RecipientInput label="CC" value={cc} onChange={setCc} />
+                  <RecipientInput label="BCC" value={bcc} onChange={setBcc} />
+                </>
+              )}
+              <Input label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
+              <div>
+                <label className="block text-sm font-medium text-charcoal-light mb-1.5">Message</label>
+                <EmailEditor value={body} onChange={setBody} resetKey={resetKey} composeToken={token} placeholder="Write your email…" />
+              </div>
+              {token && <AttachmentUploader composeToken={token} attachments={attachments} onChange={setAttachments} />}
+              <FooterPreview footerText={footerText} />
+              {result && <p className="text-xs text-secondary flex items-center gap-1"><Check className="h-3 w-3" /> {result}</p>}
+              {error && <p className="text-xs text-destructive">{error}</p>}
+            </>
+          )}
+        </div>
+        <DialogFooter className="gap-2">
+          <AdminButton variant="outline" onClick={handleClose}>Close</AdminButton>
+          {sendable.length > 0 && (
+            <AdminButton onClick={send} disabled={!canSend}>
+              {busy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />} Send
             </AdminButton>
           )}
         </DialogFooter>

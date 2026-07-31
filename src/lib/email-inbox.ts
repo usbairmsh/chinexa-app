@@ -209,13 +209,18 @@ export async function recordOutbound(params: {
   bodyHtml: string | null;
   bodyText: string | null;
   sentBy: string | null;
+  cc?: string[];
+  bcc?: string[];
 }): Promise<string> {
   const messageId = newEmailMsgId();
+  const ccStr = params.cc && params.cc.length ? params.cc.join(", ").slice(0, 1000) : null;
+  const bccStr = params.bcc && params.bcc.length ? params.bcc.join(", ").slice(0, 1000) : null;
   await execute(
-    `INSERT INTO email_messages (id, thread_id, direction, from_address, to_address, subject, body_html, body_text, sent_by)
-     VALUES (?, ?, 'outbound', ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO email_messages (id, thread_id, direction, from_address, to_address, cc_address, bcc_address, subject, body_html, body_text, sent_by)
+     VALUES (?, ?, 'outbound', ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       messageId, params.threadId, params.mailbox.address, params.toAddress.toLowerCase().trim(),
+      ccStr, bccStr,
       params.subject.slice(0, 500) || "(no subject)", params.bodyHtml, params.bodyText, params.sentBy,
     ]
   );
@@ -227,6 +232,39 @@ export async function recordOutbound(params: {
   );
   await bumpCounter(params.mailbox.id, "sent");
   return messageId;
+}
+
+/**
+ * Open (or reuse an open) thread for an admin-INITIATED outbound email to a
+ * given recipient. Mirrors recordInbound's thread-matching but from the send
+ * side: reuse an open thread with the same correspondent + normalized subject,
+ * else create a fresh outbound-initiated thread. Returns the thread id.
+ */
+export async function openOutboundThread(params: {
+  mailbox: Mailbox;
+  toAddress: string;
+  toName?: string | null;
+  subject: string;
+}): Promise<string> {
+  const correspondent = params.toAddress.toLowerCase().trim();
+  const subject = params.subject.trim() || "(no subject)";
+  const normSubject = normalizeSubject(subject);
+
+  const existing = await query<RowDataPacket[]>(
+    `SELECT id FROM email_threads
+     WHERE mailbox_id = ? AND correspondent = ? AND norm_subject = ? AND status = 'open'
+     ORDER BY last_message_at DESC LIMIT 1`,
+    [params.mailbox.id, correspondent, normSubject]
+  );
+  if (existing.length) return existing[0].id as string;
+
+  const threadId = newThreadId();
+  await execute(
+    `INSERT INTO email_threads (id, mailbox_id, correspondent, correspondent_name, subject, norm_subject, status, admin_unread, message_count, last_message_at, initiated_by)
+     VALUES (?, ?, ?, ?, ?, ?, 'open', 0, 0, CURRENT_TIMESTAMP, 'outbound')`,
+    [threadId, params.mailbox.id, correspondent, params.toName || null, subject.slice(0, 500), normSubject]
+  );
+  return threadId;
 }
 
 /**
