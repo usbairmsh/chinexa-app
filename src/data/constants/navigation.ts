@@ -92,10 +92,9 @@ export const FOOTER_LINKS = {
     title: "Help",
     links: [
       { label: "FAQ", href: "/faq" },
-      { label: "Shipping", href: "/policies/shipping" },
-      { label: "Returns", href: "/policies/returns" },
       { label: "Track Order", href: "/track-order" },
       { label: "Contact Us", href: "/contact" },
+      { label: "Terms & Conditions", href: "/terms-and-conditions" },
     ],
   },
   about: {
@@ -103,8 +102,7 @@ export const FOOTER_LINKS = {
     links: [
       { label: "Our Story", href: "/about" },
       { label: "Blog", href: "/blog" },
-      { label: "Privacy Policy", href: "/policies/privacy" },
-      { label: "Terms of Service", href: "/policies/terms" },
+      { label: "Membership", href: "/membership" },
     ],
   },
 };
