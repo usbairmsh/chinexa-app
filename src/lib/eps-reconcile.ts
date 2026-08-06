@@ -37,8 +37,10 @@ export async function runEpsReconcile(trigger: "scheduled" | "manual" = "schedul
     await ensureEpsTables();
 
     // Unpaid EPS orders still in a payable state, within the lookback window.
+    // age_minutes comes from the DB so the window check is immune to any
+    // timezone difference between MySQL and the app container.
     const rows = await query<RowDataPacket[]>(
-      `SELECT id, created_at FROM orders
+      `SELECT id, TIMESTAMPDIFF(MINUTE, created_at, NOW()) AS age_minutes FROM orders
        WHERE payment_method = 'EPS'
          AND payment_status IN ('pending','failed')
          AND status NOT IN ('cancelled','returned','received','not_received')
@@ -59,8 +61,7 @@ export async function runEpsReconcile(trigger: "scheduled" | "manual" = "schedul
           continue;
         }
         // 2) Still unpaid — expire it if the window has closed.
-        const deadline = new Date(row.created_at as string).getTime() + PAYMENT_WINDOW_MINUTES * 60_000;
-        if (Date.now() > deadline) {
+        if (Number(row.age_minutes) >= PAYMENT_WINDOW_MINUTES) {
           if (await expireEpsOrder(orderId)) summary.expired++;
         }
       } catch (err) {

@@ -493,7 +493,9 @@ export default function CheckoutPage() {
         try {
           const payRes = await fetch("/api/payment/eps/initiate", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ order_id: data.id }),
+            // Ownership proof — customer_id when signed in, phone for guests.
+            // The server rejects the payment without one of these.
+            body: JSON.stringify({ order_id: data.id, customer_id: user?.id || null, phone: customerPhone }),
           });
           const payData = await payRes.json().catch(() => ({}));
           if (payRes.ok && payData.redirect_url) {

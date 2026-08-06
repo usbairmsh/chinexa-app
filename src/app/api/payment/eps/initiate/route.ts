@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { initializeEps, isEpsConfigured, type EpsProduct } from "@/lib/eps";
-import { paymentDeadline, recordAttempt, PAYMENT_WINDOW_MINUTES } from "@/lib/eps-settle";
+import { recordAttempt, PAYMENT_WINDOW_MINUTES } from "@/lib/eps-settle";
 
 export const dynamic = "force-dynamic";
 
@@ -33,8 +33,13 @@ export async function POST(req: NextRequest) {
     const orderId = String(body.order_id || "");
     if (!orderId) return NextResponse.json({ error: "order_id is required" }, { status: 400 });
 
+    // age_minutes is computed by the DB so the payment-window check can't be
+    // thrown off by a timezone difference between MySQL and the app container
+    // (which could otherwise make a brand-new order look already expired).
     const orders = await query<RowDataPacket[]>(
-      "SELECT id, order_number, customer_id, customer_name, customer_phone, total, status, payment_status, created_at FROM orders WHERE id = ? LIMIT 1",
+      `SELECT id, order_number, customer_id, customer_name, customer_phone, total, status, payment_status,
+              created_at, TIMESTAMPDIFF(MINUTE, created_at, NOW()) AS age_minutes
+       FROM orders WHERE id = ? LIMIT 1`,
       [orderId]
     );
     if (orders.length === 0) return NextResponse.json({ error: "Order not found" }, { status: 404 });
@@ -63,7 +68,7 @@ export async function POST(req: NextRequest) {
     }
     // The payment window runs from order creation and is NOT extended by
     // retrying — otherwise an order could hold stock indefinitely.
-    if (Date.now() > paymentDeadline(order.created_at as string)) {
+    if (Number(order.age_minutes) >= PAYMENT_WINDOW_MINUTES) {
       return NextResponse.json(
         { error: `The ${PAYMENT_WINDOW_MINUTES}-minute payment window for this order has expired. Please place a new order.` },
         { status: 409 }
