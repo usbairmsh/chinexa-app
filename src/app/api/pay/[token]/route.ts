@@ -27,6 +27,24 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
 
     void markLinkOpened(String(link.id));
 
+    // A standalone collection has no order, no items and no customer — the
+    // amount and description are the whole of it.
+    if (!order) {
+      return NextResponse.json(
+        {
+          standalone: true,
+          reference: link.reference,
+          amount: Number(link.amount) || 0,
+          description: link.description,
+          items: [],
+          expires_at: link.expires_at,
+          payable: blockedReason === null,
+          blocked_reason: blockedReason,
+        },
+        { headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
     const items = await query<RowDataPacket[]>(
       "SELECT product_name, variant, quantity, unit_price, total_price FROM order_items WHERE order_id = ?",
       [order.id]
@@ -34,6 +52,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
 
     return NextResponse.json(
       {
+        standalone: false,
         order_number: order.order_number,
         // First name only — enough for the customer to recognise the order as
         // theirs, without exposing the full identity to a link holder.

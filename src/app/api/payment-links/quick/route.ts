@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { type RowDataPacket } from "mysql2/promise";
-import { query, execute } from "@/lib/db";
+import { execute } from "@/lib/db";
 import { getRequester, requirePermission } from "@/lib/admin-permissions-server";
 import { ensurePaymentLinkTables } from "@/lib/migrate-payment-links";
-import { generateLinkToken, paymentLinkUrl, LINK_WINDOW_HOURS } from "@/lib/payment-links";
+import {
+  generateLinkToken,
+  paymentLinkUrl,
+  LINK_WINDOW_HOURS,
+  MIN_LINK_AMOUNT,
+} from "@/lib/payment-links";
 import { isEpsConfigured } from "@/lib/eps";
 import { sendSms } from "@/lib/sms";
 import { sendEmail } from "@/lib/email";
@@ -11,22 +15,23 @@ import { sendEmail } from "@/lib/email";
 export const dynamic = "force-dynamic";
 
 // ─── POST /api/payment-links/quick ────────────────────────────────────────────
-// The one-step flow behind the admin "Create Payment Link" form: the admin types
-// a customer name, phone and AMOUNT, and gets back a copyable link.
+// A STANDALONE payment collection: the admin enters an amount, gets a link, and
+// sends it. Deliberately NOT an order.
 //
-// It creates a lightweight order to hang the payment on, because every downstream
-// piece — EPS initiate, settlement, reconciliation, accounting, the customer's
-// order history — is already built around an order row. Inventing a parallel
-// "linked payment with no order" concept would mean duplicating all of it.
+// It creates no order, no order number, and no customer record. It is money
+// collected outside the store's sales pipeline (a service charge, a courier fee,
+// a partial settlement), so it must not appear in order lists, must not deduct
+// stock, and must not move any revenue, order-count or customer figure in
+// accounting. Nothing here writes to `orders`, `order_items` or `customers`.
 //
-// The order carries a single synthetic line item with NO product_id, which is
-// exactly how POST /api/orders already distinguishes "don't touch stock" (the
-// deduction loop is guarded by `if (item.product_id)`). So a custom-amount link
-// never moves inventory, while a product-based link (created via Record Sale +
-// POST /api/payment-links) still does.
+// Settlement therefore targets the link row itself — see settleStandaloneLink in
+// lib/payment-links.ts, the counterpart to settleEpsOrder for order-backed pays.
+//
+// The separate POST /api/payment-links route is the other shape: a link issued
+// against a REAL existing order, which does count as a sale.
 
-// Capped inside the reconcile job's link-aware lookback (see eps-reconcile.ts):
-// a link outliving reconciliation could take a payment that is never settled.
+// Capped inside the reconcile lookback (see payment-links.ts): a link outliving
+// reconciliation could take a payment that is never settled.
 const MAX_HOURS = 24 * 14;
 const MAX_AMOUNT = 10_000_000;
 
@@ -54,15 +59,17 @@ export async function POST(req: NextRequest) {
     await ensurePaymentLinkTables();
 
     const body = await req.json().catch(() => ({}));
-    const customerName = String(body.customer_name || "").trim();
-    const customerPhone = String(body.customer_phone || "").trim();
     const description = String(body.description || "").trim();
     const amount = Number(body.amount);
 
-    if (!customerName) return NextResponse.json({ error: "Customer name is required" }, { status: 400 });
-    if (!customerPhone) return NextResponse.json({ error: "Customer phone is required" }, { status: 400 });
     if (!Number.isFinite(amount) || amount <= 0) {
       return NextResponse.json({ error: "Enter an amount greater than zero" }, { status: 400 });
+    }
+    if (amount < MIN_LINK_AMOUNT) {
+      return NextResponse.json(
+        { error: `The minimum payment amount is BDT ${MIN_LINK_AMOUNT}.` },
+        { status: 400 }
+      );
     }
     if (amount > MAX_AMOUNT) {
       return NextResponse.json({ error: "That amount looks too large. Please check it." }, { status: 400 });
@@ -76,7 +83,7 @@ export async function POST(req: NextRequest) {
     const emailTo = String(body.send_to_email || "").trim();
 
     // Validate delivery inputs BEFORE creating anything, so a typo can't leave
-    // an orphaned order + link that was never delivered.
+    // an orphaned link that was never delivered.
     if (channels.includes("sms") && !smsTo) {
       return NextResponse.json({ error: "A phone number is required to send by SMS." }, { status: 400 });
     }
@@ -86,56 +93,24 @@ export async function POST(req: NextRequest) {
 
     const hours = Math.min(MAX_HOURS, Math.max(1, Number(body.expires_in_hours) || LINK_WINDOW_HOURS));
 
-    // Attach to an existing customer by phone when we already know them, so the
-    // payment shows up in their order history instead of creating a duplicate.
-    const normalized = normalizePhone(customerPhone);
-    let customerId: string | null = null;
-    const existing = await query<RowDataPacket[]>(
-      "SELECT id FROM customers WHERE phone = ? OR phone = ? LIMIT 1",
-      [customerPhone, normalized]
-    );
-    if (existing.length > 0) customerId = String(existing[0].id);
-
-    const orderId = `ord-${Date.now()}`;
-    const orderNumber = `ORD-${String(Date.now()).slice(-6)}`;
-    const label = description || "Custom payment";
-
-    // payment_method EPS + payment_status pending is what makes this order
-    // visible to the reconcile job and payable through the gateway.
-    await execute(
-      `INSERT INTO orders
-         (id, order_number, customer_id, customer_name, customer_phone, subtotal, shipping_cost,
-          discount, tax, total, status, payment_method, payment_status, notes, source, stock_deducted)
-       VALUES (?, ?, ?, ?, ?, ?, 0, 0, 0, ?, 'pending', 'EPS', 'pending', ?, 'manual', 0)`,
-      [orderId, orderNumber, customerId, customerName, normalized, total, total, `Payment link: ${label}`]
-    );
-
-    // Synthetic line with no product_id — see the note at the top of this file.
-    // order_items.id is a non-auto PRIMARY KEY, so it must be supplied.
-    await execute(
-      `INSERT INTO order_items (id, order_id, product_id, product_name, variant, quantity, unit_price, total_price)
-       VALUES (?, ?, NULL, ?, NULL, 1, ?, ?)`,
-      [`oi-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, orderId, label.slice(0, 200), total, total]
-    ).catch(async (e) => {
-      // Roll the order back rather than leaving a total with nothing behind it.
-      await execute("DELETE FROM orders WHERE id = ?", [orderId]).catch(() => {});
-      throw e;
-    });
-
     const requester = await getRequester(req);
     const token = generateLinkToken();
     const linkId = `plink-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    // A short human-readable handle for receipts and support conversations.
+    // Deliberately prefixed PAY- so it can never be mistaken for an order number.
+    const reference = `PAY-${String(Date.now()).slice(-6)}`;
 
     await execute(
       `INSERT INTO payment_links
-         (id, token, order_id, amount, description, status, expires_at, created_by, created_by_name, sent_via, sent_to)
-       VALUES (?, ?, ?, ?, ?, 'active', DATE_ADD(NOW(), INTERVAL ? HOUR), ?, ?, ?, ?)`,
+         (id, token, order_id, amount, description, reference, status, expires_at,
+          created_by, created_by_name, sent_via, sent_to)
+       VALUES (?, ?, NULL, ?, ?, ?, 'active', DATE_ADD(NOW(), INTERVAL ? HOUR), ?, ?, ?, ?)`,
       [
         linkId,
         token,
-        orderId,
         total,
         description.slice(0, 255) || null,
+        reference,
         hours,
         requester?.id || null,
         String(body.created_by_name || "").slice(0, 100) || null,
@@ -153,7 +128,7 @@ export async function POST(req: NextRequest) {
     if (channels.includes("sms")) {
       const r = await sendSms(
         normalizePhone(smsTo),
-        `ChineXa: Payment request ${orderNumber} — ${amountText}. Pay securely here: ${url} (expires in ${hours}h)`
+        `ChineXa: Payment request ${reference} — ${amountText}. Pay securely here: ${url} (expires in ${hours}h)`
       ).catch((e) => ({ success: false, error: String(e) }));
       delivery.push({ channel: "sms", ok: !!r.success, error: r.success ? undefined : r.error });
     }
@@ -163,15 +138,16 @@ export async function POST(req: NextRequest) {
         to: emailTo,
         subject: `Payment request from ChineXa — ${amountText}`,
         html: `
-          <p>Hello ${customerName},</p>
+          <p>Hello,</p>
           <p>Here is your secure payment link${description ? ` for <strong>${description}</strong>` : ""}.</p>
           <p style="font-size:20px;font-weight:700;margin:16px 0;">${amountText}</p>
           <p style="margin:24px 0;">
             <a href="${url}" style="background:#7A4FA0;color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none;font-weight:600;display:inline-block;">Pay Now</a>
           </p>
           <p style="color:#666;font-size:13px;">This link expires in ${hours} hours. If the button doesn't work, copy and paste this into your browser:<br>${url}</p>
+          <p style="color:#999;font-size:12px;">Reference: ${reference}</p>
         `,
-        text: `Payment request ${orderNumber} — ${amountText}. Pay here: ${url} (expires in ${hours}h)`,
+        text: `Payment request ${reference} — ${amountText}. Pay here: ${url} (expires in ${hours}h)`,
       }).catch((e) => ({ success: false, error: String(e) }));
       delivery.push({ channel: "email", ok: !!r.success, error: r.success ? undefined : r.error });
     }
@@ -180,8 +156,7 @@ export async function POST(req: NextRequest) {
       id: linkId,
       token,
       url,
-      order_id: orderId,
-      order_number: orderNumber,
+      reference,
       amount: total,
       expires_in_hours: hours,
       delivery,

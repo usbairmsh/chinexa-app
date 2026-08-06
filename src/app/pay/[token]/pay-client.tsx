@@ -13,8 +13,11 @@ interface LinkItem {
 }
 
 interface LinkData {
-  order_number: string;
-  customer_first_name: string | null;
+  standalone: boolean;
+  /** Standalone links carry a PAY- reference; order-backed ones an order number. */
+  reference?: string | null;
+  order_number?: string;
+  customer_first_name?: string | null;
   amount: number;
   description: string | null;
   items: LinkItem[];
@@ -30,7 +33,7 @@ const BLOCKED: Record<string, { icon: typeof XCircle; title: string; message: st
   already_paid: {
     icon: CheckCircle2,
     title: "Already Paid",
-    message: "This order has already been paid for. No further payment is needed — thank you!",
+    message: "This has already been paid for. No further payment is needed — thank you!",
     tone: "text-success",
     ring: "bg-success/10",
   },
@@ -44,7 +47,7 @@ const BLOCKED: Record<string, { icon: typeof XCircle; title: string; message: st
   revoked: {
     icon: XCircle,
     title: "Link No Longer Valid",
-    message: "This payment link has been cancelled. Please contact us if you still need to pay for this order.",
+    message: "This payment link has been cancelled. Please contact us if you still need to make this payment.",
     tone: "text-charcoal-lighter",
     ring: "bg-border/40",
   },
@@ -170,9 +173,12 @@ export function PayLinkClient({ token }: { token: string }) {
         </div>
         <h1 className="font-heading text-xl font-bold text-charcoal mb-2">{cfg.title}</h1>
         <p className="text-sm text-charcoal-lighter mb-4">{cfg.message}</p>
-        <p className="text-xs text-charcoal-lighter">
-          Order <span className="font-medium text-charcoal">{data.order_number}</span>
-        </p>
+        {(data.reference || data.order_number) && (
+          <p className="text-xs text-charcoal-lighter">
+            {data.standalone ? "Reference" : "Order"}{" "}
+            <span className="font-medium text-charcoal">{data.reference || data.order_number}</span>
+          </p>
+        )}
       </div>
     );
   }
@@ -188,11 +194,22 @@ export function PayLinkClient({ token }: { token: string }) {
         <div className="px-6 pt-6 pb-5 text-center border-b border-border">
           <p className="text-xs uppercase tracking-wider text-charcoal-lighter mb-1">Amount due</p>
           <p className="font-heading text-4xl font-bold text-charcoal tabular-nums">{money(data.amount)}</p>
-          <p className="mt-2 text-sm text-charcoal-lighter">
-            {data.customer_first_name ? `${data.customer_first_name}, order ` : "Order "}
-            <span className="font-medium text-charcoal">{data.order_number}</span>
-          </p>
-          {data.description && <p className="mt-1 text-sm text-charcoal-lighter">{data.description}</p>}
+          {data.standalone ? (
+            <>
+              {data.description && <p className="mt-2 text-sm text-charcoal">{data.description}</p>}
+              {data.reference && (
+                <p className="mt-1 text-xs text-charcoal-lighter">Ref {data.reference}</p>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="mt-2 text-sm text-charcoal-lighter">
+                {data.customer_first_name ? `${data.customer_first_name}, order ` : "Order "}
+                <span className="font-medium text-charcoal">{data.order_number}</span>
+              </p>
+              {data.description && <p className="mt-1 text-sm text-charcoal-lighter">{data.description}</p>}
+            </>
+          )}
         </div>
 
         {data.items.length > 0 && (

@@ -4,7 +4,7 @@ import { query } from "@/lib/db";
 import { isEpsConfigured } from "@/lib/eps";
 import { ensureEpsTables } from "@/lib/migrate-eps";
 import { ensurePaymentLinkTables } from "@/lib/migrate-payment-links";
-import { expireStalePaymentLinks } from "@/lib/payment-links";
+import { expireStalePaymentLinks, reconcileStandaloneLinks } from "@/lib/payment-links";
 import { settleEpsOrder, expireEpsOrder, PAYMENT_WINDOW_MINUTES } from "@/lib/eps-settle";
 
 // ─── EPS reconciliation + payment-window expiry ───────────────────────────────
@@ -56,6 +56,13 @@ export async function runEpsReconcile(trigger: "scheduled" | "manual" = "schedul
     // Bookkeeping: flip lapsed links to 'expired' so the admin list is accurate
     // and their orders become eligible for normal expiry on the next tick.
     await expireStalePaymentLinks();
+    // Standalone links have no order row, so the order loop below can't see
+    // them. They need the same recovery: without it, a payment whose browser
+    // never returned would leave EPS holding the money while the link still
+    // read unpaid and stayed payable, inviting a second charge.
+    const standalone = await reconcileStandaloneLinks();
+    summary.checked += standalone.checked;
+    summary.settled += standalone.settled;
 
     // Unpaid EPS orders still in a payable state, within the lookback window.
     // age_minutes comes from the DB so the window check is immune to any

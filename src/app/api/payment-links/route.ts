@@ -7,6 +7,7 @@ import {
   generateLinkToken,
   paymentLinkUrl,
   LINK_WINDOW_HOURS,
+  MIN_LINK_AMOUNT,
   expireStalePaymentLinks,
 } from "@/lib/payment-links";
 import { isEpsConfigured } from "@/lib/eps";
@@ -50,10 +51,12 @@ export async function GET(req: NextRequest) {
 
     const orderId = req.nextUrl.searchParams.get("order_id");
     const rows = await query<RowDataPacket[]>(
+      // LEFT JOIN, not JOIN: a standalone collection has no order_id, and an
+      // inner join would silently hide every one of them from this list.
       `SELECT pl.*, o.order_number, o.customer_name, o.customer_phone,
               o.status AS order_status, o.payment_status
          FROM payment_links pl
-         JOIN orders o ON o.id = pl.order_id
+         LEFT JOIN orders o ON o.id = pl.order_id
         ${orderId ? "WHERE pl.order_id = ?" : ""}
         ORDER BY pl.created_at DESC
         LIMIT 200`,
@@ -63,7 +66,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         links: rows.map((r) => ({ ...r, url: paymentLinkUrl(String(r.token)) })),
-        defaults: { window_hours: LINK_WINDOW_HOURS },
+        // The form reads the minimum from here rather than hardcoding it, so the
+        // client-side check can never disagree with what the server enforces.
+        defaults: { window_hours: LINK_WINDOW_HOURS, min_amount: MIN_LINK_AMOUNT },
         channels: { sms: isSmsConfigured(), email: isEmailConfigured() },
       },
       { headers: { "Cache-Control": "no-store" } }
@@ -116,6 +121,12 @@ export async function POST(req: NextRequest) {
     const amount = Number(order.total) || 0;
     if (amount <= 0) {
       return NextResponse.json({ error: "Order total must be greater than zero." }, { status: 400 });
+    }
+    if (amount < MIN_LINK_AMOUNT) {
+      return NextResponse.json(
+        { error: `This order's total is below the BDT ${MIN_LINK_AMOUNT} minimum for online payment.` },
+        { status: 400 }
+      );
     }
 
     const hours = Math.min(MAX_HOURS, Math.max(1, Number(body.expires_in_hours) || LINK_WINDOW_HOURS));

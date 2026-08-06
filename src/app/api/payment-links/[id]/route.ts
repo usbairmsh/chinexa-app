@@ -36,11 +36,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const action = String(body.action || "");
 
     const rows = await query<RowDataPacket[]>(
+      // LEFT JOIN so standalone links (order_id IS NULL) are still found.
       `SELECT pl.*, o.order_number, o.customer_name, o.payment_status,
               (pl.expires_at <= NOW()) AS is_expired,
               TIMESTAMPDIFF(HOUR, NOW(), pl.expires_at) AS hours_left
          FROM payment_links pl
-         JOIN orders o ON o.id = pl.order_id
+         LEFT JOIN orders o ON o.id = pl.order_id
         WHERE pl.id = ? LIMIT 1`,
       [id]
     );
@@ -67,31 +68,37 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const url = paymentLinkUrl(String(link.token));
       const amount = Number(link.amount) || 0;
       const amountText = `BDT ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-      const orderNo = String(link.order_number);
+      // A standalone collection has no order number — its PAY- reference is the
+      // handle the payer sees. Order-backed links keep quoting the order.
+      const isStandalone = !link.order_id;
+      const ref = String(link.reference || link.order_number || link.id);
       const hoursLeft = Math.max(1, Number(link.hours_left) || 1);
+      const subjectLine = isStandalone
+        ? `Payment request from ChineXa — ${amountText}`
+        : `Payment link for your ChineXa order ${ref}`;
+      const smsLine = isStandalone
+        ? `ChineXa: Payment request ${ref} — ${amountText}. Pay securely here: ${url} (expires in ${hoursLeft}h)`
+        : `ChineXa: Payment for order ${ref} — ${amountText}. Pay securely here: ${url} (expires in ${hoursLeft}h)`;
 
       if (via === "sms") {
         if (!to) return NextResponse.json({ error: "A phone number is required." }, { status: 400 });
-        const r = await sendSms(
-          normalizePhone(to),
-          `ChineXa: Payment for order ${orderNo} — ${amountText}. Pay securely here: ${url} (expires in ${hoursLeft}h)`
-        );
+        const r = await sendSms(normalizePhone(to), smsLine);
         if (!r.success) return NextResponse.json({ error: r.error || "SMS failed to send" }, { status: 502 });
       } else if (via === "email") {
         if (!isEmail(to)) return NextResponse.json({ error: "A valid email address is required." }, { status: 400 });
         const r = await sendEmail({
           to,
-          subject: `Payment link for your ChineXa order ${orderNo}`,
+          subject: subjectLine,
           html: `
-            <p>Hello ${link.customer_name || "there"},</p>
-            <p>Here is your secure payment link for order <strong>${orderNo}</strong>.</p>
+            <p>Hello ${(!isStandalone && link.customer_name) || "there"},</p>
+            <p>Here is your secure payment link${isStandalone ? "" : ` for order <strong>${ref}</strong>`}.</p>
             <p style="font-size:20px;font-weight:700;margin:16px 0;">${amountText}</p>
             <p style="margin:24px 0;">
               <a href="${url}" style="background:#2f6f4e;color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none;font-weight:600;display:inline-block;">Pay Now</a>
             </p>
             <p style="color:#666;font-size:13px;">This link expires in ${hoursLeft} hours. If the button doesn't work, copy and paste this into your browser:<br>${url}</p>
           `,
-          text: `Payment for order ${orderNo} — ${amountText}. Pay here: ${url} (expires in ${hoursLeft}h)`,
+          text: smsLine,
         });
         if (!r.success) return NextResponse.json({ error: r.error || "Email failed to send" }, { status: 502 });
       } else {

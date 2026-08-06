@@ -52,6 +52,61 @@ export async function POST(req: NextRequest) {
           : "This order can no longer be paid for.";
         return NextResponse.json({ error: msg }, { status: 409 });
       }
+      // ─── Standalone collection (no order behind it) ───
+      // Handled entirely here: there is no order row, no address, no line items
+      // and no order number, so none of the order-based code below applies.
+      if (!resolved.order) {
+        const link = resolved.link;
+        const amount = Number(link.amount) || 0;
+        const label = String(link.description || "Payment").slice(0, 120);
+        const reference = String(link.reference || link.id);
+        // EPS requires a unique id per attempt; the link id is stable, so the
+        // timestamp is what makes each retry distinct.
+        const txnId = `${reference.replace(/[^0-9]/g, "").slice(-6)}${Date.now()}`.slice(0, 30);
+        const back = (type: string) =>
+          `${SITE_URL}/api/payment/eps/return?link_id=${encodeURIComponent(link.id)}&type=${type}`;
+
+        const init = await initializeEps({
+          merchantTransactionId: txnId,
+          customerOrderId: reference,
+          totalAmount: amount,
+          successUrl: back("success"),
+          failUrl: back("fail"),
+          cancelUrl: back("cancel"),
+          ipAddress: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "0.0.0.0",
+          // No customer record exists for a standalone collection, and we
+          // deliberately don't ask the payer for personal details. EPS requires
+          // these fields, so neutral placeholders are sent.
+          customerName: "Customer",
+          customerEmail: "noemail@chinexabd.com",
+          customerAddress: "N/A",
+          customerCity: "Dhaka",
+          customerState: "Dhaka",
+          customerPostcode: "1200",
+          customerCountry: "BD",
+          customerPhone: "",
+          products: [
+            {
+              ProductName: label,
+              NoOfItem: "1",
+              ProductProfile: "general",
+              ProductCategory: "payment",
+              ProductPrice: String(amount),
+            },
+          ],
+        });
+
+        await execute(
+          "UPDATE payment_links SET eps_merchant_txn_id = ?, eps_transaction_id = COALESCE(?, eps_transaction_id) WHERE id = ?",
+          [txnId, init.transactionId || null, link.id]
+        );
+        // Attempts are keyed `link:<id>` so standalone and order-backed payments
+        // share one attempts table without their ids ever colliding.
+        await recordAttempt(`link:${link.id}`, txnId, amount, init.transactionId).catch(() => {});
+
+        return NextResponse.json({ redirect_url: init.redirectUrl });
+      }
+
       orderId = String(resolved.order.id);
       linkOk = true;
     }

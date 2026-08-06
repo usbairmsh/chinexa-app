@@ -17,10 +17,12 @@ interface PaymentLink {
   id: string;
   token: string;
   url: string;
-  order_id: string;
-  order_number: string;
+  /** Null for a standalone collection; set only for order-backed links. */
+  order_id: string | null;
+  order_number: string | null;
   customer_name: string | null;
   customer_phone: string | null;
+  reference: string | null;
   amount: string | number;
   description: string | null;
   status: "active" | "paid" | "expired" | "revoked";
@@ -64,6 +66,8 @@ export default function PaymentLinksPage() {
   const [links, setLinks] = useState<PaymentLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [channels, setChannels] = useState({ sms: false, email: false });
+  // Server-provided so the form's floor always matches what the API enforces.
+  const [minAmount, setMinAmount] = useState(50);
   const [showCreate, setShowCreate] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [qrFor, setQrFor] = useState<{ url: string; order: string } | null>(null);
@@ -80,6 +84,7 @@ export default function PaymentLinksPage() {
       }
       setLinks(json.links || []);
       setChannels(json.channels || { sms: false, email: false });
+      if (json.defaults?.min_amount) setMinAmount(Number(json.defaults.min_amount));
     } catch {
       setBanner({ tone: "err", text: "Could not reach the server" });
     } finally {
@@ -224,13 +229,10 @@ export default function PaymentLinksPage() {
                           <span className="text-[11px] text-charcoal-lighter">{timeLeft(link.expires_at)}</span>
                         )}
                       </div>
-                      <p className="text-sm text-charcoal truncate">
-                        {link.customer_name || "—"}
-                        {link.customer_phone ? ` · ${link.customer_phone}` : ""}
-                      </p>
                       <p className="text-xs text-charcoal-lighter truncate">
-                        {link.order_number}
+                        {link.reference || link.order_number || "—"}
                         {link.description ? ` · ${link.description}` : ""}
+                        {link.sent_to ? ` · sent to ${link.sent_to}` : ""}
                         {link.opened_at ? " · opened" : ""}
                       </p>
                     </div>
@@ -250,7 +252,12 @@ export default function PaymentLinksPage() {
                       <AdminButton
                         size="xs"
                         variant="ghost"
-                        onClick={() => setQrFor({ url: link.url, order: link.order_number })}
+                        onClick={() =>
+                          setQrFor({
+                            url: link.url,
+                            order: link.reference || link.order_number || formatCurrency(Number(link.amount)),
+                          })
+                        }
                         title="Show QR code"
                       >
                         <QrCode className="h-3.5 w-3.5" />
@@ -266,7 +273,7 @@ export default function PaymentLinksPage() {
                           variant="ghost"
                           title="Resend by SMS"
                           onClick={() => {
-                            const to = prompt("Send this link by SMS to which number?", link.customer_phone || "");
+                            const to = prompt("Send this link by SMS to which number?", "");
                             if (to) void act(link.id, { action: "resend", via: "sms", to }, "SMS sent");
                           }}
                         >
@@ -317,6 +324,7 @@ export default function PaymentLinksPage() {
       {showCreate && (
         <CreateLinkDialog
           channels={channels}
+          minAmount={minAmount}
           onClose={() => setShowCreate(false)}
           onCreated={(msg) => {
             setBanner({ tone: "ok", text: msg });
@@ -364,17 +372,16 @@ export default function PaymentLinksPage() {
 
 function CreateLinkDialog({
   channels,
+  minAmount,
   onClose,
   onCreated,
 }: {
   channels: { sms: boolean; email: boolean };
+  minAmount: number;
   onClose: () => void;
   onCreated: (msg: string) => void;
 }) {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState("");
-  const [description, setDescription] = useState("");
   const [hours, setHours] = useState(24);
   const [sendSms, setSendSms] = useState(false);
   const [sendEmail, setSendEmail] = useState(false);
@@ -382,15 +389,14 @@ function CreateLinkDialog({
   const [emailTo, setEmailTo] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [created, setCreated] = useState<{ url: string; amount: number } | null>(null);
+  const [created, setCreated] = useState<{ url: string; amount: number; reference?: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const submit = async () => {
     setError(null);
     const amt = Number(amount);
-    if (!name.trim()) return setError("Customer name is required");
-    if (!phone.trim()) return setError("Customer phone is required");
     if (!Number.isFinite(amt) || amt <= 0) return setError("Enter an amount greater than zero");
+    if (amt < minAmount) return setError(`The minimum payment amount is ৳${minAmount}`);
     if (sendSms && !smsTo.trim()) return setError("Enter the phone number to send the SMS to");
     if (sendEmail && !emailTo.trim()) return setError("Enter the email address to send to");
 
@@ -404,10 +410,7 @@ function CreateLinkDialog({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customer_name: name.trim(),
-          customer_phone: phone.trim(),
           amount: amt,
-          description: description.trim(),
           expires_in_hours: hours,
           send_via: via,
           send_to_phone: sendSms ? smsTo.trim() : "",
@@ -421,7 +424,7 @@ function CreateLinkDialog({
       }
       // Stay open and show the link so it can be copied immediately — closing
       // straight away would hide the one thing the admin came here for.
-      setCreated({ url: json.url, amount: json.amount });
+      setCreated({ url: json.url, amount: json.amount, reference: json.reference });
       const failed = (json.delivery || []).filter((d: { ok: boolean }) => !d.ok);
       onCreated(
         failed.length
@@ -468,6 +471,9 @@ function CreateLinkDialog({
             <div className="text-center">
               <p className="text-xs text-charcoal-lighter mb-1">Amount</p>
               <p className="font-heading text-3xl font-bold text-charcoal">{formatCurrency(created.amount)}</p>
+              {created.reference && (
+                <p className="mt-1 text-xs text-charcoal-lighter">Ref {created.reference}</p>
+              )}
             </div>
             <div className="rounded-lg bg-pearl border border-border p-3">
               <p className="text-xs text-charcoal-lighter mb-1">Payment link</p>
@@ -492,33 +498,18 @@ function CreateLinkDialog({
           <>
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-charcoal mb-1">Customer name *</label>
-                <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-charcoal mb-1">Customer phone *</label>
-                <input className={inputCls} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01XXXXXXXXX" />
-              </div>
-              <div>
                 <label className="block text-xs font-medium text-charcoal mb-1">Amount (BDT) *</label>
                 <input
                   className={inputCls}
                   type="number"
-                  min="1"
+                  min={minAmount}
                   step="0.01"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.00"
+                  autoFocus
                 />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-charcoal mb-1">What is this for?</label>
-                <input
-                  className={inputCls}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="e.g. Facebook order — 2 serums"
-                />
+                <p className="mt-1 text-[11px] text-charcoal-lighter">Minimum ৳{minAmount}</p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-charcoal mb-1">Link expires in</label>
