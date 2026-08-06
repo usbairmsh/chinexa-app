@@ -25,13 +25,16 @@ async function ensureColumns() {
     const cols = await query<RowDataPacket[]>(
       `SELECT table_name AS t, column_name AS c FROM information_schema.columns
        WHERE table_schema = DATABASE()
-         AND ((table_name = 'orders' AND column_name IN ('stock_deducted','revenue_counted'))
+         AND ((table_name = 'orders' AND column_name IN ('stock_deducted','revenue_counted','eps_merchant_txn_id','eps_transaction_id'))
            OR (table_name = 'order_items' AND column_name = 'variant_id'))`
     );
     const has = new Set(cols.map((r) => `${r.t}.${r.c}`));
     if (!has.has("orders.stock_deducted")) await execute("ALTER TABLE orders ADD COLUMN stock_deducted BOOLEAN DEFAULT FALSE");
     if (!has.has("orders.revenue_counted")) await execute("ALTER TABLE orders ADD COLUMN revenue_counted BOOLEAN DEFAULT FALSE");
     if (!has.has("order_items.variant_id")) await execute("ALTER TABLE order_items ADD COLUMN variant_id VARCHAR(50) AFTER product_id");
+    // EPS gateway: our unique per-attempt id sent to EPS, and EPS's returned id.
+    if (!has.has("orders.eps_merchant_txn_id")) await execute("ALTER TABLE orders ADD COLUMN eps_merchant_txn_id VARCHAR(64) NULL");
+    if (!has.has("orders.eps_transaction_id")) await execute("ALTER TABLE orders ADD COLUMN eps_transaction_id VARCHAR(64) NULL");
     // Backfill: existing confirmed+ orders already had stock deducted
     await execute("UPDATE orders SET stock_deducted = TRUE WHERE status IN ('confirmed','processing','shipped','on_delivery','received') AND stock_deducted = FALSE");
     // Backfill: existing received orders already had revenue counted
