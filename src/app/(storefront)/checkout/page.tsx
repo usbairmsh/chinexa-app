@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { CreditCard, Truck, FileText, CheckCircle2, MapPin, Clock, Tag, X, Loader2, Home, Briefcase, Plus, Download, CheckCircle } from "lucide-react";
+import { CreditCard, Truck, FileText, CheckCircle2, MapPin, Clock, Tag, X, Loader2, Home, Briefcase, Plus, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,6 @@ import { PriceCalculator } from "@/components/storefront/cart/price-calculator";
 import { triggerDashboardRefresh } from "@/lib/dashboard-events";
 import { useDeliveryStore } from "@/stores/delivery.store";
 import { formatCurrency, cn } from "@/lib/utils";
-import { PAYMENT_METHODS } from "@/lib/constants";
 import { useStoreSettings } from "@/hooks/use-store-settings";
 import { DIVISIONS, DISTRICTS } from "@/data/constants/bangladeshi-data";
 
@@ -60,16 +59,13 @@ export default function CheckoutPage() {
   const { items, getSubtotal, clearCart, couponCode, getDiscount, getSavings, appliedOffers, applyCoupon, removeCoupon, refreshOffers, isPreorderCart } = useCartStore();
   const preorderCart = isPreorderCart();
   const storeSettings = useStoreSettings();
-  const dbPaymentMethods = storeSettings.payment_methods.filter((m) => m.enabled);
-  // Only fall back to the built-in method list once settings have actually
-  // loaded and the store genuinely has none configured — never render the
-  // hardcoded list while the real settings fetch is still in flight, since
-  // that would flash payment options the store may not actually offer.
-  const activePaymentMethods = dbPaymentMethods.length > 0
-    ? dbPaymentMethods
-    : storeSettings.loaded
-      ? PAYMENT_METHODS
-      : [];
+  // Payment options: Cash on Delivery always, plus EPS online payment when the
+  // admin has it enabled. (The old manual bKash/Nagad/etc. methods are replaced
+  // by EPS, which handles cards + mobile wallets online in one gateway.)
+  const activePaymentMethods = [
+    { id: "COD", name: "Cash on Delivery" },
+    ...(storeSettings.eps_enabled ? [{ id: "EPS", name: "Pay online (Card / bKash / Nagad / Rocket)" }] : []),
+  ];
   const { freeDeliveryEnabled, freeDeliveryThreshold, zones, expressEnabled, expressCharge, expressDivision } = useDeliveryStore();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -85,10 +81,6 @@ export default function CheckoutPage() {
   const [highestStep, setHighestStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState("COD");
   const [shippingMethod, setShippingMethod] = useState<"standard" | "express">("standard");
-  const [transactionId, setTransactionId] = useState("");
-  const [transactionIdDraft, setTransactionIdDraft] = useState("");
-  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
-  const [payNowOpen, setPayNowOpen] = useState(false);
   const [placeOrderConfirmOpen, setPlaceOrderConfirmOpen] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
   const [placing, setPlacing] = useState(false);
@@ -349,44 +341,21 @@ export default function CheckoutPage() {
   };
 
   // ─── STEP 3 VALIDATION ───
+  // COD and EPS both need no pre-payment input here — EPS collects payment on
+  // its own hosted page after the order is placed.
   const validateStep3 = (): boolean => {
-    const errors: Record<string, string> = {};
-    if (paymentMethod !== "COD" && !transactionId.trim()) {
-      errors.transactionId = "Please complete payment before placing your order";
-    }
-    setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) return false;
+    setFieldErrors({});
     return true;
   };
 
   const handlePaymentMethodChange = (id: string) => {
     setPaymentMethod(id);
-    setTransactionId("");
-    setTransactionIdDraft("");
-    setPaymentConfirmed(false);
     setFieldErrors({});
   };
 
-  // Admin picks, per method, whether the customer confirms payment with a
-  // transaction ID or the last 4 digits of the phone/account they paid from —
-  // defaults to transaction_id for methods saved before this field existed.
-  const selectedPaymentMethod = activePaymentMethods.find((pm) => pm.id === paymentMethod);
-  const confirmInputType = selectedPaymentMethod && "input_type" in selectedPaymentMethod && selectedPaymentMethod.input_type === "phone_number" ? "phone_number" : "transaction_id";
-  const isValidLast4 = (v: string) => /^\d{4}$/.test(v.trim());
-
-  const handleSubmitTransactionId = () => {
-    if (!transactionIdDraft.trim()) return;
-    if (confirmInputType === "phone_number" && !isValidLast4(transactionIdDraft)) return;
-    setTransactionId(transactionIdDraft.trim());
-    setPaymentConfirmed(true);
-    setPayNowOpen(false);
-    setFieldErrors((p) => ({ ...p, transactionId: "" }));
-  };
-
   // "Place Order" always opens a full order-review modal first (products,
-  // quantities, prices, offers/coupon, and payment details) so the customer
-  // confirms exactly what they're ordering before it's placed. For non-COD it
-  // doubles as the "have you paid?" confirmation.
+  // quantities, prices, offers/coupon) so the customer confirms exactly what
+  // they're ordering. For EPS, confirming then redirects to the gateway.
   const handlePlaceOrderClick = () => {
     if (!validateStep3()) return;
     setPlaceOrderConfirmOpen(true);
@@ -476,7 +445,7 @@ export default function CheckoutPage() {
           total: finalTotal,
           payment_method: paymentMethod,
           payment_status: "pending",
-          transaction_id: paymentMethod !== "COD" ? transactionId.trim() : null,
+          transaction_id: null,
           coupon_code: couponCode || null,
           applied_offer_ids: appliedOffers.map((o) => o.id),
           items: orderItems,
@@ -516,6 +485,32 @@ export default function CheckoutPage() {
       }
 
       setValidationError("");
+
+      // ── EPS online payment: order is created (pending); start the gateway and
+      // redirect the customer to pay. On return, /api/payment/eps/return verifies
+      // and marks it paid+confirmed. Cart is cleared on a successful return.
+      if (paymentMethod === "EPS") {
+        try {
+          const payRes = await fetch("/api/payment/eps/initiate", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ order_id: data.id }),
+          });
+          const payData = await payRes.json().catch(() => ({}));
+          if (payRes.ok && payData.redirect_url) {
+            window.location.href = payData.redirect_url; // leave the site for EPS
+            return;
+          }
+          setValidationError(payData.error || "Could not start online payment. Your order is saved — try paying again from your orders, or choose Cash on Delivery.");
+          setPlacing(false);
+          return;
+        } catch {
+          setValidationError("Could not reach the payment gateway. Your order is saved; please try again.");
+          setPlacing(false);
+          return;
+        }
+      }
+
+      // COD: straight to the success step.
       advanceStep(4);
       setTimeout(() => clearCart(), 2000);
     } catch {
@@ -888,14 +883,6 @@ export default function CheckoutPage() {
 
             {/* ═══ STEP 3: Payment ═══ */}
             {step === 3 && (() => {
-              const selectedMethod = activePaymentMethods.find((pm) => pm.id === paymentMethod);
-              const qrImage = selectedMethod && "qr_image" in selectedMethod ? selectedMethod.qr_image : "";
-              const customInstructions = selectedMethod && "instructions" in selectedMethod ? selectedMethod.instructions : "";
-              const accountNumber = selectedMethod && "account_number" in selectedMethod ? selectedMethod.account_number : "";
-              const instructionsText = customInstructions || (accountNumber ? `Please send payment to: ${accountNumber}` : `Please send payment via ${selectedMethod?.name || paymentMethod}`);
-              const confirmFieldLabel = confirmInputType === "phone_number" ? "Last 4 Digit of Phone/Account No." : "Transaction ID";
-              const confirmFieldPlaceholder = confirmInputType === "phone_number" ? "e.g. 1234" : "Enter transaction ID";
-
               return (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <h2 className="font-heading text-xl font-semibold text-charcoal">Payment Method</h2>
@@ -928,98 +915,18 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                {/* Non-COD: either the blinking Pay Now trigger, or a view-only
-                    confirmation once the transaction ID has been submitted */}
-                {paymentMethod !== "COD" && !paymentConfirmed && (
-                  <div className="flex flex-col items-center gap-2 py-2">
-                    <button
-                      type="button"
-                      onClick={() => { setTransactionIdDraft(transactionId); setPayNowOpen(true); }}
-                      className="animate-blink-urgent flex items-center gap-2 px-8 py-3 rounded-full text-white font-semibold text-sm shadow-lg transition-transform duration-150 active:scale-[0.96]"
-                    >
-                      <CreditCard className="h-4 w-4" /> Pay Now
-                    </button>
-                    <FieldError field="transactionId" />
+                {/* EPS online payment: explain the redirect. No details are
+                    collected here — the customer pays securely on EPS after
+                    placing the order and is brought back automatically. */}
+                {paymentMethod === "EPS" && (
+                  <div className="rounded-xl border border-border/50 bg-pearl/30 p-4 space-y-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/eps/eps-checkout.png" alt="Pay with EPS — Visa, Mastercard, Amex, bKash, Nagad, Rocket and more" className="w-full max-w-md h-auto" />
+                    <p className="text-xs text-charcoal-lighter">
+                      After you place the order, you&apos;ll be taken to EPS to pay securely with card, bKash, Nagad, Rocket or other methods. Your order is confirmed automatically once payment succeeds.
+                    </p>
                   </div>
                 )}
-
-                {paymentMethod !== "COD" && paymentConfirmed && (
-                  <div className="p-3 sm:p-4 rounded-xl bg-success/5 border border-success/20 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-success shrink-0" />
-                      <p className="text-sm font-semibold text-success">Payment details submitted</p>
-                    </div>
-                    <div className="grid sm:grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-wide text-charcoal-lighter">Method</p>
-                        <p className="font-medium text-charcoal">{selectedMethod?.name || paymentMethod}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase tracking-wide text-charcoal-lighter">{confirmFieldLabel}</p>
-                        <p className="font-medium text-charcoal">{transactionId}</p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => { setTransactionIdDraft(transactionId); setPayNowOpen(true); }}
-                      className="text-xs text-secondary hover:underline active:scale-95 inline-block transition-transform duration-150"
-                    >
-                      Edit {confirmFieldLabel.toLowerCase()}
-                    </button>
-                  </div>
-                )}
-
-                {/* Pay Now popup — instructions, then QR (view/download), then transaction ID entry */}
-                <Dialog open={payNowOpen} onOpenChange={setPayNowOpen}>
-                  <DialogContent className="max-h-[85vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>Pay with {selectedMethod?.name || paymentMethod}</DialogTitle>
-                      <DialogDescription className="whitespace-pre-wrap text-left">{instructionsText}</DialogDescription>
-                    </DialogHeader>
-
-                    {qrImage && (
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="relative h-[250px] w-[250px] rounded-xl overflow-hidden bg-card border border-border/30">
-                          <Image src={qrImage} alt={`${selectedMethod?.name} QR code`} fill className="object-contain" sizes="250px" unoptimized={qrImage.startsWith("data:") || qrImage.includes("/uploads/")} />
-                        </div>
-                        <a
-                          href={qrImage}
-                          download={`${(selectedMethod?.name || "payment").replace(/\s+/g, "-").toLowerCase()}-qr`}
-                          className="inline-flex items-center gap-1.5 text-xs font-medium text-secondary hover:underline"
-                        >
-                          <Download className="h-3.5 w-3.5" /> Download
-                        </a>
-                      </div>
-                    )}
-
-                    <div>
-                      <Input
-                        label={confirmFieldLabel}
-                        required
-                        placeholder={confirmFieldPlaceholder}
-                        type={confirmInputType === "phone_number" ? "tel" : "text"}
-                        maxLength={confirmInputType === "phone_number" ? 4 : undefined}
-                        value={transactionIdDraft}
-                        onChange={(e) => setTransactionIdDraft(confirmInputType === "phone_number" ? e.target.value.replace(/\D/g, "").slice(0, 4) : e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && handleSubmitTransactionId()}
-                      />
-                      {confirmInputType === "phone_number" && transactionIdDraft.trim() && !isValidLast4(transactionIdDraft) && (
-                        <p className="text-xs text-destructive mt-1">Enter exactly 4 digits</p>
-                      )}
-                    </div>
-
-                    <DialogFooter>
-                      <Button
-                        variant="secondary"
-                        className="!text-white"
-                        disabled={!transactionIdDraft.trim() || (confirmInputType === "phone_number" && !isValidLast4(transactionIdDraft))}
-                        onClick={handleSubmitTransactionId}
-                      >
-                        Submit
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
 
                 {/* ═══ Order review + confirmation modal (all payment methods) ═══
                     Shows the full order — line items with qty/unit/line totals,
@@ -1116,11 +1023,11 @@ export default function CheckoutPage() {
                         ) : (
                           <div className="space-y-1">
                             <div className="flex items-center justify-between gap-2 text-[13px]">
-                              <span className="text-charcoal-lighter flex items-center gap-1"><CreditCard className="h-3.5 w-3.5" /> {selectedMethod?.name || paymentMethod}</span>
-                              <span className="font-medium text-charcoal break-all">{confirmFieldLabel}: {transactionId || "—"}</span>
+                              <span className="text-charcoal-lighter flex items-center gap-1"><CreditCard className="h-3.5 w-3.5" /> Pay online via EPS</span>
+                              <span className="font-medium text-charcoal">{formatCurrency(finalTotal)}</span>
                             </div>
                             <p className="text-[10px] text-charcoal-lighter">
-                              Confirming without a completed payment may delay or cancel your order.
+                              You&apos;ll be redirected to EPS to pay securely. Your order confirms automatically once payment succeeds.
                             </p>
                           </div>
                         )}
@@ -1136,7 +1043,7 @@ export default function CheckoutPage() {
                         disabled={placing}
                         onClick={() => { setPlaceOrderConfirmOpen(false); handlePlaceOrder(); }}
                       >
-                        {preorderCart ? "Confirm Pre-Order" : paymentMethod === "COD" ? "Confirm Order" : "Confirm — Payment Done"}
+                        {preorderCart ? "Confirm Pre-Order" : paymentMethod === "COD" ? "Confirm Order" : "Confirm & Pay"}
                       </Button>
                     </DialogFooter>
                   </DialogContent>

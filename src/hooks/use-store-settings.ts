@@ -15,6 +15,8 @@ export interface StoreSettings {
   preorders_enabled: boolean;
   /** `public_reviews` toggle — when on, unregistered visitors can submit reviews (shown as "Anonymous member", still moderated). Defaults to false. */
   public_reviews_enabled: boolean;
+  /** EPS online payment gateway toggle. When on, checkout offers "Pay online (EPS)" alongside Cash on Delivery. Defaults to true. */
+  eps_enabled: boolean;
 }
 
 const defaults: StoreSettings = {
@@ -28,6 +30,7 @@ const defaults: StoreSettings = {
   payment_methods: [],
   preorders_enabled: true,
   public_reviews_enabled: false,
+  eps_enabled: true,
 };
 
 let cachedSettings: StoreSettings | null = null;
@@ -37,7 +40,7 @@ async function loadSettings(): Promise<StoreSettings> {
   if (cachedSettings) return cachedSettings;
   if (fetchPromise) return fetchPromise;
 
-  fetchPromise = fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,social_links,free_delivery_threshold,free_delivery_enabled,payment_methods,features")
+  fetchPromise = fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,social_links,free_delivery_threshold,free_delivery_enabled,payment_methods,features,eps_enabled")
     .then((r) => r.json())
     .then((data) => {
       const features = (data.features && typeof data.features === "object") ? data.features as Record<string, unknown> : {};
@@ -58,6 +61,7 @@ async function loadSettings(): Promise<StoreSettings> {
         payment_methods: Array.isArray(data.payment_methods) ? data.payment_methods : defaults.payment_methods,
         preorders_enabled: typeof features.preorders === "boolean" ? features.preorders : defaults.preorders_enabled,
         public_reviews_enabled: typeof features.public_reviews === "boolean" ? features.public_reviews : defaults.public_reviews_enabled,
+        eps_enabled: data.eps_enabled !== undefined ? !!data.eps_enabled : defaults.eps_enabled,
       };
       cachedSettings = s;
       return s;
