@@ -3,6 +3,7 @@ import { ensureEmailInboxTables } from "@/lib/migrate-email-inbox";
 import { listMailboxes, createMailbox, getMailboxByAddress } from "@/lib/email-inbox";
 import { requirePermission, scopedMailboxIds, getRequester } from "@/lib/admin-permissions-server";
 import { hasFullAccess } from "@/lib/admin-permissions";
+import { getSendingDomain } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
     ? "all"
     : ((await scopedMailboxIds(req)) ?? []);
   return NextResponse.json(
-    { mailboxes: await listMailboxes(scope) },
+    { mailboxes: await listMailboxes(scope), sending_domain: getSendingDomain() },
     { headers: { "Cache-Control": "no-store, must-revalidate" } }
   );
 }
@@ -36,6 +37,12 @@ export async function POST(req: NextRequest) {
   const displayName = String(body.display_name || "").trim();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) {
     return NextResponse.json({ error: "Enter a valid email address" }, { status: 400 });
+  }
+  // Domain validation: a mailbox must be on the store's verified sending domain,
+  // otherwise it can't actually send/receive mail through the provider.
+  const domain = getSendingDomain();
+  if (domain && address.split("@")[1] !== domain) {
+    return NextResponse.json({ error: `Mailbox must be on the @${domain} domain` }, { status: 400 });
   }
   if (!displayName) {
     return NextResponse.json({ error: "Display name is required" }, { status: 400 });

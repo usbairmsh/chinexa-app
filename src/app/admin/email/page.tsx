@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Mail, Send, Loader2, Inbox, ArrowDownLeft, ArrowUpRight, Plus, Trash2,
-  Megaphone, Settings2, RefreshCw, Check, Reply, FileText, Save, RotateCcw, Paperclip, X, Search, Forward,
+  Megaphone, Settings2, RefreshCw, Check, Reply, FileText, Save, RotateCcw, Paperclip, X, Search, Forward, Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -275,6 +275,8 @@ export default function EmailCenterPage() {
         {/* Mailbox rail */}
         <div className="rounded-xl border border-border/40 bg-card p-2 h-fit space-y-0.5">
           <RailButton active={selected === ""} onClick={() => { setSelected(""); setActiveThread(null); }} icon={Inbox} label="All mailboxes" />
+          {/* Scrollable mailbox list — caps the rail height when there are many */}
+          <div className="max-h-[45vh] overflow-y-auto space-y-0.5">
           {mailboxes.map((m) => (
             <button
               key={m.id}
@@ -290,6 +292,7 @@ export default function EmailCenterPage() {
               {!m.is_active && <span className="text-[9px] text-charcoal-lighter">off</span>}
             </button>
           ))}
+          </div>
           {/* Fixed Drafts inbox */}
           {canDraft && (
             <div className="pt-1 mt-1 border-t border-border/30">
@@ -823,12 +826,33 @@ function MailboxDialog({ open, onClose, mailboxes, onChanged }: { open: boolean;
   const [canBroadcast, setCanBroadcast] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [rowError, setRowError] = useState("");        // errors from toggle/delete/edit
+  const [busyId, setBusyId] = useState<string | null>(null);
+  // Inline edit (display name) state.
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  // Verified sending domain — a new mailbox must be on it.
+  const [domain, setDomain] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    fetch("/api/admin-email/mailboxes", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d && typeof d.sending_domain === "string") setDomain(d.sending_domain); })
+      .catch(() => {});
+  }, [open]);
 
   const add = async () => {
+    const addr = address.trim().toLowerCase();
+    // Client-side domain validation (server also enforces this).
+    if (domain && addr.split("@")[1] !== domain) {
+      setError(`Mailbox must be on the @${domain} domain`);
+      return;
+    }
     setSaving(true); setError("");
     const res = await fetch("/api/admin-email/mailboxes", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ address, display_name: name, can_receive: canReceive, can_send: canSendFlag, can_broadcast: canBroadcast }),
+      body: JSON.stringify({ address: addr, display_name: name, can_receive: canReceive, can_send: canSendFlag, can_broadcast: canBroadcast }),
     });
     setSaving(false);
     if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error || "Could not add mailbox"); return; }
@@ -836,14 +860,33 @@ function MailboxDialog({ open, onClose, mailboxes, onChanged }: { open: boolean;
     onChanged();
   };
 
+  const saveName = async (m: Mailbox) => {
+    const trimmed = editName.trim();
+    if (!trimmed) { setRowError("Display name can't be empty"); return; }
+    setBusyId(m.id); setRowError("");
+    const res = await fetch(`/api/admin-email/mailboxes/${m.id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ display_name: trimmed }),
+    });
+    setBusyId(null);
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setRowError(d.error || "Could not save"); return; }
+    setEditId(null);
+    onChanged();
+  };
+
   const toggle = async (m: Mailbox, field: "is_active" | "can_receive" | "can_send" | "can_broadcast") => {
-    await fetch(`/api/admin-email/mailboxes/${m.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [field]: !m[field] }) });
+    setBusyId(m.id); setRowError("");
+    const res = await fetch(`/api/admin-email/mailboxes/${m.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [field]: !m[field] }) });
+    setBusyId(null);
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setRowError(d.error || "Could not update mailbox"); return; }
     onChanged();
   };
 
   const remove = async (m: Mailbox) => {
-    if (!confirm(`Delete mailbox ${m.address}? All its threads and messages will be removed.`)) return;
-    await fetch(`/api/admin-email/mailboxes/${m.id}`, { method: "DELETE" });
+    if (!confirm(`Delete mailbox ${m.address}? All its threads and messages will be permanently removed.`)) return;
+    setBusyId(m.id); setRowError("");
+    const res = await fetch(`/api/admin-email/mailboxes/${m.id}`, { method: "DELETE" });
+    setBusyId(null);
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setRowError(d.error || "Could not delete mailbox"); return; }
     onChanged();
   };
 
@@ -855,14 +898,35 @@ function MailboxDialog({ open, onClose, mailboxes, onChanged }: { open: boolean;
           <DialogDescription>Configure receiving addresses. Mail to an address not listed here is dropped.</DialogDescription>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto space-y-4 py-1 pr-1">
+          {rowError && <p className="text-xs text-destructive">{rowError}</p>}
+          {/* Scrollable list of configured mailboxes */}
+          <div className="max-h-[45vh] overflow-y-auto space-y-3 pr-1">
+          {mailboxes.length === 0 && <p className="text-xs text-charcoal-lighter text-center py-2">No mailboxes configured yet.</p>}
           {mailboxes.map((m) => (
             <div key={m.id} className="rounded-lg border border-border/40 p-3">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-charcoal">{m.display_name}</p>
-                  <p className="truncate text-xs text-charcoal-lighter">{m.address}</p>
-                </div>
-                <button onClick={() => remove(m)} className="text-charcoal-lighter hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
+              <div className="flex items-center justify-between gap-2">
+                {editId === m.id ? (
+                  <div className="flex-1 flex items-center gap-2">
+                    <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="!h-8 text-sm" autoFocus
+                      onKeyDown={(e) => { if (e.key === "Enter") saveName(m); if (e.key === "Escape") setEditId(null); }} />
+                    <AdminButton size="xs" onClick={() => saveName(m)} disabled={busyId === m.id}>
+                      {busyId === m.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                    </AdminButton>
+                    <button onClick={() => setEditId(null)} className="text-charcoal-lighter hover:text-charcoal"><X className="h-4 w-4" /></button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-charcoal">{m.display_name}</p>
+                      <p className="truncate text-xs text-charcoal-lighter">{m.address}</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {busyId === m.id && <Loader2 className="h-3.5 w-3.5 animate-spin text-charcoal-lighter" />}
+                      <button onClick={() => { setEditId(m.id); setEditName(m.display_name); setRowError(""); }} className="p-1 text-charcoal-lighter hover:text-secondary transition-colors" title="Rename"><Pencil className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => remove(m)} className="p-1 text-charcoal-lighter hover:text-destructive transition-colors" title="Delete mailbox"><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  </>
+                )}
               </div>
               <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
                 <FlagRow label="Active" on={m.is_active} onToggle={() => toggle(m, "is_active")} />
@@ -872,9 +936,15 @@ function MailboxDialog({ open, onClose, mailboxes, onChanged }: { open: boolean;
               </div>
             </div>
           ))}
+          </div>
           <div className="rounded-lg border border-dashed border-border/60 p-3 space-y-2">
             <p className="text-sm font-medium text-charcoal flex items-center gap-1.5"><Plus className="h-4 w-4" /> Add mailbox</p>
-            <Input label="Email address" placeholder="support@chinexabd.com" value={address} onChange={(e) => setAddress(e.target.value)} />
+            <Input
+              label={domain ? `Email address (must be @${domain})` : "Email address"}
+              placeholder={domain ? `support@${domain}` : "support@chinexabd.com"}
+              value={address}
+              onChange={(e) => { setAddress(e.target.value); if (error) setError(""); }}
+            />
             <Input label="Display name" placeholder="ChineXa Support" value={name} onChange={(e) => setName(e.target.value)} />
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs pt-1">
               <FlagRow label="Receive" on={canReceive} onToggle={() => setCanReceive((v) => !v)} />

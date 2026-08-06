@@ -85,6 +85,19 @@ export function isEmailConfigured(): boolean {
   return !!process.env.RESEND_API_KEY && !!process.env.EMAIL_FROM;
 }
 
+/**
+ * The verified sending domain, derived from EMAIL_FROM (e.g. "ChineXa
+ * <orders@chinexabd.com>" -> "chinexabd.com"). A mailbox can only SEND if its
+ * address is on this domain (Resend only sends from verified domains), so the
+ * mailbox-create form validates against it. Returns null if EMAIL_FROM is unset
+ * or unparseable (then no domain restriction is enforced).
+ */
+export function getSendingDomain(): string | null {
+  const from = process.env.EMAIL_FROM || "";
+  const match = from.match(/@([^@\s>]+)/);
+  return match ? match[1].toLowerCase().trim() : null;
+}
+
 export async function sendEmail(input: SendEmailInput): Promise<{ success: boolean; error?: string }> {
   const apiKey = process.env.RESEND_API_KEY;
   // Per-send override wins; otherwise the configured default sender.
