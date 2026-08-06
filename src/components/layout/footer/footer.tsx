@@ -5,11 +5,8 @@ import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
 import { Separator } from "@/components/ui/separator";
 import { FOOTER_LINKS } from "@/data/constants/navigation";
-import { useStoreSettings } from "@/hooks/use-store-settings";
 
 export function Footer() {
-  const { payment_methods } = useStoreSettings();
-  const enabledPayments = payment_methods.filter((m) => m.enabled);
   const shouldReduceMotion = useReducedMotion();
 
   // Restrained scroll-in for the footer columns — the last thing every visitor
@@ -125,29 +122,6 @@ export function Footer() {
             &copy; {new Date().getFullYear()} ChineXa. All rights reserved.
           </p>
           <p>Developed by ChineXa</p>
-          {enabledPayments.length > 0 && (
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <span className="font-medium">We Accept:</span>
-              {enabledPayments.map((m) =>
-                m.icon ? (
-                  <span key={m.id} title={m.name} className="flex h-6 items-center rounded-md border border-border/70 bg-image-surface px-1.5">
-                    <Image
-                      src={m.icon}
-                      alt={m.name}
-                      width={40}
-                      height={20}
-                      unoptimized={m.icon.startsWith("data:") || m.icon.includes("/uploads/")}
-                      className="h-3.5 w-auto object-contain"
-                    />
-                  </span>
-                ) : (
-                  <span key={m.id} className="rounded-md border border-border/70 bg-image-surface px-1.5 py-0.5 text-[10px] font-medium text-charcoal-light">
-                    {m.name}
-                  </span>
-                )
-              )}
-            </div>
-          )}
         </div>
       </div>
     </footer>

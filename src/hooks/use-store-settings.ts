@@ -10,7 +10,6 @@ export interface StoreSettings {
   social_links: { platform: string; url: string }[];
   free_delivery_threshold: number;
   free_delivery_enabled: boolean;
-  payment_methods: { id: string; name: string; enabled: boolean; account_number: string; instructions: string; qr_image: string; icon?: string; input_type?: "transaction_id" | "phone_number" }[];
   /** Store `preorders` feature toggle — when off, out-of-stock badged products behave as plain out-of-stock (wishlist-only). Defaults to true. */
   preorders_enabled: boolean;
   /** `public_reviews` toggle — when on, unregistered visitors can submit reviews (shown as "Anonymous member", still moderated). Defaults to false. */
@@ -27,7 +26,6 @@ const defaults: StoreSettings = {
   social_links: [],
   free_delivery_threshold: 3000,
   free_delivery_enabled: true,
-  payment_methods: [],
   preorders_enabled: true,
   public_reviews_enabled: false,
   eps_enabled: true,
@@ -40,7 +38,7 @@ async function loadSettings(): Promise<StoreSettings> {
   if (cachedSettings) return cachedSettings;
   if (fetchPromise) return fetchPromise;
 
-  fetchPromise = fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,social_links,free_delivery_threshold,free_delivery_enabled,payment_methods,features,eps_enabled")
+  fetchPromise = fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,social_links,free_delivery_threshold,free_delivery_enabled,features,eps_enabled")
     .then((r) => r.json())
     .then((data) => {
       const features = (data.features && typeof data.features === "object") ? data.features as Record<string, unknown> : {};
@@ -58,7 +56,6 @@ async function loadSettings(): Promise<StoreSettings> {
         })(),
         free_delivery_threshold: Number(data.free_delivery_threshold) || defaults.free_delivery_threshold,
         free_delivery_enabled: data.free_delivery_enabled !== undefined ? !!data.free_delivery_enabled : defaults.free_delivery_enabled,
-        payment_methods: Array.isArray(data.payment_methods) ? data.payment_methods : defaults.payment_methods,
         preorders_enabled: typeof features.preorders === "boolean" ? features.preorders : defaults.preorders_enabled,
         public_reviews_enabled: typeof features.public_reviews === "boolean" ? features.public_reviews : defaults.public_reviews_enabled,
         eps_enabled: data.eps_enabled !== undefined ? !!data.eps_enabled : defaults.eps_enabled,

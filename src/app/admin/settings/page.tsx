@@ -247,11 +247,6 @@ function DeliveryApplicabilityPicker({
   );
 }
 
-interface PaymentMethod {
-  id: string; name: string; enabled: boolean; account_number: string; instructions: string; qr_image: string; icon: string;
-  input_type: "transaction_id" | "phone_number";
-}
-
 export default function AdminSettingsPage() {
   return (
     <Suspense>
@@ -340,20 +335,7 @@ function AdminSettingsPageInner() {
   const [ruleSearchLoading, setRuleSearchLoading] = useState(false);
 
   // ═══ PAYMENT ═══
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
-    { id: "COD", name: "Cash on Delivery", enabled: true, account_number: "", instructions: "Pay when you receive", qr_image: "", icon: "", input_type: "transaction_id" },
-    { id: "bkash", name: "bKash", enabled: true, account_number: "", instructions: "", qr_image: "", icon: "", input_type: "transaction_id" },
-    { id: "nagad", name: "Nagad", enabled: true, account_number: "", instructions: "", qr_image: "", icon: "", input_type: "transaction_id" },
-    { id: "rocket", name: "Rocket", enabled: false, account_number: "", instructions: "", qr_image: "", icon: "", input_type: "transaction_id" },
-    { id: "card", name: "Card Payment", enabled: false, account_number: "", instructions: "", qr_image: "", icon: "", input_type: "transaction_id" },
-  ]);
-  const [paymentSaving, setPaymentSaving] = useState(false);
-  const [paymentSaved, setPaymentSaved] = useState(false);
-  const [newPaymentName, setNewPaymentName] = useState("");
-  // Payment: add + per-method edit modals (view-only list).
-  const [addPaymentDialog, setAddPaymentDialog] = useState(false);
-  const [editPaymentId, setEditPaymentId] = useState<string | null>(null);
-  // EPS online payment gateway toggle.
+  // Cash on Delivery is always on (not configurable). EPS is the only toggle.
   const [epsEnabled, setEpsEnabled] = useState(true);
   const [epsSaving, setEpsSaving] = useState(false);
 
@@ -427,7 +409,7 @@ function AdminSettingsPageInner() {
       if (typeof d?.value === "string") setEmailFooter(d.value);
     }).catch(() => {});
 
-    fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,features,store_logo,our_story,instagram_feed,faq_items,social_links,maintenance_mode,delivery_config,payment_methods,notification_settings,eps_enabled")
+    fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,features,store_logo,our_story,instagram_feed,faq_items,social_links,maintenance_mode,delivery_config,notification_settings,eps_enabled")
       .then((r) => r.json())
       .then((data) => {
         if (data.store_name) setStoreName(data.store_name);
@@ -462,13 +444,6 @@ function AdminSettingsPageInner() {
           if (cfg.expressEnabled !== undefined) delivery.setExpressEnabled(cfg.expressEnabled);
           if (cfg.expressCharge !== undefined) { delivery.setExpressCharge(cfg.expressCharge); setExpressChargeInput(String(cfg.expressCharge)); }
           if (cfg.expressDivision) delivery.setExpressDivision(cfg.expressDivision);
-        }
-        if (data.payment_methods && Array.isArray(data.payment_methods)) {
-          setPaymentMethods(data.payment_methods.map((m: Partial<PaymentMethod>) => ({
-            id: m.id || randomId(), name: m.name || "", enabled: !!m.enabled,
-            account_number: m.account_number || "", instructions: m.instructions || "", qr_image: m.qr_image || "", icon: m.icon || "",
-            input_type: m.input_type === "phone_number" ? "phone_number" : "transaction_id",
-          })));
         }
         if (data.notification_settings) setNotifications((p) => ({ ...p, ...data.notification_settings }));
         if (data.eps_enabled !== undefined) setEpsEnabled(!!data.eps_enabled);
@@ -653,16 +628,6 @@ function AdminSettingsPageInner() {
         body: JSON.stringify({ key: "eps_enabled", value: next }),
       });
     } catch {} finally { setEpsSaving(false); }
-  };
-  const savePayment = async () => {
-    // Upload any staged (cropped, not-yet-uploaded) images now.
-    const uploaded = await flushUploads();
-    const resolvedMethods = paymentMethods.map((m) => ({
-      ...m,
-      icon: uploaded[`payment_icon_${m.id}`] ?? m.icon,
-      qr_image: uploaded[`payment_qr_${m.id}`] ?? m.qr_image,
-    }));
-    await saveSettings({ payment_methods: resolvedMethods }, setPaymentSaving, setPaymentSaved);
   };
   const saveNotifications = () => saveSettings({ notification_settings: notifications }, setNotifSaving, setNotifSaved);
   const saveOrderSmsRecipients = () => saveSettings({ order_sms: { admin_ids: orderSmsAdminIds } }, setOrderSmsSaving, setOrderSmsSaved);
@@ -1161,18 +1126,25 @@ function AdminSettingsPageInner() {
       )}
 
       {/* ═══ PAYMENT ═══ */}
-      {activeTab === "payment" && (() => {
-        const editingMethod = paymentMethods.find((pm) => pm.id === editPaymentId) || null;
-        const patchMethod = (id: string, patch: Partial<PaymentMethod>) =>
-          setPaymentMethods((p) => p.map((pm) => pm.id === id ? { ...pm, ...patch } : pm));
-        return (
+      {activeTab === "payment" && (
         <div className="space-y-5">
+          {/* Cash on Delivery — always available, not configurable. */}
+          <div className="rounded-luxury border border-border/40 bg-card shadow-card p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-base font-semibold text-charcoal flex items-center gap-2"><CreditCard className="h-4 w-4 text-secondary" /> Cash on Delivery</h3>
+                <p className="text-xs text-charcoal-lighter mt-0.5">Customers pay in cash when the order arrives. Always available at checkout — no setup needed.</p>
+              </div>
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-success/10 text-success shrink-0">Always on</span>
+            </div>
+          </div>
+
           {/* EPS online payment gateway */}
           <div className="rounded-luxury border border-border/40 bg-card shadow-card p-4 sm:p-5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-base font-semibold text-charcoal flex items-center gap-2"><CreditCard className="h-4 w-4 text-secondary" /> Online Payment (EPS)</h3>
-                <p className="text-xs text-charcoal-lighter mt-0.5">Accept card, bKash, Nagad, Rocket & more online via the EPS gateway. Requires the EPS_* environment variables to be set on the server.</p>
+                <p className="text-xs text-charcoal-lighter mt-0.5">Accept card, bKash, Nagad, Rocket &amp; more online via the EPS gateway. Requires the EPS_* environment variables on the server.</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {epsSaving && <Loader2 className="h-4 w-4 animate-spin text-charcoal-lighter" />}
@@ -1183,91 +1155,8 @@ function AdminSettingsPageInner() {
             <img src="/eps/eps-checkout.png" alt="Pay with EPS" className="mt-3 w-full max-w-md h-auto rounded-lg border border-border/30" />
             <p className="text-[11px] text-charcoal-lighter mt-2">When on, checkout offers &ldquo;Pay online&rdquo; alongside Cash on Delivery. When off, only Cash on Delivery is shown.</p>
           </div>
-
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-charcoal-lighter">Manual payment methods (optional, legacy)</p>
-            <AdminButton variant="outline" size="sm" onClick={() => setAddPaymentDialog(true)}><Plus className="h-3.5 w-3.5 mr-1" /> Add Payment Method</AdminButton>
-          </div>
-
-          <div className="grid lg:grid-cols-2 gap-5">
-            {paymentMethods.map((m) => (
-              <SectionCard key={m.id} title={m.name} icon={CreditCard} onEdit={() => setEditPaymentId(m.id)}>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-charcoal-lighter">Status</span>
-                  <div className="flex items-center gap-2">
-                    <Switch checked={m.enabled} onCheckedChange={(v) => { patchMethod(m.id, { enabled: v }); savePayment(); }} />
-                    <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full", m.enabled ? "bg-success/10 text-success" : "bg-charcoal-lighter/10 text-charcoal-lighter")}>{m.enabled ? "On" : "Off"}</span>
-                  </div>
-                </div>
-                {m.id !== "COD" && <Row label="Account / Phone" value={m.account_number} />}
-                {m.id !== "COD" && <Row label="Confirms with" value={m.input_type === "phone_number" ? "Last 4 digits" : "Transaction ID"} />}
-                <div className="flex items-center gap-3 pt-1">
-                  {m.icon ? <img src={m.icon} alt="" className="h-8 w-8 rounded object-contain border border-border/30" /> : <span className="text-xs text-charcoal-lighter italic">No icon</span>}
-                  {m.id !== "COD" && (m.qr_image ? <span className="text-[11px] text-success">QR set</span> : <span className="text-[11px] text-charcoal-lighter">No QR</span>)}
-                  <button type="button" onClick={() => { if (confirm(`Remove ${m.name}?`)) { setPaymentMethods((p) => p.filter((pm) => pm.id !== m.id)); savePayment(); } }} className="ml-auto flex items-center justify-center h-7 w-7 rounded-full text-charcoal-lighter/60 hover:text-destructive hover:bg-destructive/10 transition-colors" aria-label={`Remove ${m.name}`}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </SectionCard>
-            ))}
-          </div>
-
-          {/* Add payment method modal */}
-          <SectionEditDialog open={addPaymentDialog} title="Payment Method" saving={paymentSaving} onClose={() => { setAddPaymentDialog(false); setNewPaymentName(""); }} onSave={async () => {
-            const name = newPaymentName.trim();
-            if (!name) return;
-            setPaymentMethods((p) => [...p, { id: randomId(), name, enabled: true, account_number: "", instructions: "", qr_image: "", icon: "", input_type: "transaction_id" }]);
-            setNewPaymentName("");
-            await savePayment();
-            setAddPaymentDialog(false);
-          }}>
-            <Input label="Payment method name" required value={newPaymentName} onChange={(e) => setNewPaymentName(e.target.value)} placeholder="e.g. Upay, SSLCommerz" />
-            <p className="text-xs text-charcoal-lighter">You can add its account number, icon, QR and instructions after creating it (via Edit).</p>
-          </SectionEditDialog>
-
-          {/* Edit payment method modal */}
-          <SectionEditDialog open={!!editingMethod} title={editingMethod?.name || "Payment Method"} saving={paymentSaving} saved={paymentSaved} onClose={() => setEditPaymentId(null)} onSave={async () => { await savePayment(); setEditPaymentId(null); }}>
-            {editingMethod && (
-              <>
-                <Input label="Name" value={editingMethod.name} onChange={(e) => patchMethod(editingMethod.id, { name: e.target.value })} className="text-sm font-semibold" />
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-charcoal">Enabled</p>
-                  <Switch checked={editingMethod.enabled} onCheckedChange={(v) => patchMethod(editingMethod.id, { enabled: v })} />
-                </div>
-                <ImageUpload
-                  label={<FieldLabel label="Payment icon" hint="Shown in the footer's We Accept section." />}
-                  value={editingMethod.icon}
-                  onChange={(url) => patchMethod(editingMethod.id, { icon: url })}
-                  aspectRatio="square" folder="payment-icons" field={`payment_icon_${editingMethod.id}`}
-                />
-                {editingMethod.id !== "COD" && (
-                  <>
-                    <Input label="Account / Phone" value={editingMethod.account_number} onChange={(e) => patchMethod(editingMethod.id, { account_number: e.target.value })} placeholder="01XXXXXXXXX" />
-                    <div>
-                      <label className="block text-sm font-medium text-charcoal-light mb-1.5">Customer confirms payment with</label>
-                      <Select value={editingMethod.input_type} onValueChange={(v) => patchMethod(editingMethod.id, { input_type: v as PaymentMethod["input_type"] })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="transaction_id">Transaction ID</SelectItem>
-                          <SelectItem value="phone_number">Last 4 digit of Phone/Account No.</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Textarea label="Instructions" value={editingMethod.instructions} onChange={(e) => patchMethod(editingMethod.id, { instructions: e.target.value })} placeholder="How should customers pay with this method?" className="min-h-[80px]" />
-                    <ImageUpload
-                      label="QR Code (optional)"
-                      value={editingMethod.qr_image}
-                      onChange={(url) => patchMethod(editingMethod.id, { qr_image: url })}
-                      aspectRatio="square" folder="payment-qr" field={`payment_qr_${editingMethod.id}`}
-                    />
-                  </>
-                )}
-              </>
-            )}
-          </SectionEditDialog>
         </div>
-        );
-      })()}
+      )}
 
       {/* ═══ NOTIFICATIONS ═══ */}
       {activeTab === "notifications" && (() => {
