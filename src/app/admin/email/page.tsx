@@ -312,64 +312,122 @@ export default function EmailCenterPage() {
         {selected === DRAFTS ? (
           <DraftsList drafts={drafts} mailboxes={mailboxes} canSend={canSend} onEdit={(d) => setEditingDraft(d)} onChanged={() => { loadDrafts(); load(); }} />
         ) : (
-          <div className="rounded-xl border border-border/40 bg-card overflow-hidden">
+          <div className="rounded-2xl border border-border/40 bg-card overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
             {/* Filter / search bar */}
-            <div className="border-b border-border/30 px-2.5 py-2 space-y-2">
+            <div className="border-b border-border/30 bg-pearl/20 p-3 space-y-2.5">
+              {/* Search */}
+              <div className="group relative flex items-center rounded-xl border border-border/70 bg-card px-3 shadow-sm transition-all focus-within:border-secondary/60 focus-within:ring-2 focus-within:ring-secondary/15">
+                <Search className="h-4 w-4 text-charcoal-lighter shrink-0" />
+                <input
+                  value={filterQ}
+                  onChange={(e) => setFilterQ(e.target.value)}
+                  placeholder="Search subject, sender, body…"
+                  className="w-full bg-transparent py-2.5 pl-2.5 text-sm outline-none placeholder:text-charcoal-lighter/60"
+                />
+                {searching
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin text-secondary shrink-0" />
+                  : filterQ && <button onClick={() => setFilterQ("")} className="shrink-0 text-charcoal-lighter/60 hover:text-charcoal transition-colors"><X className="h-3.5 w-3.5" /></button>}
+              </div>
+
+              {/* Segmented direction toggle */}
+              <div className="grid grid-cols-3 gap-1 rounded-xl bg-pearl/70 p-1">
+                {(["all", "received", "sent"] as const).map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setFilterDir(d)}
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium capitalize transition-all active:scale-[0.97]",
+                      filterDir === d ? "bg-card text-secondary shadow-sm ring-1 ring-border/50" : "text-charcoal-lighter hover:text-charcoal"
+                    )}
+                  >
+                    {d === "received" && <ArrowDownLeft className="h-3 w-3" />}
+                    {d === "sent" && <ArrowUpRight className="h-3 w-3" />}
+                    {d === "all" && <Inbox className="h-3 w-3" />}
+                    {d}
+                  </button>
+                ))}
+              </div>
+
+              {/* Date range */}
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 flex-1 rounded-lg border border-border bg-pearl/30 px-2">
-                  <Search className="h-3.5 w-3.5 text-charcoal-lighter shrink-0" />
-                  <input
-                    value={filterQ}
-                    onChange={(e) => setFilterQ(e.target.value)}
-                    placeholder="Search subject, sender, body…"
-                    className="w-full bg-transparent py-1.5 text-xs outline-none placeholder:text-charcoal-lighter/60"
-                  />
-                  {searching && <Loader2 className="h-3 w-3 animate-spin text-charcoal-lighter shrink-0" />}
+                <div className="relative flex-1">
+                  <input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)}
+                    className="w-full rounded-lg border border-border/70 bg-card px-2.5 py-1.5 text-xs text-charcoal-light outline-none transition-colors focus:border-secondary/60 [color-scheme:light]" title="From date" />
+                </div>
+                <span className="text-xs text-charcoal-lighter">→</span>
+                <div className="relative flex-1">
+                  <input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)}
+                    className="w-full rounded-lg border border-border/70 bg-card px-2.5 py-1.5 text-xs text-charcoal-light outline-none transition-colors focus:border-secondary/60 [color-scheme:light]" title="To date" />
                 </div>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Sent / Received / All segmented toggle */}
-                <div className="inline-flex rounded-lg border border-border/60 overflow-hidden text-[11px]">
-                  {(["all", "received", "sent"] as const).map((d) => (
-                    <button key={d} onClick={() => setFilterDir(d)}
-                      className={cn("px-2.5 py-1 capitalize transition-colors", filterDir === d ? "bg-secondary text-white" : "text-charcoal-lighter hover:bg-pearl")}>
-                      {d}
-                    </button>
-                  ))}
-                </div>
-                <input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="rounded-lg border border-border/60 bg-card px-2 py-1 text-[11px] text-charcoal-light outline-none" title="From date" />
-                <span className="text-[11px] text-charcoal-lighter">–</span>
-                <input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="rounded-lg border border-border/60 bg-card px-2 py-1 text-[11px] text-charcoal-light outline-none" title="To date" />
-                {filtersActive && (
-                  <button onClick={clearFilters} className="text-[11px] text-charcoal-lighter hover:text-destructive inline-flex items-center gap-0.5"><X className="h-3 w-3" /> Clear</button>
-                )}
-              </div>
-            </div>
-            <div className="border-b border-border/30 px-3 py-2 text-xs font-medium text-charcoal-lighter flex items-center justify-between">
-              <span>{shownThreads.length} conversation{shownThreads.length === 1 ? "" : "s"}{filtersActive ? " (filtered)" : ""}</span>
-              <span className="tabular-nums">{counts.unread > 0 ? `${counts.unread} unread` : ""}</span>
-            </div>
-            <div className="max-h-[60vh] overflow-y-auto divide-y divide-border/20">
-              {loading && <div className="p-6 text-center"><Loader2 className="h-5 w-5 animate-spin mx-auto text-charcoal-lighter" /></div>}
-              {!loading && shownThreads.length === 0 && <p className="p-6 text-center text-sm text-charcoal-lighter">{filtersActive ? "No emails match your filters." : "No emails yet."}</p>}
-              {shownThreads.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => openThread(t)}
-                  className={cn("flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left transition-colors hover:bg-pearl", activeThread?.id === t.id && "bg-pearl")}
-                >
-                  <div className="flex w-full items-center justify-between gap-2">
-                    <span className={cn("truncate text-sm", t.admin_unread > 0 ? "font-semibold text-charcoal" : "text-charcoal")}>
-                      {t.correspondent_name || t.correspondent}
-                    </span>
-                    {/* Latest message timestamp, beside the address */}
-                    <span className="shrink-0 text-[10px] text-charcoal-lighter tabular-nums">{fmtTime(t.last_message_at)}</span>
-                  </div>
-                  <span className="truncate text-[11px] text-charcoal-lighter w-full">{t.correspondent}</span>
-                  <span className="truncate text-xs text-charcoal-lighter w-full">{t.subject}</span>
-                  {t.admin_unread > 0 && <span className="mt-0.5 rounded-full bg-secondary/15 px-1.5 py-0.5 text-[9px] font-medium text-secondary">{t.admin_unread} new</span>}
+
+              {filtersActive && (
+                <button onClick={clearFilters} className="flex items-center gap-1 text-[11px] font-medium text-charcoal-lighter hover:text-destructive transition-colors">
+                  <X className="h-3 w-3" /> Clear filters
                 </button>
-              ))}
+              )}
+            </div>
+
+            {/* Result count */}
+            <div className="flex items-center justify-between px-3.5 py-2 text-[11px] font-medium">
+              <span className="text-charcoal-lighter">
+                {shownThreads.length} conversation{shownThreads.length === 1 ? "" : "s"}{filtersActive && <span className="text-secondary"> · filtered</span>}
+              </span>
+              {counts.unread > 0 && <span className="rounded-full bg-secondary/10 px-2 py-0.5 text-secondary tabular-nums">{counts.unread} unread</span>}
+            </div>
+
+            {/* Conversation list */}
+            <div className="max-h-[62vh] overflow-y-auto">
+              {loading && <div className="p-8 text-center"><Loader2 className="h-5 w-5 animate-spin mx-auto text-charcoal-lighter" /></div>}
+              {!loading && shownThreads.length === 0 && (
+                <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-pearl/70">
+                    {filtersActive ? <Search className="h-5 w-5 text-charcoal-lighter/60" /> : <Inbox className="h-5 w-5 text-charcoal-lighter/60" />}
+                  </div>
+                  <p className="mt-3 text-sm font-medium text-charcoal">{filtersActive ? "No matches" : "No emails yet"}</p>
+                  <p className="mt-0.5 text-xs text-charcoal-lighter">{filtersActive ? "Try different keywords or clear the filters." : "New conversations will appear here."}</p>
+                  {filtersActive && <button onClick={clearFilters} className="mt-3 text-xs font-medium text-secondary hover:underline">Clear filters</button>}
+                </div>
+              )}
+              <div className="space-y-0.5 p-1.5">
+                {shownThreads.map((t) => {
+                  const unread = t.admin_unread > 0;
+                  const name = t.correspondent_name || t.correspondent;
+                  const initial = (name.trim()[0] || "?").toUpperCase();
+                  const active = activeThread?.id === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => openThread(t)}
+                      className={cn(
+                        "group flex w-full items-start gap-2.5 rounded-xl px-2.5 py-2.5 text-left transition-all active:scale-[0.99]",
+                        active ? "bg-primary-light ring-1 ring-secondary/20" : "hover:bg-pearl/70"
+                      )}
+                    >
+                      {/* Avatar + unread dot */}
+                      <div className="relative shrink-0">
+                        <div className={cn("flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold",
+                          active ? "bg-secondary text-white" : "bg-pearl text-charcoal-lighter group-hover:bg-secondary/10 group-hover:text-secondary")}>
+                          {initial}
+                        </div>
+                        {unread && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-secondary ring-2 ring-card" />}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={cn("truncate text-sm", unread ? "font-semibold text-charcoal" : "font-medium text-charcoal")}>{name}</span>
+                          <span className={cn("shrink-0 text-[10px] tabular-nums", unread ? "font-medium text-secondary" : "text-charcoal-lighter")}>{fmtTime(t.last_message_at)}</span>
+                        </div>
+                        <p className={cn("truncate text-xs", unread ? "text-charcoal-light" : "text-charcoal-lighter")}>{t.subject || "(no subject)"}</p>
+                        <div className="mt-0.5 flex items-center gap-1.5">
+                          <span className="truncate text-[10px] text-charcoal-lighter/80">{t.correspondent}</span>
+                          {unread && <span className="ml-auto shrink-0 rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-semibold text-white tabular-nums">{t.admin_unread}</span>}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
