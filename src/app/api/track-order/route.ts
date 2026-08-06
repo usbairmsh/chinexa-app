@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, escapeLike } from "@/lib/db";
 import { publicServerError } from "@/lib/validate";
+import { formatOrderNumber } from "@/lib/order-number";
 
 export const dynamic = "force-dynamic";
 
 // Public order tracking by a SINGLE query that may be either a phone number
 // (any format — with or without the +880 country code) or an order id / order
-// number (full "ORD-000527" or just the trailing digits "527").
+// number (full "ORD-26-000527", the legacy "ORD-000527", or just "527").
 //
 // Privacy: this is a public, unauthenticated endpoint reachable by anyone, so
 // it returns a REDACTED tracking view only — status, timeline, items, totals —
@@ -69,8 +70,33 @@ export async function GET(req: NextRequest) {
         // insensitive). Newest first so a short numeric query resolves to the
         // most recent matching order. Require at least 3 chars to avoid a
         // 1-digit query fanning out across the whole table.
-        const bare = q.replace(/^ord-?/i, ""); // let "527" or "ORD-527" both work
-        if (bare.length >= 3) {
+        // Accept "ORD-26-000527", "26-000527" or a bare "527". The year is
+        // captured when present so it can be matched exactly; a bare sequence
+        // is resolved against the CURRENT year first, then falls back to the
+        // suffix match below (which still finds other years and legacy numbers).
+        const withYear = q.match(/^\s*(?:ord-)?(\d{2})-(\d+)\s*$/i);
+        const bare = q.replace(/^\s*ord-?/i, "").replace(/^0+/, "");
+
+        // Resolve short all-digit queries EXACTLY against the padded format
+        // rather than by suffix — that keeps early orders (ORD-26-000007 → "7")
+        // findable without letting a 1-digit query fan out across the table,
+        // which is what the 3-char floor below guards against.
+        if (withYear) {
+          const padded = formatOrderNumber(Number(withYear[2]), withYear[1]);
+          const hit = await query<RowDataPacket[]>(
+            "SELECT * FROM orders WHERE order_number = ? LIMIT 1",
+            [padded]
+          );
+          if (hit.length > 0) order = hit[0];
+        } else if (/^\d+$/.test(bare) && bare.length > 0) {
+          const padded = formatOrderNumber(Number(bare));
+          const hit = await query<RowDataPacket[]>(
+            "SELECT * FROM orders WHERE order_number = ? LIMIT 1",
+            [padded]
+          );
+          if (hit.length > 0) order = hit[0];
+        }
+        if (!order && bare.length >= 3) {
           const like = `%${escapeLike(bare)}`;
           const rows = await query<RowDataPacket[]>(
             "SELECT * FROM orders WHERE order_number LIKE ? OR id LIKE ? ORDER BY created_at DESC LIMIT 1",

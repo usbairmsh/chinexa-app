@@ -11,6 +11,7 @@ import { enrichCartItems, getActiveOffers, bestOfferPerLine, validateCoupon, get
 import { ensureOrderArchiveColumns } from "@/lib/migrate-order-archive";
 import { ensurePreorderColumns, preordersEnabled } from "@/lib/migrate-preorder";
 import { hasPreorderBadge } from "@/lib/preorder";
+import { ensureOrderCounter, nextOrderNumber } from "@/lib/order-number";
 import { sendOrderCreationSms } from "@/lib/order-sms";
 import { sendOrderConfirmationEmail } from "@/lib/order-email";
 
@@ -162,6 +163,9 @@ export async function POST(req: NextRequest) {
     await ensurePromotionColumns();
     await ensureAccountingTables();
     await ensurePreorderColumns();
+    // Before the transaction: CREATE TABLE causes an implicit commit in MySQL,
+    // which would silently end the order transaction mid-flight.
+    await ensureOrderCounter();
     const body = await req.json();
     const err = validate([
       { field: "customer_name", value: body.customer_name, rules: ["required", "string", { maxLength: 100 }], label: "Customer name" },
@@ -187,8 +191,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const id = `ord-${Date.now()}`;
-    const orderNumber = `ORD-${String(Date.now()).slice(-6)}`;
+    // Random suffix, not a bare timestamp: orders.id is a PRIMARY KEY, and two
+    // checkouts in the same millisecond would otherwise generate the same id and
+    // fail one customer's order with a duplicate-key error.
+    const id = `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    // orderNumber is NOT generated here — it is reserved from the counter inside
+    // the transaction below, so a rolled-back order doesn't consume a number and
+    // two simultaneous checkouts can't be handed the same one.
+    let orderNumber = "";
 
     // Auto-create or find customer by phone number
     let customerId = body.customer_id || null;
@@ -206,7 +216,9 @@ export async function POST(req: NextRequest) {
       if (existing.length > 0) {
         customerId = existing[0].id;
       } else if (name) {
-        customerId = `cust-${Date.now()}`;
+        // Random suffix for the same reason as the order id above: customers.id
+        // is a PRIMARY KEY and two same-millisecond guest checkouts would clash.
+        customerId = `cust-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         // Guest checkout, never went through /api/auth register — tracked as
         // "temporary" so admins can distinguish real accounts from one-off buyers.
         await execute(
@@ -473,6 +485,10 @@ export async function POST(req: NextRequest) {
       // the existing 'pending' + stock-deducted path, unchanged.
       const source = body.source === "manual" ? "manual" : "website";
       const initialStatus = isPreorderOrder ? "preorder" : "pending";
+      // Reserved here, immediately before the insert, so the counter's row lock
+      // is held for as short a time as possible — taking it earlier would make
+      // every concurrent checkout queue behind the slowest stock check.
+      orderNumber = await nextOrderNumber(conn);
       await conn.execute(
         `INSERT INTO orders (id, order_number, customer_id, customer_name, customer_phone, subtotal, shipping_cost, discount, tax, total, status, payment_method, payment_status, transaction_id, coupon_code, stock_deducted, is_preorder, preorder_expected_date, notes, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [id, orderNumber, customerId, body.customer_name, body.customer_phone, body.subtotal || 0, body.shipping_cost || 0, body.discount || 0, body.tax || 0, body.total || 0, initialStatus, (body.payment_method || "COD").toUpperCase(), "pending", body.transaction_id || null, body.coupon_code || null, isPreorderOrder ? 0 : 1, isPreorderOrder ? 1 : 0, isPreorderOrder ? expectedDate : null, body.notes || null, source]
