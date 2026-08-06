@@ -11,9 +11,21 @@ import crypto from "crypto";
 // where M is the userName (GetToken) or the merchantTransactionId (Initialize /
 // CheckStatus), per the EPS integration guide.
 //
-// All secrets come from environment variables — nothing hardcoded. Point
-// EPS_BASE_URL at the sandbox first (https://sandboxpgapi.eps.com.bd), then flip
-// to the live host + live credentials once tested.
+// All secrets come from environment variables — nothing hardcoded.
+//
+// EPS_BASE_URL is the API host, and it is the ONLY thing that differs between
+// environments (paths, hash mechanism and payload are identical):
+//   sandbox : https://sandboxpgapi.eps.com.bd
+//   live    : https://pgapi.eps.com.bd
+//
+// Do NOT point EPS_BASE_URL at https://merchant.eps.com.bd — that is the
+// merchant dashboard you log into, not the API. And https://pg.eps.com.bd is
+// the customer-facing payment page EPS itself returns as RedirectURL; we never
+// call it directly.
+//
+// There is deliberately no default: if EPS_BASE_URL is unset, isEpsConfigured()
+// returns false and online payment is simply unavailable, rather than silently
+// falling back to the wrong environment.
 
 const cfg = () => ({
   baseUrl: (process.env.EPS_BASE_URL || "").replace(/\/+$/, ""),
