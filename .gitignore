@@ -48,3 +48,6 @@ next-env.d.ts
 
 # Local policy/working spreadsheets (not app code)
 *.xlsx
+
+# EPS payment gateway credentials + integration docs (contains secrets)
+/ChineXa/
