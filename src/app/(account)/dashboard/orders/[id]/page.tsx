@@ -8,6 +8,7 @@ import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowLeft, Package, Truck, CheckCircle2, Clock, MapPin, CreditCard, Copy, PackageCheck, Loader2, ShoppingBag, RotateCcw, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PayNow, isAwaitingPayment } from "@/components/storefront/orders/pay-now";
 import { BrandLoader } from "@/components/shared/brand-loader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -538,10 +539,25 @@ export default function OrderDetailPage() {
               )}
               <div className="flex justify-between">
                 <span className="text-charcoal-lighter">Status</span>
-                <Badge variant={order.payment_status === "paid" ? "success" : "warning"} className="text-[10px]">
-                  {order.payment_status === "paid" ? "Paid" : "Pending"}
+                <Badge
+                  variant={order.payment_status === "paid" ? "success" : order.payment_status === "failed" ? "destructive" : "warning"}
+                  className="text-[10px]"
+                >
+                  {order.payment_status === "paid" ? "Paid" : order.payment_status === "failed" ? "Payment Failed" : "Pending"}
                 </Badge>
               </div>
+
+              {/* Awaiting online payment — retry with a live window countdown. */}
+              {isAwaitingPayment(order) && (
+                <div className="pt-3 mt-1 border-t border-border/30">
+                  <PayNow
+                    orderId={order.id}
+                    createdAt={order.created_at}
+                    customerId={user?.id}
+                    phone={order.shipping_address?.phone}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 

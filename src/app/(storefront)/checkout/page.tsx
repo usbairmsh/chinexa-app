@@ -497,6 +497,11 @@ export default function CheckoutPage() {
           });
           const payData = await payRes.json().catch(() => ({}));
           if (payRes.ok && payData.redirect_url) {
+            // The order now exists and holds the stock, so clear the cart before
+            // leaving — otherwise an abandoned payment would leave both a pending
+            // order AND a full cart, inviting a duplicate order. If payment is
+            // never completed the order is cancelled and "Buy Again" restores it.
+            clearCart();
             window.location.href = payData.redirect_url; // leave the site for EPS
             return;
           }

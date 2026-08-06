@@ -49,10 +49,19 @@ export default async function PaymentResultPage({ searchParams }: { searchParams
           <p className="text-xs text-destructive mb-2">The paid amount did not match the order total. Please contact support if you were charged.</p>
         )}
 
+        {state !== "success" && (
+          <p className="text-xs text-charcoal-lighter mb-2">
+            Your order is saved. Open it to try paying again before the payment window closes.
+          </p>
+        )}
+
         <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
           {sp.order && (
-            <Link href={`/dashboard/orders/${sp.order}`} className="inline-flex items-center justify-center rounded-full bg-secondary px-6 py-2.5 text-sm font-medium text-white hover:bg-secondary-dark transition-colors">
-              View Order
+            <Link
+              href={`/dashboard/orders/${sp.order}`}
+              className="inline-flex items-center justify-center rounded-full bg-secondary px-6 py-2.5 text-sm font-medium text-white hover:bg-secondary-dark transition-colors"
+            >
+              {state === "success" ? "View Order" : "Try Payment Again"}
             </Link>
           )}
           <Link href="/products" className="inline-flex items-center justify-center rounded-full border border-border px-6 py-2.5 text-sm font-medium text-charcoal hover:bg-pearl transition-colors">

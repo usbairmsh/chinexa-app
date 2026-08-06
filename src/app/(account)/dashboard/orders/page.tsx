@@ -12,6 +12,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useAuthStore } from "@/stores/auth.store";
+import { PayNow, isAwaitingPayment } from "@/components/storefront/orders/pay-now";
 import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
 
 interface OrderItem {
@@ -21,7 +22,7 @@ interface OrderItem {
 
 interface Order {
   id: string; order_number: string; created_at: string; total: number;
-  status: string; payment_method?: string;
+  status: string; payment_method?: string; payment_status?: string;
   items: OrderItem[];
 }
 
@@ -127,6 +128,19 @@ function OrderCard({ order, customerId, onCancelled }: { order: Order; customerI
           )}
         </div>
 
+        {/* Awaiting online payment — retry with the live window countdown. */}
+        {isAwaitingPayment(order) && (
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-5 py-2.5 border-t border-border/20 bg-warning/5">
+            <p className="text-xs font-medium text-charcoal">Payment not completed</p>
+            <PayNow
+              orderId={order.id}
+              createdAt={order.created_at}
+              customerId={customerId}
+              compact
+            />
+          </div>
+        )}
+
         <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-t border-border/20">
           <p className="text-sm">
             <span className="text-charcoal-lighter">Total: </span>
@@ -201,6 +215,7 @@ export default function OrdersPage() {
             total: Number(o.total),
             status: (o.status as string) || "pending",
             payment_method: (o.payment_method as string) || undefined,
+            payment_status: (o.payment_status as string) || undefined,
             items: Array.isArray(o.items) ? o.items : [],
           })));
         }
