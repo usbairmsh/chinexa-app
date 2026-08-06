@@ -353,6 +353,9 @@ function AdminSettingsPageInner() {
   // Payment: add + per-method edit modals (view-only list).
   const [addPaymentDialog, setAddPaymentDialog] = useState(false);
   const [editPaymentId, setEditPaymentId] = useState<string | null>(null);
+  // EPS online payment gateway toggle.
+  const [epsEnabled, setEpsEnabled] = useState(true);
+  const [epsSaving, setEpsSaving] = useState(false);
 
   // ═══ NOTIFICATIONS ═══
   const [notifications, setNotifications] = useState<Record<string, boolean>>({
@@ -424,7 +427,7 @@ function AdminSettingsPageInner() {
       if (typeof d?.value === "string") setEmailFooter(d.value);
     }).catch(() => {});
 
-    fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,features,store_logo,our_story,instagram_feed,faq_items,social_links,maintenance_mode,delivery_config,payment_methods,notification_settings")
+    fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,features,store_logo,our_story,instagram_feed,faq_items,social_links,maintenance_mode,delivery_config,payment_methods,notification_settings,eps_enabled")
       .then((r) => r.json())
       .then((data) => {
         if (data.store_name) setStoreName(data.store_name);
@@ -468,6 +471,7 @@ function AdminSettingsPageInner() {
           })));
         }
         if (data.notification_settings) setNotifications((p) => ({ ...p, ...data.notification_settings }));
+        if (data.eps_enabled !== undefined) setEpsEnabled(!!data.eps_enabled);
       })
       .catch(() => {})
       .finally(() => {
@@ -639,6 +643,16 @@ function AdminSettingsPageInner() {
       ]);
       setDeliverySaved(true); setTimeout(() => setDeliverySaved(false), 3000);
     } catch {} finally { setDeliverySaving(false); }
+  };
+  const saveEps = async (next: boolean) => {
+    setEpsEnabled(next);
+    setEpsSaving(true);
+    try {
+      await fetch("/api/settings", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "eps_enabled", value: next }),
+      });
+    } catch {} finally { setEpsSaving(false); }
   };
   const savePayment = async () => {
     // Upload any staged (cropped, not-yet-uploaded) images now.
@@ -1153,8 +1167,26 @@ function AdminSettingsPageInner() {
           setPaymentMethods((p) => p.map((pm) => pm.id === id ? { ...pm, ...patch } : pm));
         return (
         <div className="space-y-5">
-          <div className="flex justify-end">
-            <AdminButton onClick={() => setAddPaymentDialog(true)}><Plus className="h-3.5 w-3.5 mr-1" /> Add Payment Method</AdminButton>
+          {/* EPS online payment gateway */}
+          <div className="rounded-luxury border border-border/40 bg-card shadow-card p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-base font-semibold text-charcoal flex items-center gap-2"><CreditCard className="h-4 w-4 text-secondary" /> Online Payment (EPS)</h3>
+                <p className="text-xs text-charcoal-lighter mt-0.5">Accept card, bKash, Nagad, Rocket & more online via the EPS gateway. Requires the EPS_* environment variables to be set on the server.</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {epsSaving && <Loader2 className="h-4 w-4 animate-spin text-charcoal-lighter" />}
+                <Switch checked={epsEnabled} onCheckedChange={saveEps} />
+              </div>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/eps/eps-checkout.png" alt="Pay with EPS" className="mt-3 w-full max-w-md h-auto rounded-lg border border-border/30" />
+            <p className="text-[11px] text-charcoal-lighter mt-2">When on, checkout offers &ldquo;Pay online&rdquo; alongside Cash on Delivery. When off, only Cash on Delivery is shown.</p>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-charcoal-lighter">Manual payment methods (optional, legacy)</p>
+            <AdminButton variant="outline" size="sm" onClick={() => setAddPaymentDialog(true)}><Plus className="h-3.5 w-3.5 mr-1" /> Add Payment Method</AdminButton>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-5">

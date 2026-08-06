@@ -111,6 +111,14 @@ export function Footer() {
 
         <Separator className="my-8" />
 
+        {/* Accepted payments — EPS gateway badge (light/dark aware) */}
+        <div className="flex justify-center mb-6">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/eps/eps-footer-light.png" alt="Pay with EPS — Visa, Mastercard, Amex, bKash, Nagad, Rocket and more" className="h-9 sm:h-10 w-auto max-w-full dark:hidden" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/eps/eps-footer-dark.png" alt="Pay with EPS — Visa, Mastercard, Amex, bKash, Nagad, Rocket and more" className="h-9 sm:h-10 w-auto max-w-full hidden dark:block" />
+        </div>
+
         {/* Bottom */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-charcoal-lighter">
           <p>
