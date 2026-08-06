@@ -107,7 +107,10 @@ export function PayNow({
           onClick={pay}
           disabled={busy}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-full bg-secondary px-4 font-semibold text-white transition-all hover:bg-secondary-dark active:scale-[0.97] disabled:opacity-60",
+            // !text-white, not text-white: some other rule wins the cascade on
+            // the deployed build and renders it dark. Same reason the shared
+            // Button variants all force it (see components/ui/button.tsx).
+            "inline-flex items-center gap-1.5 rounded-full bg-secondary px-4 font-semibold !text-white transition-all hover:bg-secondary-dark hover:!text-white active:scale-[0.97] disabled:opacity-60",
             compact ? "py-1.5 text-xs" : "py-2.5 text-sm"
           )}
         >

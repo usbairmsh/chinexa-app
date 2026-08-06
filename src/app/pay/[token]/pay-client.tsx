@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ShieldCheck, Clock, CheckCircle2, XCircle, Loader2, AlertTriangle } from "lucide-react";
-import Image from "next/image";
 
 interface LinkItem {
   name: string;
@@ -238,7 +237,9 @@ export function PayLinkClient({ token }: { token: string }) {
               <button
                 onClick={handlePay}
                 disabled={paying}
-                className="w-full rounded-full bg-secondary px-6 py-3.5 text-sm font-semibold text-white hover:bg-secondary-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                // !text-white so no layered rule can win the cascade and render
+                // the label dark — see components/ui/button.tsx for the history.
+                className="w-full rounded-full bg-secondary px-6 py-3.5 text-sm font-semibold !text-white hover:bg-secondary-dark hover:!text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
               >
                 {paying ? (
                   <>
@@ -268,10 +269,19 @@ export function PayLinkClient({ token }: { token: string }) {
         <span>Secured by EPS · Card, bKash, Nagad &amp; Rocket accepted</span>
       </div>
 
-      <div className="flex items-center justify-center gap-3 opacity-70">
-        {["visa", "mastercard", "bkash", "nagad", "rocket"].map((m) => (
-          <Image key={m} src={`/eps/${m}.png`} alt={m} width={44} height={28} className="h-6 w-auto object-contain" />
-        ))}
+      {/* The EPS banner ships as two files, one per theme — same pair the
+          storefront footer uses. There are no per-method icons in public/eps. */}
+      <div className="flex items-center justify-center px-2">
+        <img
+          src="/eps/eps-footer-light.png"
+          alt="Pay with EPS — Visa, Mastercard, Amex, bKash, Nagad, Rocket and more"
+          className="h-8 sm:h-9 w-auto max-w-full dark:hidden"
+        />
+        <img
+          src="/eps/eps-footer-dark.png"
+          alt="Pay with EPS — Visa, Mastercard, Amex, bKash, Nagad, Rocket and more"
+          className="h-8 sm:h-9 w-auto max-w-full hidden dark:block"
+        />
       </div>
     </div>
   );
