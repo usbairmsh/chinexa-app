@@ -69,6 +69,30 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         ],
       },
+      // Payment links must NEVER be cached by any layer. The URL itself is a
+      // capability, so a cached copy at the Cloudflare edge could serve one
+      // customer's order (and its Pay button) to a different visitor. This is
+      // belt-and-braces alongside the routes' own `dynamic = "force-dynamic"`
+      // and no-store, because Cloudflare has ignored Vary on this site before.
+      {
+        source: "/pay/:path*",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store, no-cache, must-revalidate, max-age=0" },
+          { key: "CDN-Cache-Control", value: "no-store" },
+          { key: "Cloudflare-CDN-Cache-Control", value: "no-store" },
+          // Keep the token out of the Referer on the hop to the payment gateway.
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+        ],
+      },
+      {
+        source: "/api/pay/:path*",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store, no-cache, must-revalidate, max-age=0" },
+          { key: "CDN-Cache-Control", value: "no-store" },
+          { key: "Cloudflare-CDN-Cache-Control", value: "no-store" },
+        ],
+      },
       // RFC 8288 Link header on the homepage so agents/crawlers can discover
       // the read-only API catalog (RFC 9727) without guessing at endpoints.
       {

@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Package, FolderTree, ShoppingCart, RotateCcw, Users, Star,
   Image as ImageIcon, Tag, Gift, FileText, Search, BarChart3,
-  DollarSign, AlertTriangle, Activity, UserCog, Settings,
+  DollarSign, AlertTriangle, Activity, UserCog, Settings, Link2,
   Menu, ChevronLeft, LogOut, Bell, Warehouse, Key, User, Loader2, Lock, MessageCircle, Megaphone, ShieldMinus, Mail
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
@@ -68,6 +68,7 @@ const navSections = [
       { icon: Search, label: "SEO", href: "/admin/seo", perm: "seo" },
       { icon: BarChart3, label: "Analytics", href: "/admin/analytics", perm: "analytics" },
       { icon: DollarSign, label: "Accounting", href: "/admin/accounting", perm: "accounting" },
+      { icon: Link2, label: "Payment Links", href: "/admin/payment-links", perm: "accounting" },
       { icon: AlertTriangle, label: "Fraud", href: "/admin/fraud", perm: "fraud" },
       { icon: Activity, label: "Activity Log", href: "/admin/activity-log", perm: "activity_log" },
     ],

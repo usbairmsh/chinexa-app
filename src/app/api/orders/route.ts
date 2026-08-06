@@ -35,8 +35,17 @@ async function ensureColumns() {
     // EPS gateway: our unique per-attempt id sent to EPS, and EPS's returned id.
     if (!has.has("orders.eps_merchant_txn_id")) await execute("ALTER TABLE orders ADD COLUMN eps_merchant_txn_id VARCHAR(64) NULL");
     if (!has.has("orders.eps_transaction_id")) await execute("ALTER TABLE orders ADD COLUMN eps_transaction_id VARCHAR(64) NULL");
-    // Backfill: existing confirmed+ orders already had stock deducted
-    await execute("UPDATE orders SET stock_deducted = TRUE WHERE status IN ('confirmed','processing','shipped','on_delivery','received') AND stock_deducted = FALSE");
+    // Backfill: existing confirmed+ orders already had stock deducted.
+    // Excludes orders whose items carry no product_id — a custom-amount payment
+    // link creates exactly that (a synthetic line with no product), and those
+    // never deducted any stock, so marking them deducted would leave the row
+    // contradicting its own contents and mislead any future stock routine.
+    await execute(
+      `UPDATE orders SET stock_deducted = TRUE
+        WHERE status IN ('confirmed','processing','shipped','on_delivery','received')
+          AND stock_deducted = FALSE
+          AND EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = orders.id AND oi.product_id IS NOT NULL)`
+    );
     // Backfill: existing received orders already had revenue counted
     await execute("UPDATE orders SET revenue_counted = TRUE WHERE status = 'received' AND payment_status = 'paid' AND revenue_counted = FALSE");
     migrated = true; // latch only after everything succeeded

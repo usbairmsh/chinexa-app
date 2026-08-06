@@ -3,6 +3,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { initializeEps, isEpsConfigured, type EpsProduct } from "@/lib/eps";
 import { recordAttempt, PAYMENT_WINDOW_MINUTES } from "@/lib/eps-settle";
+import { resolvePaymentLink } from "@/lib/payment-links";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Online payment is not configured." }, { status: 503 });
     }
     const body = await req.json().catch(() => ({}));
-    const orderId = String(body.order_id || "");
+    const linkToken = String(body.link_token || "").trim();
+
+    // A payment link identifies its own order, so the caller doesn't send an
+    // order_id at all — and MUST NOT be able to. Resolving the order from the
+    // token alone is what stops a link for a cheap order being pointed at an
+    // expensive one.
+    let orderId = String(body.order_id || "");
+    let linkOk = false;
+    if (linkToken) {
+      const resolved = await resolvePaymentLink(linkToken);
+      if (!resolved) {
+        return NextResponse.json({ error: "This payment link is not valid." }, { status: 403 });
+      }
+      if (resolved.blockedReason) {
+        const msg =
+          resolved.blockedReason === "expired" ? "This payment link has expired. Please ask us for a new one."
+          : resolved.blockedReason === "revoked" ? "This payment link is no longer valid. Please ask us for a new one."
+          : resolved.blockedReason === "already_paid" ? "This order is already paid."
+          : "This order can no longer be paid for.";
+        return NextResponse.json({ error: msg }, { status: 409 });
+      }
+      orderId = String(resolved.order.id);
+      linkOk = true;
+    }
     if (!orderId) return NextResponse.json({ error: "order_id is required" }, { status: 400 });
 
     // age_minutes is computed by the DB so the payment-window check can't be
@@ -46,17 +70,27 @@ export async function POST(req: NextRequest) {
     const order = orders[0];
 
     // ─── Ownership ───
-    // The caller must prove the order is theirs, by customer_id (signed-in) or
-    // matching phone (guest). Without this, anyone who guesses an order id could
-    // start a payment session and push that customer's name/phone/address into
-    // the gateway payload.
-    const claimCustomerId = String(body.customer_id || "").trim();
-    const claimPhone = String(body.phone || "").trim();
-    const ownsById = !!claimCustomerId && !!order.customer_id && String(order.customer_id) === claimCustomerId;
-    const ownsByPhone = !!claimPhone && !!order.customer_phone
-      && normalizePhone(claimPhone) === normalizePhone(String(order.customer_phone));
-    if (!ownsById && !ownsByPhone) {
-      return NextResponse.json({ error: "You can only pay for your own order." }, { status: 403 });
+    // The caller must prove the order is theirs, by one of three routes:
+    //   1. link token  — an admin-issued payment link (guest, never signed in)
+    //   2. customer_id — signed-in customer
+    //   3. phone       — guest who placed the order themselves
+    // Without this, anyone who guesses an order id could start a payment session
+    // and push that customer's name/phone/address into the gateway payload.
+    //
+    // The token route exists because a Facebook/phone/counter customer has no
+    // account and may not even be the phone number on the order — the link
+    // itself is the capability, so holding it IS the proof.
+    const viaLink = linkOk;
+
+    if (!viaLink) {
+      const claimCustomerId = String(body.customer_id || "").trim();
+      const claimPhone = String(body.phone || "").trim();
+      const ownsById = !!claimCustomerId && !!order.customer_id && String(order.customer_id) === claimCustomerId;
+      const ownsByPhone = !!claimPhone && !!order.customer_phone
+        && normalizePhone(claimPhone) === normalizePhone(String(order.customer_phone));
+      if (!ownsById && !ownsByPhone) {
+        return NextResponse.json({ error: "You can only pay for your own order." }, { status: 403 });
+      }
     }
 
     // ─── Payability ───
@@ -68,7 +102,12 @@ export async function POST(req: NextRequest) {
     }
     // The payment window runs from order creation and is NOT extended by
     // retrying — otherwise an order could hold stock indefinitely.
-    if (Number(order.age_minutes) >= PAYMENT_WINDOW_MINUTES) {
+    //
+    // A link-issued payment is exempt: it carries its OWN expiry (checked above
+    // via resolvePaymentLink), which is deliberately much longer than the
+    // checkout window. An admin sends a link expecting the customer to pay hours
+    // later; applying the 60-minute checkout clock here would reject every one.
+    if (!viaLink && Number(order.age_minutes) >= PAYMENT_WINDOW_MINUTES) {
       return NextResponse.json(
         { error: `The ${PAYMENT_WINDOW_MINUTES}-minute payment window for this order has expired. Please place a new order.` },
         { status: 409 }

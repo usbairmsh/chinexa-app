@@ -2,6 +2,7 @@ import { type RowDataPacket } from "mysql2/promise";
 import pool, { query, execute } from "@/lib/db";
 import { ensureEpsTables } from "@/lib/migrate-eps";
 import { checkEpsStatus, epsIsPaid, isEpsConfigured } from "@/lib/eps";
+import { markLinksPaidForOrder } from "@/lib/payment-links";
 
 // ─── Shared EPS settlement ────────────────────────────────────────────────────
 // Used by BOTH the browser return route and the background reconcile job, so a
@@ -70,7 +71,10 @@ export async function settleEpsOrder(orderId: string): Promise<SettleResult> {
     if (legacy && !txnIds.includes(legacy)) txnIds.push(legacy);
     if (txnIds.length === 0) return { settled: false, reason: "no_attempts" };
 
-    const orderTotal = Math.round(Number(order.total) || 0);
+    // Compared in integer poisha, not whole taka. Rounding both sides to taka
+    // would accept anything within ±0.50 of the total — and payment links let an
+    // admin set an arbitrary amount, so sub-taka totals are routine here.
+    const orderTotalMinor = Math.round((Number(order.total) || 0) * 100);
     let sawAmountMismatch = false;
 
     for (const txnId of txnIds) {
@@ -88,7 +92,7 @@ export async function settleEpsOrder(orderId: string): Promise<SettleResult> {
         continue;
       }
       // Paid — but the amount must match the order total (anti-tamper).
-      if (Math.round(status.totalAmount) !== orderTotal) {
+      if (Math.round((Number(status.totalAmount) || 0) * 100) !== orderTotalMinor) {
         sawAmountMismatch = true;
         await execute(
           "UPDATE eps_payment_attempts SET status = 'amount_mismatch' WHERE merchant_txn_id = ?",
@@ -111,14 +115,19 @@ export async function settleEpsOrder(orderId: string): Promise<SettleResult> {
         [epsTxn, txnId]
       ).catch(() => {});
 
-      // Only the winner of the race writes the timeline entry.
-      const changed = (res as unknown as { affectedRows?: number })?.affectedRows;
-      if (!changed || changed > 0) {
+      // Only the winner of the race writes the timeline entry. The loser's
+      // UPDATE matches no row (the payment_status guard above), so affectedRows
+      // is 0 — it must be compared explicitly, since a falsy check would read 0
+      // as "no result" and let every racer write a duplicate entry.
+      if (res.affectedRows > 0) {
         await execute(
           "INSERT INTO order_timeline (order_id, status, note) VALUES (?, 'confirmed', ?)",
           [orderId, `Payment received via EPS (${status.financialEntity || "online"}). Verified.`]
         ).catch(() => {});
       }
+      // Close out any admin-issued payment link for this order, so the link
+      // stops being payable the moment the money lands.
+      await markLinksPaidForOrder(orderId);
       return { settled: true, alreadyPaid: false };
     }
 
