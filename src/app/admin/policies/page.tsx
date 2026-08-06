@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FileText, Plus, Trash2, Edit, Save, Loader2, Check, X } from "lucide-react";
+import { FileText, Plus, Trash2, Edit, Save, Loader2, Check, X, Download, Upload } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { randomId, collectMissingFields } from "@/lib/utils";
 import type { PolicyPage, PolicySection } from "@/types/policy";
 import { DEFAULT_POLICY_PAGES } from "@/types/policy";
+import { downloadPolicyTemplate, parsePolicyExcel } from "@/lib/policy-excel";
 import { useAdmin } from "@/contexts/admin-context";
 
 function slugify(text: string): string {
@@ -37,6 +38,12 @@ export default function AdminPoliciesPage() {
   const [formIntro, setFormIntro] = useState("");
   const [formSections, setFormSections] = useState<PolicySection[]>([{ heading: "", body: [""] }]);
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+
+  // Bulk Excel upload
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importParsing, setImportParsing] = useState(false);
+  const [importPreview, setImportPreview] = useState<{ policies: PolicyPage[]; errors: string[] } | null>(null);
+  const [importSaving, setImportSaving] = useState(false);
 
   useEffect(() => {
     fetch("/api/settings?key=policy_pages")
@@ -68,6 +75,44 @@ export default function AdminPoliciesPage() {
   };
 
   const openCreate = () => { resetForm(); setFormError(""); setDialogOpen(true); };
+
+  // Bulk Excel upload: parse the chosen file, then show a preview before saving.
+  const handleFilePicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-picking the same file
+    if (!file) return;
+    setImportParsing(true);
+    try {
+      const result = await parsePolicyExcel(file);
+      setImportPreview(result);
+    } catch {
+      setImportPreview({ policies: [], errors: ["Could not read that file. Make sure it's a valid .xlsx/.xls file."] });
+    } finally {
+      setImportParsing(false);
+    }
+  };
+
+  // Merge uploaded policies into the current set: same slug overwrites, new slug
+  // is appended; existing policies not in the file are kept.
+  const confirmImport = async () => {
+    if (!importPreview) return;
+    setImportSaving(true);
+    const bySlug = new Map(policies.map((p) => [p.slug, p]));
+    for (const p of importPreview.policies) bySlug.set(p.slug, p);
+    await persist(Array.from(bySlug.values()));
+    setImportSaving(false);
+    setImportPreview(null);
+  };
+
+  // How many uploaded policies replace vs. add (for the preview summary).
+  const importStats = importPreview
+    ? (() => {
+        const existing = new Set(policies.map((p) => p.slug));
+        let replace = 0, add = 0;
+        for (const p of importPreview.policies) (existing.has(p.slug) ? replace++ : add++);
+        return { replace, add };
+      })()
+    : null;
 
   const openEdit = (policy: PolicyPage) => {
     setEditingSlug(policy.slug);
@@ -142,9 +187,59 @@ export default function AdminPoliciesPage() {
           <p className="text-sm text-charcoal-lighter">Manage Shipping, Returns, Privacy, Terms, and any other policy page — each is reachable at /policies/[slug].</p>
         </div>
         {canEdit && (
-          <AdminButton onClick={openCreate}><Plus className="h-3.5 w-3.5" /> Add Policy Page</AdminButton>
+          <div className="flex flex-wrap items-center gap-2">
+            <AdminButton variant="outline" onClick={downloadPolicyTemplate}><Download className="h-3.5 w-3.5 mr-1" /> Excel Template</AdminButton>
+            <AdminButton variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importParsing}>
+              {importParsing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1" />} Bulk Upload
+            </AdminButton>
+            <AdminButton onClick={openCreate}><Plus className="h-3.5 w-3.5 mr-1" /> Add Policy Page</AdminButton>
+            <input ref={fileInputRef} type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden" onChange={handleFilePicked} />
+          </div>
         )}
       </div>
+
+      {/* Bulk-upload preview / confirm modal */}
+      <Dialog open={importPreview !== null} onOpenChange={(o) => { if (!o && !importSaving) setImportPreview(null); }}>
+        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Upload className="h-5 w-5 text-secondary" /> Bulk Upload Preview</DialogTitle>
+            <DialogDescription>Review what will be imported before saving. Existing policies with the same slug are replaced; new ones are added.</DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-3 py-1 pr-1">
+            {importPreview && importPreview.errors.length > 0 && (
+              <div className="rounded-lg bg-destructive/5 border border-destructive/20 p-3 space-y-1">
+                <p className="text-xs font-semibold text-destructive">{importPreview.errors.length} issue{importPreview.errors.length !== 1 ? "s" : ""} found:</p>
+                {importPreview.errors.slice(0, 12).map((err, i) => <p key={i} className="text-[11px] text-destructive">{err}</p>)}
+                {importPreview.errors.length > 12 && <p className="text-[11px] text-destructive">…and {importPreview.errors.length - 12} more.</p>}
+              </div>
+            )}
+            {importPreview && importPreview.policies.length > 0 ? (
+              <>
+                <p className="text-sm text-charcoal">
+                  <span className="font-semibold">{importPreview.policies.length}</span> valid polic{importPreview.policies.length === 1 ? "y" : "ies"}
+                  {importStats && <> — <span className="text-secondary font-medium">{importStats.add} new</span>, <span className="text-warning font-medium">{importStats.replace} will replace existing</span></>}.
+                </p>
+                <div className="space-y-1.5 max-h-[40vh] overflow-y-auto">
+                  {importPreview.policies.map((p) => (
+                    <div key={p.slug} className="rounded-lg border border-border/40 px-3 py-2">
+                      <p className="text-sm font-medium text-charcoal">{p.title} <span className="text-[10px] text-charcoal-lighter">/policies/{p.slug}</span></p>
+                      <p className="text-[11px] text-charcoal-lighter">{p.sections.length} section{p.sections.length !== 1 ? "s" : ""}{policies.some((e) => e.slug === p.slug) ? " · replaces existing" : " · new"}</p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              importPreview && importPreview.errors.length === 0 && <p className="text-sm text-charcoal-lighter">No policies found in that file.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <AdminButton variant="outline" onClick={() => setImportPreview(null)} disabled={importSaving}>Cancel</AdminButton>
+            <AdminButton onClick={confirmImport} disabled={importSaving || !importPreview || importPreview.policies.length === 0}>
+              {importSaving ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Saving…</> : <><Check className="h-3.5 w-3.5 mr-1" /> Import {importPreview?.policies.length || 0} polic{(importPreview?.policies.length || 0) === 1 ? "y" : "ies"}</>}
+            </AdminButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {saved && <p className="text-xs text-success flex items-center gap-1 animate-fade-in"><Check className="h-3 w-3" /> Saved</p>}
 
