@@ -6,4 +6,8 @@ export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   const { startPointsDeductionScheduler } = await import("@/lib/points-deduction-scheduler");
   startPointsDeductionScheduler();
+  // EPS: recover payments the browser never reported back, then release stock
+  // from orders that were never paid for.
+  const { startEpsReconcileScheduler } = await import("@/lib/eps-reconcile");
+  startEpsReconcileScheduler();
 }
