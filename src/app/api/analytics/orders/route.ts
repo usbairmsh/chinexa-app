@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
+import { requirePermission } from "@/lib/admin-permissions-server";
 import { query } from "@/lib/db";
 import { ensureOrderArchiveColumns } from "@/lib/migrate-order-archive";
 
@@ -9,6 +10,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "analytics", "view");
+    if (denied) return denied;
     await ensureOrderArchiveColumns();
     const period = new URL(req.url).searchParams.get("period") || "1y";
 

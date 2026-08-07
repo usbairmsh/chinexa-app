@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
+import { requirePermission } from "@/lib/admin-permissions-server";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 
@@ -7,8 +8,10 @@ interface FraudRow extends RowDataPacket { [key: string]: unknown; }
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "fraud", "view");
+    if (denied) return denied;
     const rows = await query<FraudRow[]>(
       "SELECT * FROM fraud_alerts ORDER BY created_at DESC"
     );
@@ -32,6 +35,10 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   try {
+    // Fraud alerts are analytics-tier and mutating them (clear/block) must be
+    // gated — was fully open, letting anyone clear or block any alert.
+    const denied = await requirePermission(req, "fraud", "view");
+    if (denied) return denied;
     const body = await req.json();
     const { id, status, reviewed_by, notes } = body;
 

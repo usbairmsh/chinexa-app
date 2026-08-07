@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
+import { requirePermission } from "@/lib/admin-permissions-server";
 import { query } from "@/lib/db";
 import { ensureAccountingTables } from "@/lib/migrate-accounting";
 import { ensureOrderArchiveColumns } from "@/lib/migrate-order-archive";
@@ -49,6 +50,8 @@ async function cashFlowBefore(beforeDate: string): Promise<PeriodFlow> {
 // GET /api/accounting/cashflow?year=2026&month=7 — cash in/out derived live from orders/expenses/partner_transactions/loans/returns
 export async function GET(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "accounting", "view");
+    if (denied) return denied;
     await ensureAccountingTables();
     await ensureOrderArchiveColumns();
     const { searchParams } = new URL(req.url);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
+import { requirePermission } from "@/lib/admin-permissions-server";
 import { query } from "@/lib/db";
 import { ensureAccountingTables } from "@/lib/migrate-accounting";
 
@@ -9,8 +10,12 @@ interface VariantCostRow extends RowDataPacket { id: string; cost_price_adjustme
 // Admin-only lookup for a product's cost_price / per-variant cost_price_adjustment
 // (internal margin data) — split out of the shared GET /api/products/[id]
 // response so those numbers are never returned to public/storefront callers.
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Leaks cost_price / margin — admin-only, was open despite the "admin-only"
+    // comment. Gated on accounting:view (cost/margin is financial data).
+    const denied = await requirePermission(req, "accounting", "view");
+    if (denied) return denied;
     await ensureAccountingTables();
     const { id } = await params;
 

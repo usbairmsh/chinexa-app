@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
+import { requirePermission } from "@/lib/admin-permissions-server";
 import pool, { query, execute, escapeLike } from "@/lib/db";
 import { type RowDataPacket as StockRow } from "mysql2/promise";
 import { validate, validationError, publicServerError } from "@/lib/validate";
@@ -65,6 +66,10 @@ function normalizePhone(phone: string): string {
 
 export async function GET(req: NextRequest) {
   try {
+    // Admin order list — all orders with customer PII and revenue. Admin-only;
+    // customers read their own via /api/orders/[id] and /api/orders/by-phone.
+    const denied = await requirePermission(req, "orders", "view");
+    if (denied) return denied;
     await ensureColumns();
     await ensureOrderArchiveColumns();
     await ensureAccountingTables();
@@ -537,9 +542,19 @@ export async function POST(req: NextRequest) {
       await execute("INSERT INTO order_timeline (order_id, status, note) VALUES (?, 'pending', 'Order placed — stock reserved')", [id]);
     }
 
-    // Increment coupon usage count + mark this customer's assignment as used
+    // Increment coupon usage count + mark this customer's assignment as used.
+    // Conditional increment: the UPDATE only bumps used_count while it is still
+    // below usage_limit (a NULL/0 limit means unlimited). Concurrent checkouts
+    // that all passed the earlier validateCoupon check can't push a limited
+    // coupon past its cap — the DB row lock serialises the increments and any
+    // beyond the limit affect 0 rows. (The order itself already committed; we
+    // don't fail it here, but the coupon can never be over-redeemed.)
     if (body.coupon_code) {
-      await execute("UPDATE coupons SET used_count = used_count + 1 WHERE code = ?", [body.coupon_code]);
+      await execute(
+        `UPDATE coupons SET used_count = used_count + 1
+          WHERE code = ? AND (usage_limit IS NULL OR usage_limit = 0 OR used_count < usage_limit)`,
+        [body.coupon_code]
+      );
       if (customerId) {
         await execute(
           `UPDATE customer_coupons cc

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
+import { requirePermission } from "@/lib/admin-permissions-server";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { ensurePromotionColumns } from "@/lib/migrate-promotions";
@@ -45,6 +46,9 @@ export async function GET() {
 // Body: { rule_type: "standard" | "express", is_active, applicability, applicable_ids }
 export async function PUT(req: NextRequest) {
   try {
+    // Store-wide delivery/free-shipping config — settings-tier, was open.
+    const denied = await requirePermission(req, "settings", "edit");
+    if (denied) return denied;
     await ensurePromotionColumns();
     const body = await req.json();
     const ruleType = body.rule_type === "express" ? "express" : body.rule_type === "standard" ? "standard" : null;

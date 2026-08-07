@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
+import { requirePermission } from "@/lib/admin-permissions-server";
 import { query } from "@/lib/db";
 import { ensurePageViewsTable } from "@/lib/migrate-analytics";
 import { ensureOrderArchiveColumns } from "@/lib/migrate-order-archive";
@@ -14,8 +15,10 @@ interface OrderRow extends RowDataPacket { d: string; orders: number; }
 //   - conversions: non-archived orders placed that day
 // The result is always a 7-entry series (today back 6 days), 0-filled for any
 // day with no data, so the dashboard chart never renders blank.
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "analytics", "view");
+    if (denied) return denied;
     await Promise.all([ensurePageViewsTable(), ensureOrderArchiveColumns()]);
 
     const [visitorRows, orderRows] = await Promise.all([

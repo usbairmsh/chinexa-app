@@ -25,6 +25,10 @@ function normalizePhone(phone: string): string {
 
 export async function GET(req: NextRequest) {
   try {
+    // Customer list is full PII — admin-only. Previously unauthenticated: anyone
+    // could page the entire customer database.
+    const denied = await requirePermission(req, "customers", "view");
+    if (denied) return denied;
     await ensurePromotionColumns();
     const { searchParams } = new URL(req.url);
     const page = Number(searchParams.get("page")) || 1;

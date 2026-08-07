@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
+import { requirePermission } from "@/lib/admin-permissions-server";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { bulkNotify, getTierCustomerIds } from "@/lib/notify";
@@ -7,6 +8,9 @@ import { bulkNotify, getTierCustomerIds } from "@/lib/notify";
 // POST /api/coupons/[id]/assign — assign coupon to customer(s) or tier
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Was open: anyone could assign any coupon to themselves or a whole tier.
+    const denied = await requirePermission(req, "coupons", "edit");
+    if (denied) return denied;
     const { id: couponId } = await params;
     const body = await req.json();
     const { customer_ids, tier_name } = body;
@@ -71,8 +75,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 // GET /api/coupons/[id]/assign — list who this coupon is assigned to
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Enumerates assigned customers' names + phones (PII) — admin-only, was open.
+    const denied = await requirePermission(req, "coupons", "view");
+    if (denied) return denied;
     const { id: couponId } = await params;
     const rows = await query<RowDataPacket[]>(
       `SELECT cc.*, c.name as customer_name, c.phone as customer_phone

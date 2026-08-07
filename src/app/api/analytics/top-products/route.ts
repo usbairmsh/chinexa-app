@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
+import { requirePermission } from "@/lib/admin-permissions-server";
 import { query } from "@/lib/db";
 
 interface TopProductRow extends RowDataPacket { id: string; name: string; total_sold: number; revenue: number; }
@@ -8,6 +9,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "analytics", "view");
+    if (denied) return denied;
     const limit = Number(new URL(req.url).searchParams.get("limit")) || 5;
     const rows = await query<TopProductRow[]>(`
       SELECT oi.product_id as id, oi.product_name as name,

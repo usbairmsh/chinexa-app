@@ -12,6 +12,8 @@ import { requirePermission } from "@/lib/admin-permissions-server";
 
 export async function GET(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "accounting", "view");
+    if (denied) return denied;
     await ensureAccountingTables();
     const { searchParams } = new URL(req.url);
     const partnerId = searchParams.get("partner_id");

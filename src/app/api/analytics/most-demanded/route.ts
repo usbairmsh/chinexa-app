@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
+import { requirePermission } from "@/lib/admin-permissions-server";
 import { query } from "@/lib/db";
 import { ensureOrderArchiveColumns } from "@/lib/migrate-order-archive";
 
@@ -16,6 +17,8 @@ export const dynamic = "force-dynamic";
 // so they're intentionally counted; only archiving removes an order from view.
 export async function GET(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "analytics", "view");
+    if (denied) return denied;
     await ensureOrderArchiveColumns();
     const limit = Math.max(1, Math.min(Number(new URL(req.url).searchParams.get("limit")) || 5, 20));
 

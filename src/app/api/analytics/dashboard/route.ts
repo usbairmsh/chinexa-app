@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
+import { requirePermission } from "@/lib/admin-permissions-server";
 import { query } from "@/lib/db";
 import { ensureOrderArchiveColumns } from "@/lib/migrate-order-archive";
 
@@ -15,8 +16,10 @@ interface RevenueRow extends RowDataPacket { total: number; order_count: number;
 interface PaidWindowRow extends RowDataPacket { recent_total: number; prev_total: number; recent_count: number; prev_count: number; }
 interface CustomerWindowRow extends RowDataPacket { recent_count: number; prev_count: number; }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "analytics", "view");
+    if (denied) return denied;
     await ensureOrderArchiveColumns();
     // All independent — none depend on another's result — so they run as one
     // round-trip batch instead of the ~16 sequential ones this route used to issue.

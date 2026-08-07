@@ -16,6 +16,11 @@ interface SumRow extends RowDataPacket { total: number; }
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  {
+    // Inventory (SKUs, stock levels, thresholds) is admin-only — was open.
+    const denied = await requirePermission(req, "stock", "view");
+    if (denied) return denied;
+  }
   try {
     await ensureInventoryTables();
     const { searchParams } = new URL(req.url);

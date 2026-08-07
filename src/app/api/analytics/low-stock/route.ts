@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
+import { requirePermission } from "@/lib/admin-permissions-server";
 import { query } from "@/lib/db";
 
 interface ProductRow extends RowDataPacket { id: string; name: string; stock_quantity: number; }
@@ -7,8 +8,10 @@ interface ImageRow extends RowDataPacket { product_id: string; url: string; orde
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "analytics", "view");
+    if (denied) return denied;
     const products = await query<ProductRow[]>(
       "SELECT id, name, stock_quantity FROM products WHERE is_active = 1 AND stock_quantity <= 10 ORDER BY stock_quantity ASC LIMIT 10"
     );

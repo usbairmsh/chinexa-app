@@ -6,8 +6,10 @@ import { logActivity } from "@/lib/log-activity";
 import { ensureAccountingTables } from "@/lib/migrate-accounting";
 import { requirePermission } from "@/lib/admin-permissions-server";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const denied = await requirePermission(req, "accounting", "view");
+    if (denied) return denied;
     await ensureAccountingTables();
     const loans = await query<RowDataPacket[]>("SELECT * FROM loans ORDER BY created_at");
     if (loans.length === 0) return NextResponse.json({ data: [] });

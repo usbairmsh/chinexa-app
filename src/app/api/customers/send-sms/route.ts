@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
+import { requirePermission } from "@/lib/admin-permissions-server";
 import { query } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { sendSms } from "@/lib/sms";
@@ -8,6 +9,10 @@ import { sendSms } from "@/lib/sms";
 // Body: { customer_ids: string[], message: string }
 export async function POST(req: NextRequest) {
   try {
+    // Sends SMS from the store's sender id — must be gated (was open: anyone
+    // could blast SMS to any customers, draining credit + smishing).
+    const denied = await requirePermission(req, "customers", "edit");
+    if (denied) return denied;
     const body = await req.json();
     const customerIds: string[] = Array.isArray(body.customer_ids) ? body.customer_ids : [];
     const message: string = (body.message || "").trim();

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
+import { requirePermission } from "@/lib/admin-permissions-server";
 import { query } from "@/lib/db";
 import { ensureAccountingTables } from "@/lib/migrate-accounting";
 import { ensureOrderArchiveColumns } from "@/lib/migrate-order-archive";
@@ -21,6 +22,11 @@ const KEPT_ORDERS = keptOrders();
 
 // GET /api/accounting?year=2026&source=website|manual|all — financial overview derived from real orders/returns/expenses
 export async function GET(req: NextRequest) {
+  {
+    // Full P&L / revenue / liabilities — admin-only. Was unauthenticated.
+    const denied = await requirePermission(req, "accounting", "view");
+    if (denied) return denied;
+  }
   try {
     await ensureAccountingTables();
     await ensureOrderArchiveColumns();

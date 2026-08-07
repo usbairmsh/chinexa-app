@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
+import { requirePermission } from "@/lib/admin-permissions-server";
 import { query, escapeLike } from "@/lib/db";
 import { purgeOldActivity } from "@/lib/migrate-activity-log";
 
@@ -13,6 +14,9 @@ export const dynamic = "force-dynamic";
 //   ?limit=200               — capped at 500
 export async function GET(req: NextRequest) {
   try {
+    // Admin audit log (who-did-what + admin usernames) — admin-only, was open.
+    const denied = await requirePermission(req, "activity_log", "view");
+    if (denied) return denied;
     // Enforce the 1-month retention window (self-throttled to once an hour).
     await purgeOldActivity();
 

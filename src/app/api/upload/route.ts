@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requirePermission } from "@/lib/admin-permissions-server";
 import { writeFile, mkdir, unlink } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
@@ -26,6 +27,12 @@ async function compressToWebp(input: Buffer): Promise<Buffer> {
 
 export async function POST(req: NextRequest) {
   try {
+    // Any signed-in admin may upload media (product images, banners, etc.).
+    // Was unauthenticated — an anonymous caller could fill the disk. Gated on a
+    // low bar (products:view) so every content editor keeps working; DELETE is
+    // already guarded separately.
+    const denied = await requirePermission(req, "products", "view");
+    if (denied) return denied;
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const folder = (formData.get("folder") as string) || "products";
