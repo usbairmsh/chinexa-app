@@ -44,6 +44,14 @@ interface CartState {
   isPreorderCart: () => boolean;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
+  /**
+   * Clear the cart locally AND on the server, awaiting the server write.
+   *
+   * Use this after an order is created. `clearCart` alone only empties local
+   * state and leaves the server copy intact, which a later page load adopts —
+   * so the ordered items came back.
+   */
+  clearCartEverywhere: (customerId?: string | null) => Promise<void>;
   applyCoupon: (code: string, discount: number, type?: "percentage" | "fixed", value?: number, maxDiscount?: number | null) => void;
   removeCoupon: () => void;
   /** Re-evaluate active admin offers against the current cart (server-authoritative). */
@@ -147,6 +155,28 @@ export const useCartStore = create<CartState>()(
         items: [], couponCode: null, couponDiscount: 0, couponType: null, couponValue: 0, couponMaxDiscount: null,
         offerDiscount: 0, appliedOffers: [], offerLines: [],
       }),
+
+      clearCartEverywhere: async (customerId) => {
+        get().clearCart();
+        if (!customerId) return; // guest: local persist is the only copy
+        // AWAIT the server write rather than relying on the 800ms debounced
+        // save in CartWishlistSync. After an order we may navigate away
+        // immediately (EPS redirect), which kills the pending timer — the
+        // server would keep the old cart and the next page load would adopt it
+        // straight back, so the ordered items reappeared.
+        try {
+          await fetch("/api/cart", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ customer_id: customerId, items: [], coupon_code: null }),
+            // Survives the page teardown when we redirect off-site right after.
+            keepalive: true,
+          });
+        } catch {
+          // Best-effort. The local cart is already empty; the debounced save
+          // will also retry if the page happens to stay open.
+        }
+      },
 
       applyCoupon: (code, discount, type, value, maxDiscount) =>
         set({

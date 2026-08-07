@@ -56,7 +56,7 @@ function isValidEmail(email: string): boolean {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, getSubtotal, clearCart, couponCode, getDiscount, getSavings, appliedOffers, applyCoupon, removeCoupon, refreshOffers, isPreorderCart } = useCartStore();
+  const { items, getSubtotal, clearCartEverywhere, couponCode, getDiscount, getSavings, appliedOffers, applyCoupon, removeCoupon, refreshOffers, isPreorderCart } = useCartStore();
   const preorderCart = isPreorderCart();
   const storeSettings = useStoreSettings();
   // Payment options: Cash on Delivery always, plus EPS online payment when the
@@ -486,9 +486,20 @@ export default function CheckoutPage() {
 
       setValidationError("");
 
+      // ── Cart is emptied HERE: the order exists and already holds the stock ──
+      // Done once, before any payment step, so it applies to every outcome —
+      // COD, a completed payment, a failed one, or an abandoned one. Leaving the
+      // cart populated after the order exists invites a duplicate order, and an
+      // unpaid order is recoverable anyway (Pay Now on the order, or Buy Again).
+      //
+      // Awaited so the SERVER cart is emptied too. Clearing only local state let
+      // the next page load adopt the untouched server cart and bring the ordered
+      // items straight back.
+      await clearCartEverywhere(user?.id || null);
+
       // ── EPS online payment: order is created (pending); start the gateway and
       // redirect the customer to pay. On return, /api/payment/eps/return verifies
-      // and marks it paid+confirmed. Cart is cleared on a successful return.
+      // and marks it paid+confirmed.
       if (paymentMethod === "EPS") {
         try {
           const payRes = await fetch("/api/payment/eps/initiate", {
@@ -499,11 +510,6 @@ export default function CheckoutPage() {
           });
           const payData = await payRes.json().catch(() => ({}));
           if (payRes.ok && payData.redirect_url) {
-            // The order now exists and holds the stock, so clear the cart before
-            // leaving — otherwise an abandoned payment would leave both a pending
-            // order AND a full cart, inviting a duplicate order. If payment is
-            // never completed the order is cancelled and "Buy Again" restores it.
-            clearCart();
             window.location.href = payData.redirect_url; // leave the site for EPS
             return;
           }
@@ -517,9 +523,8 @@ export default function CheckoutPage() {
         }
       }
 
-      // COD: straight to the success step.
+      // COD: straight to the success step. The cart was already emptied above.
       advanceStep(4);
-      setTimeout(() => clearCart(), 2000);
     } catch {
       // A network failure must NOT be treated as a successful order.
       setValidationError("Network error — your order was not placed. Please check your connection and try again.");
