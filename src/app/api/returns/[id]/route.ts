@@ -68,6 +68,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const orderRows = await query<RowDataPacket[]>("SELECT * FROM orders WHERE id = ?", [ret.order_id]);
     const order = orderRows.length > 0 ? orderRows[0] : null;
 
+    // A refund can never be negative or exceed the order total. Client-supplied
+    // refund_amount was previously written verbatim, so any figure could be
+    // recorded and flow straight into the accounting refunds total.
+    const clampRefund = (raw: unknown): number => {
+      const n = Number(raw);
+      const cap = order ? Number(order.total) || 0 : Number.MAX_SAFE_INTEGER;
+      return Number.isFinite(n) ? Math.min(Math.max(n, 0), cap) : 0;
+    };
+
     // ─── Separate manual action: Apply Reversals ─────────────────────────────
     // Available once approved; reverses revenue + points + coupon (pro-rated to
     // the returned lines), guarded so it runs at most once.
@@ -140,7 +149,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       // Field-only update (admin_note / refund_amount).
       const fields: string[] = []; const values: (string | number | null)[] = [];
       if (body.admin_note !== undefined) { fields.push("admin_note = ?"); values.push(body.admin_note); }
-      if (body.refund_amount !== undefined) { fields.push("refund_amount = ?"); values.push(Number(body.refund_amount)); }
+      if (body.refund_amount !== undefined) { fields.push("refund_amount = ?"); values.push(clampRefund(body.refund_amount)); }
       if (fields.length > 0) { fields.push("updated_at = NOW()"); values.push(id); await execute(`UPDATE order_returns SET ${fields.join(", ")} WHERE id = ?`, values); }
       return NextResponse.json({ success: true });
     }
@@ -183,7 +192,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const fields = ["status = ?"]; const values: (string | number | null)[] = [newStatus];
       if (resolution) { fields.push("resolution = ?"); values.push(resolution); }
       if (body.admin_note !== undefined) { fields.push("admin_note = ?"); values.push(body.admin_note); }
-      if (body.refund_amount !== undefined) { fields.push("refund_amount = ?"); values.push(Number(body.refund_amount)); }
+      if (body.refund_amount !== undefined) { fields.push("refund_amount = ?"); values.push(clampRefund(body.refund_amount)); }
       if (newStatus === "refunded") { fields.push("refunded_at = NOW()"); }
       if (newStatus === "exchange_shipped") { fields.push("exchange_shipped_at = NOW()"); }
       fields.push("updated_at = NOW()"); values.push(id);
@@ -210,6 +219,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     // Received → restore stock for the RETURNED items (once, on entry).
     if (newStatus === "received") {
+      // Whole-order return: after restoring here, clear the order's
+      // stock_deducted so a later admin cancel/return on the ORDER doesn't run
+      // restoreStock again and double-count the same units back into inventory.
+      // Partial returns leave the flag set — the non-returned lines still need
+      // restoring if the order is cancelled later.
+      const returnValue = items.reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.unit_price) || 0), 0);
+      const orderTotalNow = order ? Number(order.total) || 0 : 0;
+      const wholeOrderReturn = order ? returnValue >= orderTotalNow - 0.5 : false;
       const conn = await pool.getConnection();
       try {
         await conn.beginTransaction();
@@ -218,6 +235,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           const qty = Number(it.qty) || 1;
           if (it.variant_id) await conn.execute("UPDATE product_variants SET stock = stock + ? WHERE id = ?", [qty, it.variant_id]);
           await conn.execute("UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?", [qty, it.product_id]);
+        }
+        if (wholeOrderReturn && order?.stock_deducted) {
+          await conn.execute("UPDATE orders SET stock_deducted = FALSE WHERE id = ?", [ret.order_id]);
         }
         await conn.commit();
         conn.release();

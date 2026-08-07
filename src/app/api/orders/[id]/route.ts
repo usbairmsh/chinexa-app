@@ -195,8 +195,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const denied = await requirePermission(req, "orders", "edit");
       if (denied) return denied;
     }
-    if (!Array.isArray(body.items) && (body.payment_status !== undefined || body.notes !== undefined)) {
+    // Notes are a detail correction (edit). Changing payment_status is a
+    // FINANCIAL action — marking an order paid inflates revenue, refunded moves
+    // money — so it needs handle_orders, not the lower edit bar. Previously both
+    // fell under edit, letting an edit-only admin mark orders paid/refunded.
+    if (!Array.isArray(body.items) && body.notes !== undefined) {
       const denied = await requirePermission(req, "orders", "edit");
+      if (denied) return denied;
+    }
+    if (!Array.isArray(body.items) && body.payment_status !== undefined) {
+      const denied = await requirePermission(req, "orders", "handle_orders");
       if (denied) return denied;
     }
     if (body.is_archived !== undefined) {
@@ -667,6 +675,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Was COMPLETELY unauthenticated — anyone could permanently delete any order
+    // (reversing stock, revenue and coupon counts) by guessable id. Deleting an
+    // order is a fulfilment-grade action, gated on handle_orders.
+    const denied = await requirePermission(req, "orders", "handle_orders");
+    if (denied) return denied;
     const { id } = await params;
 
     const orderRows = await query<RowDataPacket[]>("SELECT * FROM orders WHERE id = ? OR order_number = ? LIMIT 1", [id, id]);
