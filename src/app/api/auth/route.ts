@@ -7,6 +7,8 @@ import { notifyAdmin } from "@/lib/notify";
 import { verifyOtpToken } from "@/lib/otp-token";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { publicServerError } from "@/lib/validate";
+import { getVerifiedAdminId } from "@/lib/admin-session";
+import { getVerifiedCustomerId, setCustomerSessionCookie, clearCustomerSessionCookie } from "@/lib/customer-session";
 
 const LOGIN_MAX_ATTEMPTS = 10;
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
@@ -77,7 +79,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Invalid phone number or password" }, { status: 401 });
       }
 
-      return NextResponse.json({
+      const res = NextResponse.json({
         success: true,
         user: {
           id: customer.id,
@@ -88,6 +90,10 @@ export async function POST(req: NextRequest) {
           role: "customer" as const,
         },
       });
+      // Issue the signed, httpOnly session cookie. From here the server derives
+      // the customer id from this cookie, never from the request body.
+      setCustomerSessionCookie(res, customer.id as string);
+      return res;
     }
 
     // ─── CHECK PHONE: does this phone belong to an existing account? ───
@@ -200,6 +206,19 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: "This phone number is already registered. Please log in instead." }, { status: 409 });
         }
 
+        // Account-takeover guard: claiming an EXISTING account (with its orders
+        // and addresses) requires proving control of the PHONE on that account —
+        // i.e. an SMS OTP to that number. Email verification is not enough here,
+        // because the code went to an email the registrant supplied, not one the
+        // account owns; an attacker who merely knows the (guessable) phone could
+        // otherwise take over a guest's account via their own email.
+        if (verifiedChannel !== "sms") {
+          return NextResponse.json(
+            { error: "To finish setting up this account, please verify with the code sent by SMS to your phone." },
+            { status: 403 }
+          );
+        }
+
         // Temporary account (auto-created from a guest checkout with this
         // phone) — claim it in place rather than reject or duplicate, so the
         // customer's existing orders/addresses (linked via customer_id) carry
@@ -220,7 +239,7 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        return NextResponse.json({
+        const res = NextResponse.json({
           success: true,
           user: {
             id,
@@ -230,10 +249,14 @@ export async function POST(req: NextRequest) {
             role: "customer" as const,
           },
         }, { status: 200 });
+        setCustomerSessionCookie(res, id);
+        return res;
       }
 
       const hashed = await bcrypt.hash(password, 10);
-      const id = `cust-${Date.now()}`;
+      // Random suffix: customers.id is a PRIMARY KEY and a bare timestamp
+      // collides when two accounts register in the same millisecond.
+      const id = `cust-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       await execute(
         "INSERT INTO customers (id, name, email, phone, password, birthdate, is_active, account_type, phone_verified, email_verified) VALUES (?, ?, ?, ?, ?, ?, TRUE, 'registered', ?, ?)",
         [id, name, email, phone, hashed, birthdate, phoneVerified, emailVerified]
@@ -250,7 +273,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      return NextResponse.json({
+      const res = NextResponse.json({
         success: true,
         user: {
           id,
@@ -260,6 +283,8 @@ export async function POST(req: NextRequest) {
           role: "customer" as const,
         },
       }, { status: 201 });
+      setCustomerSessionCookie(res, id);
+      return res;
     }
 
     // ─── RESET PASSWORD: set a new password (requires a token proving OTP was
@@ -344,20 +369,43 @@ export async function POST(req: NextRequest) {
 
     // ─── DEACTIVATE: soft-delete customer account ───
     if (action === "deactivate") {
-      const { customer_id, reason } = body;
-      if (!customer_id) return NextResponse.json({ error: "customer_id is required" }, { status: 400 });
+      const { reason } = body;
+      // Authorization: only the account owner (from their verified session) or
+      // an admin may deactivate. Previously this took customer_id from the body
+      // with no check, so anyone could disable any account.
+      const sessionCustomerId = getVerifiedCustomerId(req);
+      const isAdmin = !!getVerifiedAdminId(req);
+      const targetId = isAdmin ? String(body.customer_id || "") : sessionCustomerId;
+      if (!targetId) {
+        return NextResponse.json({ error: "Not authorized to deactivate this account." }, { status: 401 });
+      }
 
       await execute(
         "UPDATE customers SET is_active = FALSE, deactivated_at = NOW(), deactivation_reason = ? WHERE id = ?",
-        [reason || "Customer requested account deletion", customer_id]
+        [reason || "Customer requested account deletion", targetId]
       );
-      await logActivity("Customer account deactivated", "customer", customer_id, reason || "Customer requested");
+      await logActivity("Customer account deactivated", "customer", targetId, reason || "Customer requested");
 
-      return NextResponse.json({ success: true });
+      const res = NextResponse.json({ success: true });
+      // If the owner deactivated their own account, end their session.
+      if (!isAdmin) clearCustomerSessionCookie(res);
+      return res;
+    }
+
+    // ─── LOGOUT: clear the customer session cookie server-side ───
+    if (action === "logout") {
+      const res = NextResponse.json({ success: true });
+      clearCustomerSessionCookie(res);
+      return res;
     }
 
     // ─── REACTIVATE: Admin can reactivate an account ───
     if (action === "reactivate") {
+      // Admin-only: a deactivated customer can't have a valid session, so this
+      // must never be self-serve. Previously it took customer_id with no check.
+      if (!getVerifiedAdminId(req)) {
+        return NextResponse.json({ error: "Only an admin can reactivate an account." }, { status: 403 });
+      }
       const { customer_id } = body;
       if (!customer_id) return NextResponse.json({ error: "customer_id is required" }, { status: 400 });
 

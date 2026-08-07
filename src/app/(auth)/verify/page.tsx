@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/auth.store";
-import { authCookieOpts } from "@/lib/auth-cookie";
 import { collectMissingFields } from "@/lib/utils";
 
 const RESEND_COOLDOWN_SECONDS = 90;
@@ -137,11 +136,11 @@ function VerifyForm() {
         if (!res.ok) throw new Error(data.error || "Registration failed");
         sessionStorage.removeItem(`register-data:${phone}`);
 
-        document.cookie = `chinexa-role=customer; ${authCookieOpts(true)}`;
+        // Real session is the httpOnly cookie set by the register action above.
         login({
           user: { id: data.user.id, name: data.user.name, email: data.user.email, phone: data.user.phone, role: "customer" },
-          token: `token-${Date.now()}`,
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          token: "session",
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         });
         setSuccess(true);
         setTimeout(() => router.push("/"), 1500);

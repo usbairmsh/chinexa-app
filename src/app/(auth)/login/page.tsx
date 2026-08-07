@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/auth.store";
-import { authCookieOpts } from "@/lib/auth-cookie";
 import { collectMissingFields } from "@/lib/utils";
 
 // Validate Bangladeshi phone: must be 11 digits starting with 01
@@ -72,11 +71,13 @@ function LoginForm() {
         return;
       }
 
-      document.cookie = `chinexa-role=customer; ${authCookieOpts(rememberMe)}`;
+      // The real session is the httpOnly cookie the server just set. The store
+      // holds only UI state (name/avatar for the header); the token here is a
+      // legacy field the server no longer trusts for anything.
       login({
         user: data.user,
-        token: `token-${Date.now()}`,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        token: "session",
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       });
       const redirect = searchParams.get("redirect");
       router.push(redirect && redirect.startsWith("/") ? redirect : "/");

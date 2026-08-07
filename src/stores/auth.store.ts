@@ -57,6 +57,20 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+        // Clear the httpOnly session cookie server-side — client JS can't touch
+        // it, so a logout that only cleared local state would leave the customer
+        // still authenticated to the API. Fire-and-forget; local state is
+        // cleared regardless of whether the request lands.
+        try {
+          fetch("/api/auth", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "logout" }),
+            keepalive: true,
+          }).catch(() => {});
+        } catch { /* ignore */ }
+        // Legacy unsigned role cookie from older sessions — clear it too.
+        try { document.cookie = "chinexa-role=; path=/; max-age=0"; } catch { /* SSR */ }
         set({
           user: null,
           token: null,
