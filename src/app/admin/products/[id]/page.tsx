@@ -680,8 +680,8 @@ export default function EditProductPage() {
                   <div>
                     <p className="text-xs font-semibold text-charcoal-lighter uppercase tracking-wider mb-2">Google Search Preview</p>
                     <div className="p-4 rounded-luxury border border-border/30 bg-card">
-                      <p className="text-blue-600 text-base font-medium truncate">{seoTitle || productName || "Product Name"}</p>
-                      <p className="text-green-700 text-xs">chinexabd.com/products/{productName ? productName.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-").replace(/^-+|-+$/g, "") : "product-slug"}</p>
+                      <p className="text-blue-600 dark:text-blue-400 text-base font-medium truncate">{seoTitle || productName || "Product Name"}</p>
+                      <p className="text-green-700 dark:text-green-400 text-xs">chinexabd.com/products/{productName ? productName.toLowerCase().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-").replace(/^-+|-+$/g, "") : "product-slug"}</p>
                       <p className="text-sm text-charcoal-light mt-1 line-clamp-2">{seoDesc || shortDesc || "Your meta description will appear here..."}</p>
                     </div>
                   </div>

@@ -40,9 +40,9 @@ interface Prefill {
 }
 
 const typeConfig: Record<string, { label: string; icon: typeof Bell; color: string }> = {
-  promo: { label: "Promotion", icon: Tag, color: "bg-pink-50 text-pink-600" },
-  loyalty: { label: "Loyalty", icon: Gift, color: "bg-amber-50 text-amber-600" },
-  order: { label: "Order", icon: Package, color: "bg-blue-50 text-blue-600" },
+  promo: { label: "Promotion", icon: Tag, color: "bg-secondary/10 text-secondary" },
+  loyalty: { label: "Loyalty", icon: Gift, color: "bg-gold/10 text-gold" },
+  order: { label: "Order", icon: Package, color: "bg-secondary/10 text-secondary" },
   system: { label: "System", icon: Bell, color: "bg-pearl text-charcoal-lighter" },
 };
 

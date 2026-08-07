@@ -159,7 +159,7 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
             {visibleBadges.length > 0 && (
               <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex flex-col gap-1 sm:gap-1.5">
                 {visibleBadges.map((badge) => (
-                  <Badge key={badge} variant={badge} className="text-[8px] sm:text-[10px] px-1.5 sm:px-2.5 uppercase tracking-wider">
+                  <Badge key={badge} variant={badge} className="text-[10px] px-1.5 sm:px-2.5 uppercase tracking-wider">
                     {badge === "preorder" ? "Pre-order" : badge}
                   </Badge>
                 ))}
@@ -169,7 +169,7 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
             {/* Low stock badge — top right */}
             {product.stock_quantity > 0 && product.stock_quantity <= 5 && (
               <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-10">
-                <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-amber-500 text-white text-[8px] sm:text-[9px] font-semibold shadow-card whitespace-nowrap">Only {product.stock_quantity} left!</span>
+                <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-warning !text-white text-[10px] font-semibold shadow-card whitespace-nowrap">Only {product.stock_quantity} left!</span>
               </div>
             )}
 
@@ -227,7 +227,7 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
               {product.name}
             </h3>
             <div className="flex items-baseline gap-1.5 sm:gap-2 flex-wrap">
-              <span className="text-[13px] sm:text-sm font-semibold text-charcoal">
+              <span className="font-heading text-[13px] sm:text-sm font-semibold text-charcoal">
                 {formatCurrency(product.price)}
               </span>
               {product.compare_at_price && (

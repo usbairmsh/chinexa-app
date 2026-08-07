@@ -31,7 +31,7 @@ export default async function TermsAndConditionsPage({ searchParams }: { searchP
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <Breadcrumb items={[{ label: "Terms & Conditions" }]} className="mb-6" />
         <div className="mb-6 sm:mb-8">
-          <h1 className="font-heading text-3xl sm:text-4xl font-bold text-charcoal">Terms &amp; Conditions</h1>
+          <h1 className="font-heading text-3xl sm:text-4xl font-semibold text-charcoal">Terms &amp; Conditions</h1>
           <p className="text-sm sm:text-base text-charcoal-lighter mt-2 max-w-2xl">
             Everything you need to know about shopping with ChineXa. Select a policy to read it.
           </p>

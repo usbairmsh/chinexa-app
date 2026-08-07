@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useAuthStore } from "@/stores/auth.store";
 import { cn } from "@/lib/utils";
+import { resolveTierColorStyle } from "@/lib/tier-color";
 
 interface PointsEntry {
   id: string;
@@ -24,8 +25,8 @@ const typeConfig: Record<string, { label: string; icon: typeof Star; color: stri
   purchase: { label: "Purchase", icon: ShoppingBag, color: "text-secondary bg-secondary/10" },
   bonus: { label: "Bonus", icon: Gift, color: "text-gold bg-gold/10" },
   redemption: { label: "Redeemed", icon: RotateCcw, color: "text-destructive bg-destructive/10" },
-  admin_adjustment: { label: "Adjustment", icon: Settings, color: "text-blue-500 bg-blue-50" },
-  coupon_reward: { label: "Coupon Reward", icon: Tag, color: "text-violet-500 bg-violet-50" },
+  admin_adjustment: { label: "Adjustment", icon: Settings, color: "text-secondary bg-secondary/10" },
+  coupon_reward: { label: "Coupon Reward", icon: Tag, color: "text-secondary bg-secondary/10" },
   refund: { label: "Refund Reversal", icon: RotateCcw, color: "text-destructive bg-destructive/10" },
 };
 
@@ -44,7 +45,10 @@ export default function PointsHistoryPage() {
 
   const [totalPoints, setTotalPoints] = useState(0);
   const [tierName, setTierName] = useState<string | null>(null);
-  const [tierColor, setTierColor] = useState("bg-pearl text-charcoal-lighter");
+  // Store the raw tier color (may be a hex or a class); resolve at render via
+  // the shared helper, same as the membership page — so a hex value renders
+  // correctly instead of being dropped as an invalid class name.
+  const [tierColor, setTierColor] = useState<string | null>(null);
   const [nextTierName, setNextTierName] = useState<string | null>(null);
   const [nextTierAt, setNextTierAt] = useState(0);
   const [pointsToNext, setPointsToNext] = useState(0);
@@ -63,7 +67,7 @@ export default function PointsHistoryPage() {
       .then((data) => {
         if (cancelled || !data || data.error) return;
         setTotalPoints(data.total_points || 0);
-        if (data.tier) { setTierName(data.tier.name); setTierColor(data.tier.color || "bg-orange-100 text-orange-700"); }
+        if (data.tier) { setTierName(data.tier.name); setTierColor(data.tier.color || null); }
         if (data.next_tier) {
           setNextTierName(data.next_tier.name);
           setNextTierAt(data.next_tier.min_points);
@@ -94,7 +98,10 @@ export default function PointsHistoryPage() {
         <CardContent className="p-6">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
-              {tierName && <Badge className={cn("text-[10px] mb-2", tierColor)}>{tierName} Member</Badge>}
+              {tierName && (() => {
+                const tc = resolveTierColorStyle(tierColor);
+                return <Badge className={cn("text-[10px] mb-2", tc.className)} style={tc.style}>{tierName} Member</Badge>;
+              })()}
               <p className="font-heading text-3xl font-bold text-charcoal flex items-center gap-2 [font-variant-numeric:tabular-nums]">
                 <Star className="h-6 w-6 text-gold" /> {totalPoints.toLocaleString()} <span className="text-sm font-normal text-charcoal-lighter">points</span>
               </p>

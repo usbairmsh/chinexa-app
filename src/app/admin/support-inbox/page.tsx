@@ -17,10 +17,10 @@ type SortKey = "time" | "tier";
 // customer_id) that stands in place of a real membership tier in this filter.
 const fallbackTierColors: Record<string, string> = {
   Guest: "bg-charcoal/10 text-charcoal-lighter",
-  Bronze: "bg-orange-100 text-orange-700",
-  Silver: "bg-gray-100 text-gray-600",
-  Gold: "bg-amber-50 text-amber-700",
-  Platinum: "bg-violet-50 text-violet-700",
+  Bronze: "bg-coral/10 text-coral",
+  Silver: "bg-charcoal/10 text-charcoal-light",
+  Gold: "bg-gold/10 text-gold",
+  Platinum: "bg-secondary/10 text-secondary",
 };
 
 const ACTIVE_POLL_MS = 3000; // a conversation is open in the thread view

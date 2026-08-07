@@ -222,7 +222,7 @@ export default function StockManagementPage() {
     { label: "Out of Stock", value: summary?.out_of_stock || 0, icon: XCircle, color: "text-destructive", bg: "bg-destructive/10" },
     { label: "Low Stock", value: summary?.low_stock || 0, icon: AlertTriangle, color: "text-warning", bg: "bg-warning/10" },
     { label: "Healthy", value: summary?.healthy_stock || 0, icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
-    { label: "Overstock", value: summary?.over_stock || 0, icon: TrendingDown, color: "text-blue-500", bg: "bg-blue-50" },
+    { label: "Overstock", value: summary?.over_stock || 0, icon: TrendingDown, color: "text-secondary", bg: "bg-secondary/10" },
     { label: "Stock Value", value: formatCurrency(summary?.total_stock_value || 0), icon: DollarSign, color: "text-gold", bg: "bg-gold/10" },
   ];
 
@@ -345,7 +345,7 @@ export default function StockManagementPage() {
                     </td>
                     {/* Stock */}
                     <td className="px-4 py-3 [font-variant-numeric:tabular-nums]">
-                      <span className={cn("text-sm font-bold", product.status === "out" ? "text-destructive" : product.status === "low" ? "text-warning" : product.status === "over" ? "text-blue-500" : "text-charcoal")}>
+                      <span className={cn("text-sm font-bold", product.status === "out" ? "text-destructive" : product.status === "low" ? "text-warning" : product.status === "over" ? "text-secondary" : "text-charcoal")}>
                         {product.stock}
                       </span>
                       <p className="text-[8px] text-charcoal-lighter">{product.min_stock}–{product.max_stock}</p>
@@ -529,18 +529,18 @@ export default function StockManagementPage() {
                         type="number"
                         value={editMaxStock}
                         onChange={(e) => setEditMaxStock(e.target.value)}
-                        className="w-full h-11 text-center text-lg font-semibold rounded-lg border border-blue-300/30 bg-blue-50 text-blue-500 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all [font-variant-numeric:tabular-nums]"
+                        className="w-full h-11 text-center text-lg font-semibold rounded-lg border border-secondary/30 bg-secondary/10 text-secondary focus:border-secondary/50 focus:outline-none focus:ring-2 focus:ring-secondary/20 transition-all [font-variant-numeric:tabular-nums]"
                       />
                     </div>
                   </div>
                   {/* Visual range */}
                   <div className="mt-3 flex items-center gap-1 text-[9px]">
                     <span className="text-destructive font-medium">0 (Out)</span>
-                    <div className="flex-1 h-2 rounded-full bg-gradient-to-r from-destructive/30 via-warning/30 via-30% via-success/30 via-70% to-blue-300/30 relative">
+                    <div className="flex-1 h-2 rounded-full bg-gradient-to-r from-destructive/30 via-warning/30 via-30% via-success/30 via-70% to-secondary/30 relative">
                       <div className="absolute top-full mt-0.5 text-[8px] text-warning font-medium" style={{ left: `${Math.min((Number(editMinStock) / Math.max(Number(editMaxStock) * 1.5, 1)) * 100, 90)}%` }}>↑{editMinStock}</div>
-                      <div className="absolute top-full mt-0.5 text-[8px] text-blue-500 font-medium" style={{ left: `${Math.min((Number(editMaxStock) / Math.max(Number(editMaxStock) * 1.5, 1)) * 100, 95)}%` }}>↑{editMaxStock}</div>
+                      <div className="absolute top-full mt-0.5 text-[8px] text-secondary font-medium" style={{ left: `${Math.min((Number(editMaxStock) / Math.max(Number(editMaxStock) * 1.5, 1)) * 100, 95)}%` }}>↑{editMaxStock}</div>
                     </div>
-                    <span className="text-blue-500 font-medium">Over</span>
+                    <span className="text-secondary font-medium">Over</span>
                   </div>
                 </div>
                 )}

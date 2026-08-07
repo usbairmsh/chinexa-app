@@ -257,9 +257,9 @@ export default function EmailCenterPage() {
       {/* Always-visible lifetime counters (persist across deletion) */}
       <div className="space-y-2">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard icon={ArrowUpRight} label="Sent" value={totals.sent} tone="bg-blue-50 text-blue-600" />
-          <StatCard icon={ArrowDownLeft} label="Received" value={totals.received} tone="bg-emerald-50 text-emerald-600" />
-          <StatCard icon={Megaphone} label="Broadcast sent" value={totals.broadcast} tone="bg-amber-50 text-amber-600" />
+          <StatCard icon={ArrowUpRight} label="Sent" value={totals.sent} tone="bg-secondary/10 text-secondary" />
+          <StatCard icon={ArrowDownLeft} label="Received" value={totals.received} tone="bg-success/10 text-success" />
+          <StatCard icon={Megaphone} label="Broadcast sent" value={totals.broadcast} tone="bg-warning/10 text-warning" />
           <StatCard icon={Inbox} label="Total emails" value={totals.total} tone="bg-secondary/10 text-secondary" />
         </div>
         {canDelete && (
@@ -485,7 +485,7 @@ export default function EmailCenterPage() {
                     <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium">
                       {m.direction === "outbound"
                         ? <><ArrowUpRight className="h-3 w-3 text-secondary" /><span className="text-secondary">Sent</span><span className="text-charcoal-lighter">· {m.from_address} → {m.to_address}</span></>
-                        : <><ArrowDownLeft className="h-3 w-3 text-emerald-600" /><span className="text-emerald-700">Received</span><span className="text-charcoal-lighter">· from {m.from_address}</span></>}
+                        : <><ArrowDownLeft className="h-3 w-3 text-success" /><span className="text-success">Received</span><span className="text-charcoal-lighter">· from {m.from_address}</span></>}
                       <div className="ml-auto flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                         {canSend && threadMailbox?.can_send && (
                           <button onClick={() => setReplyModal(true)} className="text-charcoal-lighter hover:text-secondary" title="Reply">
@@ -590,8 +590,8 @@ function FooterPreview({ footerText }: { footerText: string }) {
   return (
     <div>
       <p className="text-[11px] font-medium text-charcoal-lighter mb-1">Footer (added automatically)</p>
-      <div className="rounded-lg border border-border/40 bg-[#FDF4F8] p-3 text-left opacity-80">
-        <div className="text-[#9A8592] text-[11px] leading-relaxed whitespace-pre-line">{footerText.trim() || "No footer configured (Settings → Notifications → Email Footer)."}</div>
+      <div className="rounded-lg border border-border/40 bg-pearl p-3 text-left opacity-80">
+        <div className="text-charcoal-lighter text-[11px] leading-relaxed whitespace-pre-line">{footerText.trim() || "No footer configured (Settings → Notifications → Email Footer)."}</div>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.png" alt="ChineXa" className="mt-2 inline-block h-6 w-auto" />
       </div>
@@ -719,7 +719,7 @@ function DraftsList({ drafts, mailboxes, canSend, onEdit, onChanged }: {
           <div key={d.id} className="px-3 py-2.5">
             <div className="flex items-center justify-between gap-2">
               <span className="flex items-center gap-1.5 text-xs font-medium text-charcoal">
-                {d.kind === "broadcast" ? <Megaphone className="h-3 w-3 text-amber-600" /> : <Reply className="h-3 w-3 text-secondary" />}
+                {d.kind === "broadcast" ? <Megaphone className="h-3 w-3 text-warning" /> : <Reply className="h-3 w-3 text-secondary" />}
                 {d.kind === "broadcast" ? "Broadcast" : "Reply"}
               </span>
               <span className="text-[10px] text-charcoal-lighter tabular-nums">{fmtTime(d.updated_at)}</span>

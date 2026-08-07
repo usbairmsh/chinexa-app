@@ -121,7 +121,7 @@ export default function BlogPostPage() {
           {/* Author */}
           <div className="flex items-center gap-3 mb-8">
             <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-sm font-medium text-charcoal">
-              {post.author_name[0]}
+              {(post.author_name?.trim()?.[0] || "C").toUpperCase()}
             </div>
             <div>
               <p className="text-sm font-medium text-charcoal">{post.author_name}</p>

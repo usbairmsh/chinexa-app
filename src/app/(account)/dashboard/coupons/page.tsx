@@ -14,13 +14,13 @@ import { useAuthStore } from "@/stores/auth.store";
 import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
 
 const applicabilityConfig: Record<string, { label: string; icon: typeof Globe; color: string }> = {
-  store: { label: "Store-wide — applies to any purchase", icon: Globe, color: "bg-blue-50 text-blue-600" },
-  products: { label: "Selected products only", icon: ShoppingCart, color: "bg-pink-50 text-pink-600" },
-  categories: { label: "Selected categories only", icon: FolderTree, color: "bg-emerald-50 text-emerald-600" },
-  subcategories: { label: "Selected subcategories only", icon: FolderTree, color: "bg-violet-50 text-violet-600" },
-  brands: { label: "Selected brands only", icon: Award, color: "bg-cyan-50 text-cyan-600" },
-  tiers: { label: "Your membership tier", icon: Users, color: "bg-rose-50 text-rose-600" },
-  customers: { label: "Just for you", icon: Users, color: "bg-amber-50 text-amber-600" },
+  store: { label: "Store-wide — applies to any purchase", icon: Globe, color: "bg-secondary/10 text-secondary" },
+  products: { label: "Selected products only", icon: ShoppingCart, color: "bg-secondary/10 text-secondary" },
+  categories: { label: "Selected categories only", icon: FolderTree, color: "bg-success/10 text-success" },
+  subcategories: { label: "Selected subcategories only", icon: FolderTree, color: "bg-secondary/10 text-secondary" },
+  brands: { label: "Selected brands only", icon: Award, color: "bg-secondary/10 text-secondary" },
+  tiers: { label: "Your membership tier", icon: Users, color: "bg-coral/10 text-coral" },
+  customers: { label: "Just for you", icon: Users, color: "bg-gold/10 text-gold" },
 };
 
 interface CustomerCoupon {
@@ -258,7 +258,7 @@ export default function CouponsOffersPage() {
                 </div>
 
                 {selected.kind === "offer" && (
-                  <p className="text-[11px] text-charcoal-lighter bg-blue-50 text-blue-700 p-2.5 rounded-xl">
+                  <p className="text-[11px] bg-secondary/10 text-secondary p-2.5 rounded-xl">
                     This offer applies automatically at checkout — no code needed.
                   </p>
                 )}

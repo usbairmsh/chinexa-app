@@ -262,10 +262,10 @@ export default function AdminBrandsPage() {
                 <div>
                   <p className="text-xs font-semibold text-charcoal-lighter uppercase tracking-wider mb-2">Google Search Preview</p>
                   <div className="p-4 rounded-lg border border-border/30 bg-card">
-                    <p className="text-blue-600 text-base font-medium truncate">
+                    <p className="text-blue-600 dark:text-blue-400 text-base font-medium truncate">
                       {fSeoTitle || (fName ? `${fName} — Authentic Products in Bangladesh` : "Brand Name")}
                     </p>
-                    <p className="text-green-700 text-xs">chinexabd.com/brands/{fSlug || (fName ? slugify(fName) : "brand-slug")}</p>
+                    <p className="text-green-700 dark:text-green-400 text-xs">chinexabd.com/brands/{fSlug || (fName ? slugify(fName) : "brand-slug")}</p>
                     <p className="text-sm text-charcoal-light mt-1 line-clamp-2">
                       {fSeoDesc || fDesc || "Your meta description will appear here..."}
                     </p>

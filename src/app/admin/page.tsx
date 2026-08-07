@@ -32,10 +32,10 @@ import {
 // ─── CONFIG (not data) ────────────────────────────────────
 const orderStatusConfig: Record<string, { color: string; icon: typeof Clock }> = {
   pending: { color: "text-warning bg-warning/10", icon: Clock },
-  confirmed: { color: "text-blue-500 bg-blue-50", icon: CheckCircle2 },
+  confirmed: { color: "text-secondary bg-secondary/10", icon: CheckCircle2 },
   processing: { color: "text-secondary bg-secondary/10", icon: Package },
-  shipped: { color: "text-violet-500 bg-violet-50", icon: Truck },
-  on_delivery: { color: "text-indigo-500 bg-indigo-50", icon: Truck },
+  shipped: { color: "text-secondary bg-secondary/10", icon: Truck },
+  on_delivery: { color: "text-secondary bg-secondary/10", icon: Truck },
   received: { color: "text-success bg-success/10", icon: CheckCircle2 },
   not_received: { color: "text-destructive bg-destructive/10", icon: XCircle },
 };
@@ -48,12 +48,12 @@ const activityEntityIcons: Record<string, typeof Package> = {
   category: Tag, stock: Package, fraud: Shield, membership: Star,
 };
 const activityEntityColors: Record<string, string> = {
-  product: "bg-secondary/10 text-secondary", order: "bg-blue-50 text-blue-500",
-  customer: "bg-violet-50 text-violet-500", review: "bg-gold/10 text-gold",
-  settings: "bg-charcoal/5 text-charcoal-lighter", coupon: "bg-emerald-50 text-emerald-500",
-  blog: "bg-orange-50 text-orange-500", banner: "bg-pink-50 text-pink-500",
-  category: "bg-cyan-50 text-cyan-500", stock: "bg-amber-50 text-amber-600",
-  fraud: "bg-red-50 text-red-500", membership: "bg-violet-50 text-violet-500",
+  product: "bg-secondary/10 text-secondary", order: "bg-secondary/10 text-secondary",
+  customer: "bg-secondary/10 text-secondary", review: "bg-gold/10 text-gold",
+  settings: "bg-charcoal/5 text-charcoal-lighter", coupon: "bg-success/10 text-success",
+  blog: "bg-warning/10 text-warning", banner: "bg-secondary/10 text-secondary",
+  category: "bg-secondary/10 text-secondary", stock: "bg-warning/10 text-warning",
+  fraud: "bg-destructive/10 text-destructive", membership: "bg-secondary/10 text-secondary",
 };
 
 const tooltipStyle = { borderRadius: "12px", border: "1px solid #F3DFEC", fontSize: "12px", boxShadow: "0 4px 30px rgba(0,0,0,0.04)" };
@@ -177,7 +177,7 @@ export default function AdminDashboard() {
   const statCards = stats ? [
     { label: "Total Revenue", value: formatCurrency(stats.total_revenue), change: stats.revenue_change, icon: DollarSign, color: "text-success", bg: "bg-success/10", href: "/admin/accounting" },
     { label: "Total Orders", value: stats.total_orders.toLocaleString(), change: stats.orders_change, icon: ShoppingCart, color: "text-secondary", bg: "bg-secondary/10", href: "/admin/orders" },
-    { label: "Customers", value: stats.total_customers.toLocaleString(), change: stats.customers_change, icon: Users, color: "text-blue-500", bg: "bg-blue-50", href: "/admin/customers" },
+    { label: "Customers", value: stats.total_customers.toLocaleString(), change: stats.customers_change, icon: Users, color: "text-secondary", bg: "bg-secondary/10", href: "/admin/customers" },
     { label: "Avg. Order", value: formatCurrency(stats.average_order_value), change: 0, icon: ShoppingBag, color: "text-gold", bg: "bg-gold/10", href: "/admin/analytics" },
   ] : [];
 
@@ -547,7 +547,7 @@ export default function AdminDashboard() {
             feature, just truncated to the 5 most recent entries. */}
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-1.5"><Eye className="h-3.5 w-3.5 text-blue-500" /> Activity</CardTitle>
+            <CardTitle className="text-sm font-semibold flex items-center gap-1.5"><Eye className="h-3.5 w-3.5 text-secondary" /> Activity</CardTitle>
             <Link href="/admin/activity-log" className="text-[10px] text-secondary flex items-center gap-0.5">Log <ArrowRight className="h-2.5 w-2.5" /></Link>
           </CardHeader>
           <CardContent>

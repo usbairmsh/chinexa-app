@@ -68,8 +68,8 @@ export default function BlogPage() {
                     />
                   </div>
                   <div className="flex items-center gap-2 mb-2">
-                    <Badge variant="outline" className="text-[10px]">{post.category}</Badge>
-                    <span className="text-[10px] text-charcoal-lighter flex items-center gap-1">
+                    <Badge variant="outline" className="text-[11px]">{post.category}</Badge>
+                    <span className="text-[11px] text-charcoal-lighter flex items-center gap-1">
                       <Clock className="h-3 w-3" /> {post.reading_time} min
                     </span>
                   </div>
@@ -77,7 +77,7 @@ export default function BlogPage() {
                     {post.title}
                   </h3>
                   <p className="text-sm text-charcoal-lighter line-clamp-2 mb-2">{post.excerpt}</p>
-                  <div className="flex items-center gap-3 text-[10px] text-charcoal-lighter">
+                  <div className="flex items-center gap-3 text-[11px] text-charcoal-lighter">
                     <span>{post.published_at ? formatDateShort(post.published_at) : ""}</span>
                     <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> {post.views}</span>
                   </div>

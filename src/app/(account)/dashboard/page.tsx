@@ -28,16 +28,16 @@ import { resolveTierColorStyle } from "@/lib/tier-color";
 const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
   preorder: { label: "Pre-order — Reserved", color: "text-secondary bg-secondary/10", icon: Clock },
   pending: { label: "Order Placed", color: "text-warning bg-warning/10", icon: Clock },
-  confirmed: { label: "Confirmed", color: "text-blue-500 bg-blue-50", icon: CheckCircle2 },
+  confirmed: { label: "Confirmed", color: "text-secondary bg-secondary/10", icon: CheckCircle2 },
   processing: { label: "Processing", color: "text-secondary bg-secondary/10", icon: Package },
-  shipped: { label: "Shipped", color: "text-violet-500 bg-violet-50", icon: Truck },
-  on_delivery: { label: "Out for Delivery", color: "text-indigo-500 bg-indigo-50", icon: Truck },
+  shipped: { label: "Shipped", color: "text-secondary bg-secondary/10", icon: Truck },
+  on_delivery: { label: "Out for Delivery", color: "text-secondary bg-secondary/10", icon: Truck },
   received: { label: "Delivered", color: "text-success bg-success/10", icon: CheckCircle2 },
   not_received: { label: "Delivery Failed", color: "text-destructive bg-destructive/10", icon: Clock },
   // Archiving an order sets its status to 'cancelled'; a processed return sets
   // 'returned'. Without these the dashboard fell back to "Order Placed".
   cancelled: { label: "Cancelled", color: "text-destructive bg-destructive/10", icon: XCircle },
-  returned: { label: "Returned", color: "text-orange-500 bg-orange-50", icon: RotateCcw },
+  returned: { label: "Returned", color: "text-warning bg-warning/10", icon: RotateCcw },
 };
 
 interface OrderData {
@@ -111,7 +111,7 @@ export default function AccountDashboard() {
     { label: "Total Orders", value: String(totalOrders), icon: ShoppingBag, color: "text-secondary bg-secondary/10", href: "/dashboard/orders" },
     // wishlist store is persisted — render 0 until mounted to match server HTML
     { label: "Wishlist", value: String(mounted ? wishlistCount || 0 : 0), icon: Heart, color: "text-coral bg-coral-light", href: "/dashboard/wishlist" },
-    { label: "Addresses", value: String(totalAddresses), icon: MapPin, color: "text-blue-500 bg-blue-50", href: "/dashboard/addresses" },
+    { label: "Addresses", value: String(totalAddresses), icon: MapPin, color: "text-secondary bg-secondary/10", href: "/dashboard/addresses" },
     { label: "Points", value: loyaltyPoints.toLocaleString(), icon: Star, color: "text-gold bg-gold/10", href: "/dashboard/points" },
   ];
 
@@ -169,7 +169,7 @@ export default function AccountDashboard() {
                   <div className={cn("inline-flex h-10 w-10 items-center justify-center rounded-xl mb-2 transition-transform duration-300 group-hover:scale-110", stat.color)}>
                     <stat.icon className="h-5 w-5" />
                   </div>
-                  <p className="text-xl font-bold text-charcoal group-hover:text-secondary transition-colors">{stat.value}</p>
+                  <p className="font-heading text-xl font-bold text-charcoal group-hover:text-secondary transition-colors">{stat.value}</p>
                   <p className="text-[10px] text-charcoal-lighter">{stat.label}</p>
                 </CardContent>
               </Card>

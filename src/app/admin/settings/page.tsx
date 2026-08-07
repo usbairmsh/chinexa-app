@@ -1197,7 +1197,7 @@ function AdminSettingsPageInner() {
 
           {/* Email Footer */}
           <SectionCard title="Email Footer" description="Shown at the bottom of every email, above the fixed ChineXa logo." icon={Mail} onEdit={() => setEmailFooterDialog(true)}>
-            <div className="rounded-lg border border-border/40 bg-[#FDF4F8] p-3 text-xs text-[#9A8592] whitespace-pre-line leading-relaxed">
+            <div className="rounded-lg border border-border/40 bg-pearl p-3 text-xs text-charcoal-lighter whitespace-pre-line leading-relaxed">
               {emailFooter.trim() || <span className="italic">No footer text set</span>}
             </div>
           </SectionCard>
@@ -1255,9 +1255,9 @@ function AdminSettingsPageInner() {
             <Textarea label="Footer text" value={emailFooter} onChange={(e) => setEmailFooter(e.target.value)} rows={4} placeholder={"ChineXa — Premium Beauty & Lifestyle\nHouse 12, Road 5, Dhaka · support@chinexabd.com · +880 1XXX-XXXXXX"} />
             <div>
               <p className="text-xs font-medium text-charcoal-lighter mb-1.5">Preview</p>
-              <div className="rounded-xl border border-border/40 bg-[#FDF4F8] p-5 text-left">
+              <div className="rounded-xl border border-border/40 bg-pearl p-5 text-left">
                 <div className="max-w-[420px]">
-                  <div className="text-[#9A8592] text-xs leading-relaxed whitespace-pre-line">{emailFooter.trim() || "Your footer text will appear here."}</div>
+                  <div className="text-charcoal-lighter text-xs leading-relaxed whitespace-pre-line">{emailFooter.trim() || "Your footer text will appear here."}</div>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <div className="mt-3"><img src="/logo.png" alt="ChineXa" className="inline-block h-8 w-auto" /></div>
                 </div>

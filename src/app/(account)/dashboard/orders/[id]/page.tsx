@@ -621,10 +621,10 @@ export default function OrderDetailPage() {
                     rejected: "Return Request Rejected",
                   };
                   return (
-                    <div className={cn("p-3 rounded-xl border", good ? "bg-success/10 border-success/20" : bad ? "bg-destructive/10 border-destructive/20" : "bg-amber-50 border-amber-200")}>
+                    <div className={cn("p-3 rounded-xl border", good ? "bg-success/10 border-success/20" : bad ? "bg-destructive/10 border-destructive/20" : "bg-warning/10 border-warning/25")}>
                       <div className="flex items-center gap-2 justify-center">
-                        <RotateCcw className={cn("h-4 w-4", good ? "text-success" : bad ? "text-destructive" : "text-amber-600")} />
-                        <p className={cn("text-xs font-medium", good ? "text-success" : bad ? "text-destructive" : "text-amber-700")}>{LABELS[s] || s}</p>
+                        <RotateCcw className={cn("h-4 w-4", good ? "text-success" : bad ? "text-destructive" : "text-warning")} />
+                        <p className={cn("text-xs font-medium", good ? "text-success" : bad ? "text-destructive" : "text-warning")}>{LABELS[s] || s}</p>
                       </div>
                       {existingReturn.refund_amount ? <p className="text-[10px] text-charcoal-lighter text-center mt-0.5">Refund: {formatCurrency(Number(existingReturn.refund_amount))}</p> : null}
                       {s === "requested" && (
@@ -703,8 +703,8 @@ export default function OrderDetailPage() {
                 const msg = transitMessages[status];
                 if (msg) {
                   return (
-                    <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100 text-center">
-                      <p className="text-xs font-medium text-blue-600">Returns Not Available Yet</p>
+                    <div className="p-3 rounded-xl bg-secondary/5 border border-secondary/15 text-center">
+                      <p className="text-xs font-medium text-secondary">Returns Not Available Yet</p>
                       <p className="text-[10px] text-charcoal-lighter mt-0.5">{msg}</p>
                     </div>
                   );

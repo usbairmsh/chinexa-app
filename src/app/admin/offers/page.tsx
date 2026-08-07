@@ -32,13 +32,13 @@ function applicableItemNoun(applicability: string, count: number): string {
 }
 
 const applicabilityConfig: Record<string, { label: string; icon: typeof Globe; color: string }> = {
-  store: { label: "Store-wide", icon: Globe, color: "bg-blue-50 text-blue-600" },
-  products: { label: "Products", icon: ShoppingCart, color: "bg-pink-50 text-pink-600" },
-  categories: { label: "Categories", icon: FolderTree, color: "bg-emerald-50 text-emerald-600" },
-  tiers: { label: "Membership Tiers", icon: Users, color: "bg-rose-50 text-rose-600" },
-  subcategories: { label: "Subcategories", icon: FolderTree, color: "bg-violet-50 text-violet-600" },
-  brands: { label: "Brands", icon: Award, color: "bg-cyan-50 text-cyan-600" },
-  customers: { label: "Customers", icon: Users, color: "bg-amber-50 text-amber-600" },
+  store: { label: "Store-wide", icon: Globe, color: "bg-secondary/10 text-secondary" },
+  products: { label: "Products", icon: ShoppingCart, color: "bg-secondary/10 text-secondary" },
+  categories: { label: "Categories", icon: FolderTree, color: "bg-success/10 text-success" },
+  tiers: { label: "Membership Tiers", icon: Users, color: "bg-secondary/10 text-secondary" },
+  subcategories: { label: "Subcategories", icon: FolderTree, color: "bg-secondary/10 text-secondary" },
+  brands: { label: "Brands", icon: Award, color: "bg-secondary/10 text-secondary" },
+  customers: { label: "Customers", icon: Users, color: "bg-warning/10 text-warning" },
 };
 
 export default function AdminOffersPage() {

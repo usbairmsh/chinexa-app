@@ -8,18 +8,21 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default: "bg-primary text-charcoal",
-        secondary: "bg-secondary text-white",
+        secondary: "bg-secondary !text-white",
         outline: "border border-border text-charcoal-light",
         success: "bg-success/10 text-success",
         warning: "bg-warning/10 text-warning",
         destructive: "bg-destructive/10 text-destructive",
         gold: "bg-gold/10 text-gold",
-        new: "bg-emerald-50 text-emerald-700 border border-emerald-200",
-        sale: "bg-red-50 text-red-700 border border-red-200",
-        bestseller: "bg-amber-50 text-amber-700 border border-amber-200",
-        preorder: "bg-violet-50 text-violet-700 border border-violet-200",
-        limited: "bg-rose-50 text-rose-700 border border-rose-200",
-        trending: "bg-blue-50 text-blue-700 border border-blue-200",
+        // Product badges: mapped onto the design tokens (with alpha tints) so
+        // they adapt to the dark theme, instead of the raw emerald/red/amber/
+        // violet/rose/blue palette which stayed light-on-light in dark mode.
+        new: "bg-success/10 text-success border border-success/25",
+        sale: "bg-destructive/10 text-destructive border border-destructive/25",
+        bestseller: "bg-gold/10 text-gold border border-gold/30",
+        preorder: "bg-secondary/10 text-secondary border border-secondary/25",
+        limited: "bg-coral/10 text-coral border border-coral/25",
+        trending: "bg-primary/15 text-primary-dark border border-primary/30",
         exclusive: "bg-gold/10 text-gold border border-gold/30",
       },
     },

@@ -483,9 +483,9 @@ export default function ProfilePage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-3 py-2">
-                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
-                  <p className="text-xs text-amber-800 font-medium">What happens when you deactivate:</p>
-                  <ul className="text-xs text-amber-700 mt-1 space-y-0.5 list-disc pl-4">
+                <div className="p-3 rounded-xl bg-warning/10 border border-warning/25">
+                  <p className="text-xs text-warning font-medium">What happens when you deactivate:</p>
+                  <ul className="text-xs text-warning mt-1 space-y-0.5 list-disc pl-4">
                     <li>You won&apos;t be able to log in with this phone number</li>
                     <li>Your order history will be preserved</li>
                     <li>Your loyalty points will be frozen</li>

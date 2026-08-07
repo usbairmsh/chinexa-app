@@ -39,17 +39,17 @@ const entityIcons: Record<string, typeof Package> = {
 
 const entityColors: Record<string, string> = {
   product: "bg-secondary/10 text-secondary",
-  order: "bg-blue-50 text-blue-500",
-  customer: "bg-violet-50 text-violet-500",
+  order: "bg-secondary/10 text-secondary",
+  customer: "bg-secondary/10 text-secondary",
   review: "bg-gold/10 text-gold",
   settings: "bg-charcoal/5 text-charcoal-lighter",
-  coupon: "bg-emerald-50 text-emerald-500",
-  blog: "bg-orange-50 text-orange-500",
-  banner: "bg-pink-50 text-pink-500",
-  category: "bg-cyan-50 text-cyan-500",
-  stock: "bg-amber-50 text-amber-600",
-  fraud: "bg-red-50 text-red-500",
-  membership: "bg-violet-50 text-violet-500",
+  coupon: "bg-success/10 text-success",
+  blog: "bg-warning/10 text-warning",
+  banner: "bg-secondary/10 text-secondary",
+  category: "bg-secondary/10 text-secondary",
+  stock: "bg-warning/10 text-warning",
+  fraud: "bg-destructive/10 text-destructive",
+  membership: "bg-secondary/10 text-secondary",
 };
 
 const timeAgo = (dateStr: string) => {

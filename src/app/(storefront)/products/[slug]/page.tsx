@@ -57,7 +57,7 @@ function StorefrontTrustBadges({ badgeIds }: { badgeIds: string[] }) {
           <div key={badge.id} className="flex flex-col items-center text-center p-3 rounded-xl bg-pearl/60">
             <Icon className="h-5 w-5 text-secondary mb-1.5" />
             <span className="text-[11px] font-semibold text-charcoal leading-tight">{badge.title}</span>
-            <span className="text-[9px] text-charcoal-lighter">{badge.description}</span>
+            <span className="text-[10px] text-charcoal-lighter">{badge.description}</span>
           </div>
         );
       })}
@@ -505,7 +505,7 @@ export default function ProductDetailPage() {
 
                 {/* Price */}
                 <div className="flex items-baseline gap-3">
-                  <span className="text-3xl font-bold text-charcoal">
+                  <span className="font-heading text-3xl font-bold text-charcoal">
                     {formatCurrency(finalPrice)}
                   </span>
                   {finalComparePrice && (
@@ -914,7 +914,7 @@ export default function ProductDetailPage() {
                     {/* Rating Summary */}
                     <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 p-4 sm:p-5 rounded-xl bg-pearl/60">
                       <div className="text-center">
-                        <p className="text-3xl sm:text-4xl font-bold text-charcoal">{realAvgRating}</p>
+                        <p className="font-heading text-3xl sm:text-4xl font-bold text-charcoal">{realAvgRating}</p>
                         <div className="flex items-center gap-0.5 mt-1 justify-center">
                           {Array.from({ length: 5 }).map((_, i) => (
                             <Star key={i} className={cn("h-3.5 w-3.5", i < Math.round(Number(realAvgRating)) ? "text-gold fill-gold" : "text-border")} />
@@ -983,7 +983,7 @@ export default function ProductDetailPage() {
                                     Anonymous reviews have no tier → no badge. */}
                                 {review.customer_tier && (
                                   <span
-                                    className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide"
+                                    className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
                                     style={{
                                       backgroundColor: `${review.customer_tier_color || "#7A4FA0"}18`,
                                       color: review.customer_tier_color || "#7A4FA0",
@@ -992,7 +992,7 @@ export default function ProductDetailPage() {
                                     {review.customer_tier}
                                   </span>
                                 )}
-                                {review.is_verified_purchase && <Badge variant="success" className="text-[8px]">Verified</Badge>}
+                                {review.is_verified_purchase && <Badge variant="success" className="text-[10px]">Verified</Badge>}
                               </div>
                               <div className="flex items-center gap-0.5">
                                 {Array.from({ length: 5 }).map((_, j) => (

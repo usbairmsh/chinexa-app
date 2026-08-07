@@ -37,7 +37,7 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug: s
         <Breadcrumb items={[{ label: policy.title }]} className="mb-8" />
 
         <div className="rounded-2xl border border-border/60 shadow-card p-6 sm:p-10 animate-fade-up">
-          <h1 className="font-heading text-3xl sm:text-4xl font-bold text-charcoal mb-3">{policy.title}</h1>
+          <h1 className="font-heading text-3xl sm:text-4xl font-semibold text-charcoal mb-3">{policy.title}</h1>
           <p className="text-charcoal-lighter mb-10">{policy.intro}</p>
 
           <div className="space-y-8">

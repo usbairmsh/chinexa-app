@@ -19,11 +19,11 @@ interface AdminNotification {
 
 const typeConfig: Record<string, { icon: typeof Bell; color: string }> = {
   order: { icon: Package, color: "bg-secondary/10 text-secondary" },
-  return: { icon: RotateCcw, color: "bg-amber-50 text-amber-600" },
-  review: { icon: Star, color: "bg-violet-50 text-violet-600" },
-  stock: { icon: Warehouse, color: "bg-orange-50 text-orange-600" },
+  return: { icon: RotateCcw, color: "bg-warning/10 text-warning" },
+  review: { icon: Star, color: "bg-secondary/10 text-secondary" },
+  stock: { icon: Warehouse, color: "bg-warning/10 text-warning" },
   fraud: { icon: AlertTriangle, color: "bg-destructive/10 text-destructive" },
-  customer: { icon: UserPlus, color: "bg-blue-50 text-blue-600" },
+  customer: { icon: UserPlus, color: "bg-secondary/10 text-secondary" },
   system: { icon: Bell, color: "bg-pearl text-charcoal-lighter" },
   chat: { icon: MessageCircle, color: "bg-secondary/10 text-secondary" },
 };

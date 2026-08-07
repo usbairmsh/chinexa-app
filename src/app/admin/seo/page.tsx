@@ -759,10 +759,10 @@ export default function AdminSeoPage() {
               </CardHeader>
               <CardContent>
                 <div className="rounded-lg border border-border/50 p-4 bg-card">
-                  <p className="text-blue-600 text-lg font-medium hover:underline cursor-pointer truncate">
+                  <p className="text-blue-600 dark:text-blue-400 text-lg font-medium hover:underline cursor-pointer truncate">
                     {siteTitle || "Your Site Title"}
                   </p>
-                  <p className="text-green-700 text-sm">https://chinexabd.com</p>
+                  <p className="text-green-700 dark:text-green-400 text-sm">https://chinexabd.com</p>
                   <p className="text-sm text-charcoal-light mt-1 line-clamp-2">
                     {siteDescription || "Your site description will appear here..."}
                   </p>
