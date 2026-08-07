@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Globe, Search, FileText, Link2, Code, Settings, Loader2, Check,
   Plus, Trash2, Pencil, ExternalLink, AlertTriangle, RefreshCw, Send,
+  Eye, EyeOff, ChevronDown, Sliders, CheckCircle2, Circle, BarChart3, Share2, Music2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ImageUpload } from "@/components/admin/shared/image-upload";
@@ -235,6 +236,7 @@ export default function AdminSeoPage() {
   const [metaTestEventCode, setMetaTestEventCode] = useState("");
   const [metaEventsEnabled, setMetaEventsEnabled] = useState(false);
   const [metaCapiEnabled, setMetaCapiEnabled] = useState(false);
+  const [metaDomainVerify, setMetaDomainVerify] = useState("");
   const [tiktokPixel, setTiktokPixel] = useState("");
   const [bingVerify, setBingVerify] = useState("");
   const [pinterestVerify, setPinterestVerify] = useState("");
@@ -246,6 +248,12 @@ export default function AdminSeoPage() {
   }, []);
   const [savingTracking, setSavingTracking] = useState(false);
   const [savedTracking, setSavedTracking] = useState(false);
+  // Which tracking integration is open in the Configure dialog (null = closed).
+  const [configuring, setConfiguring] = useState<string | null>(null);
+  // Which integration's "View details" panel is expanded in the list.
+  const [expandedTracking, setExpandedTracking] = useState<string | null>(null);
+  // Show/hide the masked CAPI access token in the Meta config dialog.
+  const [showCapiToken, setShowCapiToken] = useState(false);
 
   const [error, setError] = useState("");
 
@@ -286,6 +294,7 @@ export default function AdminSeoPage() {
         if (cfg.meta_test_event_code) setMetaTestEventCode(cfg.meta_test_event_code);
         setMetaEventsEnabled(!!cfg.meta_events_enabled);
         setMetaCapiEnabled(!!cfg.meta_capi_enabled);
+        if (cfg.meta_domain_verify) setMetaDomainVerify(cfg.meta_domain_verify);
         if (cfg.tiktok_pixel) setTiktokPixel(cfg.tiktok_pixel);
         if (cfg.bing_verify) setBingVerify(cfg.bing_verify);
         if (cfg.pinterest_verify) setPinterestVerify(cfg.pinterest_verify);
@@ -671,6 +680,7 @@ export default function AdminSeoPage() {
             ga_id: gaId.trim(), search_console: searchConsole.trim(), meta_pixel: metaPixel.trim(),
             meta_capi_token: metaCapiToken.trim(), meta_test_event_code: metaTestEventCode.trim(),
             meta_events_enabled: metaEventsEnabled, meta_capi_enabled: metaCapiEnabled,
+            meta_domain_verify: metaDomainVerify.trim(),
             tiktok_pixel: tiktokPixel.trim(), bing_verify: bingVerify.trim(), pinterest_verify: pinterestVerify.trim(),
           },
         }),
@@ -688,6 +698,72 @@ export default function AdminSeoPage() {
       setSavingTracking(false);
     }
   };
+
+  // Tracking integrations rendered as a list: each row shows connection status,
+  // a "Details" expander, and a "Configure" button that opens the config dialog.
+  const trackingIntegrations: {
+    id: string;
+    name: string;
+    icon: typeof Globe;
+    tagline: string;
+    connectedLabel: string;
+    isConnected: () => boolean;
+    details: React.ReactNode;
+  }[] = [
+    {
+      id: "ga",
+      name: "Google Analytics",
+      icon: BarChart3,
+      tagline: "Visitors, traffic sources & sales funnels (GA4).",
+      connectedLabel: "Connected",
+      isConnected: () => !!gaId.trim(),
+      details: (
+        <>
+          <p>Measurement ID: <code className="text-charcoal">{gaId.trim() || "not set"}</code></p>
+          <p>Once set, the GA4 script is injected on every page automatically.</p>
+        </>
+      ),
+    },
+    {
+      id: "meta",
+      name: "Meta Pixel & Conversions API",
+      icon: Share2,
+      tagline: "Facebook & Instagram ad tracking, conversions & catalog.",
+      connectedLabel: metaEventsEnabled ? "Live + events on" : "Pixel set",
+      isConnected: () => !!metaPixel.trim(),
+      details: (
+        <>
+          <p>Pixel ID: <code className="text-charcoal">{metaPixel.trim() || "not set"}</code></p>
+          <p>E-commerce events: <span className="text-charcoal">{metaEventsEnabled ? "on" : "off"}</span> · Conversions API: <span className="text-charcoal">{metaCapiEnabled ? "on" : "off"}</span> · Token: <span className="text-charcoal">{metaCapiToken.trim() ? "set" : "not set"}</span></p>
+          <p>Domain verified: <span className="text-charcoal">{metaDomainVerify.trim() ? "yes" : "no"}</span></p>
+          <p>Catalog feed: <code className="text-charcoal break-all">{siteBase}/api/meta/catalog</code></p>
+        </>
+      ),
+    },
+    {
+      id: "tiktok",
+      name: "TikTok Pixel",
+      icon: Music2,
+      tagline: "Track & optimise TikTok ad campaigns.",
+      connectedLabel: "Connected",
+      isConnected: () => !!tiktokPixel.trim(),
+      details: <p>Pixel ID: <code className="text-charcoal">{tiktokPixel.trim() || "not set"}</code></p>,
+    },
+    {
+      id: "verify",
+      name: "Site Verification",
+      icon: CheckCircle2,
+      tagline: "Prove ownership: Google Search Console, Bing, Pinterest.",
+      connectedLabel: "Verified",
+      isConnected: () => !!(searchConsole.trim() || bingVerify.trim() || pinterestVerify.trim()),
+      details: (
+        <>
+          <p>Google Search Console: <span className="text-charcoal">{searchConsole.trim() ? "set" : "not set"}</span></p>
+          <p>Bing: <span className="text-charcoal">{bingVerify.trim() ? "set" : "not set"}</span> · Pinterest: <span className="text-charcoal">{pinterestVerify.trim() ? "set" : "not set"}</span></p>
+        </>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -1140,152 +1216,234 @@ export default function AdminSeoPage() {
                 on every page for you, no code changes needed.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4 max-w-lg">
-              <HelpedField
-                label="Google Analytics ID"
-                help={
-                  <>
-                    <p><strong>What it is:</strong> connects Google Analytics 4 so you can see visitors, traffic sources and sales funnels.</p>
-                    <p><strong>Where to find it:</strong> Google Analytics → Admin → Data streams → your web stream → Measurement ID. Format: <code>G-XXXXXXXXXX</code>.</p>
-                    <p>Once saved, the tracking script is added to every page automatically.</p>
-                  </>
-                }
-              >
-                <Input placeholder="G-XXXXXXXXXX" value={gaId} onChange={(e) => setGaId(e.target.value)} />
-              </HelpedField>
+            <CardContent className="space-y-3">
+              {trackingIntegrations.map((it) => {
+                const connected = it.isConnected();
+                const expanded = expandedTracking === it.id;
+                return (
+                  <div key={it.id} className="rounded-xl border border-border bg-card overflow-hidden">
+                    <div className="flex items-center gap-3 p-4">
+                      <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", connected ? "bg-success/10 text-success" : "bg-charcoal/[0.06] text-charcoal-lighter")}>
+                        <it.icon className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-charcoal">{it.name}</p>
+                          <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium", connected ? "bg-success/10 text-success" : "bg-charcoal/[0.06] text-charcoal-lighter")}>
+                            {connected ? <><CheckCircle2 className="h-3 w-3" /> {it.connectedLabel}</> : <><Circle className="h-3 w-3" /> Not set up</>}
+                          </span>
+                        </div>
+                        <p className="text-xs text-charcoal-lighter mt-0.5 truncate">{it.tagline}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <AdminButton
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setExpandedTracking(expanded ? null : it.id)}
+                          aria-expanded={expanded}
+                        >
+                          <ChevronDown className={cn("h-3.5 w-3.5 mr-1 transition-transform", expanded && "rotate-180")} />
+                          Details
+                        </AdminButton>
+                        <AdminButton size="sm" onClick={() => { setConfiguring(it.id); setShowCapiToken(false); }}>
+                          <Sliders className="h-3.5 w-3.5 mr-1" /> Configure
+                        </AdminButton>
+                      </div>
+                    </div>
+                    {expanded && (
+                      <div className="border-t border-border bg-pearl/40 px-4 py-3 space-y-2 text-xs text-charcoal-lighter">
+                        {it.details}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
-              <HelpedField
-                label="Google Search Console Verification"
-                help={
-                  <>
-                    <p><strong>What it is:</strong> proves to Google that you own this site, unlocking Search Console (indexing status, search keywords, sitemap submission).</p>
-                    <p><strong>Where to find it:</strong> Search Console → add property → choose the <em>HTML tag</em> method → copy only the long <code>content=&quot;...&quot;</code> value, not the whole tag.</p>
-                  </>
-                }
-              >
-                <Input placeholder="Verification code" value={searchConsole} onChange={(e) => setSearchConsole(e.target.value)} />
-              </HelpedField>
+      {/* ═══════════ TRACKING CONFIGURE DIALOG ═══════════ */}
+      {/* One dialog renders the fields for whichever integration's Configure
+          button was clicked. Saving here persists ALL tracking settings (the
+          config is a single settings row), so unrelated integrations are
+          untouched — only the fields shown differ per integration. */}
+      <Dialog open={!!configuring} onOpenChange={(o) => { if (!o) setConfiguring(null); }}>
+        <DialogContent className="w-[95vw] max-w-lg max-h-[88vh] overflow-y-auto">
+          {configuring === "ga" && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Configure Google Analytics</DialogTitle>
+                <DialogDescription>Paste your GA4 Measurement ID — it goes live site-wide on save.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <HelpedField
+                  label="Google Analytics ID"
+                  help={<><p><strong>Where to find it:</strong> Google Analytics → Admin → Data streams → your web stream → Measurement ID. Format <code>G-XXXXXXXXXX</code>.</p></>}
+                >
+                  <Input placeholder="G-XXXXXXXXXX" value={gaId} onChange={(e) => setGaId(e.target.value)} />
+                </HelpedField>
+              </div>
+            </>
+          )}
 
-              {/* ── Meta (Facebook/Instagram) Pixel — full setup ── */}
-              <div className="rounded-xl border border-secondary/20 bg-secondary/[0.04] p-4 space-y-4">
-                <div className="flex items-center gap-2">
-                  <span className="font-heading text-sm font-bold text-charcoal">Meta Pixel &amp; Conversions API</span>
-                  <span className="text-[10px] rounded-full bg-secondary/10 text-secondary px-2 py-0.5 font-medium">Facebook &amp; Instagram Ads</span>
-                </div>
-
+          {configuring === "meta" && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Configure Meta Pixel &amp; Conversions API</DialogTitle>
+                <DialogDescription>Facebook &amp; Instagram ad tracking, server-side events, and the product catalog feed.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
                 <HelpedField
                   label="Meta Pixel ID"
-                  help={
-                    <>
-                      <p><strong>What it is:</strong> the base pixel — measures ad results and retargets visitors.</p>
-                      <p><strong>Where to find it:</strong> Meta Events Manager → Data sources → your pixel → the numeric ID (e.g. <code>1234567890</code>).</p>
-                    </>
-                  }
+                  help={<><p><strong>What it is:</strong> the base pixel — measures ad results and retargets visitors.</p><p><strong>Where:</strong> Events Manager → Data sources → your pixel → numeric ID.</p></>}
                 >
                   <Input placeholder="Your Meta Pixel ID" value={metaPixel} onChange={(e) => setMetaPixel(e.target.value)} />
                 </HelpedField>
 
-                <div className="flex items-start justify-between gap-3 rounded-lg bg-card border border-border p-3">
+                <div className="flex items-start justify-between gap-3 rounded-lg bg-pearl/50 border border-border p-3">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-charcoal">Track e-commerce events</p>
-                    <p className="text-xs text-charcoal-lighter mt-0.5">
-                      Fire ViewContent, AddToCart, InitiateCheckout, Search &amp; Purchase (with value). Required for
-                      purchase-optimised ads and ROAS reporting. The base pixel + page views work without this.
-                    </p>
+                    <p className="text-xs text-charcoal-lighter mt-0.5">ViewContent, AddToCart, InitiateCheckout, Search &amp; Purchase (with value). Required for purchase-optimised ads.</p>
                   </div>
                   <Switch checked={metaEventsEnabled} onCheckedChange={setMetaEventsEnabled} />
                 </div>
 
-                <div className="flex items-start justify-between gap-3 rounded-lg bg-card border border-border p-3">
+                <div className="flex items-start justify-between gap-3 rounded-lg bg-pearl/50 border border-border p-3">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-charcoal">Conversions API (server-side)</p>
-                    <p className="text-xs text-charcoal-lighter mt-0.5">
-                      Also send events from our server so ad-blockers and iOS can&apos;t hide them. Deduplicated with the
-                      browser pixel. Needs the Access Token below.
-                    </p>
+                    <p className="text-xs text-charcoal-lighter mt-0.5">Send events from our server too, so ad-blockers &amp; iOS can&apos;t hide them. Deduplicated with the pixel. Needs the token below.</p>
                   </div>
                   <Switch checked={metaCapiEnabled} onCheckedChange={setMetaCapiEnabled} />
                 </div>
 
                 <HelpedField
                   label="Conversions API Access Token"
-                  help={
-                    <>
-                      <p><strong>What it is:</strong> a secret token that lets our server send events to Meta. Stored securely; never shown to visitors.</p>
-                      <p><strong>Where to find it:</strong> Events Manager → your pixel → Settings → Conversions API → <em>Generate access token</em>.</p>
-                    </>
-                  }
+                  help={<><p><strong>What it is:</strong> a secret token letting our server send events to Meta. Stored securely; never exposed to visitors.</p><p><strong>Where:</strong> Events Manager → your pixel → Settings → Conversions API → Generate access token.</p></>}
                 >
-                  <Input type="password" placeholder="Paste your CAPI access token" value={metaCapiToken} onChange={(e) => setMetaCapiToken(e.target.value)} autoComplete="off" />
+                  <div className="relative">
+                    <Input
+                      type={showCapiToken ? "text" : "password"}
+                      placeholder="Paste your CAPI access token"
+                      value={metaCapiToken}
+                      onChange={(e) => setMetaCapiToken(e.target.value)}
+                      autoComplete="off"
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCapiToken((v) => !v)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-charcoal-lighter hover:text-charcoal p-1"
+                      aria-label={showCapiToken ? "Hide token" : "Show token"}
+                    >
+                      {showCapiToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </HelpedField>
 
                 <HelpedField
                   label="Test Event Code (optional)"
-                  help={
-                    <>
-                      <p><strong>What it is:</strong> lets you watch events arrive live while setting up, in Events Manager → Test Events. Clear it once verified so real traffic isn&apos;t flagged as test.</p>
-                    </>
-                  }
+                  help={<><p>Watch events arrive live in Events Manager → Test Events while setting up. Clear it once verified so real traffic isn&apos;t flagged as test.</p></>}
                 >
                   <Input placeholder="e.g. TEST12345" value={metaTestEventCode} onChange={(e) => setMetaTestEventCode(e.target.value)} />
                 </HelpedField>
 
+                <HelpedField
+                  label="Domain Verification"
+                  help={<><p><strong>What it is:</strong> proves you own this domain to Meta. Required to set up the 8 iOS conversion events (Aggregated Event Measurement) and to run domain-restricted catalog/dynamic ads.</p><p><strong>Where:</strong> Business Settings → Brand safety → Domains → add your domain → Meta-tag method → copy only the <code>content</code> value.</p></>}
+                >
+                  <Input placeholder="Meta domain-verification code" value={metaDomainVerify} onChange={(e) => setMetaDomainVerify(e.target.value)} />
+                </HelpedField>
+
                 <div className="rounded-lg bg-pearl border border-border/40 p-3">
                   <p className="text-xs font-medium text-charcoal mb-1">Product catalog feed</p>
-                  <p className="text-xs text-charcoal-lighter mb-2">
-                    Add this URL as a scheduled feed in Meta Commerce Manager → Catalog → Data sources, to run dynamic
-                    product ads. In-stock &amp; pre-order products only.
-                  </p>
-                  <code className="block text-[11px] break-all bg-card border border-border rounded px-2 py-1.5 text-secondary">
-                    {siteBase}/api/meta/catalog
-                  </code>
+                  <p className="text-xs text-charcoal-lighter mb-2">Add this URL as a scheduled feed in Meta Commerce Manager → Catalog → Data sources. In-stock &amp; pre-order products only.</p>
+                  <code className="block text-[11px] break-all bg-card border border-border rounded px-2 py-1.5 text-secondary">{siteBase}/api/meta/catalog</code>
+                </div>
+
+                {/* Setup checklist — shows at a glance whether every piece needed
+                    for full product-ad promotion is in place. */}
+                <div className="rounded-lg border border-border p-3">
+                  <p className="text-xs font-semibold text-charcoal mb-2">Product-ad readiness</p>
+                  <ul className="space-y-1.5">
+                    {[
+                      { ok: !!metaPixel.trim(), label: "Pixel ID set (base tracking + retargeting)" },
+                      { ok: metaEventsEnabled, label: "E-commerce events on (purchase-optimised ads)" },
+                      { ok: metaCapiEnabled && !!metaCapiToken.trim(), label: "Conversions API on (ad-blocker-proof tracking)" },
+                      { ok: !!metaDomainVerify.trim(), label: "Domain verified (iOS conversions + catalog ads)" },
+                    ].map((row) => (
+                      <li key={row.label} className="flex items-center gap-2 text-xs">
+                        {row.ok
+                          ? <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
+                          : <Circle className="h-3.5 w-3.5 text-charcoal-lighter shrink-0" />}
+                        <span className={row.ok ? "text-charcoal" : "text-charcoal-lighter"}>{row.label}</span>
+                      </li>
+                    ))}
+                    <li className="flex items-center gap-2 text-xs">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
+                      <span className="text-charcoal">Catalog feed live (dynamic product ads) — add the URL above in Commerce Manager</span>
+                    </li>
+                  </ul>
                 </div>
               </div>
+            </>
+          )}
 
-              <HelpedField
-                label="TikTok Pixel ID"
-                help={
-                  <>
-                    <p><strong>What it is:</strong> the same idea as the Meta Pixel, for TikTok ads.</p>
-                    <p><strong>Where to find it:</strong> TikTok Ads Manager → Assets → Events → Web Events → your pixel ID.</p>
-                  </>
-                }
-              >
-                <Input placeholder="Your TikTok Pixel ID" value={tiktokPixel} onChange={(e) => setTiktokPixel(e.target.value)} />
-              </HelpedField>
+          {configuring === "tiktok" && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Configure TikTok Pixel</DialogTitle>
+                <DialogDescription>Track and optimise your TikTok ad campaigns.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <HelpedField
+                  label="TikTok Pixel ID"
+                  help={<><p><strong>Where:</strong> TikTok Ads Manager → Assets → Events → Web Events → your pixel ID.</p></>}
+                >
+                  <Input placeholder="Your TikTok Pixel ID" value={tiktokPixel} onChange={(e) => setTiktokPixel(e.target.value)} />
+                </HelpedField>
+              </div>
+            </>
+          )}
 
-              <HelpedField
-                label="Bing Webmaster Verification"
-                help={
-                  <>
-                    <p><strong>What it is:</strong> verifies ownership with Microsoft Bing (also powers Yahoo and DuckDuckGo results).</p>
-                    <p><strong>Where to find it:</strong> Bing Webmaster Tools → add site → HTML meta tag method → copy the <code>content</code> value.</p>
-                  </>
-                }
-              >
-                <Input placeholder="Verification code" value={bingVerify} onChange={(e) => setBingVerify(e.target.value)} />
-              </HelpedField>
+          {configuring === "verify" && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Configure Site Verification</DialogTitle>
+                <DialogDescription>Prove ownership to search engines and Pinterest. Paste only the <code>content</code> value from each meta tag.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <HelpedField
+                  label="Google Search Console Verification"
+                  help={<><p><strong>Where:</strong> Search Console → add property → HTML tag method → copy only the long <code>content=&quot;...&quot;</code> value.</p></>}
+                >
+                  <Input placeholder="Verification code" value={searchConsole} onChange={(e) => setSearchConsole(e.target.value)} />
+                </HelpedField>
+                <HelpedField
+                  label="Bing Webmaster Verification"
+                  help={<><p><strong>Where:</strong> Bing Webmaster Tools → add site → HTML meta tag method → copy the <code>content</code> value.</p></>}
+                >
+                  <Input placeholder="Verification code" value={bingVerify} onChange={(e) => setBingVerify(e.target.value)} />
+                </HelpedField>
+                <HelpedField
+                  label="Pinterest Verification"
+                  help={<><p><strong>Where:</strong> Pinterest Business → Settings → Claimed accounts → Claim website → copy the <code>content</code> value.</p></>}
+                >
+                  <Input placeholder="Verification code" value={pinterestVerify} onChange={(e) => setPinterestVerify(e.target.value)} />
+                </HelpedField>
+              </div>
+            </>
+          )}
 
-              <HelpedField
-                label="Pinterest Verification"
-                help={
-                  <>
-                    <p><strong>What it is:</strong> claims your website on Pinterest so pins of your products show your brand and drive analytics.</p>
-                    <p><strong>Where to find it:</strong> Pinterest Business → Settings → Claimed accounts → Claim website → copy the <code>content</code> value from the meta tag.</p>
-                  </>
-                }
-              >
-                <Input placeholder="Verification code" value={pinterestVerify} onChange={(e) => setPinterestVerify(e.target.value)} />
-              </HelpedField>
-
-              <AdminButton onClick={saveTracking} disabled={savingTracking}>
-                {savingTracking ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : savedTracking ? <Check className="h-3.5 w-3.5 mr-1" /> : null}
-                {savedTracking ? "Saved!" : "Save Tracking Settings"}
-              </AdminButton>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          <DialogFooter>
+            <AdminButton variant="outline" onClick={() => setConfiguring(null)} disabled={savingTracking}>Cancel</AdminButton>
+            <AdminButton onClick={async () => { await saveTracking(); setConfiguring(null); }} disabled={savingTracking}>
+              {savingTracking ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : savedTracking ? <Check className="h-3.5 w-3.5 mr-1" /> : null}
+              {savedTracking ? "Saved!" : "Save"}
+            </AdminButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ═══════════ PAGE META EDIT DIALOG ═══════════ */}
       <Dialog open={metaDialogOpen} onOpenChange={setMetaDialogOpen}>

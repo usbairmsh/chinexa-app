@@ -135,6 +135,11 @@ export interface TrackingConfig {
   meta_events_enabled?: boolean;
   /** Whether to mirror events to the Conversions API (needs the token above). */
   meta_capi_enabled?: boolean;
+  /** Meta domain-verification token (Business Settings → Brand safety → Domains).
+   *  Rendered as <meta name="facebook-domain-verification">. Required to
+   *  configure the 8 Aggregated Event Measurement conversions for iOS traffic
+   *  and to run domain-restricted catalog/dynamic ads. */
+  meta_domain_verify?: string;
 }
 
 /** The browser-safe subset of the Meta config — never includes the CAPI token. */

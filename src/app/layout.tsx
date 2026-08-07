@@ -47,6 +47,7 @@ export async function generateMetadata(): Promise<Metadata> {
   let googleVerification: string | undefined;
   let bingVerification: string | undefined;
   let pinterestVerification: string | undefined;
+  let metaDomainVerify: string | undefined;
   try {
     const { getSeoOverride, getTrackingConfig } = await import("@/lib/seo");
     const [globalRow, tracking] = await Promise.all([getSeoOverride("_global"), getTrackingConfig()]);
@@ -60,11 +61,15 @@ export async function generateMetadata(): Promise<Metadata> {
     if (tracking.search_console) googleVerification = tracking.search_console;
     if (tracking.bing_verify) bingVerification = tracking.bing_verify;
     if (tracking.pinterest_verify) pinterestVerification = tracking.pinterest_verify;
+    if (tracking.meta_domain_verify) metaDomainVerify = tracking.meta_domain_verify;
   } catch {}
 
   const otherVerification: Record<string, string> = {};
   if (bingVerification) otherVerification["msvalidate.01"] = bingVerification;
   if (pinterestVerification) otherVerification["p:domain_verify"] = pinterestVerification;
+  // Meta domain verification — required to configure Aggregated Event
+  // Measurement (iOS conversions) and domain-restricted catalog ads.
+  if (metaDomainVerify) otherVerification["facebook-domain-verification"] = metaDomainVerify;
 
   return {
     metadataBase: new URL(siteUrl),
