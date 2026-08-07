@@ -2,13 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { validate, validationError, publicServerError } from "@/lib/validate";
+import { getVerifiedCustomerId } from "@/lib/customer-session";
+import { getVerifiedAdminId } from "@/lib/admin-session";
 
 export const dynamic = "force-dynamic";
 
+// The [id] path param is the customer the route acts on. Allow only the owner
+// (session id matches the param) or an admin. A guessed/other id from a
+// signed-in customer is an IDOR attempt.
+function authorizeOwnerOrAdmin(req: NextRequest, pathId: string): NextResponse | null {
+  if (getVerifiedAdminId(req)) return null;
+  const sessionId = getVerifiedCustomerId(req);
+  if (!sessionId) return NextResponse.json({ error: "Not authorized" }, { status: 401 });
+  if (sessionId !== pathId) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+  return null;
+}
+
 // GET /api/customers/[id]/addresses
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    const denied = authorizeOwnerOrAdmin(req, id);
+    if (denied) return denied;
     const rows = await query<RowDataPacket[]>(
       "SELECT * FROM customer_addresses WHERE customer_id = ? ORDER BY is_default DESC, created_at DESC",
       [id]
@@ -23,6 +38,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: customerId } = await params;
+    const denied = authorizeOwnerOrAdmin(req, customerId);
+    if (denied) return denied;
     const body = await req.json();
 
     // Previously every field defaulted to "" / null with no check at all — a

@@ -3,6 +3,24 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { ensureInventoryTables } from "@/lib/migrate-inventory";
 import { publicServerError } from "@/lib/validate";
+import { getVerifiedCustomerId } from "@/lib/customer-session";
+import { getVerifiedAdminId } from "@/lib/admin-session";
+
+// Resolve the customer id this request may act on. Id must come from the signed
+// session cookie, OR the caller must be an admin (who may name any id). A
+// client-supplied id is never trusted alone; a signed-in customer naming a
+// DIFFERENT id is rejected. Guests have no server wishlist, so they get 401.
+function scopeCustomerId(req: NextRequest, clientId: string | null | undefined):
+  { id: string } | { error: NextResponse } {
+  const sessionId = getVerifiedCustomerId(req);
+  const isAdmin = !!getVerifiedAdminId(req);
+  const scopedId = isAdmin ? String(clientId || "") : sessionId;
+  if (!scopedId) return { error: json({ error: "Not authorized" }, 401) };
+  if (!isAdmin && clientId && String(clientId) !== sessionId) {
+    return { error: json({ error: "Not authorized" }, 403) };
+  }
+  return { id: scopedId };
+}
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +43,9 @@ const json = (body: unknown, status = 200) =>
 export async function GET(req: NextRequest) {
   try {
     await ensureInventoryTables();
-    const customerId = req.nextUrl.searchParams.get("customer_id");
-    if (!customerId) return json({ error: "customer_id required" }, 400);
+    const scoped = scopeCustomerId(req, req.nextUrl.searchParams.get("customer_id"));
+    if ("error" in scoped) return scoped.error;
+    const customerId = scoped.id;
     const rows = await query<RowDataPacket[]>(
       "SELECT product_id, notify_on_restock FROM customer_wishlists WHERE customer_id = ?",
       [customerId]
@@ -47,9 +66,11 @@ export async function POST(req: NextRequest) {
   try {
     await ensureInventoryTables();
     const body = await req.json();
-    const customerId = body.customer_id as string | undefined;
+    const scoped = scopeCustomerId(req, body.customer_id as string | undefined);
+    if ("error" in scoped) return scoped.error;
+    const customerId = scoped.id;
     const productId = body.product_id as string | undefined;
-    if (!customerId || !productId) return json({ error: "customer_id and product_id are required" }, 400);
+    if (!productId) return json({ error: "customer_id and product_id are required" }, 400);
 
     // Is the product currently out of stock? Only then do we schedule a
     // back-in-stock notification + bump the demand counter.
@@ -88,9 +109,11 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     await ensureInventoryTables();
-    const customerId = req.nextUrl.searchParams.get("customer_id");
+    const scoped = scopeCustomerId(req, req.nextUrl.searchParams.get("customer_id"));
+    if ("error" in scoped) return scoped.error;
+    const customerId = scoped.id;
     const productId = req.nextUrl.searchParams.get("product_id");
-    if (!customerId || !productId) return json({ error: "customer_id and product_id are required" }, 400);
+    if (!productId) return json({ error: "customer_id and product_id are required" }, 400);
 
     // If they were waiting on a restock, decrement the demand counter as they leave.
     const existing = await query<RowDataPacket[]>(

@@ -8,6 +8,8 @@ import { ensureReturnColumns } from "@/lib/migrate-returns";
 import { getReturnConfig } from "@/lib/return-config";
 import { checkInstantReturnAbuseRules } from "@/lib/points-deduction-engine";
 import { requirePermission } from "@/lib/admin-permissions-server";
+import { getVerifiedCustomerId } from "@/lib/customer-session";
+import { getVerifiedAdminId } from "@/lib/admin-session";
 
 export const dynamic = "force-dynamic";
 
@@ -19,22 +21,65 @@ export async function GET(req: NextRequest) {
     const orderId = req.nextUrl.searchParams.get("order_id");
     const orderNumber = req.nextUrl.searchParams.get("order_number");
 
+    // Public, REDACTED status lookup for the guest order-tracking page. Returns
+    // only each return's status/created_at for an order number — no customer
+    // name, reason, description or refund amount. This is the same trust level
+    // as /api/track-order (anyone with the order number sees its status), and it
+    // exists because the full owner-gated branches below correctly 403 a guest.
+    const statusFor = req.nextUrl.searchParams.get("status_for");
+    if (statusFor) {
+      const rows = await query<RowDataPacket[]>(
+        "SELECT status, resolution, created_at, updated_at FROM order_returns WHERE order_number = ? ORDER BY created_at DESC",
+        [statusFor]
+      );
+      return NextResponse.json(
+        rows.map((r) => ({ status: r.status, resolution: r.resolution, created_at: r.created_at, updated_at: r.updated_at })),
+        { headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    // Every branch (filtered or not) is owner-or-admin now. Previously a filter
+    // param bypassed the permission check entirely, letting anyone read another
+    // customer's / order's returns by guessing an id.
+    const isAdmin = !!getVerifiedAdminId(req);
+    const sessionId = getVerifiedCustomerId(req);
+
     let sql = "SELECT * FROM order_returns";
     const params: string[] = [];
 
     if (customerId) {
+      // A signed-in customer may only read their own; admins may read any.
+      if (!isAdmin) {
+        if (!sessionId) return NextResponse.json({ error: "Not authorized" }, { status: 401 });
+        if (String(customerId) !== sessionId) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      }
       sql += " WHERE customer_id = ?";
       params.push(customerId);
-    } else if (orderId) {
-      // Accept either the internal order id or the order number.
-      sql += " WHERE order_id = ? OR order_number = ?";
-      params.push(orderId, orderId);
-    } else if (orderNumber) {
-      sql += " WHERE order_number = ?";
-      params.push(orderNumber);
+    } else if (orderId || orderNumber) {
+      // Order-scoped lookup: the order must belong to the session customer
+      // (admins may look up any order's returns).
+      const lookup = orderId || (orderNumber as string);
+      if (!isAdmin) {
+        if (!sessionId) return NextResponse.json({ error: "Not authorized" }, { status: 401 });
+        const ownerRows = await query<RowDataPacket[]>(
+          "SELECT customer_id FROM orders WHERE id = ? OR order_number = ? LIMIT 1",
+          [lookup, lookup]
+        );
+        const ownerId = ownerRows.length ? String(ownerRows[0].customer_id ?? "") : "";
+        if (!ownerId || ownerId !== sessionId) {
+          return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+        }
+      }
+      if (orderId) {
+        // Accept either the internal order id or the order number.
+        sql += " WHERE order_id = ? OR order_number = ?";
+        params.push(orderId, orderId);
+      } else {
+        sql += " WHERE order_number = ?";
+        params.push(orderNumber as string);
+      }
     } else {
-      // No filter = the admin "all returns" list — gate it (the scoped queries
-      // above stay open for the customer/public order-lookup pages).
+      // No filter = the admin "all returns" list — gate it.
       const denied = await requirePermission(req, "returns", "view");
       if (denied) return denied;
     }
@@ -56,6 +101,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await ensureReturnColumns();
+    const isAdmin = !!getVerifiedAdminId(req);
+    const sessionId = getVerifiedCustomerId(req);
     const body = await req.json();
     const err = validate([
       { field: "order_id", value: body.order_id, rules: ["required", "string"], label: "Order" },
@@ -104,6 +151,17 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Order not found" }, { status: 404 });
       }
       order = orders[0];
+
+      // Ownership: a signed-in customer may only open a return on their OWN
+      // order; admins may act on any. A guessed order_id must not let one
+      // customer file a return against another's order.
+      if (!isAdmin) {
+        const ownerId = String(order.customer_id ?? "");
+        if (!sessionId || !ownerId || ownerId !== sessionId) {
+          await conn.rollback(); conn.release();
+          return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+        }
+      }
 
       if (order.status !== "received") {
         await conn.rollback(); conn.release();

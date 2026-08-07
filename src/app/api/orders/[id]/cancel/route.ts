@@ -4,6 +4,8 @@ import pool, { query } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { publicServerError } from "@/lib/validate";
 import { ensureOrderArchiveColumns } from "@/lib/migrate-order-archive";
+import { getVerifiedCustomerId } from "@/lib/customer-session";
+import { getVerifiedAdminId } from "@/lib/admin-session";
 
 // Customer-initiated order cancellation. Mirrors the Returns pattern: no admin
 // auth (customers have no server session cookie), but ownership is checked by
@@ -35,8 +37,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     await ensureOrderArchiveColumns();
     const { id: paramId } = await params;
-    const body = await req.json().catch(() => ({}));
-    const customerId = (body.customer_id || "").trim();
+    await req.json().catch(() => ({}));
+    const isAdmin = !!getVerifiedAdminId(req);
+    const sessionId = getVerifiedCustomerId(req);
 
     const rows = await query<RowDataPacket[]>(
       "SELECT * FROM orders WHERE id = ? OR order_number = ? LIMIT 1", [paramId, paramId]
@@ -46,10 +49,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const id = order.id as string;
     const prevStatus = order.status as string;
 
-    // Ownership — the order must belong to this customer. (Guest orders with no
+    // Ownership derives from the SESSION (or admin) — a guessed customer_id must
+    // not let anyone cancel another person's order. (Guest orders with no
     // customer_id can't be self-cancelled here; those go through support.)
-    if (!customerId || !order.customer_id || String(order.customer_id) !== customerId) {
-      return NextResponse.json({ error: "You can only cancel your own orders." }, { status: 403 });
+    if (!isAdmin) {
+      const ownerId = String(order.customer_id ?? "");
+      if (!sessionId || !ownerId || ownerId !== sessionId) {
+        return NextResponse.json({ error: "You can only cancel your own orders." }, { status: 403 });
+      }
     }
 
     // Only early-stage orders are customer-cancellable.

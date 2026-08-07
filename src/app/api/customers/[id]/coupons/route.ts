@@ -3,13 +3,26 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { publicServerError } from "@/lib/validate";
+import { getVerifiedCustomerId } from "@/lib/customer-session";
+import { getVerifiedAdminId } from "@/lib/admin-session";
 
 export const dynamic = "force-dynamic";
 
+// Owner-or-admin guard for the [id] path param (the customer).
+function authorizeOwnerOrAdmin(req: NextRequest, pathId: string): NextResponse | null {
+  if (getVerifiedAdminId(req)) return null;
+  const sessionId = getVerifiedCustomerId(req);
+  if (!sessionId) return NextResponse.json({ error: "Not authorized" }, { status: 401 });
+  if (sessionId !== pathId) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+  return null;
+}
+
 // GET /api/customers/[id]/coupons — get coupons assigned to this customer (direct + tier-based)
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    const denied = authorizeOwnerOrAdmin(req, id);
+    if (denied) return denied;
 
     // Get customer's current tier based on points
     const balanceRows = await query<RowDataPacket[]>(
@@ -70,9 +83,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
 }
 
-// POST /api/customers/[id]/coupons — assign a coupon to this customer
+// POST /api/customers/[id]/coupons — assign a coupon to this customer.
+// Admin-ONLY: a customer assigning themselves an arbitrary coupon is a
+// self-grant hole, so this is gated on a verified admin session regardless of
+// whether the [id] matches the caller.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    if (!getVerifiedAdminId(req)) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+    }
     const { id } = await params;
     const body = await req.json();
     const { coupon_id } = body;

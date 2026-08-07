@@ -91,10 +91,16 @@ export async function POST(req: NextRequest) {
     // widget (no admin cookie present) — only gate on the admin permission
     // when the request is actually coming from the admin panel. Verified,
     // not just truthy — an unsigned/forged cookie must not count as "admin".
-    if (getVerifiedAdminId(req)) {
+    const isAdmin = !!getVerifiedAdminId(req);
+    if (isAdmin) {
       const denied = await requirePermission(req, "support_inbox", "add");
       if (denied) return denied;
     }
+
+    // sender_type is DERIVED from verified admin status, never trusted from the
+    // body. Previously a customer could post a message labelled "admin" in their
+    // own thread and impersonate support. A non-admin caller is always "customer".
+    const effectiveSenderType: "customer" | "admin" = isAdmin && sender_type === "admin" ? "admin" : "customer";
 
     const convRows = await query<RowDataPacket[]>("SELECT * FROM chat_conversations WHERE id = ?", [conversation_id]);
     if (convRows.length === 0) {
@@ -105,11 +111,13 @@ export async function POST(req: NextRequest) {
     const id = newMessageId();
     await execute(
       "INSERT INTO chat_messages (id, conversation_id, sender_type, sender_label, flag, body) VALUES (?, ?, ?, ?, ?, ?)",
-      [id, conversation_id, sender_type, sender_label || null, flag || "general", message.trim()]
+      [id, conversation_id, effectiveSenderType, sender_label || null, flag || "general", message.trim()]
     );
 
-    // The other side's unread counter goes up; sending clears your own.
-    if (sender_type === "customer") {
+    // The other side's unread counter goes up; sending clears your own. Uses the
+    // DERIVED sender type so a spoofed "admin" from a customer still routes as a
+    // customer message (notifies the admin, not the customer).
+    if (effectiveSenderType === "customer") {
       await execute(
         "UPDATE chat_conversations SET admin_unread = admin_unread + 1, customer_unread = 0, status = 'open', last_message_at = CURRENT_TIMESTAMP WHERE id = ?",
         [conversation_id]

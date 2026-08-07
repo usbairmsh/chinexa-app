@@ -3,6 +3,8 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { publicServerError } from "@/lib/validate";
+import { getVerifiedCustomerId } from "@/lib/customer-session";
+import { getVerifiedAdminId } from "@/lib/admin-session";
 
 // Customer-facing: withdraw a return request while it's still 'requested'
 // (before an admin has acted). Ownership verified via customer_id matching the
@@ -10,15 +12,21 @@ import { publicServerError } from "@/lib/validate";
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const body = await req.json().catch(() => ({}));
-    const customerId = (body.customer_id || "").trim();
+    const isAdmin = !!getVerifiedAdminId(req);
+    const sessionId = getVerifiedCustomerId(req);
 
     const rows = await query<RowDataPacket[]>("SELECT * FROM order_returns WHERE id = ? LIMIT 1", [id]);
     if (rows.length === 0) return NextResponse.json({ error: "Return not found" }, { status: 404 });
     const ret = rows[0];
 
-    if (!customerId || !ret.customer_id || String(ret.customer_id) !== customerId) {
-      return NextResponse.json({ error: "You can only withdraw your own return." }, { status: 403 });
+    // Ownership derives from the SESSION, not a client-supplied customer_id — a
+    // guessed id must not let anyone withdraw someone else's return. Admins may
+    // withdraw any.
+    if (!isAdmin) {
+      const ownerId = String(ret.customer_id ?? "");
+      if (!sessionId || !ownerId || ownerId !== sessionId) {
+        return NextResponse.json({ error: "You can only withdraw your own return." }, { status: 403 });
+      }
     }
     if (ret.status !== "requested") {
       return NextResponse.json({ error: "This return can no longer be withdrawn." }, { status: 409 });

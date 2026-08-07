@@ -3,16 +3,29 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query } from "@/lib/db";
 import { publicServerError } from "@/lib/validate";
 import { ensureReviewColumns } from "@/lib/migrate-reviews";
+import { getVerifiedCustomerId } from "@/lib/customer-session";
+import { getVerifiedAdminId } from "@/lib/admin-session";
 
 export const dynamic = "force-dynamic";
+
+// Owner-or-admin guard for the [id] path param (the customer).
+function authorizeOwnerOrAdmin(req: NextRequest, pathId: string): NextResponse | null {
+  if (getVerifiedAdminId(req)) return null;
+  const sessionId = getVerifiedCustomerId(req);
+  if (!sessionId) return NextResponse.json({ error: "Not authorized" }, { status: 401 });
+  if (sessionId !== pathId) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+  return null;
+}
 
 // GET /api/customers/[id]/pending-reviews — every product from this
 // customer's delivered ('received') orders that they have not yet reviewed.
 // Powers the "My Reviews" account page's pending-review count/list.
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await ensureReviewColumns();
     const { id } = await params;
+    const denied = authorizeOwnerOrAdmin(req, id);
+    if (denied) return denied;
 
     const rows = await query<RowDataPacket[]>(
       `SELECT oi.product_id, oi.product_name, oi.product_image, oi.product_slug,

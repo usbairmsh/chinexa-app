@@ -3,6 +3,25 @@ import { type RowDataPacket } from "mysql2/promise";
 import { query, execute } from "@/lib/db";
 import { ensureCartTable } from "@/lib/migrate-cart";
 import { publicServerError } from "@/lib/validate";
+import { getVerifiedCustomerId } from "@/lib/customer-session";
+import { getVerifiedAdminId } from "@/lib/admin-session";
+
+// Resolve the customer id this request may act on. The id must come from the
+// signed session cookie, OR the caller must be an admin (who may name any id).
+// A client-supplied id is never trusted on its own — a signed-in customer that
+// names a DIFFERENT id is an IDOR attempt and is rejected. Guests have no
+// server cart, so they get 401.
+function scopeCustomerId(req: NextRequest, clientId: string | null | undefined):
+  { id: string } | { error: NextResponse } {
+  const sessionId = getVerifiedCustomerId(req);
+  const isAdmin = !!getVerifiedAdminId(req);
+  const scopedId = isAdmin ? String(clientId || "") : sessionId;
+  if (!scopedId) return { error: json({ error: "Not authorized" }, 401) };
+  if (!isAdmin && clientId && String(clientId) !== sessionId) {
+    return { error: json({ error: "Not authorized" }, 403) };
+  }
+  return { id: scopedId };
+}
 
 // Account-scoped cart persistence for LOGGED-IN customers, so a cart follows
 // them across devices and survives logout (localStorage is cleared on logout;
@@ -20,8 +39,9 @@ const json = (body: unknown, status = 200) =>
 export async function GET(req: NextRequest) {
   try {
     await ensureCartTable();
-    const customerId = req.nextUrl.searchParams.get("customer_id");
-    if (!customerId) return json({ error: "customer_id required" }, 400);
+    const scoped = scopeCustomerId(req, req.nextUrl.searchParams.get("customer_id"));
+    if ("error" in scoped) return scoped.error;
+    const customerId = scoped.id;
     const rows = await query<RowDataPacket[]>(
       "SELECT items, coupon_code FROM customer_carts WHERE customer_id = ? LIMIT 1",
       [customerId]
@@ -49,8 +69,9 @@ export async function PUT(req: NextRequest) {
   try {
     await ensureCartTable();
     const body = await req.json();
-    const customerId = body.customer_id as string | undefined;
-    if (!customerId) return json({ error: "customer_id is required" }, 400);
+    const scoped = scopeCustomerId(req, body.customer_id as string | undefined);
+    if ("error" in scoped) return scoped.error;
+    const customerId = scoped.id;
     const items = Array.isArray(body.items) ? body.items : [];
     const couponCode = typeof body.coupon_code === "string" ? body.coupon_code : null;
     await execute(
@@ -69,8 +90,9 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     await ensureCartTable();
-    const customerId = req.nextUrl.searchParams.get("customer_id");
-    if (!customerId) return json({ error: "customer_id is required" }, 400);
+    const scoped = scopeCustomerId(req, req.nextUrl.searchParams.get("customer_id"));
+    if ("error" in scoped) return scoped.error;
+    const customerId = scoped.id;
     await execute("DELETE FROM customer_carts WHERE customer_id = ?", [customerId]);
     return json({ success: true });
   } catch (error: unknown) {

@@ -100,7 +100,7 @@ function TrackOrderContent() {
       // Once delivered, a return may be active — fetch it so tracking can
       // switch to the return/exchange lifecycle.
       setActiveReturn(null);
-      fetch(`/api/returns?order_number=${encodeURIComponent(data.order_number)}`)
+      fetch(`/api/returns?status_for=${encodeURIComponent(data.order_number)}`)
         .then((r) => r.json())
         .then((rows) => {
           if (Array.isArray(rows)) {

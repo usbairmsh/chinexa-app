@@ -7,6 +7,7 @@ import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { validate, validationError, publicServerError } from "@/lib/validate";
 import { requirePermission } from "@/lib/admin-permissions-server";
 import { getVerifiedAdminId } from "@/lib/admin-session";
+import { getVerifiedCustomerId } from "@/lib/customer-session";
 
 /** True only when the request carries a verified session for a currently-
  * superadmin account — the client-side "canEditCustomer" check in the admin
@@ -21,10 +22,16 @@ async function isSuperadmin(req: NextRequest): Promise<boolean> {
   return rows.length > 0 && rows[0].role === "superadmin";
 }
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await ensurePromotionColumns();
     const { id } = await params;
+    // Full PII + order history. Only an admin, or the account owner (proven by
+    // the signed session cookie), may read it. Was unauthenticated: any id
+    // returned that customer's name, email, phone, birthdate and orders.
+    if (!getVerifiedAdminId(req) && getVerifiedCustomerId(req) !== id) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+    }
     // None of these three depend on each other's results — only the 404 check
     // below depends on `customers`' content — so all run as one round-trip.
     const [customers, addresses, orders] = await Promise.all([
@@ -124,12 +131,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         return validationError("Password must be at most 128 characters");
       }
     } else if (getVerifiedAdminId(req)) {
-      // This route is also called by the customer's own self-service profile
-      // page (no admin cookie present) — only gate on the admin permission
-      // when the request is actually coming from the admin panel. Verified,
-      // not just truthy — an unsigned/forged cookie must not count as "admin".
+      // Admin panel path — gate on the admin permission. Verified, not just
+      // truthy: an unsigned/forged cookie must not count as "admin".
       const denied = await requirePermission(req, "customers", "edit");
       if (denied) return denied;
+    } else {
+      // Customer self-service path. Previously this branch was ABSENT — a
+      // request with no admin cookie fell through with NO check, so anyone could
+      // edit any customer by id. Now it must be the account owner, proven by the
+      // signed session cookie (not the id in the URL).
+      const sessionId = getVerifiedCustomerId(req);
+      if (!sessionId || sessionId !== id) {
+        return NextResponse.json({ error: "Not authorized to edit this account." }, { status: 403 });
+      }
     }
 
     const fields: string[] = []; const values: (string | number | null)[] = [];
@@ -192,6 +206,13 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       if (getVerifiedAdminId(req)) {
         const denied = await requirePermission(req, "customers", "delete");
         if (denied) return denied;
+      } else {
+        // Self-service "delete my account": must be the owner (signed session),
+        // not merely anyone who names the id. Was an unchecked fall-through.
+        const sessionId = getVerifiedCustomerId(req);
+        if (!sessionId || sessionId !== id) {
+          return NextResponse.json({ error: "Not authorized to delete this account." }, { status: 403 });
+        }
       }
       await execute(
         "UPDATE customers SET is_active = FALSE, deactivated_at = NOW(), deactivation_reason = 'Customer requested account deletion' WHERE id = ?",

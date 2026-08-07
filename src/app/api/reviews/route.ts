@@ -5,6 +5,8 @@ import { logActivity } from "@/lib/log-activity";
 import { validate, validationError, dependencyError, publicServerError } from "@/lib/validate";
 import { notifyAdmin } from "@/lib/notify";
 import { ensureReviewColumns, publicReviewsEnabled, resolveCustomerTierSnapshot } from "@/lib/migrate-reviews";
+import { getVerifiedCustomerId } from "@/lib/customer-session";
+import { getVerifiedAdminId } from "@/lib/admin-session";
 
 function parseImages(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw.filter((x): x is string => typeof x === "string").slice(0, 5);
@@ -23,12 +25,31 @@ export async function GET(req: NextRequest) {
     const approved = searchParams.get("is_approved");
     const limit = Number(searchParams.get("limit")) || 50;
 
+    const isAdmin = !!getVerifiedAdminId(req);
+    const sessionCustomerId = getVerifiedCustomerId(req);
+
     let where = "WHERE 1=1";
     const params: (string | number)[] = [];
     if (productId) { where += " AND product_id = ?"; params.push(productId); }
-    if (customerId) { where += " AND customer_id = ?"; params.push(customerId); }
+    if (customerId) {
+      // "My reviews" — a customer may only list their own; admins may list any.
+      // Was unscoped: anyone could enumerate another customer's reviews by id.
+      if (!isAdmin && customerId !== sessionCustomerId) {
+        return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      }
+      where += " AND customer_id = ?"; params.push(customerId);
+    }
     if (approved === "true") { where += " AND is_approved = 1"; }
-    if (approved === "false") { where += " AND is_approved = 0"; }
+    else if (approved === "false") {
+      // Unmoderated reviews are admin-only — otherwise anyone could read pending
+      // (unapproved) reviews, including their content and author id.
+      if (!isAdmin) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      where += " AND is_approved = 0";
+    } else if (!isAdmin && !customerId) {
+      // Public product listing: only ever show approved reviews. (A customer
+      // listing their OWN reviews sees their pending ones too — that's fine.)
+      where += " AND is_approved = 1";
+    }
 
     const safeLimit = Math.max(1, Math.min(Math.floor(limit), 200));
     const rows = await query<RowDataPacket[]>(`SELECT * FROM reviews ${where} ORDER BY created_at DESC LIMIT ${safeLimit}`, params);
@@ -61,6 +82,14 @@ export async function POST(req: NextRequest) {
 
     const images = parseImages(body.images);
     if (images.length > 5) return validationError("You can attach at most 5 images");
+
+    // Author identity comes from the SESSION, never the request body. A signed-in
+    // customer's review is always attributed to their own id; a request with no
+    // session can only post an anonymous review (customer_id = null). This blocks
+    // submitting a review AS another customer (which also drove the spoofable
+    // "verified purchase" and one-review-per-product checks below).
+    const sessionCustomerId = getVerifiedCustomerId(req);
+    body.customer_id = sessionCustomerId || null;
 
     const productExists = await query<RowDataPacket[]>("SELECT id FROM products WHERE id = ?", [body.product_id]);
     if (productExists.length === 0) return dependencyError("Product", body.product_id);

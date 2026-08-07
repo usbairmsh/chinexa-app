@@ -7,8 +7,19 @@ import { ensurePromotionColumns } from "@/lib/migrate-promotions";
 import { insertCustomerPoints } from "@/lib/points";
 import { publicServerError } from "@/lib/validate";
 import { requirePermission } from "@/lib/admin-permissions-server";
+import { getVerifiedCustomerId } from "@/lib/customer-session";
+import { getVerifiedAdminId } from "@/lib/admin-session";
 
 export const dynamic = "force-dynamic";
+
+// Owner-or-admin guard for the [id] path param (the customer).
+function authorizeOwnerOrAdmin(req: NextRequest, pathId: string): NextResponse | null {
+  if (getVerifiedAdminId(req)) return null;
+  const sessionId = getVerifiedCustomerId(req);
+  if (!sessionId) return NextResponse.json({ error: "Not authorized" }, { status: 401 });
+  if (sessionId !== pathId) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+  return null;
+}
 
 interface TierData {
   id: string; name: string; min_points: number; max_points: number;
@@ -18,10 +29,12 @@ interface TierData {
 }
 
 // GET /api/customers/[id]/points — get points balance, history, and tier
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await ensurePromotionColumns();
     const { id } = await params;
+    const denied = authorizeOwnerOrAdmin(req, id);
+    if (denied) return denied;
 
     // Balance, history, and tiers are independent of each other — one
     // round-trip batch instead of three sequential ones.
