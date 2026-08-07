@@ -64,10 +64,10 @@ const statusConfig: Record<string, { label: string; color: string; bg: string; i
 // Fallback colors for tier names that don't (yet) carry their own `color`
 // from /api/membership/tiers — keeps the badge from rendering unstyled.
 const fallbackTierColors: Record<string, string> = {
-  Bronze: "bg-orange-100 text-orange-700",
-  Silver: "bg-gray-100 text-gray-600",
-  Gold: "bg-amber-50 text-amber-700",
-  Platinum: "bg-violet-50 text-violet-700",
+  Bronze: "bg-coral/10 text-coral",
+  Silver: "bg-charcoal/10 text-charcoal-light",
+  Gold: "bg-gold/10 text-gold",
+  Platinum: "bg-secondary/10 text-secondary",
 };
 
 type SortKey = "name" | "orders" | "spent" | "lastOrder" | "joined";
@@ -593,11 +593,11 @@ export default function AdminCustomersPage() {
 
     return (
       <div className="space-y-5">
-        <div className="flex items-center gap-3">
-          <button onClick={() => { setSelectedCustomer(null); setMembershipData(null); setCustomerCoupons([]); }} className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96]">
+        <div className="flex items-center gap-3 flex-wrap">
+          <button onClick={() => { setSelectedCustomer(null); setMembershipData(null); setCustomerCoupons([]); }} className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-pearl text-charcoal-lighter hover:text-charcoal transition-colors active:scale-[0.96] shrink-0">
             <ArrowLeft className="h-4 w-4" />
           </button>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <h1 className="font-heading text-xl font-semibold text-charcoal">{c.name}</h1>
             <p className="text-xs text-charcoal-lighter">Customer since {formatDateShort(c.joinedDate)}</p>
           </div>
@@ -856,7 +856,7 @@ export default function AdminCustomersPage() {
 
         {/* Give/Deduct Points Dialog */}
         <Dialog open={pointsDialogOpen} onOpenChange={setPointsDialogOpen}>
-          <DialogContent className="max-w-sm">
+          <DialogContent className="w-[95vw] max-w-sm">
             <DialogHeader>
               <DialogTitle>{pointsMode === "deduct" ? "Deduct Points" : pointsType === "bonus" ? "Give Bonus Points" : "Adjust Points"}</DialogTitle>
               <DialogDescription>
@@ -919,7 +919,7 @@ export default function AdminCustomersPage() {
 
         {/* Assign Coupon Dialog */}
         <Dialog open={couponDialogOpen} onOpenChange={setCouponDialogOpen}>
-          <DialogContent className="max-w-sm">
+          <DialogContent className="w-[95vw] max-w-sm">
             <DialogHeader>
               <DialogTitle>Assign Coupon</DialogTitle>
               <DialogDescription>Select a coupon to assign to {c.name}</DialogDescription>
@@ -956,7 +956,7 @@ export default function AdminCustomersPage() {
 
         {/* Edit Customer Dialog */}
         <Dialog open={editCustomerOpen} onOpenChange={setEditCustomerOpen}>
-          <DialogContent className="max-w-sm">
+          <DialogContent className="w-[95vw] max-w-sm">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2"><Edit className="h-5 w-5 text-secondary" /> Edit Customer</DialogTitle>
               <DialogDescription>Update customer profile details</DialogDescription>
@@ -1004,7 +1004,7 @@ export default function AdminCustomersPage() {
         {/* Delete Customer Dialog — superadmin only, offers a choice between
             reversible deactivation and permanent removal. */}
         <Dialog open={deleteCustomerDialog !== null} onOpenChange={(open) => !open && setDeleteCustomerDialog(null)}>
-          <DialogContent className="max-w-sm">
+          <DialogContent className="w-[95vw] max-w-sm">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-destructive"><XCircle className="h-5 w-5" /> Delete Customer</DialogTitle>
               <DialogDescription>
@@ -1247,7 +1247,7 @@ export default function AdminCustomersPage() {
 
       {/* Add Customer Dialog */}
       <Dialog open={addCustomerOpen} onOpenChange={setAddCustomerOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="w-[95vw] max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><UserPlus className="h-5 w-5 text-secondary" /> Add Customer</DialogTitle>
             <DialogDescription>Create a new customer account</DialogDescription>
@@ -1283,7 +1283,7 @@ export default function AdminCustomersPage() {
 
       {/* Send SMS Dialog */}
       <Dialog open={smsOpen} onOpenChange={setSmsOpen}>
-        <DialogContent className="max-w-md max-h-[85vh] flex flex-col overflow-hidden">
+        <DialogContent className="w-[95vw] max-w-md max-h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5 text-secondary" /> Send SMS</DialogTitle>
             <DialogDescription>Search and select customers to message</DialogDescription>
@@ -1352,7 +1352,7 @@ export default function AdminCustomersPage() {
 
       {/* Send SMS Result Dialog — success or error, always shown after a send attempt */}
       <Dialog open={!!smsResultDialog} onOpenChange={(open) => !open && setSmsResultDialog(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="w-[95vw] max-w-sm">
           {smsResultDialog && (
             <>
               <DialogHeader>
@@ -1411,7 +1411,7 @@ function FraudDialog({
 }) {
   return (
     <Dialog open={!!customer} onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="w-[95vw] max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-destructive"><ShieldAlert className="h-5 w-5" /> Mark as Fraud</DialogTitle>
           <DialogDescription>

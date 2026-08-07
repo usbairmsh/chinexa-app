@@ -449,7 +449,7 @@ export default function AdminProductsPage() {
 
       {/* Delete Product Dialog */}
       <Dialog open={!!deleteProduct} onOpenChange={(open) => !open && setDeleteProduct(null)}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-destructive" /> Delete Product</DialogTitle>
             <DialogDescription>This will permanently delete the product, all its variants, images, and reviews.</DialogDescription>
@@ -476,7 +476,7 @@ export default function AdminProductsPage() {
 
       {/* View Variant Modal */}
       <Dialog open={!!viewVariant} onOpenChange={(open) => !open && setViewVariant(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="w-[95vw] max-w-sm">
           <DialogHeader><DialogTitle>Variant Details</DialogTitle></DialogHeader>
           {viewVariant && (
             <div className="space-y-3">
@@ -519,7 +519,7 @@ export default function AdminProductsPage() {
 
       {/* Edit Variant Modal */}
       <Dialog open={!!editVariant} onOpenChange={(open) => !open && setEditVariant(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="w-[95vw] max-w-sm">
           <DialogHeader>
             <DialogTitle>Edit Variant</DialogTitle>
             <DialogDescription>{editVariant?.product.name}</DialogDescription>
@@ -544,7 +544,7 @@ export default function AdminProductsPage() {
 
       {/* Delete Variant Dialog */}
       <Dialog open={!!deleteVariant} onOpenChange={(open) => !open && setDeleteVariant(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="w-[95vw] max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-destructive" /> Delete Variant</DialogTitle>
             <DialogDescription>Remove &quot;{deleteVariant?.variant.name}&quot; from {deleteVariant?.product.name}?</DialogDescription>

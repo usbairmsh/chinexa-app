@@ -34,7 +34,7 @@ export default function ExclusivePage() {
         <div className="absolute inset-0 opacity-10">
           <Image src="https://picsum.photos/seed/chinexa-exclusive-hero/1600/500" alt="" fill className="object-cover" sizes="100vw" priority />
         </div>
-        <div className="relative z-10 mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-10 py-10 sm:py-14">
+        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
           <Breadcrumb items={[{ label: "Exclusive" }]} />
           <motion.div
             initial={{ opacity: 0 }}
@@ -45,7 +45,7 @@ export default function ExclusivePage() {
             <span className="inline-flex items-center gap-1.5 rounded-full bg-gold/10 px-3 py-1 text-xs font-semibold text-gold">
               <Sparkles className="h-3.5 w-3.5" /> Handpicked
             </span>
-            <h1 className="mt-3 font-heading text-3xl sm:text-4xl font-bold text-charcoal">Exclusive</h1>
+            <h1 className="mt-3 font-heading text-3xl sm:text-4xl font-semibold text-charcoal">Exclusive</h1>
             <p className="mt-2 max-w-xl text-sm sm:text-base text-charcoal-lighter">
               A curated selection of our most special pieces — handpicked and marked exclusive just for you.
             </p>
@@ -54,13 +54,13 @@ export default function ExclusivePage() {
       </div>
 
       {/* Products */}
-      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-10 py-8 sm:py-10">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
         <div className="flex items-center justify-between mb-6">
           <p className="text-sm text-charcoal-lighter">
             {data?.total ? <><span className="font-semibold text-charcoal [font-variant-numeric:tabular-nums]">{data.total}</span> item{data.total === 1 ? "" : "s"}</> : ""}
           </p>
           <Select value={params.sort_by} onValueChange={(v) => setParams((p) => ({ ...p, sort_by: v as ProductListParams["sort_by"], page: 1 }))}>
-            <SelectTrigger className="w-[190px] h-10"><SelectValue placeholder="Sort" /></SelectTrigger>
+            <SelectTrigger className="w-[180px] h-9 text-xs"><SelectValue placeholder="Sort" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="newest">Newest first</SelectItem>
               <SelectItem value="price_asc">Price: Low to High</SelectItem>
@@ -71,7 +71,7 @@ export default function ExclusivePage() {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-3 gap-y-6 sm:gap-x-5 sm:gap-y-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="space-y-2">
                 <Skeleton className="aspect-[3/4] rounded-2xl" />
@@ -84,7 +84,7 @@ export default function ExclusivePage() {
           <EmptyState icon={PackageSearch} title="Nothing new right now" description="Check back soon — freshly added and restocked products will appear here." />
         ) : (
           <>
-            <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-3 gap-y-6 sm:gap-x-5 sm:gap-y-8 transition-opacity ${isFetching ? "opacity-60" : ""}`}>
+            <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6 transition-opacity ${isFetching ? "opacity-60" : ""}`}>
               {products.map((product, i) => (
                 <ProductCard key={product.id} product={product} index={i} priority={i === 0} />
               ))}

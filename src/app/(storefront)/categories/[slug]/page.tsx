@@ -90,7 +90,7 @@ export default function CategoryPage() {
           <h4 className="text-sm font-semibold text-charcoal mb-3">Subcategories</h4>
           <div className="space-y-2">
             {subcategories.map((sub) => (
-              <label key={sub.id} className="flex items-center gap-2 cursor-pointer">
+              <label key={sub.id} className="flex items-center gap-2 cursor-pointer rounded-lg px-1.5 py-1 -mx-1.5 transition-colors hover:bg-pearl">
                 <Checkbox
                   checked={selectedSubs.includes(sub.slug)}
                   onCheckedChange={() => toggleSub(sub.slug)}
@@ -155,7 +155,7 @@ export default function CategoryPage() {
       {/* Availability */}
       <div>
         <h4 className="text-sm font-semibold text-charcoal mb-3">Availability</h4>
-        <label className="flex items-center gap-2 cursor-pointer">
+        <label className="flex items-center gap-2 cursor-pointer rounded-lg px-1.5 py-1 -mx-1.5 transition-colors hover:bg-pearl">
           <Checkbox checked={!!params.in_stock} onCheckedChange={(checked) => updateParams({ in_stock: checked ? true : undefined })} />
           <span className="text-sm text-charcoal-light">In stock only</span>
         </label>
@@ -284,7 +284,7 @@ export default function CategoryPage() {
 
             {/* Grid */}
             {isLoading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
                 {Array.from({ length: 12 }).map((_, i) => (
                   <div key={i} className="space-y-3">
                     <Skeleton className="aspect-[3/4] rounded-2xl" />
@@ -314,7 +314,7 @@ export default function CategoryPage() {
               // remounts on filter/page change to replay the stagger.
               <div
                 key={`${params.page}-${params.sort_by}-${params.subcategory}-${params.brand}-${params.min_rating}-${params.in_stock}`}
-                className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:gap-6"
+                className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6"
               >
                 {data.data.map((product, index) => (
                   <ProductCard key={product.id} product={product} index={index} priority={index === 0} />

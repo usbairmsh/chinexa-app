@@ -91,7 +91,7 @@ export default function BrandsPage() {
               >
                 <Link
                   href={`/brands/${brand.slug}`}
-                  className="group block rounded-2xl border border-border/30 bg-card p-5 shadow-card hover:border-primary/30 hover:shadow-luxury-hover hover:-translate-y-px active:scale-[0.98] transition-all duration-300"
+                  className="group flex flex-col h-full min-h-[192px] rounded-2xl border border-border/30 bg-card p-5 shadow-card hover:border-primary/30 hover:shadow-luxury-hover hover:-translate-y-px active:scale-[0.98] transition-all duration-300"
                 >
                   {/* Logo */}
                   <div className="flex items-center justify-center h-20 mb-4">
@@ -110,7 +110,7 @@ export default function BrandsPage() {
                   </div>
 
                   {/* Info */}
-                  <h3 className="font-heading text-base font-semibold text-charcoal text-center mb-1 group-hover:text-secondary transition-colors">
+                  <h3 className="font-heading text-base font-semibold text-charcoal text-center mb-1 group-hover:text-secondary transition-colors line-clamp-1">
                     {brand.name}
                   </h3>
 
@@ -136,7 +136,7 @@ export default function BrandsPage() {
                     </div>
                   )}
 
-                  <p className="text-[10px] text-charcoal-lighter text-center">
+                  <p className="mt-auto pt-2 text-[11px] text-charcoal-lighter text-center">
                     {brand.product_count} {brand.product_count === 1 ? "product" : "products"}
                   </p>
                 </Link>

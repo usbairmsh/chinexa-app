@@ -254,7 +254,7 @@ export default function BrandPage() {
 
             {/* Grid */}
             {isLoading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
                 {Array.from({ length: 12 }).map((_, i) => (
                   <div key={i} className="space-y-3">
                     <Skeleton className="aspect-[3/4] rounded-2xl" />
@@ -279,7 +279,7 @@ export default function BrandPage() {
                 key={`${params.page}-${params.sort_by}`}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:gap-6"
+                className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6"
               >
                 {data.data.map((product, index) => (
                   <ProductCard key={product.id} product={product} index={index} priority={index === 0} />

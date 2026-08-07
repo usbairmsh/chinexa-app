@@ -160,7 +160,7 @@ export default function AccountLayout({
                 <span className="font-heading font-semibold text-base text-charcoal truncate">{user?.name || "Guest User"}</span>
                 {badge?.badge_color && <VerifiedBadge color={badge.badge_color} opacity={badge.badge_opacity} size={17} tooltip={badge.badge_name} />}
                 {badge?.tier_name && (
-                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-white/70 text-charcoal">
+                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-card/80 text-charcoal">
                     {badge.tier_name}
                   </span>
                 )}
@@ -181,17 +181,17 @@ export default function AccountLayout({
                     <button
                       key={item.href}
                       onClick={() => openChat("help_and_support")}
-                      className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-md text-charcoal/70 hover:bg-pearl hover:text-charcoal active:scale-[0.93] transition-all duration-150"
+                      className="flex flex-col items-center gap-1 shrink-0 w-[68px] py-2 rounded-md text-charcoal/70 hover:bg-pearl hover:text-charcoal active:scale-[0.93] transition-all duration-150"
                     >
                       <item.icon className="h-5 w-5" />
-                      <span className="text-[10px] font-medium leading-none text-center">{item.label}</span>
+                      <span className="text-[10px] font-medium leading-tight text-center line-clamp-2">{item.label}</span>
                     </button>
                   ) : (
                     <Link
                       key={item.href}
                       href={item.href}
                       className={cn(
-                        "flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-md active:scale-[0.93] transition-all duration-150",
+                        "flex flex-col items-center gap-1 shrink-0 w-[68px] py-2 rounded-md active:scale-[0.93] transition-all duration-150",
                         isActive(item.href)
                           ? "bg-secondary/10 text-secondary"
                           : "text-charcoal/70 hover:bg-pearl hover:text-charcoal"
@@ -214,14 +214,14 @@ export default function AccountLayout({
                           )}
                         </AnimatePresence>
                       </span>
-                      <span className="text-[10px] font-medium leading-none text-center">{item.label}</span>
+                      <span className="text-[10px] font-medium leading-tight text-center line-clamp-2">{item.label}</span>
                     </Link>
                   )
                 )}
                 {isAuthenticated ? (
                   <button
                     onClick={handleLogout}
-                    className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-md text-charcoal/70 hover:bg-destructive/5 hover:text-destructive active:scale-[0.93] transition-all duration-150"
+                    className="flex flex-col items-center gap-1 shrink-0 w-[68px] py-2 rounded-md text-charcoal/70 hover:bg-destructive/5 hover:text-destructive active:scale-[0.93] transition-all duration-150"
                   >
                     <LogOut className="h-5 w-5" />
                     <span className="text-[10px] font-medium leading-none">Sign Out</span>
@@ -229,7 +229,7 @@ export default function AccountLayout({
                 ) : (
                   <Link
                     href="/login"
-                    className="flex flex-col items-center gap-1 shrink-0 w-16 py-2 rounded-md text-secondary active:scale-[0.93] transition-all duration-150"
+                    className="flex flex-col items-center gap-1 shrink-0 w-[68px] py-2 rounded-md text-secondary active:scale-[0.93] transition-all duration-150"
                   >
                     <LogOut className="h-5 w-5 rotate-180" />
                     <span className="text-[10px] font-medium leading-none">Sign In</span>
@@ -264,7 +264,7 @@ export default function AccountLayout({
                     <span className="font-heading font-semibold text-base truncate">{user?.name || "Guest User"}</span>
                     {badge?.badge_color && <VerifiedBadge color={badge.badge_color} opacity={badge.badge_opacity} size={17} tooltip={badge.badge_name} />}
                     {badge?.tier_name && (
-                      <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-white/70">
+                      <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-card/80 text-charcoal">
                         {badge.tier_name}
                       </span>
                     )}

@@ -206,7 +206,7 @@ function TrackOrderContent() {
             icon={<Search className="h-4 w-4" />}
             className="flex-1"
           />
-          <Button variant="secondary" type="submit" disabled={loading || !queryInput.trim()}>
+          <Button variant="secondary" type="submit" disabled={loading || !queryInput.trim()} className="h-11 min-w-[112px]">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Track"}
           </Button>
         </form>

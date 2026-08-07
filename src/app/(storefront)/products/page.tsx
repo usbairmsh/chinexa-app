@@ -231,7 +231,7 @@ export default function ProductsPage() {
 
             {/* Product Grid */}
             {isLoading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
                 {Array.from({ length: 12 }).map((_, i) => (
                   <div key={i} className="space-y-3">
                     <Skeleton className="aspect-[3/4] rounded-xl sm:rounded-2xl" />
@@ -247,7 +247,7 @@ export default function ProductsPage() {
               // would mask that cascade. Key remounts on page/sort/filter change.
               <div
                 key={`${params.page}-${params.sort_by}-${params.category}-${params.brand}-${params.min_rating}-${params.in_stock}`}
-                className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:gap-6"
+                className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6"
               >
                 {data.data.map((product, index) => (
                   <ProductCard key={product.id} product={product} index={index} priority={index === 0} />

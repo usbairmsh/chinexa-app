@@ -216,7 +216,7 @@ export default function CartPage() {
                         onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError(""); }}
                         onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon()}
                       />
-                      <Button variant="outline" size="sm" onClick={handleApplyCoupon} disabled={couponLoading || !couponInput.trim()}>
+                      <Button variant="outline" onClick={handleApplyCoupon} disabled={couponLoading || !couponInput.trim()} className="h-10">
                         {couponLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Apply"}
                       </Button>
                     </div>

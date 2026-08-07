@@ -39,7 +39,7 @@ export default function ContactPage() {
           <div className="lg:col-span-2 space-y-4">
             {!loaded ? (
               Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="h-[68px] rounded-luxury bg-pearl animate-pulse" />
+                <div key={i} className="h-[76px] rounded-luxury bg-pearl animate-pulse" />
               ))
             ) : contactInfo.map((item, i) => (
               <motion.div

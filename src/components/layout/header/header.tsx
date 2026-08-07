@@ -196,7 +196,7 @@ export function Header() {
 
             {/* ── CENTER: Navigation ── */}
             <nav
-              className="hidden lg:flex items-center gap-0.5 mx-auto"
+              className="hidden lg:flex items-center gap-0.5 mx-auto min-w-0 overflow-hidden"
               onMouseLeave={() => setActiveMenu(null)}
             >
               {navItems.map((item) => (
@@ -396,7 +396,7 @@ export function Header() {
                           <User className="h-3.5 w-3.5" />
                         )}
                       </motion.span>
-                      <span className="font-heading text-[12px] font-semibold tracking-[0.03em] whitespace-nowrap">{user?.name || "Account"}</span>
+                      <span className="font-heading text-[12px] font-semibold tracking-[0.03em] whitespace-nowrap truncate max-w-[120px]">{user?.name || "Account"}</span>
                       <ChevronDown className={cn("h-3 w-3 transition-transform duration-200", accountMenuOpen && "rotate-180")} />
                     </motion.button>
                   ) : (

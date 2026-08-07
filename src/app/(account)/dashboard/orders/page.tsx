@@ -29,17 +29,17 @@ interface Order {
 const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock; badge: "warning" | "secondary" | "success" | "destructive" | "default" }> = {
   preorder: { label: "Pre-order — Reserved", color: "text-secondary bg-secondary/10", icon: Clock, badge: "secondary" },
   pending: { label: "Order Placed", color: "text-warning bg-warning/10", icon: Clock, badge: "warning" },
-  confirmed: { label: "Confirmed", color: "text-blue-500 bg-blue-50", icon: CheckCircle2, badge: "default" },
+  confirmed: { label: "Confirmed", color: "text-secondary bg-secondary/10", icon: CheckCircle2, badge: "default" },
   processing: { label: "Processing", color: "text-secondary bg-secondary/10", icon: Package, badge: "secondary" },
-  shipped: { label: "Shipped", color: "text-violet-500 bg-violet-50", icon: Truck, badge: "secondary" },
-  on_delivery: { label: "Out for Delivery", color: "text-indigo-500 bg-indigo-50", icon: MapPin, badge: "secondary" },
+  shipped: { label: "Shipped", color: "text-secondary bg-secondary/10", icon: Truck, badge: "secondary" },
+  on_delivery: { label: "Out for Delivery", color: "text-secondary bg-secondary/10", icon: MapPin, badge: "secondary" },
   received: { label: "Delivered", color: "text-success bg-success/10", icon: PackageCheck, badge: "success" },
   not_received: { label: "Delivery Failed", color: "text-destructive bg-destructive/10", icon: ThumbsDown, badge: "destructive" },
   // Archiving an order sets its status to 'cancelled'; a processed return sets
   // 'returned'. Without these entries the list fell back to "Order Placed",
   // so a cancelled/archived order wrongly appeared as still pending here.
   cancelled: { label: "Cancelled", color: "text-destructive bg-destructive/10", icon: XCircle, badge: "destructive" },
-  returned: { label: "Returned", color: "text-orange-500 bg-orange-50", icon: RotateCcw, badge: "warning" },
+  returned: { label: "Returned", color: "text-warning bg-warning/10", icon: RotateCcw, badge: "warning" },
 };
 
 function OrderCard({ order, customerId, onCancelled }: { order: Order; customerId?: string; onCancelled?: (orderId: string) => void }) {
@@ -141,12 +141,12 @@ function OrderCard({ order, customerId, onCancelled }: { order: Order; customerI
           </div>
         )}
 
-        <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-t border-border/20">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-3 border-t border-border/20">
           <p className="text-sm">
             <span className="text-charcoal-lighter">Total: </span>
             <span className="font-semibold text-charcoal">{formatCurrency(order.total)}</span>
           </p>
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="flex items-center gap-2 flex-wrap sm:justify-end">
             <Button size="sm" onClick={handleReorder} disabled={reordering}>
               {reordering ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} Buy Again
             </Button>
