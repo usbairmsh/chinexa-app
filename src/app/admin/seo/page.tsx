@@ -1298,7 +1298,7 @@ export default function AdminSeoPage() {
                   label="Meta Pixel ID"
                   help={<><p><strong>What it is:</strong> the base pixel — measures ad results and retargets visitors.</p><p><strong>Where:</strong> Events Manager → Data sources → your pixel → numeric ID.</p></>}
                 >
-                  <Input placeholder="Your Meta Pixel ID" value={metaPixel} onChange={(e) => setMetaPixel(e.target.value)} />
+                  <Input placeholder="Your Meta Pixel ID" value={metaPixel} onChange={(e) => setMetaPixel(e.target.value)} name="meta-pixel-id" autoComplete="off" data-1p-ignore data-lpignore="true" />
                 </HelpedField>
 
                 <div className="flex items-start justify-between gap-3 rounded-lg bg-pearl/50 border border-border p-3">
@@ -1322,13 +1322,26 @@ export default function AdminSeoPage() {
                   help={<><p><strong>What it is:</strong> a secret token letting our server send events to Meta. Stored securely; never exposed to visitors.</p><p><strong>Where:</strong> Events Manager → your pixel → Settings → Conversions API → Generate access token.</p></>}
                 >
                   <div className="relative">
+                    {/* Deliberately type="text" (never type="password"): a password
+                        field makes the browser's password manager autofill it with
+                        the admin's saved login. Masking is done with the CSS
+                        text-security trick instead, so the value is hidden without
+                        tripping autofill. name + autoComplete below further tell
+                        Chrome/Edge this is not a credential field. */}
                     <Input
-                      type={showCapiToken ? "text" : "password"}
+                      type="text"
+                      name="meta-capi-token"
                       placeholder="Paste your CAPI access token"
                       value={metaCapiToken}
                       onChange={(e) => setMetaCapiToken(e.target.value)}
                       autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck={false}
+                      data-1p-ignore
+                      data-lpignore="true"
                       className="pr-10"
+                      style={showCapiToken ? undefined : ({ WebkitTextSecurity: "disc", textSecurity: "disc" } as React.CSSProperties)}
                     />
                     <button
                       type="button"
@@ -1345,14 +1358,14 @@ export default function AdminSeoPage() {
                   label="Test Event Code (optional)"
                   help={<><p>Watch events arrive live in Events Manager → Test Events while setting up. Clear it once verified so real traffic isn&apos;t flagged as test.</p></>}
                 >
-                  <Input placeholder="e.g. TEST12345" value={metaTestEventCode} onChange={(e) => setMetaTestEventCode(e.target.value)} />
+                  <Input placeholder="e.g. TEST12345" value={metaTestEventCode} onChange={(e) => setMetaTestEventCode(e.target.value)} name="meta-test-code" autoComplete="off" data-1p-ignore data-lpignore="true" />
                 </HelpedField>
 
                 <HelpedField
                   label="Domain Verification"
                   help={<><p><strong>What it is:</strong> proves you own this domain to Meta. Required to set up the 8 iOS conversion events (Aggregated Event Measurement) and to run domain-restricted catalog/dynamic ads.</p><p><strong>Where:</strong> Business Settings → Brand safety → Domains → add your domain → Meta-tag method → copy only the <code>content</code> value.</p></>}
                 >
-                  <Input placeholder="Meta domain-verification code" value={metaDomainVerify} onChange={(e) => setMetaDomainVerify(e.target.value)} />
+                  <Input placeholder="Meta domain-verification code" value={metaDomainVerify} onChange={(e) => setMetaDomainVerify(e.target.value)} name="meta-domain-verify" autoComplete="off" data-1p-ignore data-lpignore="true" />
                 </HelpedField>
 
                 <div className="rounded-lg bg-pearl border border-border/40 p-3">
