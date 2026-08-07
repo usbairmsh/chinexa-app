@@ -613,6 +613,14 @@ export async function POST(req: NextRequest) {
     await sendOrderConfirmationEmail({
       orderNumber,
       total: Number(body.total) || 0,
+      // Read after the authoritative re-derivation above, so the emailed
+      // breakdown matches what was actually stored and charged rather than
+      // whatever the client sent.
+      subtotal: Number(body.subtotal) || 0,
+      shipping: Number(body.shipping_cost) || 0,
+      discount: Number(body.discount) || 0,
+      tax: Number(body.tax) || 0,
+      couponCode: body.coupon_code || null,
       paymentMethod: body.payment_method || "COD",
       customerName: body.customer_name,
       customerEmail: resolvedEmail,

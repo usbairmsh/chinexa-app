@@ -12,6 +12,9 @@ const BRAND = {
   line: "#EBD9E6",
   bg: "#FDF4F8",
   card: "#FFFFFF",
+  // Savings/discount green. Deliberately a deep shade rather than a bright one:
+  // it must stay readable on the white card in a client that ignores our styles.
+  save: "#1F7A4D",
 };
 
 const taka = (n: number) => `৳${Math.round(Number(n) || 0).toLocaleString("en-BD")}`;
@@ -32,6 +35,14 @@ export interface OrderEmailData {
   trackUrl: string;
   siteUrl: string;
   storeName: string;
+  // Breakdown lines. All optional so existing callers (e.g. status emails, which
+  // only know the total) keep working; each line is hidden when absent or zero,
+  // so an order with no discount doesn't show an empty "Discount —" row.
+  subtotal?: number;
+  shipping?: number;
+  discount?: number;
+  tax?: number;
+  couponCode?: string | null;
 }
 
 // Shared outer shell — header, body slot, footer. The header shows the ChineXa
@@ -98,6 +109,61 @@ export function otpEmail(code: string, storeName: string, siteUrl: string, purpo
 }
 
 // ── Order confirmation ─────────────────────────────────────────────────────
+/**
+ * Price breakdown: subtotal, shipping, discount, tax, then the grand total.
+ *
+ * Built as a <table>, not flex/grid — Outlook (Word rendering engine) and
+ * several webmail clients drop `display:flex` entirely, which previously left
+ * the total row's label and amount stacked instead of on one line.
+ *
+ * Rows are omitted when zero so a simple order stays a two-line summary, but
+ * shipping is shown even at 0 (as "Free") because "was delivery actually free?"
+ * is a question customers ask; silence there reads as an omission.
+ */
+function totalsTable(d: OrderEmailData): string {
+  const row = (label: string, value: string, opts: { strong?: boolean; accent?: string } = {}) => `
+    <tr>
+      <td style="padding:5px 0;font-size:${opts.strong ? "15px" : "13px"};color:${opts.accent || (opts.strong ? BRAND.ink : BRAND.soft)};${opts.strong ? "font-weight:800;" : ""}">${label}</td>
+      <td align="right" style="padding:5px 0;font-size:${opts.strong ? "15px" : "13px"};color:${opts.accent || (opts.strong ? BRAND.ink : BRAND.soft)};${opts.strong ? "font-weight:800;" : ""}white-space:nowrap;">${value}</td>
+    </tr>`;
+
+  const lines: string[] = [];
+  if (typeof d.subtotal === "number" && d.subtotal > 0) lines.push(row("Subtotal", taka(d.subtotal)));
+  if (typeof d.discount === "number" && d.discount > 0) {
+    const label = d.couponCode ? `Discount (${escapeHtml(d.couponCode)})` : "Discount";
+    lines.push(row(label, `− ${taka(d.discount)}`, { accent: BRAND.save }));
+  }
+  if (typeof d.shipping === "number") {
+    lines.push(row("Delivery", d.shipping > 0 ? taka(d.shipping) : "Free"));
+  }
+  if (typeof d.tax === "number" && d.tax > 0) lines.push(row("Tax", taka(d.tax)));
+
+  // With no breakdown supplied, fall back to just the total so the block never
+  // renders as a lone grand-total row with a stray divider above it.
+  const hasBreakdown = lines.length > 0;
+
+  return `
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:4px 0 0;">
+      ${lines.join("")}
+      ${hasBreakdown ? `<tr><td colspan="2" style="padding:6px 0 0;"><div style="border-top:2px solid ${BRAND.line};font-size:0;line-height:0;">&nbsp;</div></td></tr>` : ""}
+      ${row("Total", taka(d.total), { strong: true })}
+    </table>`;
+}
+
+/** Plain-text mirror of totalsTable, for clients that render only the text part. */
+function totalsText(d: OrderEmailData, lead: string): string {
+  const parts = [lead];
+  if (typeof d.subtotal === "number" && d.subtotal > 0) parts.push(`Subtotal: ${taka(d.subtotal)}`);
+  if (typeof d.discount === "number" && d.discount > 0) {
+    parts.push(`Discount${d.couponCode ? ` (${d.couponCode})` : ""}: -${taka(d.discount)}`);
+  }
+  if (typeof d.shipping === "number") parts.push(`Delivery: ${d.shipping > 0 ? taka(d.shipping) : "Free"}`);
+  if (typeof d.tax === "number" && d.tax > 0) parts.push(`Tax: ${taka(d.tax)}`);
+  parts.push(`Total: ${taka(d.total)} (${d.paymentMethod})`);
+  parts.push(`Track: ${d.trackUrl}`);
+  return parts.join("\n");
+}
+
 export function orderConfirmationEmail(d: OrderEmailData): { subject: string; html: string; text: string } {
   const subject = `Order ${d.orderNumber} confirmed — ${d.storeName}`;
   const body = `
@@ -109,12 +175,10 @@ export function orderConfirmationEmail(d: OrderEmailData): { subject: string; ht
       <div><strong style="color:${BRAND.ink};">Payment:</strong> ${escapeHtml(d.paymentMethod)}</div>
     </div>
     ${itemsTable(d.items)}
-    <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;color:${BRAND.ink};padding-top:8px;border-top:2px solid ${BRAND.line};">
-      <span>Total</span><span style="float:right;">${taka(d.total)}</span>
-    </div>
+    ${totalsTable(d)}
     ${button("Track your order", d.trackUrl)}
     <p style="font-size:12px;color:${BRAND.faint};text-align:center;margin:16px 0 0;line-height:1.6;">We'll email you when your order ships. Questions? Just reply to this email.</p>`;
-  return { subject, html: shell(d.storeName, d.siteUrl, body), text: `Order ${d.orderNumber} confirmed. Total ${taka(d.total)} (${d.paymentMethod}). Track: ${d.trackUrl}` };
+  return { subject, html: shell(d.storeName, d.siteUrl, body), text: totalsText(d, `Order ${d.orderNumber} confirmed.`) };
 }
 
 // ── Status update (shipped / delivered / etc.) ─────────────────────────────
@@ -147,6 +211,11 @@ export function adminOrderEmail(d: OrderEmailData & { customerPhone: string; tie
       <div><strong style="color:${BRAND.ink};">Phone:</strong> ${escapeHtml(d.customerPhone)}</div>
     </div>
     ${itemsTable(d.items)}
+    ${totalsTable(d)}
     ${button("Open admin", `${d.siteUrl}/admin/orders`)}`;
-  return { subject, html: shell(d.storeName, d.siteUrl, body), text: `New order ${d.orderNumber} — ${taka(d.total)} (${d.paymentMethod}). ${d.customerName} [${d.tierName}], ${d.customerPhone}` };
+  return {
+    subject,
+    html: shell(d.storeName, d.siteUrl, body),
+    text: `${totalsText(d, `New order ${d.orderNumber}.`)}\n${d.customerName} [${d.tierName}], ${d.customerPhone}`,
+  };
 }

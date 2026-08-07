@@ -62,6 +62,13 @@ function trackLink(orderNumber: string): string {
 export interface OrderConfirmationEmailInput {
   orderNumber: string;
   total: number;
+  // Breakdown, all optional — an older caller that only knows the total still
+  // produces a valid email, just without the itemised lines.
+  subtotal?: number;
+  shipping?: number;
+  discount?: number;
+  tax?: number;
+  couponCode?: string | null;
   paymentMethod: string;
   customerName: string;
   customerEmail: string | null;
@@ -85,6 +92,8 @@ export async function sendOrderConfirmationEmail(input: OrderConfirmationEmailIn
     const method = (input.paymentMethod || "COD").toUpperCase();
     const base = {
       orderNumber: input.orderNumber, customerName: input.customerName, total: input.total,
+      subtotal: input.subtotal, shipping: input.shipping, discount: input.discount,
+      tax: input.tax, couponCode: input.couponCode,
       paymentMethod: method, when, items: input.items, trackUrl: trackLink(input.orderNumber),
       siteUrl, storeName: name,
     };
