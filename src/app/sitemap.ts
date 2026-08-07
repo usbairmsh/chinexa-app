@@ -14,11 +14,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${siteUrl}/brands`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.6 },
     // "Exclusive" (recently added / restocked) and the Pre-Order listing are
     // first-class storefront destinations (linked from the header + footer).
-    // Pre-orders is listed explicitly here rather than relying on the dynamic
-    // category loop below, so it's always advertised even on databases where no
-    // "pre-orders" category row exists.
+    // Pre-orders is its own badge-filtered page at /preorders — NOT a category.
+    // The old /categories/pre-orders URL never existed as a category and now
+    // 404s, so it must not be advertised here.
     { url: `${siteUrl}/exclusive`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
-    { url: `${siteUrl}/categories/pre-orders`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
+    { url: `${siteUrl}/preorders`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
     { url: `${siteUrl}/collections/new-arrivals`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
     { url: `${siteUrl}/collections/bestsellers`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
     { url: `${siteUrl}/collections/trending`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },

@@ -57,9 +57,13 @@ export default async function PaymentResultPage({ searchParams }: { searchParams
 
         <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
           {sp.order && (
+            // Link to public order tracking, not the login-gated dashboard: a
+            // guest who paid online (no account) could otherwise never reach
+            // their order or retry payment — they'd hit the login wall.
+            // /track-order is public and lets anyone look up + repay by number.
             <Link
-              href={`/dashboard/orders/${sp.order}`}
-              className="inline-flex items-center justify-center rounded-full bg-secondary px-6 py-2.5 text-sm font-medium text-white hover:bg-secondary-dark transition-colors"
+              href={`/track-order?order=${encodeURIComponent(sp.order)}`}
+              className="inline-flex items-center justify-center rounded-full bg-secondary px-6 py-2.5 text-sm font-medium !text-white hover:bg-secondary-dark transition-colors"
             >
               {state === "success" ? "View Order" : "Try Payment Again"}
             </Link>

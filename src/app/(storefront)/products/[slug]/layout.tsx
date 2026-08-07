@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { cache, Suspense } from "react";
 import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { query } from "@/lib/db";
@@ -196,6 +197,14 @@ export default async function ProductLayout({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+
+  // Return a real HTTP 404 for a slug that doesn't resolve to an active product,
+  // instead of the client page's soft "Product Not Found" at HTTP 200. Google
+  // was indexing removed/renamed product URLs as live pages (the GSC "Not found
+  // (404)" report) precisely because the status code said 200. cache() means
+  // this reuses the query already run by generateMetadata — no extra round-trip.
+  const exists = await getProductForLayout(slug);
+  if (!exists) notFound();
 
   // Server-side prefetch so the price/name/images are present in the
   // initial HTML response — the page below is a client component that reads

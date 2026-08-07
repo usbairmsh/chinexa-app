@@ -185,6 +185,15 @@ export async function getProductsList(searchParams: URLSearchParams): Promise<Pa
     params.push(`%\"exclusive\"%`);
   }
 
+  // Pre-order listing: products carrying the `preorder` badge. Mirrors the
+  // exclusive filter so /preorders (and the Pre-orders nav item) resolves to a
+  // real, populated page instead of an always-empty category.
+  const preorder = searchParams.get("preorder");
+  if (preorder === "true") {
+    where += " AND p.badges LIKE ?";
+    params.push(`%\"preorder\"%`);
+  }
+
   let orderBy = "ORDER BY p.is_featured DESC, p.created_at DESC";
   if (sortBy === "newest") orderBy = "ORDER BY p.created_at DESC";
   else if (sortBy === "price_asc") orderBy = "ORDER BY p.price ASC";

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { cache } from "react";
 import pool from "@/lib/db";
 import { type RowDataPacket } from "mysql2/promise";
@@ -92,12 +93,19 @@ export default async function BrandLayout({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  // getBrandForLayout can throw on a genuine DB outage (not just "no rows",
-  // which it already handles by returning null) — must stay non-fatal here
-  // since a DB hiccup shouldn't 500 the whole page when the client-side
-  // useBrand(slug) fetch would have just as easily failed and rendered the
-  // page's own "Brand Not Found" state instead.
-  const brand = await getBrandForLayout(slug).catch(() => null);
+  // Distinguish "no such brand" from "DB outage": on a genuine outage the
+  // lookup THROWS (dbFailed=true) and we keep the old non-fatal behaviour (a
+  // hiccup shouldn't 500 the page). But a lookup that SUCCEEDS and returns null
+  // means the slug doesn't exist — return a real 404 instead of a soft 200, so
+  // Google doesn't index a dead brand URL as a live page.
+  let brand: Awaited<ReturnType<typeof getBrandForLayout>> = null;
+  let dbFailed = false;
+  try {
+    brand = await getBrandForLayout(slug);
+  } catch {
+    dbFailed = true;
+  }
+  if (!dbFailed && !brand) notFound();
 
   // Server-side prefetch, same pattern as the product/category detail pages:
   // BrandPage below reads this exact query key via useBrand(slug). Without

@@ -280,7 +280,7 @@ export function Header() {
                 <span className="text-[8px] font-bold bg-gold text-charcoal px-1.5 py-[1px] rounded-full leading-tight uppercase">Hot</span>
               </Link>
               <Link
-                href="/categories/pre-orders"
+                href="/preorders"
                 onMouseEnter={() => setActiveMenu(null)}
                 className="relative inline-flex items-center gap-1.5 px-4 py-2 font-heading text-[15px] font-semibold tracking-[0.01em] text-secondary hover:text-secondary-dark transition-colors"
               >
@@ -669,7 +669,7 @@ export function Header() {
                     <span className="text-[8px] font-bold bg-gold text-charcoal px-1.5 py-[1px] rounded-full uppercase">Hot</span>
                   </Link>
                   <Link
-                    href="/categories/pre-orders"
+                    href="/preorders"
                     onClick={() => setMobileMenuOpen(false)}
                     className="flex items-center justify-between py-2.5 px-2 rounded-xl font-heading text-[16px] font-semibold text-secondary hover:bg-primary-light transition-colors"
                   >

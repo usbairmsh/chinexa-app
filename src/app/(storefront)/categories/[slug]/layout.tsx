@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { cache } from "react";
 import pool from "@/lib/db";
 import { type RowDataPacket } from "mysql2/promise";
@@ -73,6 +74,19 @@ export default async function CategoryLayout({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+
+  // Real 404 for a slug with no active category, instead of the client page's
+  // soft "Does Not Exist" title at HTTP 200 (which Google would index as a live
+  // page). Distinguish a DB outage (throw) from genuinely-absent (null): only
+  // 404 on a successful lookup that returned nothing. cache() reuses the query
+  // generateMetadata already ran — no extra round-trip.
+  let categoryExists = true;
+  try {
+    categoryExists = !!(await getCategoryForLayout(slug));
+  } catch {
+    categoryExists = true; // DB hiccup: don't 404, fall through as before
+  }
+  if (!categoryExists) notFound();
 
   // Server-side prefetch, same pattern as the product detail page: the page
   // below is a client component that reads the exact same React Query key

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { getProductsList } from "@/lib/products";
 import { pageMetadata } from "@/lib/seo";
@@ -62,8 +63,10 @@ export default async function CollectionLayout({
   const { slug } = await params;
   const fetchFn = COLLECTION_FETCH[slug];
 
+  // Collections are a fixed known set. An unknown slug is a real 404, not a
+  // soft-200 "Collection Not Found" page — which Google would otherwise index.
   if (!fetchFn) {
-    return children;
+    notFound();
   }
 
   const queryClient = new QueryClient();

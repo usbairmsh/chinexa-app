@@ -87,6 +87,10 @@ export interface ProductListParams {
   min_rating?: number;
   /** Recently added OR restocked (last 30 days) — the "Exclusive" listing. */
   exclusive?: boolean;
+  /** Products carrying the `preorder` badge — the Pre-orders listing.
+   *  NOTE: server-side filter is wired (lib/products.ts); the client /preorders
+   *  page + nav link are not built yet — see the pause note. */
+  preorder?: boolean;
   all?: boolean;
 }
 
