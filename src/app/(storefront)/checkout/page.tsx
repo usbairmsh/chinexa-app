@@ -909,17 +909,59 @@ export default function CheckoutPage() {
                 ) : !storeSettings.loaded ? (
                   <div className="h-11 rounded-xl bg-pearl animate-pulse" />
                 ) : (
-                  <div>
-                    <label className="block text-sm font-medium text-charcoal-light mb-1.5">Select payment method<span className="text-destructive"> *</span></label>
-                    <Select value={paymentMethod} onValueChange={handlePaymentMethodChange}>
-                      <SelectTrigger><SelectValue placeholder="Choose a payment method" /></SelectTrigger>
-                      <SelectContent>
-                        {activePaymentMethods.map((method) => (
-                          <SelectItem key={method.id} value={method.id}>{method.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  // Radios, not a dropdown: with only two options the choice is
+                  // visible at a glance and takes one tap instead of two, and
+                  // the default (COD) is legible without opening anything.
+                  <fieldset>
+                    <legend className="block text-sm font-medium text-charcoal-light mb-1.5">
+                      Select payment method<span className="text-destructive"> *</span>
+                    </legend>
+                    <div className="space-y-2.5">
+                      {activePaymentMethods.map((method) => {
+                        const isSelected = paymentMethod === method.id;
+                        return (
+                          <label
+                            key={method.id}
+                            className={cn(
+                              "flex items-start gap-3 rounded-xl border p-3.5 cursor-pointer transition-colors",
+                              isSelected
+                                ? "border-secondary bg-secondary/[0.06]"
+                                : "border-border hover:border-secondary/40 hover:bg-pearl/40"
+                            )}
+                          >
+                            <input
+                              type="radio"
+                              name="payment_method"
+                              value={method.id}
+                              checked={isSelected}
+                              onChange={() => handlePaymentMethodChange(method.id)}
+                              className="sr-only"
+                            />
+                            {/* Custom control so the selected state reads clearly
+                                in both themes; the real input stays in the DOM
+                                (sr-only) for keyboard and screen-reader support. */}
+                            <span
+                              aria-hidden="true"
+                              className={cn(
+                                "mt-0.5 flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                                isSelected ? "border-secondary" : "border-border"
+                              )}
+                            >
+                              {isSelected && <span className="h-2 w-2 rounded-full bg-secondary" />}
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block text-sm font-medium text-charcoal">{method.name}</span>
+                              <span className="block text-xs text-charcoal-lighter mt-0.5">
+                                {method.id === "COD"
+                                  ? "Pay in cash when your order arrives."
+                                  : "Pay now on the secure EPS page. Your order is confirmed as soon as payment succeeds."}
+                              </span>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
                 )}
 
                 {/* EPS online payment: explain the redirect. No details are
@@ -929,8 +971,11 @@ export default function CheckoutPage() {
                   <div className="rounded-xl border border-border/50 bg-pearl/30 p-4 space-y-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="/eps/eps-checkout.png" alt="Pay with EPS — Visa, Mastercard, Amex, bKash, Nagad, Rocket and more" className="w-full max-w-md h-auto" />
+                    {/* The radio above already says payment happens after placing
+                        the order, so this only adds what it doesn't: the methods
+                        accepted, shown by the logos. */}
                     <p className="text-xs text-charcoal-lighter">
-                      After you place the order, you&apos;ll be taken to EPS to pay securely with card, bKash, Nagad, Rocket or other methods. Your order is confirmed automatically once payment succeeds.
+                      You&apos;ll be redirected after placing your order. Card, bKash, Nagad, Rocket and more are accepted.
                     </p>
                   </div>
                 )}
