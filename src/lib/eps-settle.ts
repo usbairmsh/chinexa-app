@@ -3,6 +3,7 @@ import pool, { query, execute } from "@/lib/db";
 import { ensureEpsTables } from "@/lib/migrate-eps";
 import { checkEpsStatus, epsIsPaid, isEpsConfigured } from "@/lib/eps";
 import { markLinksPaidForOrder } from "@/lib/payment-links";
+import { sendMetaPurchase } from "@/lib/meta-capi-server";
 
 // ─── Shared EPS settlement ────────────────────────────────────────────────────
 // Used by BOTH the browser return route and the background reconcile job, so a
@@ -119,11 +120,18 @@ export async function settleEpsOrder(orderId: string): Promise<SettleResult> {
       // UPDATE matches no row (the payment_status guard above), so affectedRows
       // is 0 — it must be compared explicitly, since a falsy check would read 0
       // as "no result" and let every racer write a duplicate entry.
-      if (res.affectedRows > 0) {
+      const wonRace = res.affectedRows > 0;
+      if (wonRace) {
         await execute(
           "INSERT INTO order_timeline (order_id, status, note) VALUES (?, 'confirmed', ?)",
           [orderId, `Payment received via EPS (${status.financialEntity || "online"}). Verified.`]
         ).catch(() => {});
+        // Authoritative Meta Purchase — only the racer that actually settled the
+        // order fires it (deterministic event id also dedups Meta-side as a
+        // backstop). Fires only now that payment genuinely settled, never on
+        // redirect, so abandoned EPS payments aren't counted as sales.
+        // Best-effort; never blocks settlement.
+        await sendMetaPurchase(orderId).catch(() => {});
       }
       // Close out any admin-issued payment link for this order, so the link
       // stops being payable the moment the money lands.

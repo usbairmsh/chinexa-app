@@ -121,6 +121,27 @@ export interface TrackingConfig {
   tiktok_pixel?: string;
   bing_verify?: string;
   pinterest_verify?: string;
+  // ── Meta (Facebook) advanced ──
+  /** Conversions API access token (server-side secret). Held in the settings
+   *  row like the pixel id; NEVER exposed to the browser — only read server-side
+   *  in the CAPI route. */
+  meta_capi_token?: string;
+  /** Optional Meta "Test Event Code" (Events Manager → Test Events) so you can
+   *  see live CAPI + browser events while validating, before going live. */
+  meta_test_event_code?: string;
+  /** Master switch for firing e-commerce events (ViewContent/AddToCart/etc.).
+   *  The base pixel + PageView follow the pixel id alone; this gates the
+   *  conversion events so they can be turned off without removing the pixel. */
+  meta_events_enabled?: boolean;
+  /** Whether to mirror events to the Conversions API (needs the token above). */
+  meta_capi_enabled?: boolean;
+}
+
+/** The browser-safe subset of the Meta config — never includes the CAPI token. */
+export interface MetaClientConfig {
+  pixelId: string;
+  eventsEnabled: boolean;
+  testEventCode?: string;
 }
 
 export const getTrackingConfig = cache(async (): Promise<TrackingConfig> => {

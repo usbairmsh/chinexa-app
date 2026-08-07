@@ -44,7 +44,11 @@ n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
 document,'script','https://connect.facebook.net/en_US/fbevents.js');
 fbq('init', '${metaPixel}');
-fbq('track', 'PageView');`}
+fbq('track', 'PageView');
+// Flag read by the client event helper (lib/meta-pixel.ts) so e-commerce events
+// only fire when the admin has them enabled. The base pixel + PageView above run
+// regardless of this flag.
+window.__metaEventsEnabled = ${cfg.meta_events_enabled ? "true" : "false"};`}
         </Script>
       )}
       {tiktokPixel && (

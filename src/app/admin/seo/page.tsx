@@ -230,9 +230,20 @@ export default function AdminSeoPage() {
   const [gaId, setGaId] = useState("");
   const [searchConsole, setSearchConsole] = useState("");
   const [metaPixel, setMetaPixel] = useState("");
+  // ── Meta advanced ──
+  const [metaCapiToken, setMetaCapiToken] = useState("");
+  const [metaTestEventCode, setMetaTestEventCode] = useState("");
+  const [metaEventsEnabled, setMetaEventsEnabled] = useState(false);
+  const [metaCapiEnabled, setMetaCapiEnabled] = useState(false);
   const [tiktokPixel, setTiktokPixel] = useState("");
   const [bingVerify, setBingVerify] = useState("");
   const [pinterestVerify, setPinterestVerify] = useState("");
+  // Absolute site origin for the copyable catalog-feed URL. Resolved on the
+  // client after mount (window), falling back to the configured public URL.
+  const [siteBase, setSiteBase] = useState(process.env.NEXT_PUBLIC_SITE_URL || "https://chinexabd.com");
+  useEffect(() => {
+    if (typeof window !== "undefined") setSiteBase(window.location.origin);
+  }, []);
   const [savingTracking, setSavingTracking] = useState(false);
   const [savedTracking, setSavedTracking] = useState(false);
 
@@ -271,6 +282,10 @@ export default function AdminSeoPage() {
         if (cfg.ga_id) setGaId(cfg.ga_id);
         if (cfg.search_console) setSearchConsole(cfg.search_console);
         if (cfg.meta_pixel) setMetaPixel(cfg.meta_pixel);
+        if (cfg.meta_capi_token) setMetaCapiToken(cfg.meta_capi_token);
+        if (cfg.meta_test_event_code) setMetaTestEventCode(cfg.meta_test_event_code);
+        setMetaEventsEnabled(!!cfg.meta_events_enabled);
+        setMetaCapiEnabled(!!cfg.meta_capi_enabled);
         if (cfg.tiktok_pixel) setTiktokPixel(cfg.tiktok_pixel);
         if (cfg.bing_verify) setBingVerify(cfg.bing_verify);
         if (cfg.pinterest_verify) setPinterestVerify(cfg.pinterest_verify);
@@ -654,6 +669,8 @@ export default function AdminSeoPage() {
           key: "tracking_config",
           value: {
             ga_id: gaId.trim(), search_console: searchConsole.trim(), meta_pixel: metaPixel.trim(),
+            meta_capi_token: metaCapiToken.trim(), meta_test_event_code: metaTestEventCode.trim(),
+            meta_events_enabled: metaEventsEnabled, meta_capi_enabled: metaCapiEnabled,
             tiktok_pixel: tiktokPixel.trim(), bing_verify: bingVerify.trim(), pinterest_verify: pinterestVerify.trim(),
           },
         }),
@@ -1149,17 +1166,81 @@ export default function AdminSeoPage() {
                 <Input placeholder="Verification code" value={searchConsole} onChange={(e) => setSearchConsole(e.target.value)} />
               </HelpedField>
 
-              <HelpedField
-                label="Meta Pixel ID"
-                help={
-                  <>
-                    <p><strong>What it is:</strong> enables Facebook &amp; Instagram ad tracking — measure ad results and retarget store visitors.</p>
-                    <p><strong>Where to find it:</strong> Meta Events Manager → Data sources → your pixel → the numeric ID (e.g. <code>1234567890</code>).</p>
-                  </>
-                }
-              >
-                <Input placeholder="Your Meta Pixel ID" value={metaPixel} onChange={(e) => setMetaPixel(e.target.value)} />
-              </HelpedField>
+              {/* ── Meta (Facebook/Instagram) Pixel — full setup ── */}
+              <div className="rounded-xl border border-secondary/20 bg-secondary/[0.04] p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <span className="font-heading text-sm font-bold text-charcoal">Meta Pixel &amp; Conversions API</span>
+                  <span className="text-[10px] rounded-full bg-secondary/10 text-secondary px-2 py-0.5 font-medium">Facebook &amp; Instagram Ads</span>
+                </div>
+
+                <HelpedField
+                  label="Meta Pixel ID"
+                  help={
+                    <>
+                      <p><strong>What it is:</strong> the base pixel — measures ad results and retargets visitors.</p>
+                      <p><strong>Where to find it:</strong> Meta Events Manager → Data sources → your pixel → the numeric ID (e.g. <code>1234567890</code>).</p>
+                    </>
+                  }
+                >
+                  <Input placeholder="Your Meta Pixel ID" value={metaPixel} onChange={(e) => setMetaPixel(e.target.value)} />
+                </HelpedField>
+
+                <div className="flex items-start justify-between gap-3 rounded-lg bg-card border border-border p-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-charcoal">Track e-commerce events</p>
+                    <p className="text-xs text-charcoal-lighter mt-0.5">
+                      Fire ViewContent, AddToCart, InitiateCheckout, Search &amp; Purchase (with value). Required for
+                      purchase-optimised ads and ROAS reporting. The base pixel + page views work without this.
+                    </p>
+                  </div>
+                  <Switch checked={metaEventsEnabled} onCheckedChange={setMetaEventsEnabled} />
+                </div>
+
+                <div className="flex items-start justify-between gap-3 rounded-lg bg-card border border-border p-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-charcoal">Conversions API (server-side)</p>
+                    <p className="text-xs text-charcoal-lighter mt-0.5">
+                      Also send events from our server so ad-blockers and iOS can&apos;t hide them. Deduplicated with the
+                      browser pixel. Needs the Access Token below.
+                    </p>
+                  </div>
+                  <Switch checked={metaCapiEnabled} onCheckedChange={setMetaCapiEnabled} />
+                </div>
+
+                <HelpedField
+                  label="Conversions API Access Token"
+                  help={
+                    <>
+                      <p><strong>What it is:</strong> a secret token that lets our server send events to Meta. Stored securely; never shown to visitors.</p>
+                      <p><strong>Where to find it:</strong> Events Manager → your pixel → Settings → Conversions API → <em>Generate access token</em>.</p>
+                    </>
+                  }
+                >
+                  <Input type="password" placeholder="Paste your CAPI access token" value={metaCapiToken} onChange={(e) => setMetaCapiToken(e.target.value)} autoComplete="off" />
+                </HelpedField>
+
+                <HelpedField
+                  label="Test Event Code (optional)"
+                  help={
+                    <>
+                      <p><strong>What it is:</strong> lets you watch events arrive live while setting up, in Events Manager → Test Events. Clear it once verified so real traffic isn&apos;t flagged as test.</p>
+                    </>
+                  }
+                >
+                  <Input placeholder="e.g. TEST12345" value={metaTestEventCode} onChange={(e) => setMetaTestEventCode(e.target.value)} />
+                </HelpedField>
+
+                <div className="rounded-lg bg-pearl border border-border/40 p-3">
+                  <p className="text-xs font-medium text-charcoal mb-1">Product catalog feed</p>
+                  <p className="text-xs text-charcoal-lighter mb-2">
+                    Add this URL as a scheduled feed in Meta Commerce Manager → Catalog → Data sources, to run dynamic
+                    product ads. In-stock &amp; pre-order products only.
+                  </p>
+                  <code className="block text-[11px] break-all bg-card border border-border rounded px-2 py-1.5 text-secondary">
+                    {siteBase}/api/meta/catalog
+                  </code>
+                </div>
+              </div>
 
               <HelpedField
                 label="TikTok Pixel ID"

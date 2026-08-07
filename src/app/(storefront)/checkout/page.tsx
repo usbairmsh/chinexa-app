@@ -24,6 +24,7 @@ import { useDeliveryStore } from "@/stores/delivery.store";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useStoreSettings } from "@/hooks/use-store-settings";
 import { DIVISIONS, DISTRICTS } from "@/data/constants/bangladeshi-data";
+import { trackMetaDual, cartContentParams } from "@/lib/meta-pixel";
 
 const steps = [
   { id: 1, label: "Information", icon: FileText },
@@ -369,6 +370,18 @@ export default function CheckoutPage() {
   };
 
   const advanceStep = (target: number) => {
+    // Meta InitiateCheckout — fired when the customer first reaches the payment
+    // step (step 3), once per checkout session, so ad optimisation can target
+    // the checkout funnel. Guarded on highestStep so going Back-and-forward
+    // doesn't re-fire it.
+    if (target === 3 && highestStep < 3 && items.length > 0) {
+      const metaItems = items.map((it) => ({ id: it.product_id, name: it.product_name, price: it.price, quantity: it.quantity }));
+      trackMetaDual(
+        "InitiateCheckout",
+        cartContentParams(metaItems, getSubtotal()),
+        { email: customerEmail || null, phone: customerPhone || null }
+      );
+    }
     setStep(target);
     setHighestStep((prev) => Math.max(prev, target));
   };
@@ -468,6 +481,27 @@ export default function CheckoutPage() {
 
       setOrderNumber(data.order_number || data.id || "");
       triggerDashboardRefresh();
+
+      // ── Meta Purchase ──
+      // Fire the browser Purchase ONLY for COD, where placing the order IS the
+      // conversion. For EPS the order is still unpaid here and the customer
+      // redirects to the gateway — its Purchase is fired authoritatively
+      // server-side (via CAPI) only once payment actually settles, so abandoned
+      // payments never count as sales. The event id is derived from the order id
+      // so that server-side event and this one would dedup if they ever overlap.
+      if (paymentMethod === "COD") {
+        const metaItems = items.map((it) => ({
+          id: it.product_id,
+          name: it.product_name,
+          price: it.price,
+          quantity: it.quantity,
+        }));
+        trackMetaDual(
+          "Purchase",
+          { ...cartContentParams(metaItems, Number(data.total) || getSubtotal()), order_id: data.order_number || data.id },
+          { email: customerEmail || null, phone: customerPhone || null }
+        );
+      }
 
       // Auto-save new address to user profile
       if (user?.id && (useNewAddress || savedAddresses.length === 0) && billingAddress.trim()) {

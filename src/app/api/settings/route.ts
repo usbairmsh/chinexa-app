@@ -4,6 +4,26 @@ import { query, execute } from "@/lib/db";
 import { logActivity } from "@/lib/log-activity";
 import { validationError, publicServerError } from "@/lib/validate";
 import { requirePermission } from "@/lib/admin-permissions-server";
+import { getVerifiedAdminId } from "@/lib/admin-session";
+
+// GET /api/settings is deliberately PUBLIC — the storefront reads many settings
+// (trust badges, delivery threshold, tracking pixel ids, etc.) without auth.
+// But some keys hold SECRETS that must never reach the browser. Those fields are
+// stripped from the response unless the caller is a verified admin (the admin
+// panel needs them back to edit). Everything else is returned unchanged.
+const SECRET_FIELDS: Record<string, string[]> = {
+  tracking_config: ["meta_capi_token", "meta_test_event_code"],
+};
+
+function redactSecrets(key: string, value: unknown, req: NextRequest): unknown {
+  const secretKeys = SECRET_FIELDS[key];
+  if (!secretKeys || !value || typeof value !== "object") return value;
+  // A verified admin sees the real values (so they can edit them).
+  if (getVerifiedAdminId(req)) return value;
+  const clone: Record<string, unknown> = { ...(value as Record<string, unknown>) };
+  for (const f of secretKeys) if (f in clone) clone[f] = "";
+  return clone;
+}
 
 // Maps a settings `key` to the permission section (and required action) that
 // gates writing it. Every key written via PUT is an admin-only screen (see
@@ -39,7 +59,10 @@ export async function GET(req: NextRequest) {
     if (key) {
       const rows = await query<RowDataPacket[]>("SELECT `key`, value FROM settings WHERE `key` = ?", [key]);
       if (rows.length === 0) return NextResponse.json(null);
-      try { return NextResponse.json({ key: rows[0].key, value: JSON.parse(rows[0].value as string) }); }
+      try {
+        const parsed = JSON.parse(rows[0].value as string);
+        return NextResponse.json({ key: rows[0].key, value: redactSecrets(String(rows[0].key), parsed, req) });
+      }
       catch { return NextResponse.json({ key: rows[0].key, value: rows[0].value }); }
     }
 
@@ -50,7 +73,7 @@ export async function GET(req: NextRequest) {
       const rows = await query<RowDataPacket[]>(`SELECT \`key\`, value FROM settings WHERE \`key\` IN (${placeholders})`, keyList);
       const result: Record<string, unknown> = {};
       for (const row of rows) {
-        try { result[row.key as string] = JSON.parse(row.value as string); }
+        try { result[row.key as string] = redactSecrets(String(row.key), JSON.parse(row.value as string), req); }
         catch { result[row.key as string] = row.value; }
       }
       return NextResponse.json(result);
@@ -60,7 +83,7 @@ export async function GET(req: NextRequest) {
     const rows = await query<RowDataPacket[]>("SELECT `key`, value FROM settings");
     const result: Record<string, unknown> = {};
     for (const row of rows) {
-      try { result[row.key as string] = JSON.parse(row.value as string); }
+      try { result[row.key as string] = redactSecrets(String(row.key), JSON.parse(row.value as string), req); }
       catch { result[row.key as string] = row.value; }
     }
     return NextResponse.json(result);

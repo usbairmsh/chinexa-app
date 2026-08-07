@@ -12,6 +12,7 @@ import { ProductCard } from "@/components/storefront/product/product-card";
 import { useSearchProducts } from "@/hooks/queries/use-products";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { cn } from "@/lib/utils";
+import { trackMetaDual } from "@/lib/meta-pixel";
 
 const PAGE_SIZE = 24;
 
@@ -26,6 +27,13 @@ function SearchContent() {
   useEffect(() => { setPage(1); }, [query]);
 
   const { data, isLoading, isFetching } = useSearchProducts(query, { page, page_size: PAGE_SIZE });
+
+  // Meta Search — fired once per distinct (debounced) query of 2+ chars.
+  useEffect(() => {
+    if (query.trim().length >= 2) {
+      trackMetaDual("Search", { search_string: query.trim(), content_type: "product" });
+    }
+  }, [query]);
 
   return (
     <div className="bg-card min-h-screen">

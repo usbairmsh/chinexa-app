@@ -12,6 +12,7 @@ import { useWishlistStore } from "@/stores/wishlist.store";
 import { useUIStore } from "@/stores/ui.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { formatCurrency, cn } from "@/lib/utils";
+import { trackMetaDual, productContentParams } from "@/lib/meta-pixel";
 import { backdropClose } from "@/lib/modal-backdrop";
 import { isPreorderable as computeIsPreorderable } from "@/lib/preorder";
 import { useStoreSettings } from "@/hooks/use-store-settings";
@@ -74,6 +75,11 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
     // Adding an out-of-stock item → record server-side + show the "we'll notify
     // you on restock" popup. In-stock adds / removals stay local.
     if (!wasIn) {
+      trackMetaDual(
+        "AddToWishlist",
+        productContentParams({ id: product.id, name: product.name, price: Number(product.price), category: product.category_name }),
+        { email: authUser?.email, phone: authUser?.phone }
+      );
       const productOutOfStock = product.stock_quantity === 0;
       syncServerWishlist(product.id, true, authUser?.id).then(({ outOfStock }) => {
         if (outOfStock || productOutOfStock) showBackInStockToast(product.name);
@@ -110,6 +116,17 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
       // Ternary, not "||": a variant with 0 stock must NOT fall back to product-level stock
       stock: activeVariant ? activeVariant.stock : product.stock_quantity,
     });
+    trackMetaDual(
+      "AddToCart",
+      productContentParams({
+        id: product.id,
+        name: product.name,
+        price: (product.price + (activeVariant?.price_adjustment || 0)) * quantity,
+        quantity,
+        category: product.category_name,
+      }),
+      { email: authUser?.email, phone: authUser?.phone }
+    );
     // Morph: spinner → checkmark → open cart drawer. Item is already added
     // synchronously above; the spinner is tactile feedback only.
     setAdding(true);

@@ -25,6 +25,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import { useRecentlyViewedStore } from "@/stores/recently-viewed.store";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, formatDateShort, cn } from "@/lib/utils";
+import { trackMetaDual, productContentParams } from "@/lib/meta-pixel";
 import { isPreorderable as computeIsPreorderable } from "@/lib/preorder";
 import { getCountryFlag } from "@/lib/countries";
 import { useStoreSettings } from "@/hooks/use-store-settings";
@@ -132,6 +133,24 @@ export default function ProductDetailPage() {
   useEffect(() => {
     if (product?.id) recordRecentlyViewed(product.id);
   }, [product?.id, recordRecentlyViewed]);
+
+  // Meta Pixel ViewContent — fires once per product view. This is what lets
+  // Facebook ads optimise for "people who view products" and drives dynamic
+  // product retargeting. Keyed on product.id so it re-fires when navigating
+  // between products (client-side) but not on unrelated re-renders.
+  useEffect(() => {
+    if (!product?.id) return;
+    trackMetaDual(
+      "ViewContent",
+      productContentParams({
+        id: product.id,
+        name: product.name,
+        price: Number(product.price),
+        category: product.category_name,
+      }),
+      { email: authUser?.email, phone: authUser?.phone }
+    );
+  }, [product?.id, product?.name, product?.price, product?.category_name, authUser?.email, authUser?.phone]);
 
   const handleSubmitReview = async () => {
     if (!product || !reviewComment.trim()) return;
@@ -263,6 +282,18 @@ export default function ProductDetailPage() {
       setTimeout(() => setPreorderMixWarning(false), 6000);
       return;
     }
+    // Meta AddToCart — value = line total (unit price × qty).
+    trackMetaDual(
+      "AddToCart",
+      productContentParams({
+        id: product.id,
+        name: product.name,
+        price: finalPrice * quantity,
+        quantity,
+        category: product.category_name,
+      }),
+      { email: authUser?.email, phone: authUser?.phone }
+    );
     // Morph: spinner → checkmark → open cart. The item is already in the cart
     // (addToCart ran synchronously above); the short spinner is purely for the
     // tactile confirmation feel.
@@ -291,6 +322,13 @@ export default function ProductDetailPage() {
     const nowAdding = !wasIn;
     // product.stock_quantity === 0 means the whole product is out of stock.
     const productOutOfStock = product.stock_quantity === 0;
+    if (nowAdding) {
+      trackMetaDual(
+        "AddToWishlist",
+        productContentParams({ id: product.id, name: product.name, price: Number(product.price), category: product.category_name }),
+        { email: authUser?.email, phone: authUser?.phone }
+      );
+    }
     if (nowAdding) {
       syncServer(product.id, true, authUser?.id).then(({ outOfStock }) => {
         if (outOfStock || productOutOfStock) showBackInStockToast(product.name);
