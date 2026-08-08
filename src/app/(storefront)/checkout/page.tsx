@@ -567,10 +567,22 @@ export default function CheckoutPage() {
     }
   };
 
-  if (items.length === 0 && step !== 4) {
-    router.push("/cart");
-    return null;
-  }
+  // Bounce an genuinely-empty checkout back to the cart — but NEVER once an
+  // order has been placed. The cart is deliberately emptied at order creation
+  // (before the success step renders), so guarding on `step !== 4` alone left a
+  // window where the cart was empty but the step hadn't advanced yet, and this
+  // redirect fired over the confirmation — the customer saw "your cart is
+  // empty" instead of their order. `orderNumber` is set the moment the order
+  // exists, so it is the reliable signal that a purchase is in flight.
+  // Redirecting during render is also a React anti-pattern; done in an effect.
+  const orderPlaced = !!orderNumber || step === 4 || placing;
+  const shouldBounceToCart = mounted && items.length === 0 && !orderPlaced;
+
+  useEffect(() => {
+    if (shouldBounceToCart) router.push("/cart");
+  }, [shouldBounceToCart, router]);
+
+  if (shouldBounceToCart) return null;
 
   const billingDistricts = billingDivision ? (DISTRICTS[billingDivision] || []) : [];
   const shippingDistricts = shippingDivision ? (DISTRICTS[shippingDivision] || []) : [];
@@ -1210,10 +1222,22 @@ export default function CheckoutPage() {
               <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", damping: 15, delay: 0.2 }}>
                 <CheckCircle2 className="h-16 w-16 sm:h-20 sm:w-20 text-success mx-auto mb-4 sm:mb-6" />
               </motion.div>
-              <h2 className="font-heading text-xl sm:text-2xl font-semibold text-charcoal mb-2">Order Confirmed!</h2>
+              {/* Wording follows what actually happened. A COD order is PLACED —
+                  it isn't confirmed until we accept and dispatch it, and no money
+                  has moved. Only a settled online payment is genuinely CONFIRMED.
+                  A pre-order is a reservation, so it gets its own wording. */}
+              <h2 className="font-heading text-xl sm:text-2xl font-semibold text-charcoal mb-2">
+                {preorderCart ? "Pre-order Reserved!" : paymentMethod === "COD" ? "Order Placed!" : "Order Confirmed!"}
+              </h2>
               <p className="text-charcoal-lighter mb-2">Thank you for shopping with ChineXa</p>
               <p className="text-sm text-charcoal mb-6 sm:mb-8 px-4">
-                Order #{orderNumber || "Processing"} has been placed successfully.<br />You will receive a confirmation via SMS shortly.
+                {preorderCart ? (
+                  <>Pre-order #{orderNumber || "Processing"} has been reserved.<br />We&apos;ll notify you when it&apos;s in stock — you pay on delivery.</>
+                ) : paymentMethod === "COD" ? (
+                  <>Order #{orderNumber || "Processing"} has been placed successfully.<br />Pay in cash when your order arrives. You&apos;ll receive a confirmation via SMS shortly.</>
+                ) : (
+                  <>Order #{orderNumber || "Processing"} is confirmed and payment received.<br />You&apos;ll receive a confirmation via SMS shortly.</>
+                )}
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center px-4">
                 <Link href="/products"><Button variant="primary" className="w-full sm:w-auto !text-white">Continue Shopping</Button></Link>

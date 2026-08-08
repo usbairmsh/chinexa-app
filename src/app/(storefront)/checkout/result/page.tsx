@@ -12,7 +12,7 @@ const STATES = {
     icon: CheckCircle2,
     tone: "text-success",
     ring: "bg-success/10",
-    title: "Payment Successful",
+    title: "Order Confirmed",
     message: "Thank you! Your payment has been received and your order is confirmed. We'll start processing it right away.",
   },
   fail: {
