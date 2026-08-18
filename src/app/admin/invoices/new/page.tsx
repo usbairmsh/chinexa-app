@@ -18,7 +18,7 @@ import { formatCurrency } from "@/lib/utils";
 type DiscountType = "amount" | "percent";
 
 interface Variant { id: string; name: string; value: string; price_adjustment: number }
-interface ProductOption { id: string; name: string; price: number; variants: Variant[] }
+interface ProductOption { id: string; name: string; sku?: string; price: number; stock_quantity?: number; variants: Variant[] }
 
 interface Line {
   key: string;
@@ -115,14 +115,22 @@ export default function NewInvoicePage() {
   };
 
   // ── Product search ──
+  // `search` is the ONLY source of truth for what's typed in a line's box.
+  // (An earlier version mirrored it into product_name as well, which fought the
+  // input's value binding and made selection appear to do nothing.)
+  // Search matches product name AND SKU — the API covers both.
   const searchProducts = (key: string, term: string) => {
     setSearch((s) => ({ ...s, [key]: term }));
+    // A custom (non-catalogue) line is just typed text, so keep product_name in
+    // step for the case where nothing is picked from the dropdown.
+    setLines((list) => list.map((l) => (l.key === key ? { ...l, product_name: term } : l)));
     if (term.trim().length < 2) { setOptions((s) => ({ ...s, [key]: [] })); return; }
     fetch(`/api/products?search=${encodeURIComponent(term)}&all=1&page_size=8`)
       .then((r) => r.json())
       .then((json) => {
-        const opts: ProductOption[] = (json.data || []).map((p: { id: string; name: string; price: number; variants?: Variant[] }) => ({
-          id: p.id, name: p.name, price: p.price, variants: p.variants || [],
+        const opts: ProductOption[] = (json.data || []).map((p: { id: string; name: string; sku?: string; price: number; stock_quantity?: number; variants?: Variant[] }) => ({
+          id: p.id, name: p.name, sku: p.sku || "", price: Number(p.price) || 0,
+          stock_quantity: Number(p.stock_quantity) || 0, variants: p.variants || [],
         }));
         setOptions((s) => ({ ...s, [key]: opts }));
       })
@@ -136,7 +144,7 @@ export default function NewInvoicePage() {
       ? { ...l, product: p, product_name: p.name, variant_id: null, variant_name: null, unit_price: String(p.price), quantity: l.quantity || "1" }
       : l));
     setOptions((s) => ({ ...s, [key]: [] }));
-    setSearch((s) => ({ ...s, [key]: "" }));
+    setSearch((s) => ({ ...s, [key]: p.name }));
   };
 
   const pickVariant = (key: string, variantId: string) => {
@@ -271,7 +279,11 @@ export default function NewInvoicePage() {
                     {customerOptions.map((c) => (
                       <button
                         key={c.id}
-                        onClick={() => {
+                        type="button"
+                        // onMouseDown for the same blur-before-click reason as
+                        // the product dropdown.
+                        onMouseDown={(e) => {
+                          e.preventDefault();
                           setCustomerId(c.id); setCustomerName(c.name); setCustomerPhone(c.phone || "");
                           setCustomerEmail(c.email || ""); setCustomerSearch(""); setCustomerOptions([]);
                         }}
@@ -312,23 +324,46 @@ export default function NewInvoicePage() {
                         {l.product ? (
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-charcoal">{l.product.name}</span>
-                            <button onClick={() => setLine(l.key, { product: null, product_name: "", variant_id: null, variant_name: null, unit_price: "" })}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLine(l.key, { product: null, product_name: "", variant_id: null, variant_name: null, unit_price: "" });
+                                setSearch((s) => ({ ...s, [l.key]: "" }));
+                                setOptions((s) => ({ ...s, [l.key]: [] }));
+                              }}
                               className="text-charcoal-lighter hover:text-destructive"><X className="h-3.5 w-3.5" /></button>
                           </div>
                         ) : (
                           <>
                             <Input
                               className="h-9"
-                              placeholder="Search a product, or type a custom line"
-                              value={search[l.key] ?? l.product_name}
-                              onChange={(e) => { searchProducts(l.key, e.target.value); setLine(l.key, { product_name: e.target.value }); }}
+                              placeholder="Search by product name or SKU, or type a custom line"
+                              value={search[l.key] ?? ""}
+                              onChange={(e) => searchProducts(l.key, e.target.value)}
+                              autoComplete="off"
                             />
                             {(options[l.key] || []).length > 0 && (
-                              <div className="absolute z-20 mt-1 w-full rounded-lg border border-border bg-card shadow-lg max-h-56 overflow-y-auto">
+                              <div className="absolute z-30 mt-1 w-full rounded-lg border border-border bg-card shadow-lg max-h-56 overflow-y-auto">
                                 {(options[l.key] || []).map((p) => (
-                                  <button key={p.id} onClick={() => pickProduct(l.key, p)} className="w-full text-left px-3 py-2 text-sm hover:bg-pearl transition-colors">
-                                    <span className="text-charcoal">{p.name}</span>
-                                    <span className="text-charcoal-lighter text-xs ml-2">{formatCurrency(p.price)}</span>
+                                  <button
+                                    key={p.id}
+                                    type="button"
+                                    // onMouseDown, not onClick: the input's blur
+                                    // fires first on click and can tear down the
+                                    // dropdown before the click registers, which
+                                    // made selecting a product appear to do nothing.
+                                    onMouseDown={(e) => { e.preventDefault(); pickProduct(l.key, p); }}
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-pearl transition-colors border-b border-border/30 last:border-0"
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="text-charcoal truncate">{p.name}</span>
+                                      <span className="text-charcoal shrink-0">{formatCurrency(p.price)}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-[11px] text-charcoal-lighter">
+                                      {p.sku && <span>SKU {p.sku}</span>}
+                                      {p.variants.length > 0 && <span>· {p.variants.length} variant{p.variants.length === 1 ? "" : "s"}</span>}
+                                      <span>· stock {p.stock_quantity ?? 0}</span>
+                                    </div>
                                   </button>
                                 ))}
                               </div>
