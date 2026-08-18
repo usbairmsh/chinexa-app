@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
     const sourceParams = source === "all" ? [] : [source];
 
     // Years/revenue/refunds are independent of each other — batched.
-    const [yearRows, revRows, refundRows] = await Promise.all([
+    const [yearRows, revRows, refundRows, invoiceRows] = await Promise.all([
       // Available years for the selector
       query<RowDataPacket[]>("SELECT DISTINCT YEAR(created_at) AS y FROM orders ORDER BY y DESC"),
       // Monthly revenue + order counts — kept orders only (reversed/refunded/
@@ -56,19 +56,39 @@ export async function GET(req: NextRequest) {
          GROUP BY MONTH(updated_at)`,
         [year]
       ).catch(() => [] as RowDataPacket[]),
+      // Manual invoices are a SEPARATE revenue source: they deliberately never
+      // create an order row, so the orders query above cannot see them. Only
+      // PAID invoices that were explicitly marked accountable count — a draft,
+      // a published-but-unpaid invoice, a voided one, or any invoice with the
+      // toggle off is a document, not a sale. Revenue is dated by paid_at (when
+      // the money arrived), not created_at.
+      query<RowDataPacket[]>(
+        `SELECT MONTH(paid_at) AS m, COALESCE(SUM(total), 0) AS revenue, COUNT(*) AS invoices
+         FROM manual_invoices
+        WHERE status = 'paid' AND affects_inventory = 1 AND revenue_applied = 1
+          AND YEAR(paid_at) = ?
+        GROUP BY MONTH(paid_at)`,
+        [year]
+      ).catch(() => [] as RowDataPacket[]),
     ]);
     const years = yearRows.map((r) => Number(r.y)).filter((y) => Number.isFinite(y));
 
     const revByMonth = new Map(revRows.map((r) => [Number(r.m), r]));
     const refByMonth = new Map(refundRows.map((r) => [Number(r.m), Number(r.refunds) || 0]));
+    const invByMonth = new Map(invoiceRows.map((r) => [Number(r.m), r]));
 
     const monthly = MONTH_NAMES.map((name, i) => {
       const rev = revByMonth.get(i + 1);
+      const inv = invByMonth.get(i + 1);
+      // Accountable manual invoices add to the same monthly revenue line as
+      // orders. Their count is tracked separately from `orders` so the order
+      // count stays a true count of orders.
       return {
         month: name,
-        revenue: rev ? Number(rev.revenue) || 0 : 0,
+        revenue: (rev ? Number(rev.revenue) || 0 : 0) + (inv ? Number(inv.revenue) || 0 : 0),
         refunds: refByMonth.get(i + 1) || 0,
         orders: rev ? Number(rev.orders) || 0 : 0,
+        manual_invoices: inv ? Number(inv.invoices) || 0 : 0,
       };
     });
 
@@ -113,7 +133,7 @@ export async function GET(req: NextRequest) {
       .slice(0, 20);
 
     // ─── P&L: COGS from order_items cost snapshots, expenses from the expenses table ─── (independent, batched)
-    const [cogsRows, expenseRows] = await Promise.all([
+    const [cogsRows, expenseRows, invoiceCogsRows] = await Promise.all([
       // COGS only for kept orders — returned goods went back into stock, so
       // their cost must not stay on the books either.
       query<RowDataPacket[]>(
@@ -128,8 +148,34 @@ export async function GET(req: NextRequest) {
          FROM expenses WHERE YEAR(expense_date) = ? GROUP BY MONTH(expense_date)`,
         [year]
       ),
+      // COGS for accountable manual invoices. Their revenue is counted above, so
+      // their cost MUST be counted too — otherwise every manual invoice would
+      // inflate gross profit by its full value. Invoice lines carry no cost
+      // snapshot (they are a document, not an order), so cost is taken from the
+      // product's current cost_price. Lines with no product_id (a service or
+      // ad-hoc charge) legitimately have no cost.
+      query<RowDataPacket[]>(
+        `SELECT MONTH(mi.paid_at) AS m,
+                COALESCE(SUM(COALESCE(p.cost_price, 0) * mii.quantity), 0) AS cogs
+           FROM manual_invoice_items mii
+           JOIN manual_invoices mi ON mi.id = mii.invoice_id
+           LEFT JOIN products p ON p.id = mii.product_id
+          WHERE mi.status = 'paid' AND mi.affects_inventory = 1 AND mi.revenue_applied = 1
+            AND YEAR(mi.paid_at) = ?
+          GROUP BY MONTH(mi.paid_at)`,
+        [year]
+      ).catch(() => [] as RowDataPacket[]),
     ]);
-    const cogsByMonth = new Map(cogsRows.map((r) => [Number(r.m), Number(r.cogs) || 0]));
+    // Order COGS + accountable-manual-invoice COGS share one monthly line, so
+    // gross profit nets correctly against the combined revenue above.
+    const invoiceCogsByMonth = new Map(invoiceCogsRows.map((r) => [Number(r.m), Number(r.cogs) || 0]));
+    const cogsByMonth = new Map(
+      Array.from({ length: 12 }, (_, i) => {
+        const m = i + 1;
+        const orderCogs = Number(cogsRows.find((r) => Number(r.m) === m)?.cogs) || 0;
+        return [m, orderCogs + (invoiceCogsByMonth.get(m) || 0)] as [number, number];
+      })
+    );
     const expensesByMonth = new Map(expenseRows.map((r) => [Number(r.m), Number(r.amount) || 0]));
 
     // NOTE: refunds are NOT subtracted here. Reversed/refunded orders are

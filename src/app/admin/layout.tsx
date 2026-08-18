@@ -69,6 +69,7 @@ const navSections = [
       { icon: BarChart3, label: "Analytics", href: "/admin/analytics", perm: "analytics" },
       { icon: DollarSign, label: "Accounting", href: "/admin/accounting", perm: "accounting" },
       { icon: Link2, label: "Payment Links", href: "/admin/payment-links", perm: "accounting" },
+      { icon: FileText, label: "Invoices", href: "/admin/invoices", perm: "accounting" },
       { icon: AlertTriangle, label: "Fraud", href: "/admin/fraud", perm: "fraud" },
       { icon: Activity, label: "Activity Log", href: "/admin/activity-log", perm: "activity_log" },
     ],

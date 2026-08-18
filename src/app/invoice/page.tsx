@@ -8,6 +8,8 @@ import { useStoreSettings } from "@/hooks/use-store-settings";
 interface OrderData {
   id: string;
   order_number: string;
+  /** Manual invoices only: the allocated order number, printed as a reference. */
+  reference_no?: string;
   customer_name: string;
   customer_phone: string;
   status: string;
@@ -53,9 +55,67 @@ function InvoiceContent() {
   // file). No other invoice-specific settings.
   const [logo, setLogo] = useState("/logo.png");
   const [invLoaded, setInvLoaded] = useState(false);
+  // Seal and signature images, stamped onto manual invoices. Both optional.
+  const [seal, setSeal] = useState("");
+  const [signature, setSignature] = useState("");
+
+  // `type=manual` renders a manual invoice from the invoice register instead of
+  // an order. It reuses this exact page — and therefore the exact layout,
+  // branding and print styling — so a manual invoice and an automatic order
+  // invoice are visually identical, which is the requirement. The manual record
+  // is mapped into the same shape rather than the template being duplicated.
+  const isManual = searchParams.get("type") === "manual";
 
   useEffect(() => {
     if (!orderId) { setLoading(false); return; }
+
+    if (isManual) {
+      fetch(`/api/manual-invoices/${encodeURIComponent(orderId)}`)
+        .then((r) => r.json())
+        .then((inv) => {
+          if (!inv || inv.error) { setOrder(null); return; }
+          setSeal(inv.seal_url || "");
+          setSignature(inv.signature_url || "");
+          setOrder({
+            id: inv.id,
+            // The document is identified by its voucher number; the order number
+            // (when one was allocated) prints as a separate reference line.
+            order_number: inv.voucher_no,
+            reference_no: inv.order_number || undefined,
+            customer_name: inv.customer_name,
+            customer_phone: inv.customer_phone || "",
+            status: inv.status,
+            payment_method: inv.payment_method || "—",
+            payment_status: inv.status === "paid" ? "paid" : "pending",
+            subtotal: Number(inv.subtotal) || 0,
+            shipping_cost: Number(inv.delivery_charge) || 0,
+            // Line discounts and the order discount are shown as one saving on
+            // the printed document, matching how the order invoice prints it.
+            discount: (Number(inv.line_discount_total) || 0) + (Number(inv.order_discount) || 0),
+            tax: 0,
+            total: Number(inv.total) || 0,
+            notes: inv.notes || undefined,
+            created_at: inv.created_at,
+            items: (inv.items || []).map((it: { product_name: string; variant_name?: string; quantity: number; unit_price: number; line_total: number }) => ({
+              product_name: it.product_name,
+              variant: it.variant_name || undefined,
+              quantity: Number(it.quantity) || 1,
+              unit_price: Number(it.unit_price) || 0,
+              total_price: Number(it.line_total) || 0,
+            })),
+            billing_address: {
+              name: inv.customer_name,
+              phone: inv.customer_phone || "",
+              email: inv.customer_email || undefined,
+              address_line_1: inv.customer_address || "",
+            },
+          });
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+      return;
+    }
+
     const url = customerId
       ? `/api/orders/${encodeURIComponent(orderId)}?customer_id=${encodeURIComponent(customerId)}`
       : `/api/orders/${encodeURIComponent(orderId)}`;
@@ -64,7 +124,7 @@ function InvoiceContent() {
       .then(setOrder)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [orderId, customerId]);
+  }, [orderId, customerId, isManual]);
 
   useEffect(() => {
     fetch("/api/settings?key=store_logo")
@@ -171,6 +231,9 @@ function InvoiceContent() {
               <table style={{ borderSpacing: "8px 3px", borderCollapse: "separate" }}>
                 <tbody>
                   <tr><td style={{ color: INK, fontWeight: 600 }}>Invoice number</td><td style={{ fontWeight: 700, color: INK }}>{order.order_number}</td></tr>
+                  {order.reference_no && (
+                    <tr><td style={{ color: INK, fontWeight: 600 }}>Order reference:</td><td style={{ fontWeight: 700, color: INK }}>{order.reference_no}</td></tr>
+                  )}
                   <tr><td style={{ color: INK, fontWeight: 600 }}>Issue date:</td><td style={{ fontWeight: 700, color: INK }}>{formatDate(order.created_at)}</td></tr>
                   <tr><td style={{ color: INK, fontWeight: 600 }}>Payment method:</td><td style={{ fontWeight: 700, color: INK, textTransform: "capitalize" }}>{order.payment_method}</td></tr>
                   <tr><td style={{ color: INK, fontWeight: 600 }}>Payment status:</td><td><span style={{ display: "inline-block", padding: "1px 7px", borderRadius: 3, fontSize: 9, fontWeight: 700, background: order.payment_status === "paid" ? "#e6f4ec" : order.payment_status === "refunded" ? "#eef2ff" : "#fff5e6", color: order.payment_status === "paid" ? "#159A5c" : order.payment_status === "refunded" ? "#4338ca" : "#b45309" }}>{order.payment_status === "paid" ? "Paid" : order.payment_status === "refunded" ? "Refunded" : "Pending"}</span></td></tr>
@@ -241,6 +304,29 @@ function InvoiceContent() {
           {order.notes && (
             <div style={{ marginTop: 24, fontSize: 10, color: "#7a8584" }}>
               <span style={{ fontWeight: 700, color: INK }}>Notes: </span>{order.notes}
+            </div>
+          )}
+
+          {/* Seal & signature — manual invoices only, and each is optional, so
+              the block renders only for whichever images were supplied. */}
+          {(seal || signature) && (
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 48, marginTop: 32, alignItems: "flex-end" }}>
+              {seal && (
+                <div style={{ textAlign: "center" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={seal} alt="Company seal" style={{ height: 80, width: "auto", objectFit: "contain" }} />
+                  <div style={{ fontSize: 9, color: "#7a8584", marginTop: 4 }}>Seal</div>
+                </div>
+              )}
+              {signature && (
+                <div style={{ textAlign: "center" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={signature} alt="Authorised signature" style={{ height: 60, width: "auto", objectFit: "contain" }} />
+                  <div style={{ borderTop: `1px solid ${INK}`, marginTop: 4, paddingTop: 4, fontSize: 9, color: "#7a8584", minWidth: 140 }}>
+                    Authorised Signature
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
