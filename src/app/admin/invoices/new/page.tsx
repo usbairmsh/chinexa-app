@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { ArrowLeft, Plus, Trash2, Search, Loader2, Save, Printer, X, Upload } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Search, Loader2, Save, Printer, X, Upload, CheckCircle2 } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -71,6 +71,8 @@ export default function NewInvoicePage() {
 
   const [affectsInventory, setAffectsInventory] = useState(false);
   const [generateOrderNo, setGenerateOrderNo] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [paymentStatus, setPaymentStatus] = useState<"unpaid" | "paid">("unpaid");
 
   const [seal, setSeal] = useState("");
   const [signature, setSignature] = useState("");
@@ -187,7 +189,7 @@ export default function NewInvoicePage() {
     };
   }, [lines, discountType, discountValue, deliveryCharge]);
 
-  const save = async (thenPrint: boolean) => {
+  const save = async (thenPrint: boolean, asPaid = false) => {
     setError("");
     if (!customerName.trim()) { setError("Customer name is required"); return; }
     const valid = lines.filter((l) => l.product_name.trim() && Number(l.quantity) >= 1);
@@ -219,6 +221,10 @@ export default function NewInvoicePage() {
           delivery_charge: Number(deliveryCharge) || 0,
           affects_inventory: affectsInventory,
           generate_order_number: generateOrderNo,
+          payment_method: paymentMethod,
+          // "Save as paid" wins over the dropdown, so the button the admin
+          // pressed is always what happens.
+          payment_status: asPaid || paymentStatus === "paid" ? "paid" : "unpaid",
           notes: notes.trim(),
           seal_url: seal,
           signature_url: signature,
@@ -530,17 +536,61 @@ export default function NewInvoicePage() {
                 <Switch checked={generateOrderNo} onCheckedChange={setGenerateOrderNo} />
               </div>
 
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] text-charcoal-lighter mb-1">Payment method</label>
+                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">Cash</SelectItem>
+                      <SelectItem value="bkash">bKash</SelectItem>
+                      <SelectItem value="nagad">Nagad</SelectItem>
+                      <SelectItem value="rocket">Rocket</SelectItem>
+                      <SelectItem value="bank">Bank transfer</SelectItem>
+                      <SelectItem value="card">Card</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="block text-[10px] text-charcoal-lighter mb-1">Payment status</label>
+                  <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as "unpaid" | "paid")}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unpaid">Unpaid</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {paymentStatus === "paid" && (
+                <div className="rounded-lg border border-warning/25 bg-warning/10 p-2.5 text-[11px] text-warning">
+                  Saving as paid creates the invoice already settled — it cannot be edited afterwards.
+                  {affectsInventory
+                    ? " Stock will be deducted and the sale counted as revenue immediately."
+                    : " Stock and accounting are excluded, so nothing else changes."}
+                </div>
+              )}
+
               <Textarea placeholder="Notes (printed on the invoice)" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
             </CardContent>
           </Card>
 
+          {/* Both paths offered: a quotation or proforma goes to draft (still
+              editable), a sale that already happened goes straight to paid. */}
           <div className="flex flex-col gap-2">
             <AdminButton onClick={() => save(false)} disabled={saving} className="w-full">
-              {saving ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />} Save draft
+              {saving ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+              {paymentStatus === "paid" ? "Save as paid" : "Save draft"}
             </AdminButton>
             <AdminButton variant="outline" onClick={() => save(true)} disabled={saving} className="w-full">
               <Printer className="h-3.5 w-3.5 mr-1" /> Save &amp; print
             </AdminButton>
+            {paymentStatus !== "paid" && (
+              <AdminButton variant="ghost" onClick={() => save(false, true)} disabled={saving} className="w-full">
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Save as paid (settle now)
+              </AdminButton>
+            )}
           </div>
         </div>
       </div>

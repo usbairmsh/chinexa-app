@@ -120,6 +120,16 @@ export async function POST(req: NextRequest) {
     const requester = await getRequester(req);
     const id = `minv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const wantsOrderNo = body.generate_order_number === true;
+    const affectsInventory = body.affects_inventory === true;
+
+    // "Save as paid" records a sale that has ALREADY happened (a walk-in, a
+    // completed social-media sale) in one step, rather than forcing draft →
+    // publish → mark paid for money already taken. The invoice is created
+    // directly in the terminal `paid` state, which means it is immediately
+    // locked — that is the deliberate trade for the shortcut.
+    const payNow = body.payment_status === "paid";
+    const paymentMethod = String(body.payment_method || "").slice(0, 40) || null;
+    const initialStatus = payNow ? "paid" : "draft";
 
     const conn = await pool.getConnection();
     try {
@@ -135,10 +145,12 @@ export async function POST(req: NextRequest) {
            (id, voucher_no, order_number, status, customer_id, customer_name, customer_phone,
             customer_email, customer_address, subtotal, line_discount_total, discount_type,
             discount_value, order_discount, delivery_charge, total, affects_inventory,
+            payment_method, paid_at, published_at, paid_by,
+            stock_applied, revenue_applied,
             notes, seal_url, signature_url, created_by, created_by_name)
-         VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          id, voucherNo, orderNumber,
+          id, voucherNo, orderNumber, initialStatus,
           body.customer_id || null, customerName,
           String(body.customer_phone || "").trim() || null,
           String(body.customer_email || "").trim() || null,
@@ -147,7 +159,17 @@ export async function POST(req: NextRequest) {
           body.discount_type === "percent" ? "percent" : "amount",
           Math.max(0, Number(body.discount_value) || 0),
           totals.orderDiscount, totals.deliveryCharge, totals.total,
-          body.affects_inventory === true ? 1 : 0,
+          affectsInventory ? 1 : 0,
+          paymentMethod,
+          // A paid-on-create invoice is also implicitly published — it was
+          // issued and settled in one action.
+          payNow ? new Date() : null,
+          payNow ? new Date() : null,
+          payNow ? (requester?.id || null) : null,
+          // Stock and revenue are only ever applied when the accounting toggle
+          // is on; a non-accountable invoice can be paid without moving either.
+          payNow && affectsInventory ? 1 : 0,
+          payNow && affectsInventory ? 1 : 0,
           String(body.notes || "").trim() || null,
           String(body.seal_url || "").trim() || null,
           String(body.signature_url || "").trim() || null,
@@ -173,11 +195,31 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // Paid on create + accountable → deduct stock now, in the SAME transaction
+      // as the invoice itself, so a failure can't leave a paid invoice with no
+      // stock movement (or the reverse). Floors at zero: recording a sale must
+      // never silently push inventory negative. Lines with no product_id are a
+      // service or ad-hoc charge and move nothing.
+      if (payNow && affectsInventory) {
+        for (const l of totals.lines) {
+          if (!l.product_id) continue;
+          const qty = Number(l.quantity) || 0;
+          if (qty <= 0) continue;
+          if (l.variant_id) {
+            await conn.execute("UPDATE product_variants SET stock = GREATEST(stock - ?, 0) WHERE id = ?", [qty, l.variant_id]);
+          }
+          await conn.execute("UPDATE products SET stock_quantity = GREATEST(stock_quantity - ?, 0) WHERE id = ?", [qty, l.product_id]);
+        }
+      }
+
       await conn.commit();
       conn.release();
 
-      await logActivity("Manual invoice created", "accounting", id, voucherNo).catch(() => {});
-      return NextResponse.json({ id, voucher_no: voucherNo, order_number: orderNumber }, { status: 201 });
+      await logActivity(
+        payNow ? "Manual invoice created and paid" : "Manual invoice created",
+        "accounting", id, voucherNo
+      ).catch(() => {});
+      return NextResponse.json({ id, voucher_no: voucherNo, order_number: orderNumber, status: initialStatus }, { status: 201 });
     } catch (txErr) {
       await conn.rollback().catch(() => {});
       conn.release();
