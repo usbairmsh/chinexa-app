@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
@@ -44,6 +44,19 @@ export default function BrandPage() {
 
   const { data, isLoading, isFetching } = useProducts(params);
 
+  // Price-filter ceiling from the live catalogue (highest active product price,
+  // rounded up), not a fixed number — a hardcoded 30,000 hid every product above
+  // it from the filter entirely. Falls back to the old default until loaded.
+  const PRICE_FALLBACK = 30000;
+  const priceCeiling = Number((data as { max_price?: number } | undefined)?.max_price) || PRICE_FALLBACK;
+  // Keep an untouched range pinned to the ceiling as it resolves, so the upper
+  // handle starts at the true maximum rather than a stale default.
+  const priceTouched = useRef(false);
+  useEffect(() => {
+    if (!priceTouched.current) setPriceRange([0, priceCeiling]);
+  }, [priceCeiling]);
+
+
   const updateParams = (updates: Partial<ProductListParams>) => {
     setParams((prev) => ({ ...prev, ...updates, page: 1 }));
   };
@@ -55,9 +68,9 @@ export default function BrandPage() {
         <h4 className="text-sm font-semibold text-charcoal mb-3">Price Range</h4>
         <Slider
           value={priceRange}
-          onValueChange={setPriceRange}
+          onValueChange={(v) => { priceTouched.current = true; setPriceRange(v); }}
           min={0}
-          max={30000}
+          max={priceCeiling}
           step={500}
           className="mb-3"
         />
@@ -82,7 +95,7 @@ export default function BrandPage() {
         className="w-full text-destructive"
         onClick={() => {
           setParams({ page: 1, page_size: 12, sort_by: "featured", brand: brand?.name });
-          setPriceRange([0, 30000]);
+          setPriceRange([0, priceCeiling]);
         }}
       >
         <X className="h-3.5 w-3.5 mr-1" /> Clear Filters

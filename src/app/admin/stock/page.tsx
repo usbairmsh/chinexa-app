@@ -51,6 +51,10 @@ export default function StockManagementPage() {
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("all");
+  // Categories come from the catalogue, not a fixed list. The old hardcoded
+  // options ("skincare", "bags", …) also sent slugs while the API matches on
+  // category_id, so the filter silently matched nothing whatever you picked.
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [sortBy, setSortBy] = useState("stock_asc");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -92,6 +96,21 @@ export default function StockManagementPage() {
   };
 
   useEffect(() => { fetchStock(); }, [filter, sortBy, page, category]);
+
+  // Top-level categories for the filter, loaded once.
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((r) => r.json())
+      .then((rows) => {
+        if (!Array.isArray(rows)) return;
+        setCategories(
+          rows
+            .filter((c: { parent_id?: string | null }) => !c.parent_id)
+            .map((c: { id: string; name: string }) => ({ id: c.id, name: c.name }))
+        );
+      })
+      .catch(() => {});
+  }, []);
   useEffect(() => { const t = setTimeout(() => { setPage(1); fetchStock(); }, 300); return () => clearTimeout(t); }, [searchQuery]);
 
   const handleRefresh = async () => { setRefreshing(true); await fetchStock(); setTimeout(() => setRefreshing(false), 500); };
@@ -281,13 +300,9 @@ export default function StockManagementPage() {
                 <SelectTrigger className="w-1/2 sm:w-36"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="skincare">Skincare</SelectItem>
-                  <SelectItem value="bags">Bags</SelectItem>
-                  <SelectItem value="jewels">Jewels</SelectItem>
-                  <SelectItem value="perfumes">Perfumes</SelectItem>
-                  <SelectItem value="shoes">Shoes</SelectItem>
-                  <SelectItem value="imported">Imported</SelectItem>
-                  <SelectItem value="preorder">Pre-Orders</SelectItem>
+                  {categories.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select value={sortBy} onValueChange={(v) => { setSortBy(v); setPage(1); }}>

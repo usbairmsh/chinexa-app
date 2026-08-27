@@ -85,7 +85,7 @@ function toBooleanFulltextQuery(term: string): string {
  * is byte-for-byte what the client's own useProducts() call would fetch,
  * and the two can never drift out of sync with each other.
  */
-export async function getProductsList(searchParams: URLSearchParams): Promise<PaginatedResponse<Product> & { data: Product[]; active_count?: number; inactive_count?: number }> {
+export async function getProductsList(searchParams: URLSearchParams): Promise<PaginatedResponse<Product> & { data: Product[]; active_count?: number; inactive_count?: number; max_price?: number }> {
   const page = Number(searchParams.get("page")) || 1;
   const pageSize = Number(searchParams.get("page_size")) || 12;
   const category = searchParams.get("category");
@@ -248,12 +248,24 @@ export async function getProductsList(searchParams: URLSearchParams): Promise<Pa
   const active_count = Number(countRows[0]?.active_count) || 0;
   const inactive_count = Number(countRows[0]?.inactive_count) || 0;
 
+  // Highest price in the ACTIVE catalogue, so a price-range filter can size its
+  // ceiling to real data instead of a fixed number. Deliberately unfiltered:
+  // the slider's maximum must not shrink as the shopper narrows their filters,
+  // which would trap them inside a range they can't widen again. Rounded up to
+  // a round figure so the handle lands on sensible values.
+  let max_price = 0;
+  try {
+    const maxRows = await query<RowDataPacket[]>("SELECT MAX(price) AS m FROM products WHERE is_active = 1");
+    const raw = Number(maxRows[0]?.m) || 0;
+    max_price = raw > 0 ? Math.ceil(raw / 500) * 500 : 0;
+  } catch { /* fall back to 0 — the caller substitutes its own default */ }
+
   if (search) {
     execute("INSERT INTO search_logs (term, result_count) VALUES (?, ?)", [search.slice(0, 255), total]).catch(() => {});
   }
 
   if (products.length === 0) {
-    return { data: [], total, page, page_size: pageSize, total_pages: Math.ceil(total / pageSize), active_count, inactive_count };
+    return { data: [], total, page, page_size: pageSize, total_pages: Math.ceil(total / pageSize), active_count, inactive_count, max_price };
   }
 
   const productIds = products.map((p) => p.id);
@@ -303,5 +315,6 @@ export async function getProductsList(searchParams: URLSearchParams): Promise<Pa
     total_pages: Math.ceil(total / pageSize),
     active_count,
     inactive_count,
+    max_price,
   };
 }
