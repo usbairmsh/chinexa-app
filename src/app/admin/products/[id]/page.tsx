@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Save, Eye, EyeOff, X, Plus, Trash2,
-  ImagePlus, Tag, Globe, Sparkles, Package, BarChart3, Loader2, Copy, Check, Edit
+  ImagePlus, Tag, Globe, Sparkles, Package, BarChart3, Loader2, Copy, Check, Edit, GripVertical, ChevronUp, ChevronDown
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -247,6 +247,24 @@ export default function EditProductPage() {
   const addVariant = () => setVariants([...variants, { id: `v-${Date.now()}`, type: "size", name: "", value: "", hex: "", price: "", compare_price: "", cost_price: "", stock: "0", min_stock: "10", max_stock: "100", sku: "" }]);
   const addImage = () => setImages([...images, { id: `img-${Date.now()}`, url: "", alt: "", variant_id: "", focal_point: "" }]);
   const removeImage = (iid: string) => setImages(images.filter((i) => i.id !== iid));
+
+  // ── Image ordering ──
+  // The array's order IS the saved order: the save loop writes each image's
+  // index into product_images.order, and every storefront query reads
+  // ORDER BY `order`. So moving a row here is all the product page needs —
+  // position 1 is the main image.
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+
+  const moveImageTo = (from: number, to: number) => {
+    if (from === to || to < 0) return;
+    setImages((list) => {
+      if (to >= list.length) return list;
+      const next = [...list];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  };
   const removeVariant = (vid: string) => setVariants(variants.filter((v) => v.id !== vid));
   const updateVariant = (vid: string, field: keyof VariantRow, value: string) => setVariants(variants.map((v) => v.id === vid ? { ...v, [field]: value } : v));
 
@@ -566,17 +584,44 @@ export default function EditProductPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Product Images</CardTitle>
-                  <CardDescription>Add images and optionally link them to a variant. First image is the main display image.</CardDescription>
+                  <CardDescription>Add images and optionally link them to a variant. Drag a row — or use the arrows — to reorder; the first image is the main display image, and this order is exactly what the product page shows.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     {images.map((img, i) => (
-                      <div key={img.id} className="p-4 rounded-luxury border border-border/30 bg-pearl/20">
+                      <div
+                        key={img.id}
+                        // Native HTML5 drag — onDragOver must preventDefault or
+                        // the drop never fires.
+                        draggable
+                        onDragStart={() => setDragIndex(i)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => { e.preventDefault(); if (dragIndex !== null) moveImageTo(dragIndex, i); setDragIndex(null); }}
+                        onDragEnd={() => setDragIndex(null)}
+                        className={`p-4 rounded-luxury border bg-pearl/20 transition-colors ${dragIndex === i ? "border-secondary opacity-60" : "border-border/30"}`}
+                      >
                         <div className="flex items-center justify-between mb-3">
-                          <span className="text-xs font-bold text-charcoal">Image {i + 1} {i === 0 && <span className="text-[9px] text-secondary font-normal ml-1">(main)</span>}</span>
-                          <button onClick={() => removeImage(img.id)} className="p-1 rounded-full hover:bg-destructive/10 text-charcoal-lighter hover:text-destructive transition-colors active:scale-[0.96]">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          <span className="text-xs font-bold text-charcoal flex items-center gap-1.5">
+                            <GripVertical className="h-3.5 w-3.5 text-charcoal-lighter cursor-grab active:cursor-grabbing" />
+                            Image {i + 1} {i === 0 && <span className="text-[9px] text-secondary font-normal ml-1">(main)</span>}
+                          </span>
+                          <div className="flex items-center gap-0.5">
+                            {/* Keyboard/touch fallback — drag alone isn't
+                                accessible and is awkward on touch. */}
+                            <button type="button" onClick={() => moveImageTo(i, i - 1)} disabled={i === 0}
+                              aria-label="Move image up"
+                              className="p-1 rounded-full text-charcoal-lighter hover:text-secondary hover:bg-secondary/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors">
+                              <ChevronUp className="h-3.5 w-3.5" />
+                            </button>
+                            <button type="button" onClick={() => moveImageTo(i, i + 1)} disabled={i === images.length - 1}
+                              aria-label="Move image down"
+                              className="p-1 rounded-full text-charcoal-lighter hover:text-secondary hover:bg-secondary/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors">
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={() => removeImage(img.id)} className="p-1 rounded-full hover:bg-destructive/10 text-charcoal-lighter hover:text-destructive transition-colors active:scale-[0.96]">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </div>
                         <div className="grid sm:grid-cols-2 gap-4">
                           <ImageUpload value={img.url} onChange={(url) => { const u = [...images]; u[i].url = url; setImages(u); }} aspectRatio="square" productId={id} imageIndex={String(i).padStart(4, "0")} field={`product_image_${i}`} />
