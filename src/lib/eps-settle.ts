@@ -53,7 +53,7 @@ export async function settleEpsOrder(orderId: string): Promise<SettleResult> {
 
   try {
     const orders = await query<RowDataPacket[]>(
-      "SELECT id, order_number, total, status, payment_status, eps_merchant_txn_id FROM orders WHERE id = ? LIMIT 1",
+      "SELECT id, order_number, total, deposit_amount, status, payment_status, eps_merchant_txn_id FROM orders WHERE id = ? LIMIT 1",
       [orderId]
     );
     if (orders.length === 0) return { settled: false, reason: "not_found" };
@@ -76,7 +76,11 @@ export async function settleEpsOrder(orderId: string): Promise<SettleResult> {
     // Compared in integer poisha, not whole taka. Rounding both sides to taka
     // would accept anything within ±0.50 of the total — and payment links let an
     // admin set an arbitrary amount, so sub-taka totals are routine here.
-    const orderTotalMinor = Math.round((Number(order.total) || 0) * 100);
+    // For a PRE-ORDER only the deposit was charged, so that is the amount to
+    // verify — comparing against the full total would reject a perfectly valid
+    // deposit payment as tampering.
+    const expectedAmount = order.deposit_amount != null ? Number(order.deposit_amount) : (Number(order.total) || 0);
+    const orderTotalMinor = Math.round(expectedAmount * 100);
     let sawAmountMismatch = false;
 
     for (const txnId of txnIds) {

@@ -26,7 +26,7 @@ async function ensureColumns() {
     const cols = await query<RowDataPacket[]>(
       `SELECT table_name AS t, column_name AS c FROM information_schema.columns
        WHERE table_schema = DATABASE()
-         AND ((table_name = 'orders' AND column_name IN ('stock_deducted','revenue_counted','eps_merchant_txn_id','eps_transaction_id'))
+         AND ((table_name = 'orders' AND column_name IN ('stock_deducted','revenue_counted','eps_merchant_txn_id','eps_transaction_id','deposit_amount'))
            OR (table_name = 'order_items' AND column_name = 'variant_id'))`
     );
     const has = new Set(cols.map((r) => `${r.t}.${r.c}`));
@@ -36,6 +36,11 @@ async function ensureColumns() {
     // EPS gateway: our unique per-attempt id sent to EPS, and EPS's returned id.
     if (!has.has("orders.eps_merchant_txn_id")) await execute("ALTER TABLE orders ADD COLUMN eps_merchant_txn_id VARCHAR(64) NULL");
     if (!has.has("orders.eps_transaction_id")) await execute("ALTER TABLE orders ADD COLUMN eps_transaction_id VARCHAR(64) NULL");
+    // Pre-order deposit: the amount actually charged online up front. NULL on an
+    // ordinary order (the whole total is charged). Kept separate from `total` so
+    // the order still records what the goods cost, while the gateway charges
+    // only the deposit and the balance is collected on delivery.
+    if (!has.has("orders.deposit_amount")) await execute("ALTER TABLE orders ADD COLUMN deposit_amount DECIMAL(12,2) NULL");
     // Backfill: existing confirmed+ orders already had stock deducted.
     // Excludes orders whose items carry no product_id — a custom-amount payment
     // link creates exactly that (a synthetic line with no product), and those
@@ -494,9 +499,30 @@ export async function POST(req: NextRequest) {
       // is held for as short a time as possible — taking it earlier would make
       // every concurrent checkout queue behind the slowest stock check.
       orderNumber = await nextOrderNumber(conn);
+
+      // A pre-order is ONLINE PAYMENT ONLY and takes a deposit up front. The
+      // percentage is read server-side from settings — never from the client —
+      // and the deposit is what the gateway charges, while `total` stays the
+      // real price of the goods. A normal order has no deposit (NULL): the whole
+      // total is charged.
+      const paymentMethod = isPreorderOrder ? "EPS" : (body.payment_method || "COD").toUpperCase();
+      let depositAmount: number | null = null;
+      if (isPreorderOrder) {
+        let pct = 100;
+        try {
+          const pctRows = await query<RowDataPacket[]>(
+            "SELECT value FROM settings WHERE `key` = 'preorder_deposit_percent' LIMIT 1"
+          );
+          const raw = pctRows[0]?.value;
+          const parsed = Number(typeof raw === "string" ? JSON.parse(raw) : raw);
+          if (Number.isFinite(parsed)) pct = Math.min(100, Math.max(1, parsed));
+        } catch { /* fall back to charging in full */ }
+        depositAmount = Math.round((Number(body.total) || 0) * (pct / 100) * 100) / 100;
+      }
+
       await conn.execute(
-        `INSERT INTO orders (id, order_number, customer_id, customer_name, customer_phone, subtotal, shipping_cost, discount, tax, total, status, payment_method, payment_status, transaction_id, coupon_code, stock_deducted, is_preorder, preorder_expected_date, notes, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, orderNumber, customerId, body.customer_name, body.customer_phone, body.subtotal || 0, body.shipping_cost || 0, body.discount || 0, body.tax || 0, body.total || 0, initialStatus, (body.payment_method || "COD").toUpperCase(), "pending", body.transaction_id || null, body.coupon_code || null, isPreorderOrder ? 0 : 1, isPreorderOrder ? 1 : 0, isPreorderOrder ? expectedDate : null, body.notes || null, source]
+        `INSERT INTO orders (id, order_number, customer_id, customer_name, customer_phone, subtotal, shipping_cost, discount, tax, total, status, payment_method, payment_status, transaction_id, coupon_code, stock_deducted, is_preorder, preorder_expected_date, notes, source, deposit_amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, orderNumber, customerId, body.customer_name, body.customer_phone, body.subtotal || 0, body.shipping_cost || 0, body.discount || 0, body.tax || 0, body.total || 0, initialStatus, paymentMethod, "pending", body.transaction_id || null, body.coupon_code || null, isPreorderOrder ? 0 : 1, isPreorderOrder ? 1 : 0, isPreorderOrder ? expectedDate : null, body.notes || null, source, depositAmount]
       );
 
       // Order items

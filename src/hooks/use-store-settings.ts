@@ -16,6 +16,8 @@ export interface StoreSettings {
   public_reviews_enabled: boolean;
   /** EPS online payment gateway toggle. When on, checkout offers "Pay online (EPS)" alongside Cash on Delivery. Defaults to true. */
   eps_enabled: boolean;
+  /** % of the total a customer pays up front for a pre-order (1-100). */
+  preorder_deposit_percent: number;
 }
 
 const defaults: StoreSettings = {
@@ -29,6 +31,7 @@ const defaults: StoreSettings = {
   preorders_enabled: true,
   public_reviews_enabled: false,
   eps_enabled: true,
+  preorder_deposit_percent: 100,
 };
 
 let cachedSettings: StoreSettings | null = null;
@@ -38,7 +41,7 @@ async function loadSettings(): Promise<StoreSettings> {
   if (cachedSettings) return cachedSettings;
   if (fetchPromise) return fetchPromise;
 
-  fetchPromise = fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,social_links,free_delivery_threshold,free_delivery_enabled,features,eps_enabled")
+  fetchPromise = fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,social_links,free_delivery_threshold,free_delivery_enabled,features,eps_enabled,preorder_deposit_percent")
     .then((r) => r.json())
     .then((data) => {
       const features = (data.features && typeof data.features === "object") ? data.features as Record<string, unknown> : {};
@@ -59,6 +62,7 @@ async function loadSettings(): Promise<StoreSettings> {
         preorders_enabled: typeof features.preorders === "boolean" ? features.preorders : defaults.preorders_enabled,
         public_reviews_enabled: typeof features.public_reviews === "boolean" ? features.public_reviews : defaults.public_reviews_enabled,
         eps_enabled: data.eps_enabled !== undefined ? !!data.eps_enabled : defaults.eps_enabled,
+        preorder_deposit_percent: Math.min(100, Math.max(1, Number(data.preorder_deposit_percent) || defaults.preorder_deposit_percent)),
       };
       cachedSettings = s;
       return s;

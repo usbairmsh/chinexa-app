@@ -16,8 +16,13 @@ const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "Ju
 // belt-and-braces: archiving sets status='cancelled' nowadays, but rows
 // archived before that logic existed only carry the flag. `alias` prefixes
 // the columns for queries that join orders under an alias (e.g. "o.").
+// A PRE-ORDER only counts once it has actually been delivered and received. The
+// deposit taken up front is money held against goods not yet supplied, so
+// recognising it at order time would book revenue for something that may still
+// be cancelled or refunded before it ever ships. Ordinary orders are unaffected.
 const keptOrders = (alias = "") =>
-  `${alias}status NOT IN ('cancelled','not_received','returned') AND ${alias}payment_status <> 'refunded' AND ${alias}is_archived = 0`;
+  `${alias}status NOT IN ('cancelled','not_received','returned') AND ${alias}payment_status <> 'refunded' AND ${alias}is_archived = 0`
+  + ` AND (${alias}is_preorder = 0 OR ${alias}is_preorder IS NULL OR ${alias}status = 'received')`;
 const KEPT_ORDERS = keptOrders();
 
 // GET /api/accounting?year=2026&source=website|manual|all — financial overview derived from real orders/returns/expenses

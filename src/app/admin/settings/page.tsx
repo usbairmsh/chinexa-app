@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
-  Settings, Store, Truck, CreditCard, Bell, Save, Loader2, Check,
+  Settings, Store, Truck, CreditCard, Bell, Save, Loader2, Check, Clock,
   Plus, Trash2, X, Edit, Globe, FolderTree, ShoppingCart, Award, Users, Search,
   BookOpen, Megaphone, Mail, MessageSquare
 } from "lucide-react";
@@ -338,6 +338,11 @@ function AdminSettingsPageInner() {
   // Cash on Delivery is always on (not configurable). EPS is the only toggle.
   const [epsEnabled, setEpsEnabled] = useState(true);
   const [epsSaving, setEpsSaving] = useState(false);
+  // Percentage of the order total a customer pays up front to place a
+  // pre-order. 100 means pay in full; the value is clamped 1–100 on save.
+  const [preorderDeposit, setPreorderDeposit] = useState("100");
+  const [depositSaving, setDepositSaving] = useState(false);
+  const [depositSaved, setDepositSaved] = useState(false);
 
   // ═══ NOTIFICATIONS ═══
   const [notifications, setNotifications] = useState<Record<string, boolean>>({
@@ -409,7 +414,7 @@ function AdminSettingsPageInner() {
       if (typeof d?.value === "string") setEmailFooter(d.value);
     }).catch(() => {});
 
-    fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,features,store_logo,our_story,instagram_feed,faq_items,social_links,maintenance_mode,delivery_config,notification_settings,eps_enabled")
+    fetch("/api/settings?keys=store_name,store_email,store_phone,store_address,features,store_logo,our_story,instagram_feed,faq_items,social_links,maintenance_mode,delivery_config,notification_settings,eps_enabled,preorder_deposit_percent")
       .then((r) => r.json())
       .then((data) => {
         if (data.store_name) setStoreName(data.store_name);
@@ -447,6 +452,7 @@ function AdminSettingsPageInner() {
         }
         if (data.notification_settings) setNotifications((p) => ({ ...p, ...data.notification_settings }));
         if (data.eps_enabled !== undefined) setEpsEnabled(!!data.eps_enabled);
+        if (data.preorder_deposit_percent !== undefined && data.preorder_deposit_percent !== null) setPreorderDeposit(String(data.preorder_deposit_percent));
       })
       .catch(() => {})
       .finally(() => {
@@ -628,6 +634,13 @@ function AdminSettingsPageInner() {
         body: JSON.stringify({ key: "eps_enabled", value: next }),
       });
     } catch {} finally { setEpsSaving(false); }
+  };
+  // Clamped 1–100: a 0% deposit would mean a pre-order placed with no payment
+  // at all, which is exactly what this setting exists to stop.
+  const savePreorderDeposit = () => {
+    const pct = Math.min(100, Math.max(1, Math.round(Number(preorderDeposit) || 100)));
+    setPreorderDeposit(String(pct));
+    saveSettings({ preorder_deposit_percent: pct }, setDepositSaving, setDepositSaved);
   };
   const saveNotifications = () => saveSettings({ notification_settings: notifications }, setNotifSaving, setNotifSaved);
   const saveOrderSmsRecipients = () => saveSettings({ order_sms: { admin_ids: orderSmsAdminIds } }, setOrderSmsSaving, setOrderSmsSaved);
@@ -1154,6 +1167,48 @@ function AdminSettingsPageInner() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/eps/eps-checkout.png" alt="Pay with EPS" className="mt-3 w-full max-w-md h-auto rounded-lg border border-border/30" />
             <p className="text-[11px] text-charcoal-lighter mt-2">When on, checkout offers &ldquo;Pay online&rdquo; alongside Cash on Delivery. When off, only Cash on Delivery is shown.</p>
+          </div>
+
+          {/* ── Pre-order deposit ── */}
+          <div className="rounded-xl border border-border bg-card p-4">
+            <h3 className="text-base font-semibold text-charcoal flex items-center gap-2">
+              <Clock className="h-4 w-4 text-secondary" /> Pre-order Deposit
+            </h3>
+            <p className="text-xs text-charcoal-lighter mt-0.5">
+              How much of the order total a customer pays up front to place a pre-order. The balance is collected on
+              delivery.
+            </p>
+
+            <div className="mt-3 flex items-end gap-2 max-w-xs">
+              <div className="flex-1">
+                <label className="block text-[11px] text-charcoal-lighter mb-1">Deposit required</label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={preorderDeposit}
+                    onChange={(e) => setPreorderDeposit(e.target.value)}
+                    className="h-10 pr-8"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-charcoal-lighter">%</span>
+                </div>
+              </div>
+              <AdminButton onClick={savePreorderDeposit} disabled={depositSaving} className="h-10">
+                {depositSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : depositSaved ? <Check className="h-3.5 w-3.5" /> : null}
+                {depositSaved ? "Saved" : "Save"}
+              </AdminButton>
+            </div>
+
+            <div className="mt-3 rounded-lg border border-warning/25 bg-warning/10 p-3 text-[11px] text-warning">
+              Pre-orders are <strong>online payment only</strong> — Cash on Delivery is not offered for them, since a
+              reservation with no payment isn&apos;t a commitment. Online payment must be enabled above for customers to
+              be able to place a pre-order at all.
+            </div>
+            <p className="text-[11px] text-charcoal-lighter mt-2">
+              A pre-order is only counted in accounting once it has been delivered and received — not when the deposit
+              is taken.
+            </p>
           </div>
         </div>
       )}

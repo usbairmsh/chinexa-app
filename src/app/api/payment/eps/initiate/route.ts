@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
     // thrown off by a timezone difference between MySQL and the app container
     // (which could otherwise make a brand-new order look already expired).
     const orders = await query<RowDataPacket[]>(
-      `SELECT id, order_number, customer_id, customer_name, customer_phone, total, status, payment_status,
+      `SELECT id, order_number, customer_id, customer_name, customer_phone, total, deposit_amount, status, payment_status,
               created_at, TIMESTAMPDIFF(MINUTE, created_at, NOW()) AS age_minutes
        FROM orders WHERE id = ? LIMIT 1`,
       [orderId]
@@ -201,7 +201,9 @@ export async function POST(req: NextRequest) {
     const { redirectUrl, transactionId } = await initializeEps({
       merchantTransactionId: merchantTxnId,
       customerOrderId: String(order.order_number),
-      totalAmount: Number(order.total) || 0,
+      // A pre-order charges only its DEPOSIT; every other order charges the
+      // full total. deposit_amount is NULL unless a deposit was set at creation.
+      totalAmount: order.deposit_amount != null ? Number(order.deposit_amount) : (Number(order.total) || 0),
       successUrl: ret("success"),
       failUrl: ret("fail"),
       cancelUrl: ret("cancel"),

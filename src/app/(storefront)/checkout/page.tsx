@@ -71,11 +71,11 @@ export default function CheckoutPage() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  // Pre-orders are COD-only (reserve now, pay on delivery). Force COD and keep
-  // it locked while the cart is a pre-order cart, so no online-payment step ever
-  // applies to a reservation.
+  // Pre-orders are ONLINE-PAYMENT ONLY: a reservation with no money behind it
+  // isn't a commitment, so a deposit is taken up front and Cash on Delivery is
+  // not offered. (Previously this was inverted — pre-orders were COD-only.)
   useEffect(() => {
-    if (preorderCart) setPaymentMethod("COD");
+    if (preorderCart) setPaymentMethod("EPS");
   }, [preorderCart]);
 
   const [step, setStep] = useState(1);
@@ -295,6 +295,15 @@ export default function CheckoutPage() {
   const effectiveShipping = isExpress ? (isFreeExpress ? 0 : expressCharge) : (isFreeShipping ? 0 : shippingCost);
   const showFreeShipping = !isExpress && isFreeShipping;
   const finalTotal = Math.max(0, subtotal - offerSavings - discount + effectiveShipping);
+
+  // Pre-order deposit: the share of the total taken online up front. The server
+  // re-derives this from the same setting at order creation — this is display
+  // only, and is never the amount actually charged.
+  const depositPercent = Math.min(100, Math.max(1, Number(storeSettings.preorder_deposit_percent) || 100));
+  const depositAmount = preorderCart
+    ? Math.round(finalTotal * (depositPercent / 100) * 100) / 100
+    : finalTotal;
+  const balanceDue = Math.max(0, Math.round((finalTotal - depositAmount) * 100) / 100);
 
   const [stockError, setStockError] = useState<string[]>([]);
 
@@ -946,17 +955,47 @@ export default function CheckoutPage() {
                 <h2 className="font-heading text-xl font-semibold text-charcoal">Payment Method</h2>
 
                 {preorderCart ? (
-                  // Pre-order carts are Cash on Delivery only — no online payment
-                  // for a reservation. Lock the method and explain why.
-                  <div className="rounded-xl border border-secondary/20 bg-secondary/[0.06] p-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Clock className="h-4 w-4 text-secondary" />
-                      <span className="text-sm font-semibold text-charcoal">Pre-order · Cash on Delivery</span>
+                  // Pre-order carts are ONLINE PAYMENT only — a deposit secures
+                  // the reservation. COD is deliberately not offered.
+                  !storeSettings.eps_enabled ? (
+                    <div className="rounded-xl border border-destructive/25 bg-destructive/10 p-4">
+                      <p className="text-sm font-semibold text-charcoal mb-1">Pre-orders are unavailable right now</p>
+                      <p className="text-xs text-charcoal-lighter">
+                        A pre-order requires online payment, which is currently switched off. Please try again later or
+                        contact us to reserve your item.
+                      </p>
                     </div>
-                    <p className="text-xs text-charcoal-lighter">
-                      Nothing is charged now. You&apos;ll pay the full amount on delivery, once your pre-ordered item is in stock and shipped.
-                    </p>
-                  </div>
+                  ) : (
+                    <div className="rounded-xl border border-secondary/20 bg-secondary/[0.06] p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Clock className="h-4 w-4 text-secondary" />
+                        <span className="text-sm font-semibold text-charcoal">
+                          Pre-order · {depositPercent}% deposit online
+                        </span>
+                      </div>
+                      <p className="text-xs text-charcoal-lighter mb-3">
+                        {depositPercent >= 100
+                          ? "Pay in full now to reserve your item. We'll ship it as soon as it's in stock."
+                          : "Pay a deposit now to reserve your item. The balance is collected on delivery, once it's in stock and shipped."}
+                      </p>
+                      <div className="rounded-lg bg-card border border-border p-3 space-y-1.5 text-sm">
+                        <div className="flex justify-between text-charcoal-lighter">
+                          <span>Order total</span>
+                          <span className="text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(finalTotal)}</span>
+                        </div>
+                        <div className="flex justify-between font-semibold text-charcoal">
+                          <span>Pay now ({depositPercent}%)</span>
+                          <span className="[font-variant-numeric:tabular-nums]">{formatCurrency(depositAmount)}</span>
+                        </div>
+                        {balanceDue > 0 && (
+                          <div className="flex justify-between text-charcoal-lighter pt-1.5 border-t border-border">
+                            <span>Due on delivery</span>
+                            <span className="text-charcoal [font-variant-numeric:tabular-nums]">{formatCurrency(balanceDue)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
                 ) : !storeSettings.loaded ? (
                   <div className="h-11 rounded-xl bg-pearl animate-pulse" />
                 ) : (
