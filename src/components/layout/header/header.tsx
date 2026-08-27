@@ -195,8 +195,14 @@ export function Header() {
             </div>
 
             {/* ── CENTER: Navigation ── */}
+            {/* min-w-0 lets the nav shrink instead of pushing the account
+                cluster off-screen when there are many categories. It must NOT
+                carry overflow-hidden: the subcategory dropdown is positioned
+                `absolute top-full`, i.e. outside the nav's own box, so clipping
+                the nav clips the dropdown away entirely. Long category sets are
+                handled by letting items shrink, not by hiding overflow. */}
             <nav
-              className="hidden lg:flex items-center gap-0.5 mx-auto min-w-0 overflow-hidden"
+              className="hidden lg:flex items-center gap-0.5 mx-auto min-w-0"
               onMouseLeave={() => setActiveMenu(null)}
             >
               {navItems.map((item) => (
