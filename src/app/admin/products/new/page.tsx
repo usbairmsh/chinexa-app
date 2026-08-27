@@ -599,12 +599,12 @@ export default function AddProductPage() {
                       </motion.div>
                     ))}
 
-                    {images.length < 8 && (
-                      <button onClick={addImage}
+                    {/* No cap on image count — a product can carry as many
+                        images as it needs. */}
+                    <button onClick={addImage}
                         className="w-full py-6 rounded-luxury border-2 border-dashed border-border/40 hover:border-secondary/40 hover:bg-primary-light/20 transition-all flex items-center justify-center gap-2 text-charcoal-lighter hover:text-secondary active:scale-[0.99]">
                         <Plus className="h-5 w-5" /> <span className="text-sm font-medium">Add Image</span>
-                      </button>
-                    )}
+                    </button>
                   </div>
                 </CardContent>
               </Card>
