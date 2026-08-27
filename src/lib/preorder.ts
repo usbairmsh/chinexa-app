@@ -45,5 +45,14 @@ export function isPreorderable(
   stockForSelection: number,
   featureEnabled: boolean
 ): boolean {
-  return featureEnabled && stockForSelection === 0 && hasPreorderBadge(product);
+  // Being out of stock IS the trigger — no `preorder` badge required. Previously
+  // an admin had to tag each product by hand, so a product that sold out simply
+  // became unbuyable until someone remembered to badge it. Now any out-of-stock
+  // product is automatically offered as a pre-order (while the store-wide
+  // feature is on), and stops being one the moment it is restocked, with no
+  // manual step in either direction.
+  //
+  // The badge still exists and still works — it is now a way to MARK a product
+  // as a pre-order for merchandising, not a precondition for pre-ordering.
+  return featureEnabled && stockForSelection === 0;
 }

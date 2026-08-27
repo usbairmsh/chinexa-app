@@ -185,12 +185,24 @@ export async function getProductsList(searchParams: URLSearchParams): Promise<Pa
     params.push(`%\"exclusive\"%`);
   }
 
-  // Pre-order listing: products carrying the `preorder` badge. Mirrors the
-  // exclusive filter so /preorders (and the Pre-orders nav item) resolves to a
-  // real, populated page instead of an always-empty category.
+  // Pre-order listing. A product is pre-orderable when it is OUT OF STOCK —
+  // that is the trigger, matching isPreorderable(). So this page fills itself:
+  // a product that sells out appears here automatically, and drops off the
+  // moment it is restocked, with no admin action either way.
+  //
+  // A product with variants carries its sellable stock on the variant rows, so
+  // "out of stock" means the parent is 0 AND no variant has stock — otherwise a
+  // product with one sold-out variant would wrongly show as pre-orderable.
+  // Products explicitly badged `preorder` are always included, so an upcoming
+  // item can be listed before it ever has stock.
   const preorder = searchParams.get("preorder");
   if (preorder === "true") {
-    where += " AND p.badges LIKE ?";
+    where += ` AND (
+      p.badges LIKE ?
+      OR (p.stock_quantity <= 0 AND NOT EXISTS (
+        SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND pv.stock > 0
+      ))
+    )`;
     params.push(`%\"preorder\"%`);
   }
 

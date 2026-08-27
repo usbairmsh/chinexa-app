@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { ArrowLeft, Plus, Trash2, Search, Loader2, Save, Printer, X, Upload, CheckCircle2 } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
@@ -47,10 +47,16 @@ function resolveDiscount(base: number, type: DiscountType, value: number): numbe
   return money(Math.min(Math.max(raw, 0), base));
 }
 
-export default function NewInvoicePage() {
+function InvoiceBuilder() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // ?edit=<id> turns this page into an editor for an existing invoice, rather
+  // than duplicating 600 lines of builder into a second page. A manual invoice
+  // is editable in ANY state, so this is reachable for drafts and paid alike.
+  const editId = searchParams.get("edit") || "";
+  const isEdit = !!editId;
   const { can, name: adminName } = useAdmin();
-  const canAdd = can("accounting", "add");
+  const canAdd = can("accounting", isEdit ? "edit" : "add");
 
   const [lines, setLines] = useState<Line[]>([newLine()]);
   const [search, setSearch] = useState<Record<string, string>>({});
@@ -81,9 +87,58 @@ export default function NewInvoicePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  // Editing: load the existing invoice and prefill every field.
+  const [loadingInvoice, setLoadingInvoice] = useState(isEdit);
+  useEffect(() => {
+    if (!editId) return;
+    fetch(`/api/manual-invoices/${encodeURIComponent(editId)}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((inv) => {
+        if (!inv || inv.error) return;
+        setCustomerId(inv.customer_id || null);
+        setCustomerName(inv.customer_name || "");
+        setCustomerPhone(inv.customer_phone || "");
+        setCustomerEmail(inv.customer_email || "");
+        setCustomerAddress(inv.customer_address || "");
+        setDiscountType(inv.discount_type === "percent" ? "percent" : "amount");
+        setDiscountValue(String(Number(inv.discount_value) || ""));
+        setDeliveryCharge(String(Number(inv.delivery_charge) || ""));
+        setNotes(inv.notes || "");
+        setAffectsInventory(!!inv.affects_inventory);
+        setGenerateOrderNo(!!inv.order_number);
+        setPaymentMethod(inv.payment_method || "cash");
+        setPaymentStatus(inv.status === "paid" ? "paid" : "unpaid");
+        setSeal(inv.seal_url || "");
+        setSignature(inv.signature_url || "");
+        const loaded: Line[] = (inv.items || []).map((it: { product_id?: string; variant_id?: string; product_name: string; variant_name?: string; quantity: number; unit_price: number; discount_type?: DiscountType; discount_value?: number }) => ({
+          key: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          // The catalogue product isn't re-fetched: the invoice's own snapshot is
+          // what was sold, and re-joining live could change a line under the
+          // admin. product_id/variant_id are preserved so stock still reconciles.
+          product: it.product_id
+            ? { id: it.product_id, name: it.product_name, price: Number(it.unit_price) || 0, variants: [] }
+            : null,
+          variant_id: it.variant_id || null,
+          variant_name: it.variant_name || null,
+          product_name: it.product_name,
+          quantity: String(it.quantity ?? 1),
+          unit_price: String(Number(it.unit_price) || 0),
+          discount_type: it.discount_type === "percent" ? "percent" : "amount",
+          discount_value: String(Number(it.discount_value) || ""),
+        }));
+        if (loaded.length > 0) setLines(loaded);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingInvoice(false));
+  }, [editId]);
+
   // The seal and signature are uploaded once and reused. They're remembered in
   // store settings so the next invoice starts pre-stamped with no re-upload.
   useEffect(() => {
+    // Only seed the defaults for a NEW invoice. When editing, the invoice
+    // carries its own seal/signature and this would race the load above and
+    // silently replace them with the current global ones.
+    if (isEdit) return;
     fetch("/api/settings?key=invoice_stamp")
       .then((r) => r.json())
       .then((d) => {
@@ -91,7 +146,7 @@ export default function NewInvoicePage() {
         if (d?.value?.signature_url) setSignature(d.value.signature_url);
       })
       .catch(() => {});
-  }, []);
+  }, [isEdit]);
 
   const rememberStamp = useCallback((next: { seal_url?: string; signature_url?: string }) => {
     fetch("/api/settings", {
@@ -197,8 +252,8 @@ export default function NewInvoicePage() {
 
     setSaving(true);
     try {
-      const res = await fetch("/api/manual-invoices", {
-        method: "POST",
+      const res = await fetch(isEdit ? `/api/manual-invoices/${editId}` : "/api/manual-invoices", {
+        method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           customer_id: customerId,
@@ -233,12 +288,18 @@ export default function NewInvoicePage() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) { setError(json.error || "Could not create the invoice"); return; }
-      if (thenPrint) window.open(`/invoice?id=${encodeURIComponent(json.id)}&type=manual`, "_blank");
-      router.push(`/admin/invoices/${json.id}`);
+      // PUT returns { success } with no id, so fall back to the one we're editing.
+      const savedId = json.id || editId;
+      if (thenPrint) window.open(`/invoice?id=${encodeURIComponent(savedId)}&type=manual`, "_blank");
+      router.push(`/admin/invoices/${savedId}`);
     } catch {
       setError("Network error — the invoice was not created");
     } finally { setSaving(false); }
   };
+
+  if (loadingInvoice) {
+    return <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-charcoal-lighter" /></div>;
+  }
 
   if (!canAdd) {
     return <div className="p-6 text-sm text-charcoal-lighter">You do not have permission to create invoices.</div>;
@@ -251,8 +312,12 @@ export default function NewInvoicePage() {
           <ArrowLeft className="h-4 w-4" />
         </AdminButton>
         <div>
-          <h1 className="font-heading text-2xl font-bold text-charcoal">New Invoice</h1>
-          <p className="text-xs text-charcoal-lighter">Saved as a draft — you can edit it until you publish.</p>
+          <h1 className="font-heading text-2xl font-bold text-charcoal">{isEdit ? "Edit Invoice" : "New Invoice"}</h1>
+          <p className="text-xs text-charcoal-lighter">
+            {isEdit
+              ? "Changes replace the invoice's lines. If it was paid and counted in stock, inventory is adjusted to match."
+              : "Saved as a draft — or save it as paid if the sale has already happened."}
+          </p>
         </div>
       </div>
 
@@ -595,5 +660,14 @@ export default function NewInvoicePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// useSearchParams requires a Suspense boundary in the App Router.
+export default function InvoiceBuilderPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-charcoal-lighter" /></div>}>
+      <InvoiceBuilder />
+    </Suspense>
   );
 }

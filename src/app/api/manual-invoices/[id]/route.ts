@@ -35,10 +35,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 }
 
-// ─── PUT — edit a DRAFT ──────────────────────────────────────────────────────
-// Locked once published: an issued document must not change under the customer.
-// Editing replaces the whole line set, which is safe here (unlike orders) because
-// a draft has no financial or stock effect to reconcile.
+// ─── PUT — edit an invoice in ANY state ──────────────────────────────────────
+// Manual invoices are an internal document the business controls, so they stay
+// correctable at every stage — a typo on a paid invoice should be fixable rather
+// than requiring an offsetting entry.
+//
+// The consequence to respect: a PAID + accountable invoice has already moved
+// stock and revenue against its OLD lines. Editing therefore reverses the old
+// stock movement and re-applies the new one, so inventory continues to match
+// what the invoice actually says. Revenue needs no such step — accounting reads
+// the invoice's current total live, so it follows the edit on its own.
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const denied = await requirePermission(req, "accounting", "edit");
   if (denied) return denied;
@@ -46,14 +52,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     await ensureManualInvoiceTables();
     const { id } = await params;
-    const existing = await query<RowDataPacket[]>("SELECT id, status FROM manual_invoices WHERE id = ? LIMIT 1", [id]);
+    const existing = await query<RowDataPacket[]>(
+      "SELECT id, status, affects_inventory, stock_applied FROM manual_invoices WHERE id = ? LIMIT 1",
+      [id]
+    );
     if (existing.length === 0) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
-    if (existing[0].status !== "draft") {
-      return NextResponse.json(
-        { error: "Only a draft can be edited. Published and paid invoices are locked." },
-        { status: 409 }
-      );
-    }
+    const prev = existing[0];
 
     const body = await req.json().catch(() => ({}));
     const customerName = String(body.customer_name || "").trim();
@@ -82,13 +86,35 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
+
+      // Reverse the stock this invoice previously took, BEFORE writing the new
+      // lines — otherwise an edit would double-count. Only applies when stock
+      // was actually applied (a paid + accountable invoice); a draft has moved
+      // nothing, so there is nothing to give back.
+      const hadStock = Boolean(prev.stock_applied);
+      if (hadStock) {
+        const oldLines = await query<RowDataPacket[]>(
+          "SELECT product_id, variant_id, quantity FROM manual_invoice_items WHERE invoice_id = ?",
+          [id]
+        );
+        for (const ol of oldLines) {
+          if (!ol.product_id) continue;
+          const q = Number(ol.quantity) || 0;
+          if (q <= 0) continue;
+          if (ol.variant_id) {
+            await conn.execute("UPDATE product_variants SET stock = stock + ? WHERE id = ?", [q, ol.variant_id]);
+          }
+          await conn.execute("UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?", [q, ol.product_id]);
+        }
+      }
+
       await conn.execute(
         `UPDATE manual_invoices SET
            customer_id = ?, customer_name = ?, customer_phone = ?, customer_email = ?, customer_address = ?,
            subtotal = ?, line_discount_total = ?, discount_type = ?, discount_value = ?,
            order_discount = ?, delivery_charge = ?, total = ?, affects_inventory = ?,
            notes = ?, seal_url = ?, signature_url = ?
-         WHERE id = ? AND status = 'draft'`,
+         WHERE id = ?`,
         [
           body.customer_id || null, customerName,
           String(body.customer_phone || "").trim() || null,
@@ -122,6 +148,28 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           ]
         );
       }
+
+      // Re-apply stock against the NEW lines. Runs whenever this invoice had
+      // stock applied before the edit and is still accountable — so changing a
+      // quantity, swapping a product, or removing a line all leave inventory
+      // matching the invoice. Floors at zero, as everywhere else.
+      const stillAccountable = body.affects_inventory === true;
+      if (hadStock && stillAccountable) {
+        for (const l of totals.lines) {
+          if (!l.product_id) continue;
+          const q = Number(l.quantity) || 0;
+          if (q <= 0) continue;
+          if (l.variant_id) {
+            await conn.execute("UPDATE product_variants SET stock = GREATEST(stock - ?, 0) WHERE id = ?", [q, l.variant_id]);
+          }
+          await conn.execute("UPDATE products SET stock_quantity = GREATEST(stock_quantity - ?, 0) WHERE id = ?", [q, l.product_id]);
+        }
+      } else if (hadStock && !stillAccountable) {
+        // The accounting toggle was switched OFF during the edit: the stock was
+        // handed back above and must not be taken again, so clear the flag.
+        await conn.execute("UPDATE manual_invoices SET stock_applied = FALSE, revenue_applied = FALSE WHERE id = ?", [id]);
+      }
+
       await conn.commit();
       conn.release();
       await logActivity("Manual invoice updated", "accounting", id).catch(() => {});

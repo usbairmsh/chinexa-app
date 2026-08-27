@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import { ArrowLeft, Printer, Loader2, CheckCircle2, Ban, Send } from "lucide-react";
+import { ArrowLeft, Printer, Loader2, CheckCircle2, Ban, Send, Pencil } from "lucide-react";
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -117,6 +117,15 @@ export default function InvoiceDetailPage() {
         </div>
         <div className="flex items-center gap-2">
           <AdminButton variant="outline" size="sm" onClick={print}><Printer className="h-3.5 w-3.5 mr-1" /> Print</AdminButton>
+          {/* Editable in every state — a manual invoice is an internal document
+              the business controls, so a mistake stays correctable even after
+              it has been paid. Editing a paid, accountable invoice reconciles
+              stock against the new lines. */}
+          {canEdit && inv.status !== "void" && (
+            <AdminButton variant="outline" size="sm" onClick={() => router.push(`/admin/invoices/new?edit=${inv.id}`)}>
+              <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+            </AdminButton>
+          )}
           {canEdit && inv.status === "draft" && (
             <AdminButton size="sm" onClick={() => changeStatus("published")} disabled={busy}>
               <Send className="h-3.5 w-3.5 mr-1" /> Publish
