@@ -11,6 +11,7 @@ import { requirePermission } from "@/lib/admin-permissions-server";
 import { getVerifiedAdminId } from "@/lib/admin-session";
 import { ensureOrderArchiveColumns } from "@/lib/migrate-order-archive";
 import { ensurePreorderColumns } from "@/lib/migrate-preorder";
+import { sendOrderConfirmedNotifications } from "@/lib/order-confirmed";
 
 function normalizePhone(phone: string): string {
   const cleaned = phone.replace(/[\s-]/g, "");
@@ -398,6 +399,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         : `Status changed to ${newStatus}`;
       await execute("INSERT INTO order_timeline (order_id, status, note) VALUES (?, ?, ?)",
         [id, newStatus, body.note || defaultNote]);
+
+      // ─── Confirmation notifications ───
+      // A COD order is confirmed when an admin accepts it here — that is when
+      // the customer SMS/email and the admin alert go out, not when the order
+      // was placed. (An EPS order confirms itself on payment settlement, which
+      // calls the same function; the shared confirmation_sent guard means an
+      // order announced there is never announced again here.)
+      if (newStatus === "confirmed") {
+        await sendOrderConfirmedNotifications(id).catch(() => {});
+      }
 
       // Customer notification
       if (order.customer_id) {

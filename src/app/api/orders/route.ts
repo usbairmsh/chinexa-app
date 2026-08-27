@@ -13,8 +13,7 @@ import { ensureOrderArchiveColumns } from "@/lib/migrate-order-archive";
 import { ensurePreorderColumns, preordersEnabled } from "@/lib/migrate-preorder";
 import { hasPreorderBadge } from "@/lib/preorder";
 import { ensureOrderCounter, nextOrderNumber } from "@/lib/order-number";
-import { sendOrderCreationSms } from "@/lib/order-sms";
-import { sendOrderConfirmationEmail } from "@/lib/order-email";
+import { ensureConfirmationColumn } from "@/lib/order-confirmed";
 
 interface OrderRow extends RowDataPacket { [key: string]: unknown; }
 
@@ -168,6 +167,7 @@ export async function POST(req: NextRequest) {
     await ensurePromotionColumns();
     await ensureAccountingTables();
     await ensurePreorderColumns();
+    await ensureConfirmationColumn();
     // Before the transaction: CREATE TABLE causes an implicit commit in MySQL,
     // which would silently end the order transaction mid-flight.
     await ensureOrderCounter();
@@ -575,13 +575,14 @@ export async function POST(req: NextRequest) {
 
     await logActivity("New order placed", "order", id, `${orderNumber} — ৳${body.total}`);
 
-    // ─── Admin notifications: new order + any items that fell to low stock ───
-    await notifyAdmin(
-      "order",
-      `New order ${orderNumber}`,
-      `${body.customer_name} — ৳${Number(body.total).toLocaleString("en-BD")} via ${body.payment_method || "COD"} (${body.items.length} item${body.items.length > 1 ? "s" : ""})`,
-      `/admin/orders/${id}`
-    );
+    // NOTE: the customer confirmation SMS/email and the admin new-order alert
+    // are deliberately NOT sent here. Placing an order is not confirming one —
+    // an EPS order at this point is still unpaid and may never be paid, and a
+    // COD order has not yet been accepted by an admin. They are sent from
+    // sendOrderConfirmedNotifications() at the two real confirmation points:
+    // an admin moving a COD order to `confirmed`, and EPS payment settling.
+    // Low-stock alerts below still fire at creation, since stock really has
+    // been reserved at this point.
     try {
       const productIds = [...new Set((body.items as { product_id?: string }[]).map((i) => i.product_id).filter(Boolean))] as string[];
       if (productIds.length > 0) {
@@ -601,53 +602,8 @@ export async function POST(req: NextRequest) {
       }
     } catch {}
 
-    // ─── Order-creation SMS (admin-toggleable) — customer confirmation with a
-    // track-order link + selected admin number(s). Self-contained/best-effort. ───
-    await sendOrderCreationSms({
-      orderNumber,
-      total: Number(body.total) || 0,
-      paymentMethod: body.payment_method || "COD",
-      customerName: body.customer_name,
-      customerPhone: body.customer_phone,
-      customerId,
-      createdAt: new Date(),
-    });
-
-    // ─── Order-creation email (admin-toggleable) — branded confirmation to the
-    // customer + admin alert. Self-contained/best-effort, same as the SMS above.
-    // Recipient: the email typed at checkout for THIS order wins; otherwise fall
-    // back to the customer's saved profile email (so a registered customer who
-    // left the optional checkout email blank still gets their confirmation).
-    let resolvedEmail: string | null = body.billing_address?.email || null;
-    if (!resolvedEmail && customerId) {
-      try {
-        const emailRows = await query<RowDataPacket[]>("SELECT email FROM customers WHERE id = ? LIMIT 1", [customerId]);
-        resolvedEmail = (emailRows[0]?.email as string) || null;
-      } catch { /* best-effort */ }
-    }
-    await sendOrderConfirmationEmail({
-      orderNumber,
-      total: Number(body.total) || 0,
-      // Read after the authoritative re-derivation above, so the emailed
-      // breakdown matches what was actually stored and charged rather than
-      // whatever the client sent.
-      subtotal: Number(body.subtotal) || 0,
-      shipping: Number(body.shipping_cost) || 0,
-      discount: Number(body.discount) || 0,
-      tax: Number(body.tax) || 0,
-      couponCode: body.coupon_code || null,
-      paymentMethod: body.payment_method || "COD",
-      customerName: body.customer_name,
-      customerEmail: resolvedEmail,
-      customerPhone: body.customer_phone,
-      customerId,
-      items: (Array.isArray(body.items) ? body.items : []).map((i: { product_name?: string; quantity: number; unit_price: number }) => ({
-        name: i.product_name || "Item",
-        quantity: Number(i.quantity) || 1,
-        price: Number(i.unit_price) || 0,
-      })),
-      createdAt: new Date(),
-    });
+    // (Customer SMS/email intentionally omitted here — see the note above.
+    //  They are sent from sendOrderConfirmedNotifications() on confirmation.)
 
     return NextResponse.json({ success: true, id, order_number: orderNumber }, { status: 201 });
   } catch (error: unknown) {

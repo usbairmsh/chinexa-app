@@ -4,6 +4,7 @@ import { ensureEpsTables } from "@/lib/migrate-eps";
 import { checkEpsStatus, epsIsPaid, isEpsConfigured } from "@/lib/eps";
 import { markLinksPaidForOrder } from "@/lib/payment-links";
 import { sendMetaPurchase } from "@/lib/meta-capi-server";
+import { sendOrderConfirmedNotifications } from "@/lib/order-confirmed";
 
 // ─── Shared EPS settlement ────────────────────────────────────────────────────
 // Used by BOTH the browser return route and the background reconcile job, so a
@@ -132,6 +133,10 @@ export async function settleEpsOrder(orderId: string): Promise<SettleResult> {
         // redirect, so abandoned EPS payments aren't counted as sales.
         // Best-effort; never blocks settlement.
         await sendMetaPurchase(orderId).catch(() => {});
+        // An online order is CONFIRMED the moment payment settles — this is the
+        // point the customer confirmation and admin alert are sent, not when the
+        // order was placed and the customer was merely sent to the gateway.
+        await sendOrderConfirmedNotifications(orderId).catch(() => {});
       }
       // Close out any admin-issued payment link for this order, so the link
       // stops being payable the moment the money lands.
