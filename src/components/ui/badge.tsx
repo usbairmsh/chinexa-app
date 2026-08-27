@@ -17,13 +17,18 @@ const badgeVariants = cva(
         // Product badges: mapped onto the design tokens (with alpha tints) so
         // they adapt to the dark theme, instead of the raw emerald/red/amber/
         // violet/rose/blue palette which stayed light-on-light in dark mode.
-        new: "bg-success/10 text-success border border-success/25",
-        sale: "bg-destructive/10 text-destructive border border-destructive/25",
-        bestseller: "bg-gold/10 text-gold border border-gold/30",
-        preorder: "bg-secondary/10 text-secondary border border-secondary/25",
-        limited: "bg-coral/10 text-coral border border-coral/25",
-        trending: "bg-primary/15 text-primary-dark border border-primary/30",
-        exclusive: "bg-gold/10 text-gold border border-gold/30",
+        // Product badges sit ON TOP of product photography, so the background is
+        // SOLID (bg-card), not an alpha tint — a /10 tint let the image show
+        // through and washed the label out to near-illegible. The hue is carried
+        // by the text and border, so the colour identity is unchanged; only the
+        // transparency is gone.
+        new: "bg-card text-success border border-success/40",
+        sale: "bg-card text-destructive border border-destructive/40",
+        bestseller: "bg-card text-gold border border-gold/45",
+        preorder: "bg-card text-secondary border border-secondary/40",
+        limited: "bg-card text-coral border border-coral/40",
+        trending: "bg-card text-primary-dark border border-primary/45",
+        exclusive: "bg-card text-gold border border-gold/45",
       },
     },
     defaultVariants: {
