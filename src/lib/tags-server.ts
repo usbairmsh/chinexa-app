@@ -41,6 +41,34 @@ export async function getTagBySlug(slug: string): Promise<Tag | null> {
   return rows.length ? rowToTag(rows[0]) : null;
 }
 
-// ─── Request-body parsing ───────────────────────────────────────────────
-// Shared by POST /api/tags and PATCH /api/tags/[id] so a tag created one way
-// can never be validated differently from one edited the other way.
+// ─── Application timestamps ───────────────────────────────────────────────────
+
+/**
+ * Merge a product's new tag list into its badge_applied_at map.
+ *
+ * A slug that is NEWLY present gets stamped with now; one that is still present
+ * keeps its original stamp (so editing an unrelated field doesn't silently
+ * restart a countdown); one that has gone is dropped.
+ *
+ * This is what makes "validity counted from the date I added the tag to the
+ * product" work — the same tag expires on a different day for each product.
+ */
+export function mergeAppliedAt(
+  existing: unknown,
+  nextSlugs: string[],
+  now: Date = new Date()
+): Record<string, string> {
+  let prev: Record<string, string> = {};
+  try {
+    const raw = typeof existing === "string" ? JSON.parse(existing) : existing;
+    if (raw && typeof raw === "object" && !Array.isArray(raw)) prev = raw as Record<string, string>;
+  } catch {
+    // Unparseable — treat as empty rather than throwing away the save.
+  }
+  const stamp = now.toISOString();
+  const out: Record<string, string> = {};
+  for (const slug of nextSlugs) {
+    out[slug] = prev[slug] || stamp;
+  }
+  return out;
+}

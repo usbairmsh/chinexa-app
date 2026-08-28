@@ -62,3 +62,32 @@ export function TagChips({
     </div>
   );
 }
+
+/**
+ * Tags an admin has attached to a specific offer or coupon.
+ *
+ * Display only, by design: the chip labels the record, it never changes which
+ * products the offer covers or what a customer is charged. Keeping attachment
+ * inert means editing a tag can't move prices.
+ */
+export function AttachedTagChips({
+  attachType,
+  targetId,
+  className,
+}: {
+  attachType: "offer" | "coupon" | "category" | "subcategory" | "product";
+  targetId: string;
+  className?: string;
+}) {
+  const { tags } = useTags();
+  const attached = tags.filter((t) => t.attach_type === attachType && t.attach_ids.includes(targetId));
+  if (attached.length === 0) return null;
+
+  return (
+    <div className={cn("flex flex-wrap gap-1", className)}>
+      {attached.map((tag) => (
+        <TagChip key={tag.slug} tag={tag} className="px-2 py-0.5 text-[9px]" />
+      ))}
+    </div>
+  );
+}

@@ -6,6 +6,7 @@ import { Plus, Edit, Trash2, MoreHorizontal, Copy, Percent, BadgeDollarSign, Loa
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { AttachedTagChips } from "@/components/ui/tag-chip";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -290,6 +291,9 @@ export default function AdminCouponsPage() {
                           </button>
                         </div>
                         {coupon.description && <p className="text-[10px] text-charcoal-lighter">{coupon.description}</p>}
+                        {/* Tags attached to this coupon in /admin/tags — a label
+                            only; they do not affect the discount. */}
+                        <AttachedTagChips attachType="coupon" targetId={coupon.id} className="mt-1" />
                       </div>
                     </div>
                     <DropdownMenu>

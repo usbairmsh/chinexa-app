@@ -11,6 +11,8 @@ import { getProductBySlugOrId } from "@/lib/products";
 import { ensurePreorderColumns } from "@/lib/migrate-preorder";
 import { ensureInventoryTables, recordStockHistory, handleRestockTransition } from "@/lib/migrate-inventory";
 import { ensureCardBadgeColumn } from "@/lib/migrate-card-badges";
+import { mergeAppliedAt } from "@/lib/tags-server";
+import { ensureTagTables } from "@/lib/migrate-tags";
 import { resolveImageAlt } from "@/lib/image-alt";
 import { validate, validationError, dependencyError, publicServerError } from "@/lib/validate";
 
@@ -37,6 +39,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     await ensurePreorderColumns();
     await ensureInventoryTables();
     await ensureCardBadgeColumn();
+    await ensureTagTables();
     const { id } = await params;
     const body = await req.json();
 
@@ -118,7 +121,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       }
     }
     if (body.tags) { fields.push("tags = ?"); values.push(JSON.stringify(body.tags)); }
-    if (body.badges) { fields.push("badges = ?"); values.push(JSON.stringify(body.badges)); }
+    if (body.badges) {
+      fields.push("badges = ?");
+      values.push(JSON.stringify(body.badges));
+      // Stamp newly-added tags with now and keep existing stamps untouched, so
+      // editing an unrelated field can't silently restart a tag's countdown.
+      const prior = await query<RowDataPacket[]>("SELECT badge_applied_at FROM products WHERE id = ? LIMIT 1", [id]);
+      fields.push("badge_applied_at = ?");
+      values.push(JSON.stringify(mergeAppliedAt(prior[0]?.badge_applied_at ?? null, Array.isArray(body.badges) ? body.badges : [])));
+    }
     if (body.hidden_card_badges !== undefined) { fields.push("hidden_card_badges = ?"); values.push(JSON.stringify(body.hidden_card_badges || [])); }
     if (body.trust_badges !== undefined) { fields.push("trust_badges = ?"); values.push(JSON.stringify(body.trust_badges)); }
     if (fields.length > 0) {

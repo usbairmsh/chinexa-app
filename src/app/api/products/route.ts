@@ -11,6 +11,8 @@ import { pingIndexNowUrl } from "@/lib/indexnow";
 import { getProductsList } from "@/lib/products";
 import { ensurePreorderColumns } from "@/lib/migrate-preorder";
 import { ensureInventoryTables, recordStockHistory } from "@/lib/migrate-inventory";
+import { mergeAppliedAt } from "@/lib/tags-server";
+import { ensureTagTables } from "@/lib/migrate-tags";
 import { ensureCardBadgeColumn } from "@/lib/migrate-card-badges";
 import { resolveImageAlt } from "@/lib/image-alt";
 
@@ -74,6 +76,7 @@ export async function GET(req: NextRequest) {
     await ensureAccountingTables();
     await ensureInventoryTables();
     await ensureCardBadgeColumn();
+    await ensureTagTables();
     const { searchParams } = new URL(req.url);
 
     // Batched lookup by id list (e.g. wishlist page) — bypasses pagination/
@@ -110,6 +113,7 @@ export async function POST(req: NextRequest) {
     await ensurePreorderColumns();
     await ensureInventoryTables();
     await ensureCardBadgeColumn();
+    await ensureTagTables();
     const body = await req.json();
 
     // Validate required fields
@@ -146,8 +150,8 @@ export async function POST(req: NextRequest) {
     const sku = body.sku || `PRD-${Date.now().toString(36).toUpperCase()}`;
 
     await query(
-      `INSERT INTO products (id, name, slug, description, short_description, sku, price, compare_at_price, cost_price, currency, category_id, category_name, subcategory, brand_id, brand_name, tags, badges, hidden_card_badges, trust_badges, stock_quantity, min_stock, max_stock, preorder_release_date, is_active, is_featured, country_of_origin, weight, ingredients, how_to_use, seo_title, seo_description)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'BDT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO products (id, name, slug, description, short_description, sku, price, compare_at_price, cost_price, currency, category_id, category_name, subcategory, brand_id, brand_name, tags, badges, hidden_card_badges, badge_applied_at, trust_badges, stock_quantity, min_stock, max_stock, preorder_release_date, is_active, is_featured, country_of_origin, weight, ingredients, how_to_use, seo_title, seo_description)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'BDT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id, body.name, slug,
         body.description || "", body.short_description || "",
@@ -158,6 +162,8 @@ export async function POST(req: NextRequest) {
         body.brand_id || null, body.brand_name || null,
         JSON.stringify(body.tags || []), JSON.stringify(body.badges || []),
         JSON.stringify(body.hidden_card_badges || []),
+        // A new product has no prior stamps, so every tag starts its clock now.
+        JSON.stringify(mergeAppliedAt(null, Array.isArray(body.badges) ? body.badges : [])),
         JSON.stringify(body.trust_badges || []),
         Number(body.stock_quantity) || 0, Number(body.min_stock) || 10, Number(body.max_stock) || 100,
         body.preorder_release_date || null,
