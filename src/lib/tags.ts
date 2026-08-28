@@ -276,3 +276,33 @@ export function parseTagBody(body: Record<string, unknown>): { error: string } |
     priority,
   };
 }
+
+// ─── Fallback ─────────────────────────────────────────────────────────────────
+
+/**
+ * The built-in tags as they are seeded, for use when /api/tags can't be reached.
+ * Rendering an unstyled chip — or none at all — would be a worse failure than
+ * briefly showing default colours, since these seven cover almost every product.
+ *
+ * Colours must stay in step with SYSTEM_TAGS in lib/migrate-tags.ts. They are
+ * duplicated rather than imported because that module pulls in the DB.
+ */
+export const SYSTEM_TAG_FALLBACK: Tag[] = [
+  { slug: "new", label: "New", color: "#0F9D58", priority: 10 },
+  { slug: "sale", label: "Sale", color: "#DC2626", priority: 20 },
+  { slug: "bestseller", label: "Bestseller", color: "#B8860B", priority: 30 },
+  { slug: "preorder", label: "Pre-Order", color: "#7C3AED", priority: 40 },
+  { slug: "limited", label: "Limited", color: "#E11D48", priority: 50 },
+  { slug: "trending", label: "Trending", color: "#2563EB", priority: 60 },
+  { slug: "exclusive", label: "Exclusive", color: "#B8860B", priority: 70 },
+].map((t) => ({
+  ...t,
+  id: `tag-${t.slug}`,
+  text_color: null,
+  is_system: true,
+  attach_type: "none" as const,
+  attach_ids: [],
+  validity_mode: "none" as const,
+  validity_value: null,
+  is_active: true,
+}));

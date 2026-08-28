@@ -24,6 +24,9 @@ import { useFlushUploads } from "@/components/admin/shared/pending-uploads";
 import { ImagePositionEditor } from "@/components/admin/shared/image-position-editor";
 import { FieldLabel } from "@/components/admin/shared/field-label";
 import { cn, formatCurrency, collectMissingFields } from "@/lib/utils";
+import { AlertTriangle } from "lucide-react";
+import { useTags } from "@/hooks/use-tags";
+import { autoTextColor, cardSlugs, MAX_CARD_TAGS } from "@/lib/tags";
 import { CountrySearch } from "@/components/admin/shared/country-search";
 import { BrandSearch } from "@/components/admin/shared/brand-search";
 import { getIconById, type TrustBadge } from "@/lib/trust-badges";
@@ -153,6 +156,12 @@ export default function EditProductPage() {
   const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
   // Tagged-but-hidden-from-card badges (subset of selectedBadges).
   const [hiddenCardBadges, setHiddenCardBadges] = useState<string[]>([]);
+  // Tag definitions come from /admin/tags now, not a hardcoded list.
+  const { tags: availableTags } = useTags();
+  // Which of the selected tags actually fit on a product card.
+  const cardVisibleTags = selectedBadges.filter((b) => !hiddenCardBadges.includes(b));
+  const cardShown = cardSlugs(cardVisibleTags, availableTags);
+  const cardCappedOut = cardVisibleTags.filter((b) => !cardShown.includes(b));
   const [preorderDate, setPreorderDate] = useState("");
   const [variants, setVariants] = useState<VariantRow[]>([]);
   const [images, setImages] = useState<ImageRow[]>([]);
@@ -780,21 +789,23 @@ export default function EditProductPage() {
             <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5 text-secondary" /> Badges</CardTitle></CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
-                {["new", "sale", "bestseller", "preorder", "limited", "trending", "exclusive"].map((badge) => {
+                {availableTags.map((tag) => {
+                  const badge = tag.slug;
                   const selected = selectedBadges.includes(badge);
                   const hidden = hiddenCardBadges.includes(badge);
                   return (
                     <div key={badge}
                       className={cn("inline-flex items-center rounded-full border text-xs font-medium transition-all",
-                        selected ? "bg-secondary text-white border-secondary" : "bg-card text-charcoal-lighter border-border hover:border-charcoal hover:text-charcoal")}>
+                        selected ? "border-transparent" : "bg-card text-charcoal-lighter border-border hover:border-charcoal hover:text-charcoal")}
+                      style={selected ? { backgroundColor: tag.color, color: tag.text_color || autoTextColor(tag.color) } : undefined}>
                       <button type="button" onClick={() => toggleBadge(badge)}
-                        className={cn("pl-3 py-1.5 capitalize active:scale-[0.96]", selected ? "pr-1.5" : "pr-3")}>
-                        {badge === "preorder" ? "Pre-order" : badge}
+                        className={cn("pl-3 py-1.5 active:scale-[0.96]", selected ? "pr-1.5" : "pr-3")}>
+                        {tag.label}
                       </button>
                       {selected && (
                         <button type="button" onClick={() => toggleCardVisibility(badge)}
                           title={hidden ? "Hidden on card — click to show on card" : "Shown on card — click to hide on card"}
-                          aria-label={hidden ? `Show ${badge} on card` : `Hide ${badge} on card`}
+                          aria-label={hidden ? `Show ${tag.label} on card` : `Hide ${tag.label} on card`}
                           className="flex items-center justify-center h-6 w-6 mr-1 rounded-full hover:bg-white/20 active:scale-90 transition-all">
                           {hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                         </button>
@@ -804,8 +815,16 @@ export default function EditProductPage() {
                 })}
               </div>
               <p className="mt-2.5 text-[11px] text-charcoal-lighter leading-relaxed">
-                Tap the <Eye className="inline h-3 w-3 -mt-0.5" /> on a selected tag to hide it from the product card. Hidden tags still list the product in their section (e.g. Trending, Exclusive) and show on the product page — they just won&apos;t appear as a label on the card.
+                Tap the <Eye className="inline h-3 w-3 -mt-0.5" /> on a selected tag to hide it from the product card. Hidden tags still list the product in their section (e.g. Trending, Exclusive) and show on the product page — they just won&apos;t appear as a label on the card. Colours and new tags are set in <a href="/admin/tags" className="text-secondary hover:underline">Tags</a>.
               </p>
+              {/* Only the top few by priority fit on a product card, so say so
+                  rather than letting a 4th tag silently never appear. */}
+              {cardCappedOut.length > 0 && (
+                <p className="mt-2 flex items-start gap-1.5 text-[11px] text-warning">
+                  <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                  Only the first {MAX_CARD_TAGS} show on a product card. {cardCappedOut.join(", ")} will show on the product page only — reorder in <a href="/admin/tags" className="underline">Tags</a> to change which win.
+                </p>
+              )}
 
               {/* Pre-order settings — shown only when the Pre-order badge is on.
                   Optional "expected availability" date; pre-orders are COD. */}

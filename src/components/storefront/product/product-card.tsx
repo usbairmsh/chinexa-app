@@ -7,6 +7,7 @@ import Image from "next/image";
 import { Heart, ShoppingBag, Clock } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 import { Badge } from "@/components/ui/badge";
+import { TagChips } from "@/components/ui/tag-chip";
 import { useCartStore } from "@/stores/cart.store";
 import { useWishlistStore } from "@/stores/wishlist.store";
 import { useUIStore } from "@/stores/ui.store";
@@ -171,16 +172,17 @@ export function ProductCard({ product, index = 0, priority = false }: ProductCar
               />
             )}
 
-            {/* Badges — admin-hidden tags are filtered out (they still show on
-                the detail page + still drive their section). */}
+            {/* Tags — admin-hidden ones are filtered out (they still show on
+                the detail page + still drive their section), and the rest are
+                capped at the top few by the admin's priority order, since a
+                card has no room for more. The detail page shows all of them. */}
             {visibleBadges.length > 0 && (
-              <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex flex-col gap-1 sm:gap-1.5">
-                {visibleBadges.map((badge) => (
-                  <Badge key={badge} variant={badge} className="text-[10px] px-1.5 sm:px-2.5 uppercase tracking-wider">
-                    {badge === "preorder" ? "Pre-order" : badge}
-                  </Badge>
-                ))}
-              </div>
+              <TagChips
+                slugs={visibleBadges}
+                variant="card"
+                className="absolute top-2 left-2 sm:top-3 sm:left-3 gap-1 sm:gap-1.5"
+                chipClassName="text-[10px] px-1.5 sm:px-2.5 py-0.5"
+              />
             )}
 
             {/* Low stock badge — top right */}
