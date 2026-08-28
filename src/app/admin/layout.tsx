@@ -6,7 +6,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Package, FolderTree, ShoppingCart, RotateCcw, Users, Star,
-  Image as ImageIcon, Tag, Gift, FileText, Search, BarChart3,
+  Image as ImageIcon, Tag, Tags, Gift, FileText, Search, BarChart3,
   DollarSign, AlertTriangle, Activity, UserCog, Settings, Link2,
   Menu, ChevronLeft, LogOut, Bell, Warehouse, Key, User, Loader2, Lock, MessageCircle, Megaphone, ShieldMinus, Mail
 } from "lucide-react";
@@ -54,6 +54,7 @@ const navSections = [
       { icon: ImageIcon, label: "Banners", href: "/admin/banners", perm: "banners" },
       { icon: Tag, label: "Coupons", href: "/admin/coupons", perm: "coupons" },
       { icon: Gift, label: "Offers", href: "/admin/offers", perm: "offers" },
+      { icon: Tags, label: "Tags", href: "/admin/tags", perm: "tags" },
       { icon: Bell, label: "Notifications", href: "/admin/notifications", perm: "customers" },
       { icon: Star, label: "Reviews", href: "/admin/reviews", perm: "reviews" },
       { icon: FileText, label: "Blog", href: "/admin/blog", perm: "blog" },

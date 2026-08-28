@@ -259,3 +259,63 @@ export async function getTagBySlug(slug: string): Promise<Tag | null> {
   const rows = await query<RowDataPacket[]>("SELECT * FROM tags WHERE slug = ? LIMIT 1", [slug]);
   return rows.length ? rowToTag(rows[0]) : null;
 }
+
+// ─── Request-body parsing ───────────────────────────────────────────────
+// Shared by POST /api/tags and PATCH /api/tags/[id] so a tag created one way
+// can never be validated differently from one edited the other way.
+
+const ATTACH_TYPES: TagAttachType[] = ["none", "category", "subcategory", "product", "offer", "coupon"];
+const VALIDITY_MODES: TagValidityMode[] = ["none", "date", "days", "months", "years"];
+
+/**
+ * Shared field parsing + validation for POST and PATCH.
+ * Returns either an error message or a clean, storable set of values.
+ */
+export function parseTagBody(body: Record<string, unknown>): { error: string } | {
+  label: string; color: string; textColor: string | null;
+  attachType: TagAttachType; attachIds: string[];
+  validityMode: TagValidityMode; validityValue: string | null;
+  isActive: boolean; priority: number;
+} {
+  const label = String(body.label ?? "").trim();
+  if (label.length < 2) return { error: "Tag name must be at least 2 characters." };
+  if (label.length > 80) return { error: "Tag name must be 80 characters or fewer." };
+
+  const color = String(body.color ?? "").trim();
+  if (!isValidHex(color)) return { error: "Pick a colour for the tag." };
+
+  const rawText = body.text_color == null ? "" : String(body.text_color).trim();
+  if (rawText && !isValidHex(rawText)) return { error: "Text colour must be a hex value like #FFFFFF." };
+  const textColor = rawText || null;
+
+  const attachType = String(body.attach_type ?? "none") as TagAttachType;
+  if (!ATTACH_TYPES.includes(attachType)) return { error: "Unknown attachment type." };
+
+  const attachIds = Array.isArray(body.attach_ids)
+    ? [...new Set(body.attach_ids.map((v) => String(v).trim()).filter(Boolean))]
+    : [];
+
+  const validityMode = String(body.validity_mode ?? "none") as TagValidityMode;
+  if (!VALIDITY_MODES.includes(validityMode)) return { error: "Unknown validity type." };
+
+  const validityValue = body.validity_value == null ? null : String(body.validity_value).trim() || null;
+
+  // The attach/validity invariant lives in lib/tags.ts so this route and the
+  // admin UI can never disagree about it.
+  const invariant = validateAttachAndValidity(attachType, attachIds, validityMode, validityValue);
+  if (invariant) return { error: invariant };
+
+  const priorityRaw = Number(body.priority);
+  const priority = Number.isFinite(priorityRaw) ? Math.max(0, Math.min(9999, Math.round(priorityRaw))) : 100;
+
+  return {
+    label, color, textColor, attachType, attachIds,
+    // Normalised so an attached tag can never carry stale validity data, and an
+    // unattached one can never carry stale attachment ids.
+    validityMode: attachType === "none" ? validityMode : "none",
+    validityValue: attachType === "none" ? validityValue : null,
+    isActive: body.is_active === undefined ? true : Boolean(body.is_active),
+    priority,
+  };
+}
+

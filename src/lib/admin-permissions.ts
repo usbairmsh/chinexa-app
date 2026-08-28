@@ -30,6 +30,7 @@ export const PERMISSION_SECTIONS: PermissionSectionDef[] = [
   { key: "banners", label: "Banners", navSection: "Content", actions: ["view", "add", "edit", "delete"] },
   { key: "coupons", label: "Coupons", navSection: "Content", actions: ["view", "add", "edit", "delete"] },
   { key: "offers", label: "Offers", navSection: "Content", actions: ["view", "add", "edit", "delete"] },
+  { key: "tags", label: "Tags", navSection: "Content", actions: ["view", "add", "edit", "delete"] },
   { key: "reviews", label: "Reviews", navSection: "Content", actions: ["view", "approve", "delete"] },
   { key: "blog", label: "Blog", navSection: "Content", actions: ["view", "add", "edit", "delete"] },
   { key: "homepage", label: "Homepage", navSection: "Content", actions: ["view", "edit"] },
