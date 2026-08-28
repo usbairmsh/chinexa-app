@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { useSwipe } from "@/hooks/use-swipe";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -197,6 +198,33 @@ export default function ProductDetailPage() {
   // add → (loading) → added instead of snapping. Pure state; timing is short
   // so it reads as tactile feedback, never as a real wait.
   const [addingToCart, setAddingToCart] = useState(false);
+
+  // ─── Gallery navigation ───
+  // Declared BEFORE the loading/not-found early returns, so the hook order is
+  // identical on every render. `product` may still be undefined here, hence the
+  // optional access and the 0 fallback.
+  const imageCount = product?.images?.length ?? 0;
+  const showPrevImage = useCallback(
+    () => setSelectedImage((i) => (imageCount ? (i - 1 + imageCount) % imageCount : 0)),
+    [imageCount]
+  );
+  const showNextImage = useCallback(
+    () => setSelectedImage((i) => (imageCount ? (i + 1) % imageCount : 0)),
+    [imageCount]
+  );
+
+  // Swipe to change image on any touchscreen — phone or tablet. Disabled for a
+  // single image so a stray flick can't look like a broken gallery.
+  const gallerySwipe = useSwipe({
+    onSwipeLeft: showNextImage,
+    onSwipeRight: showPrevImage,
+    enabled: imageCount > 1,
+  });
+  const lightboxSwipe = useSwipe({
+    onSwipeLeft: showNextImage,
+    onSwipeRight: showPrevImage,
+    enabled: imageCount > 1,
+  });
 
   // ─── Loading Skeleton ───
   if (isLoading) {
@@ -427,7 +455,10 @@ export default function ProductDetailPage() {
               // layout. The frame is now the constraint; tap through to the
               // lightbox to see any image uncropped.
               className="relative flex-1 w-full max-w-full min-w-0 aspect-[3/4] sm:max-h-[600px] rounded-2xl overflow-hidden bg-image-surface group cursor-zoom-in"
-              onClick={() => setLightboxOpen(true)}
+              {...gallerySwipe}
+              // A swipe and a tap arrive as the same click on a touchscreen, so
+              // the lightbox must not open at the end of a swipe.
+              onClick={() => { if (!gallerySwipe.didSwipe()) setLightboxOpen(true); }}
             >
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
@@ -482,14 +513,14 @@ export default function ProductDetailPage() {
               {product.images.length > 1 && (
                 <>
                   <button
-                    onClick={(e) => { e.stopPropagation(); setSelectedImage((p) => (p - 1 + product.images.length) % product.images.length); }}
+                    onClick={(e) => { e.stopPropagation(); showPrevImage(); }}
                     className="absolute left-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-white active:scale-[0.92] z-10"
                     aria-label="Previous image"
                   >
                     <ChevronLeft className="h-5 w-5 text-charcoal" />
                   </button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); setSelectedImage((p) => (p + 1) % product.images.length); }}
+                    onClick={(e) => { e.stopPropagation(); showNextImage(); }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-white active:scale-[0.92] z-10"
                     aria-label="Next image"
                   >
@@ -1200,7 +1231,10 @@ export default function ProductDetailPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
-            onClick={() => setLightboxOpen(false)}
+            {...lightboxSwipe}
+            // Same tap/swipe conflict as the inline gallery: the backdrop closes
+            // on click, so a swipe must not also dismiss the lightbox.
+            onClick={() => { if (!lightboxSwipe.didSwipe()) setLightboxOpen(false); }}
           >
             {/* Close */}
             <button
@@ -1214,13 +1248,13 @@ export default function ProductDetailPage() {
             {product.images.length > 1 && (
               <>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setSelectedImage((prev) => (prev - 1 + product.images.length) % product.images.length); }}
+                  onClick={(e) => { e.stopPropagation(); showPrevImage(); }}
                   className="absolute left-4 top-1/2 -translate-y-1/2 z-50 h-10 w-10 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 active:scale-90 transition-all"
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </button>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setSelectedImage((prev) => (prev + 1) % product.images.length); }}
+                  onClick={(e) => { e.stopPropagation(); showNextImage(); }}
                   className="absolute right-4 top-1/2 -translate-y-1/2 z-50 h-10 w-10 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 active:scale-90 transition-all"
                 >
                   <ChevronRight className="h-5 w-5" />
