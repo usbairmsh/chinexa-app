@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { TagChips } from "@/components/ui/tag-chip";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Separator } from "@/components/ui/separator";
@@ -453,15 +452,15 @@ export default function ProductDetailPage() {
                 </motion.div>
               </AnimatePresence>
 
-              {/* Tags — ALL of them, uncapped and in the admin's priority order.
-                  The 3-tag cap and the hide-on-card toggle both apply only to
-                  the compact card; this page has the room. */}
+              {/* Badges */}
               {product.badges.length > 0 && (
-                <TagChips
-                  slugs={product.badges}
-                  className="absolute top-4 left-4 z-10 gap-2"
-                  chipClassName="px-2.5 py-1"
-                />
+                <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
+                  {product.badges.map((badge) => (
+                    <Badge key={badge} variant={badge} className="uppercase tracking-wider text-[10px] font-bold px-2.5 py-1">
+                      {badge === "preorder" ? "Pre-order" : badge}
+                    </Badge>
+                  ))}
+                </div>
               )}
 
               {/* Discount badge */}

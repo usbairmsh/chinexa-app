@@ -6,7 +6,6 @@ import { Plus, Edit, Trash2, MoreHorizontal, Loader2, AlertTriangle, Tag, Search
 import { AdminButton } from "@/components/admin/shared/admin-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AttachedTagChips } from "@/components/ui/tag-chip";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -291,9 +290,6 @@ export default function AdminOffersPage() {
                   </div>
 
                   <h3 className="font-medium text-charcoal mb-1 line-clamp-1">{offer.title}</h3>
-                  {/* Tags attached to this offer in /admin/tags — a label only;
-                      they do not affect pricing or which products it covers. */}
-                  <AttachedTagChips attachType="offer" targetId={offer.id} className="mb-1.5" />
                   {offer.description && <p className="text-xs text-charcoal-lighter mb-3 line-clamp-2">{offer.description}</p>}
 
                   <div className="flex items-center gap-2 flex-wrap mb-3">

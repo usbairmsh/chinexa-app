@@ -10,8 +10,4 @@ export async function register() {
   // from orders that were never paid for.
   const { startEpsReconcileScheduler } = await import("@/lib/eps-reconcile");
   startEpsReconcileScheduler();
-  // Tags: drop expired tag slugs from products, so every badge query can keep
-  // reading `badges` without also checking an expiry date.
-  const { startTagSweepScheduler } = await import("@/lib/tag-sweep");
-  startTagSweepScheduler();
 }

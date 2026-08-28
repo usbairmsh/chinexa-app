@@ -1,5 +1,4 @@
 import { query, execute, escapeLike } from "@/lib/db";
-import { ensureTagTables } from "@/lib/migrate-tags";
 import { type RowDataPacket } from "mysql2/promise";
 import type { Product, ProductListParams } from "@/types/product";
 import type { PaginatedResponse } from "@/types/api";
@@ -87,9 +86,6 @@ function toBooleanFulltextQuery(term: string): string {
  * and the two can never drift out of sync with each other.
  */
 export async function getProductsList(searchParams: URLSearchParams): Promise<PaginatedResponse<Product> & { data: Product[]; active_count?: number; inactive_count?: number; max_price?: number }> {
-  // The category filter below reads the `tags` table, so it must exist —
-  // idempotent and latched, so this is a no-op after the first call.
-  await ensureTagTables();
   const page = Number(searchParams.get("page")) || 1;
   const pageSize = Number(searchParams.get("page_size")) || 12;
   const category = searchParams.get("category");
@@ -116,33 +112,20 @@ export async function getProductsList(searchParams: URLSearchParams): Promise<Pa
   let relevanceParams: (string | number)[] = [];
 
   if (category) {
-    // A product reaches a category page two ways: by its own category_id /
-    // subcategory, or by carrying a TAG that an admin attached to this category
-    // (see /admin/tags). The tag arm is a LEFT-side EXISTS over `tags` rather
-    // than a join, so a store with no attached tags pays almost nothing for it.
     where += ` AND (
-      (
-        CASE
-          WHEN EXISTS (SELECT 1 FROM categories WHERE slug = ? AND parent_id IS NOT NULL)
-          THEN (
-            p.subcategory IN (SELECT name FROM categories WHERE slug = ?)
-            OR p.category_id IN (SELECT id FROM categories WHERE slug = ?)
-          )
-          ELSE (
-            p.category_id = ?
-            OR p.category_id IN (SELECT id FROM categories WHERE slug = ?)
-          )
-        END
-      )
-      OR EXISTS (
-        SELECT 1 FROM tags t
-        WHERE t.is_active = TRUE
-          AND t.attach_type IN ('category', 'subcategory')
-          AND JSON_CONTAINS(p.badges, JSON_QUOTE(t.slug))
-          AND JSON_CONTAINS(t.attach_ids, JSON_QUOTE((SELECT id FROM categories WHERE slug = ? LIMIT 1)))
-      )
+      CASE
+        WHEN EXISTS (SELECT 1 FROM categories WHERE slug = ? AND parent_id IS NOT NULL)
+        THEN (
+          p.subcategory IN (SELECT name FROM categories WHERE slug = ?)
+          OR p.category_id IN (SELECT id FROM categories WHERE slug = ?)
+        )
+        ELSE (
+          p.category_id = ?
+          OR p.category_id IN (SELECT id FROM categories WHERE slug = ?)
+        )
+      END
     )`;
-    params.push(category, category, category, category, category, category);
+    params.push(category, category, category, category, category);
   }
   if (subcategory) {
     const subs = subcategory.split(",").map((s) => s.trim()).filter(Boolean);
