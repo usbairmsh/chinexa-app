@@ -386,16 +386,22 @@ export default function ProductDetailPage() {
 
       {/* ═══════ MAIN PRODUCT SECTION ═══════ */}
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-10 pb-16">
-        <div className="grid lg:grid-cols-12 gap-6 lg:gap-14">
+        {/* min-w-0 on the grid too: grid items also default to min-width:auto,
+            so an unbreakable child (a long SKU, a wide gallery) can stretch the
+            whole track and scroll the page sideways on a phone. */}
+        <div className="grid lg:grid-cols-12 gap-6 lg:gap-14 min-w-0">
 
           {/* ── LEFT: Gallery ── (no load fade: this holds the LCP image, so it
               must paint immediately, not wait for framer-motion to boot) */}
-          <div className="lg:col-span-7 flex flex-col-reverse sm:flex-row gap-4">
+          {/* min-w-0 on the column itself: a grid/flex item defaults to
+              min-width:auto and won't shrink below its widest child, so the
+              thumbnail row could push this whole column past the viewport. */}
+          <div className="lg:col-span-7 min-w-0 flex flex-col-reverse sm:flex-row gap-4">
             {/* Thumbnails — vertical on desktop */}
             {product.images.length > 1 && (
               // min-w-0 lets the horizontal scroller actually scroll on mobile
               // instead of widening the row past the viewport.
-              <div className="flex sm:flex-col gap-2.5 overflow-x-auto sm:overflow-y-auto min-w-0 sm:w-[72px] shrink-0 pb-1 sm:pb-0 sm:max-h-[600px]">
+              <div className="flex sm:flex-col gap-2.5 overflow-x-auto sm:overflow-y-auto w-full max-w-full min-w-0 sm:w-[72px] shrink-0 pb-1 sm:pb-0 sm:max-h-[600px]">
                 {product.images.map((img, i) => (
                   <button
                     key={img.id}
@@ -420,7 +426,7 @@ export default function ProductDetailPage() {
               // a very tall image drive the container height and overflow the
               // layout. The frame is now the constraint; tap through to the
               // lightbox to see any image uncropped.
-              className="relative flex-1 min-w-0 aspect-[3/4] max-h-[70vh] sm:max-h-[600px] rounded-2xl overflow-hidden bg-image-surface group cursor-zoom-in"
+              className="relative flex-1 w-full max-w-full min-w-0 aspect-[3/4] sm:max-h-[600px] rounded-2xl overflow-hidden bg-image-surface group cursor-zoom-in"
               onClick={() => setLightboxOpen(true)}
             >
               <AnimatePresence mode="wait" initial={false}>
@@ -511,7 +517,7 @@ export default function ProductDetailPage() {
           </div>
 
           {/* ── RIGHT: Product Info (sticky) ── (no load fade: above-fold) */}
-          <div className="lg:col-span-5">
+          <div className="lg:col-span-5 min-w-0">
             <div className="lg:sticky lg:top-24 space-y-5">
               {/* Category + Title + Price */}
               <div>
@@ -529,7 +535,9 @@ export default function ProductDetailPage() {
                   )}
                 </div>
 
-                <h1 className="font-heading text-2xl sm:text-3xl lg:text-[2rem] font-semibold text-charcoal leading-tight mb-4">
+                {/* break-words so a long unbroken product name wraps instead of
+                    widening the column and scrolling the page sideways. */}
+                <h1 className="font-heading text-2xl sm:text-3xl lg:text-[2rem] font-semibold text-charcoal leading-tight mb-4 break-words">
                   {product.name}
                 </h1>
 

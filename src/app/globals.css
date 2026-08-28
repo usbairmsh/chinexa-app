@@ -506,6 +506,11 @@
     background-color: var(--color-background);
     line-height: 1.7;
     letter-spacing: 0.01em;
+    /* html alone isn't enough: on iOS Safari the body can still scroll
+       sideways when a child overflows, which is how a too-wide element ends up
+       shifting the whole page on a phone. This is a backstop, not a fix — an
+       overflowing child should still be constrained where it lives. */
+    overflow-x: hidden;
   }
 
   /* Bold Typography */
