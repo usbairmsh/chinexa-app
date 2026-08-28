@@ -393,7 +393,9 @@ export default function ProductDetailPage() {
           <div className="lg:col-span-7 flex flex-col-reverse sm:flex-row gap-4">
             {/* Thumbnails — vertical on desktop */}
             {product.images.length > 1 && (
-              <div className="flex sm:flex-col gap-2.5 overflow-x-auto sm:overflow-y-auto sm:w-[72px] shrink-0 pb-1 sm:pb-0 sm:max-h-[600px]">
+              // min-w-0 lets the horizontal scroller actually scroll on mobile
+              // instead of widening the row past the viewport.
+              <div className="flex sm:flex-col gap-2.5 overflow-x-auto sm:overflow-y-auto min-w-0 sm:w-[72px] shrink-0 pb-1 sm:pb-0 sm:max-h-[600px]">
                 {product.images.map((img, i) => (
                   <button
                     key={img.id}
@@ -413,7 +415,12 @@ export default function ProductDetailPage() {
 
             {/* Main Image */}
             <div
-              className="relative flex-1 aspect-[3/4] sm:aspect-auto sm:min-h-[500px] lg:min-h-[600px] rounded-2xl overflow-hidden bg-image-surface group cursor-zoom-in"
+              // Fixed 3:4 frame at EVERY breakpoint — the same ratio the product
+              // cards use. It previously went aspect-auto from sm: up, which let
+              // a very tall image drive the container height and overflow the
+              // layout. The frame is now the constraint; tap through to the
+              // lightbox to see any image uncropped.
+              className="relative flex-1 min-w-0 aspect-[3/4] max-h-[70vh] sm:max-h-[600px] rounded-2xl overflow-hidden bg-image-surface group cursor-zoom-in"
               onClick={() => setLightboxOpen(true)}
             >
               <AnimatePresence mode="wait" initial={false}>
