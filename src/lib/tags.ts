@@ -306,3 +306,30 @@ export const SYSTEM_TAG_FALLBACK: Tag[] = [
   validity_value: null,
   is_active: true,
 }));
+
+/**
+ * A renderable stand-in for a slug that has no tags row — either not yet
+ * adopted by the migration, or deactivated while still on a product.
+ *
+ * Colour is derived from the slug with the same hash the migration uses when it
+ * adopts one, so a tag doesn't change colour once its real row appears.
+ */
+export function orphanTag(slug: string): Tag {
+  const palette = ["#0F9D58", "#DC2626", "#B8860B", "#7C3AED", "#E11D48", "#2563EB", "#0891B2", "#EA580C", "#4B5563", "#DB2777"];
+  let hash = 0;
+  for (let i = 0; i < slug.length; i++) hash = (hash * 31 + slug.charCodeAt(i)) >>> 0;
+  return {
+    id: `tag-${slug}`,
+    slug,
+    label: slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
+    color: palette[hash % palette.length],
+    text_color: null,
+    is_system: false,
+    attach_type: "none",
+    attach_ids: [],
+    validity_mode: "none",
+    validity_value: null,
+    is_active: true,
+    priority: 500,
+  };
+}

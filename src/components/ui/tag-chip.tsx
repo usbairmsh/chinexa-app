@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { useTags } from "@/hooks/use-tags";
-import { autoTextColor, cardSlugs, sortSlugsByPriority, type Tag } from "@/lib/tags";
+import { autoTextColor, cardSlugs, sortSlugsByPriority, orphanTag, type Tag } from "@/lib/tags";
 
 // Renders a product tag in its admin-configured colours. Kept separate from
 // <Badge>, which still owns the non-product variants (success, warning, …) —
@@ -46,12 +46,22 @@ export function TagChips({
   className?: string;
   chipClassName?: string;
 }) {
-  const { tags } = useTags();
+  const { tags, allSlugs } = useTags();
   if (!slugs || slugs.length === 0) return null;
 
   const bySlug = new Map(tags.map((t) => [t.slug, t]));
   const ordered = variant === "card" ? cardSlugs(slugs, tags) : sortSlugsByPriority(slugs, tags);
-  const visible = ordered.map((s) => bySlug.get(s)).filter((t): t is Tag => !!t);
+
+  // Two different reasons a slug has no tag here, and they must behave
+  // differently. The hook only fetches ACTIVE tags, so a slug can be missing
+  // because an admin deactivated it — deliberate, and it should stay hidden.
+  // But an unknown slug (no row at all) is a label already live on the
+  // storefront, and dropping it would look like data loss. The migration adopts
+  // those on boot; this renders them with a derived label meanwhile.
+  const knownSlugs = new Set(allSlugs);
+  const visible: Tag[] = ordered
+    .filter((slug) => bySlug.has(slug) || !knownSlugs.has(slug))
+    .map((slug) => bySlug.get(slug) ?? orphanTag(slug));
   if (visible.length === 0) return null;
 
   return (

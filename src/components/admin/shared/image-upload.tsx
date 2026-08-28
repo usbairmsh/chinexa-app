@@ -65,6 +65,9 @@ export function ImageUpload({
   const [croppedArea, setCroppedArea] = useState<Area | null>(null);
   // Crop aspect preset: "" = free-form. Defaults to the field's natural ratio.
   const [cropAspect, setCropAspect] = useState<number | undefined>(CROP_ASPECT[aspectRatio]);
+  // "Full" is its own mode, not an aspect value: aspect=undefined already means
+  // free-form dragging, which is a different thing from keeping the whole image.
+  const [cropFull, setCropFull] = useState(false);
 
   const aspectClass = { square: "aspect-square", video: "aspect-video", portrait: "aspect-[3/4]" }[aspectRatio];
 
@@ -91,7 +94,7 @@ export function ImageUpload({
   // ── Deferred commit — uploads the staged blob at submit time ──
   const commit = useCallback(async (): Promise<string | null> => {
     if (!stagedBlob.current) return null; // nothing new staged → keep existing value
-    const url = await uploadNow(stagedBlob.current, "image.jpg");
+    const url = await uploadNow(stagedBlob.current, stagedBlob.current.type === "image/png" ? "image.png" : "image.jpg");
     stagedBlob.current = null;
     revokeObjectUrl();
     if (url) { setPreview(url); onChange?.(url); }
@@ -132,7 +135,7 @@ export function ImageUpload({
       } else {
         // Immediate upload (no provider / no field).
         setUploading(true);
-        const url = await uploadNow(blob, "image.jpg");
+        const url = await uploadNow(blob, blob.type === "image/png" ? "image.png" : "image.jpg");
         if (url) { setPreview(url); onChange?.(url); }
       }
       setCropOpen(false);
@@ -239,10 +242,19 @@ export function ImageUpload({
             <DialogTitle className="flex items-center gap-2"><Crop className="h-4 w-4 text-secondary" /> Crop image</DialogTitle>
             <DialogDescription>Drag the box to move it, drag a handle to resize, then apply.</DialogDescription>
           </DialogHeader>
-          {rawImage && <ImageCropper src={rawImage} aspect={cropAspect} onChange={setCroppedArea} />}
+          {rawImage && <ImageCropper src={rawImage} aspect={cropFull ? undefined : cropAspect} full={cropFull} onChange={setCroppedArea} />}
           {/* Aspect presets */}
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-[11px] text-charcoal-lighter">Ratio:</span>
+            {/* Full keeps the original image untouched — no crop at all. */}
+            <button
+              type="button" onClick={() => setCropFull(true)}
+              title="Use the whole image at its original size"
+              className={cn("rounded-lg border px-2.5 py-1 text-xs transition-colors",
+                cropFull ? "border-secondary bg-secondary/10 text-charcoal" : "border-border/50 text-charcoal-lighter hover:bg-pearl")}
+            >
+              Full
+            </button>
             {([
               ["Free", undefined],
               ["Square", 1],
@@ -251,9 +263,9 @@ export function ImageUpload({
               ["3:4", 3 / 4],
             ] as const).map(([label, val]) => (
               <button
-                key={label} type="button" onClick={() => setCropAspect(val)}
+                key={label} type="button" onClick={() => { setCropFull(false); setCropAspect(val); }}
                 className={cn("rounded-lg border px-2.5 py-1 text-xs transition-colors",
-                  cropAspect === val ? "border-secondary bg-secondary/10 text-charcoal" : "border-border/50 text-charcoal-lighter hover:bg-pearl")}
+                  !cropFull && cropAspect === val ? "border-secondary bg-secondary/10 text-charcoal" : "border-border/50 text-charcoal-lighter hover:bg-pearl")}
               >
                 {label}
               </button>

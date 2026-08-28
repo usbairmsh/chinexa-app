@@ -26,7 +26,7 @@ import { FieldLabel } from "@/components/admin/shared/field-label";
 import { cn, formatCurrency, collectMissingFields } from "@/lib/utils";
 import { AlertTriangle } from "lucide-react";
 import { useTags } from "@/hooks/use-tags";
-import { autoTextColor, cardSlugs, MAX_CARD_TAGS } from "@/lib/tags";
+import { autoTextColor, cardSlugs, MAX_CARD_TAGS, orphanTag } from "@/lib/tags";
 import { CountrySearch } from "@/components/admin/shared/country-search";
 import { BrandSearch } from "@/components/admin/shared/brand-search";
 import { getIconById, type TrustBadge } from "@/lib/trust-badges";
@@ -157,7 +157,16 @@ export default function EditProductPage() {
   // Tagged-but-hidden-from-card badges (subset of selectedBadges).
   const [hiddenCardBadges, setHiddenCardBadges] = useState<string[]>([]);
   // Tag definitions come from /admin/tags now, not a hardcoded list.
-  const { tags: availableTags } = useTags();
+  const { tags: activeTags } = useTags();
+  // The picker must also show any tag this product ALREADY carries, even if
+  // it is inactive or has no tags row yet. Listing only active tags would
+  // leave an existing tag unrendered and therefore silently dropped on save.
+  const availableTags = [
+    ...activeTags,
+    ...selectedBadges
+      .filter((slug) => !activeTags.some((t) => t.slug === slug))
+      .map((slug) => orphanTag(slug)),
+  ];
   // Which of the selected tags actually fit on a product card.
   const cardVisibleTags = selectedBadges.filter((b) => !hiddenCardBadges.includes(b));
   const cardShown = cardSlugs(cardVisibleTags, availableTags);
@@ -345,8 +354,10 @@ export default function EditProductPage() {
   const tabs = [
     { id: "basic" as const, label: "Basic Info", icon: Package },
     { id: "variants" as const, label: "Variants & Stock", icon: Tag },
-    { id: "media" as const, label: "Media", icon: ImagePlus },
     { id: "seo" as const, label: "SEO", icon: BarChart3 },
+    // Media last: images are the slowest step and the one most often revisited,
+    // so it reads better as the final pass than as a mid-form interruption.
+    { id: "media" as const, label: "Media", icon: ImagePlus },
   ];
 
   if (loading) return <div className="flex items-center justify-center py-24"><Loader2 className="h-8 w-8 text-secondary animate-spin" /></div>;

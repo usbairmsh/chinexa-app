@@ -120,9 +120,92 @@ export async function ensureTagTables() {
       SYSTEM_TAGS.map((t) => t.slug)
     );
 
+    // ─── Adopt badges already on live products ───────────────────────────────
+    // Until now nothing validated products.badges — the API stored whatever it
+    // was sent — so a deployed store can hold slugs beyond the seven built-ins.
+    // Those products are already live and their labels must keep rendering, so
+    // every distinct slug found on a product gets a tags row if it has none.
+    //
+    // Adopted tags are NOT marked is_system: they are fully editable and
+    // deletable, unlike the seven the storefront depends on.
+    await adoptExistingBadges();
+
     done = true;
   } catch (err) {
     // Leave done=false so a transient failure retries on the next request.
     console.error("[ensureTagTables] migration failed:", err);
   }
+}
+
+/**
+ * Give every badge slug already present on a product a `tags` row, so nothing
+ * that renders on the live site disappears when tags become configurable.
+ *
+ * Runs on every boot, not just the first: a slug could also arrive from a
+ * database restore or a direct SQL edit, and adopting it late is much better
+ * than dropping a label a shopper can see.
+ *
+ * Colour is derived from the slug rather than random, so the same name always
+ * gets the same colour and an admin can recolour it afterwards.
+ */
+async function adoptExistingBadges(): Promise<void> {
+  // JSON_TABLE would be tidier but needs MySQL 8.0.4+; this works everywhere
+  // and the product count here is small enough that it costs nothing.
+  const rows = await query<RowDataPacket[]>(
+    "SELECT DISTINCT badges FROM products WHERE badges IS NOT NULL AND JSON_LENGTH(badges) > 0"
+  );
+
+  const found = new Set<string>();
+  for (const row of rows) {
+    let list: unknown;
+    try {
+      list = typeof row.badges === "string" ? JSON.parse(row.badges) : row.badges;
+    } catch {
+      continue; // unparseable JSON — skip rather than abort the whole migration
+    }
+    if (!Array.isArray(list)) continue;
+    for (const raw of list) {
+      const slug = String(raw ?? "").trim();
+      // Only adopt slugs that are storable. Anything malformed is left alone:
+      // inventing a tag for it would legitimise bad data.
+      if (slug && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug) && slug.length <= 60) found.add(slug);
+    }
+  }
+  if (found.size === 0) return;
+
+  const existing = await query<RowDataPacket[]>(
+    `SELECT slug FROM tags WHERE slug IN (${[...found].map(() => "?").join(",")})`,
+    [...found]
+  );
+  const known = new Set(existing.map((r) => String(r.slug)));
+  const missing = [...found].filter((s) => !known.has(s));
+  if (missing.length === 0) return;
+
+  for (const slug of missing) {
+    await execute(
+      `INSERT IGNORE INTO tags (id, slug, label, color, is_system, priority)
+       VALUES (?, ?, ?, ?, FALSE, ?)`,
+      // Adopted tags sort after the built-ins, so they can't displace an
+      // existing tag from a product card's top three on day one.
+      [`tag-${slug}`, slug, titleCase(slug), colorForSlug(slug), 500]
+    );
+  }
+  console.log(`[ensureTagTables] adopted ${missing.length} existing badge(s): ${missing.join(", ")}`);
+}
+
+/** "flash-sale" → "Flash Sale" */
+function titleCase(slug: string): string {
+  return slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ").slice(0, 80);
+}
+
+/**
+ * Deterministic colour from a slug: the same name always yields the same
+ * colour, so an adopted tag looks stable rather than randomly reskinned on
+ * each deploy. Drawn from the same palette the configurator offers as swatches.
+ */
+function colorForSlug(slug: string): string {
+  const palette = ["#0F9D58", "#DC2626", "#B8860B", "#7C3AED", "#E11D48", "#2563EB", "#0891B2", "#EA580C", "#4B5563", "#DB2777"];
+  let hash = 0;
+  for (let i = 0; i < slug.length; i++) hash = (hash * 31 + slug.charCodeAt(i)) >>> 0;
+  return palette[hash % palette.length];
 }

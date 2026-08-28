@@ -10,15 +10,24 @@ import { SYSTEM_TAG_FALLBACK, type Tag } from "@/lib/tags";
 
 let cachedTags: Tag[] | null = null;
 let fetchPromise: Promise<Tag[]> | null = null;
+// Slugs of ALL tags, active or not. Lets a renderer distinguish a tag an admin
+// deliberately deactivated (stay hidden) from a slug with no row at all (render
+// it — it is already live on the storefront).
+let cachedAllSlugs: string[] = [];
 
 async function loadTags(): Promise<Tag[]> {
   if (cachedTags) return cachedTags;
   if (fetchPromise) return fetchPromise;
 
-  fetchPromise = fetch("/api/tags?active=true")
+  // Fetches every tag, not just active ones: the inactive slugs are needed to
+  // tell "deliberately hidden" from "no row yet". Active-only filtering happens
+  // below, so callers still receive just the renderable tags.
+  fetchPromise = fetch("/api/tags")
     .then((r) => r.json())
     .then((data) => {
-      const list: Tag[] = Array.isArray(data) ? data : [];
+      const all: Tag[] = Array.isArray(data) ? data : [];
+      cachedAllSlugs = all.map((t) => t.slug);
+      const list = all.filter((t) => t.is_active);
       cachedTags = list;
       return list;
     })
@@ -32,16 +41,18 @@ async function loadTags(): Promise<Tag[]> {
 /** Clear the cache so the next read refetches (used after an admin edit). */
 export function invalidateTags() {
   cachedTags = null;
+  cachedAllSlugs = [];
   fetchPromise = null;
 }
 
 export function useTags() {
   const [tags, setTags] = useState<Tag[]>(cachedTags || SYSTEM_TAG_FALLBACK);
+  const [allSlugs, setAllSlugs] = useState<string[]>(cachedAllSlugs);
   const [loaded, setLoaded] = useState(!!cachedTags);
 
   useEffect(() => {
-    loadTags().then((t) => { setTags(t); setLoaded(true); });
+    loadTags().then((t) => { setTags(t); setAllSlugs(cachedAllSlugs); setLoaded(true); });
   }, []);
 
-  return { tags, loaded };
+  return { tags, allSlugs, loaded };
 }

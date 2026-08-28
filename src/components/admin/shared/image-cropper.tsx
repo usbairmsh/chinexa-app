@@ -14,10 +14,16 @@ type Handle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "move";
 
 interface Rect { x: number; y: number; w: number; h: number } // in displayed-image px
 
-export function ImageCropper({ src, aspect, onChange }: {
+export function ImageCropper({ src, aspect, full = false, onChange }: {
   src: string;
   /** width/height ratio to lock the box to; undefined = free-form. */
   aspect?: number;
+  /**
+   * "Full" mode: use the whole image, uncropped. The box covers the entire
+   * frame and can't be moved or resized, so the output keeps the original
+   * dimensions instead of the 80% default crop.
+   */
+  full?: boolean;
   onChange: (area: Area | null) => void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -39,8 +45,8 @@ export function ImageCropper({ src, aspect, onChange }: {
     const left = (fw - w) / 2, top = (fh - h) / 2;
     setDisp({ left, top, w, h, natW, natH });
     // Default crop: 80% centered (respecting aspect if given).
-    setRect((prev) => prev ?? defaultRect(w, h, aspect));
-  }, [aspect]);
+    setRect((prev) => prev ?? (full ? { x: 0, y: 0, w, h } : defaultRect(w, h, aspect)));
+  }, [aspect, full]);
 
   useEffect(() => {
     const img = imgRef.current;
@@ -51,11 +57,12 @@ export function ImageCropper({ src, aspect, onChange }: {
     return () => window.removeEventListener("resize", onResize);
   }, [measure, src]);
 
-  // Reset the box when the aspect preset changes.
+  // Reset the box when the preset changes. In Full mode it snaps to the whole
+  // image, which is what makes the output the original, uncropped picture.
   useEffect(() => {
-    if (disp) setRect(defaultRect(disp.w, disp.h, aspect));
+    if (disp) setRect(full ? { x: 0, y: 0, w: disp.w, h: disp.h } : defaultRect(disp.w, disp.h, aspect));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspect]);
+  }, [aspect, full]);
 
   // Report the source-pixel Area whenever the box or geometry changes.
   useEffect(() => {
@@ -71,7 +78,9 @@ export function ImageCropper({ src, aspect, onChange }: {
   }, [rect, disp]);
 
   const onPointerDown = (handle: Handle) => (e: React.PointerEvent) => {
-    if (!rect) return;
+    // Full mode covers the whole image by definition — moving or resizing the
+    // box would contradict it, so dragging is inert.
+    if (!rect || full) return;
     e.preventDefault(); e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
     drag.current = { handle, startX: e.clientX, startY: e.clientY, start: { ...rect } };
@@ -154,15 +163,21 @@ export function ImageCropper({ src, aspect, onChange }: {
           }} />
           {/* Crop box */}
           <div
-            className="absolute cursor-move border-2 border-white/90 shadow-[0_0_0_1px_rgba(0,0,0,0.4)]"
+            className={cn(
+              "absolute border-2 border-white/90 shadow-[0_0_0_1px_rgba(0,0,0,0.4)]",
+              full ? "cursor-default" : "cursor-move"
+            )}
             style={{ left: disp.left + rect.x, top: disp.top + rect.y, width: rect.w, height: rect.h }}
             onPointerDown={onPointerDown("move")}
           >
-            {/* rule-of-thirds grid */}
-            <div className="pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-3 opacity-40">
-              {Array.from({ length: 9 }).map((_, i) => <div key={i} className="border border-white/30" />)}
-            </div>
-            {handles.map((hd) => (
+            {/* rule-of-thirds grid — a composition aid for cropping, so it is
+                pointless when the whole image is being kept. */}
+            {!full && (
+              <div className="pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-3 opacity-40">
+                {Array.from({ length: 9 }).map((_, i) => <div key={i} className="border border-white/30" />)}
+              </div>
+            )}
+            {!full && handles.map((hd) => (
               <div key={hd.h} className={cn(handleDot, hd.cls)} style={{ cursor: hd.cursor }} onPointerDown={onPointerDown(hd.h)} />
             ))}
           </div>
