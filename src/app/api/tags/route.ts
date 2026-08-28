@@ -5,9 +5,8 @@ import { logActivity } from "@/lib/log-activity";
 import { publicServerError } from "@/lib/validate";
 import { requirePermission } from "@/lib/admin-permissions-server";
 import { ensureTagTables } from "@/lib/migrate-tags";
-import {
-  getTags, slugify, isValidSlug, parseTagBody,
-} from "@/lib/tags";
+import { slugify, isValidSlug, parseTagBody } from "@/lib/tags";
+import { getTags } from "@/lib/tags-server";
 
 export const dynamic = "force-dynamic";
 
