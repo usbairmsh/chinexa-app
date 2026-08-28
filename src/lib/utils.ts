@@ -88,3 +88,21 @@ export function delay(ms: number): Promise<void> {
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
+
+/**
+ * Coerce user-typed colour input into a canonical #RRGGBB, or null if it isn't
+ * a colour at all.
+ *
+ * Accepts what people actually type rather than only the strict form: a missing
+ * "#", lowercase, surrounding spaces, and 3-digit shorthand (#f00 → #FF0000).
+ * Returning null for anything else lets a caller show an error instead of
+ * silently storing a value that renders as black.
+ */
+export function normalizeHex(input: string | null | undefined): string | null {
+  const raw = String(input ?? "").trim().replace(/^#/, "");
+  if (/^[0-9a-fA-F]{3}$/.test(raw)) {
+    return `#${raw.split("").map((c) => c + c).join("").toUpperCase()}`;
+  }
+  if (/^[0-9a-fA-F]{6}$/.test(raw)) return `#${raw.toUpperCase()}`;
+  return null;
+}

@@ -23,7 +23,7 @@ import { ImageUpload } from "@/components/admin/shared/image-upload";
 import { useFlushUploads } from "@/components/admin/shared/pending-uploads";
 import { ImagePositionEditor } from "@/components/admin/shared/image-position-editor";
 import { FieldLabel } from "@/components/admin/shared/field-label";
-import { cn, formatCurrency, collectMissingFields } from "@/lib/utils";
+import { cn, formatCurrency, collectMissingFields, normalizeHex } from "@/lib/utils";
 import { CountrySearch } from "@/components/admin/shared/country-search";
 import { BrandSearch } from "@/components/admin/shared/brand-search";
 import { getIconById, type TrustBadge } from "@/lib/trust-badges";
@@ -312,7 +312,9 @@ export default function EditProductPage() {
           const linkedImg = resolvedImages.find((img) => img.variant_id === v.id && img.url);
           return {
             name: v.name, type: v.type, value: v.value || v.name,
-            hex: v.hex || null, price_adjustment: (Number(v.price) || 0) - basePrice,
+            // Normalised so a half-typed value can't be stored as a colour
+            // that renders as nothing; unparseable input saves as no colour.
+            hex: normalizeHex(v.hex), price_adjustment: (Number(v.price) || 0) - basePrice,
             cost_price_adjustment: (Number(v.cost_price) || 0) - baseCostPrice,
             stock: Number(v.stock) || 0, sku: v.sku,
             image: linkedImg?.url || null, focal_point: linkedImg?.focal_point || null,
@@ -536,9 +538,34 @@ export default function EditProductPage() {
                                 <Input placeholder="Display Value" value={variant.value} onChange={(e) => updateVariant(variant.id, "value", e.target.value)} />
                               </div>
                               {variant.type === "color" && (
-                                <div className="flex items-center gap-2 mt-2">
-                                  <input type="color" value={variant.hex || "#C0392B"} onChange={(e) => updateVariant(variant.id, "hex", e.target.value)} className="h-9 w-9 rounded-lg border border-border cursor-pointer" />
-                                  <span className="text-xs text-charcoal-lighter font-mono">{variant.hex || "#C0392B"}</span>
+                                <div className="flex flex-wrap items-center gap-2 mt-2">
+                                  <input type="color" value={normalizeHex(variant.hex) || "#C0392B"} onChange={(e) => updateVariant(variant.id, "hex", e.target.value.toUpperCase())}
+                                    aria-label="Pick colour" className="h-9 w-9 shrink-0 rounded-lg border border-border cursor-pointer" />
+                                  {/* Typed hex, not just a readout. The native colour
+                                      picker is awkward-to-unusable on mobile, and a
+                                      brand colour is usually known as a code anyway. */}
+                                  <Input
+                                    value={variant.hex ?? ""}
+                                    onChange={(e) => updateVariant(variant.id, "hex", e.target.value)}
+                                    onBlur={(e) => { const n = normalizeHex(e.target.value); if (n) updateVariant(variant.id, "hex", n); }}
+                                    // Snap a pasted code immediately rather than
+                                    // waiting for blur, and accept the forms one
+                                    // actually arrives in — "c0392b", "#f00", or
+                                    // with a trailing newline from a design tool.
+                                    onPaste={(e) => {
+                                      const n = normalizeHex(e.clipboardData.getData("text"));
+                                      if (n) { e.preventDefault(); updateVariant(variant.id, "hex", n); }
+                                    }}
+                                    placeholder="#C0392B"
+                                    spellCheck={false}
+                                    autoCapitalize="characters"
+                                    maxLength={7}
+                                    aria-label="Hex colour code"
+                                    className="w-28 font-mono text-xs uppercase"
+                                  />
+                                  {variant.hex && !normalizeHex(variant.hex) && (
+                                    <span className="text-[10px] text-destructive">Use a 6-digit hex like #C0392B</span>
+                                  )}
                                 </div>
                               )}
                             </div>
